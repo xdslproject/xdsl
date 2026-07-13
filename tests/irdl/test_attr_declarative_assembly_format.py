@@ -1,7 +1,7 @@
-"""Tests for the attribute/type declarative assembly format plumbing.
+"""Tests for the attribute/type declarative assembly format.
 
-These tests drive ``AttrFormatProgram`` directly. At this stage only the empty
-format is supported; concrete directives are added in later commits.
+These tests drive ``AttrFormatProgram`` directly, covering the empty format and
+the structural directives (whitespace, punctuation, keyword).
 """
 
 from __future__ import annotations
@@ -13,7 +13,10 @@ import pytest
 from xdsl.context import Context
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
-from xdsl.irdl.declarative_assembly_format import AttrFormatProgram
+from xdsl.irdl.declarative_assembly_format import (
+    AttrFormatProgram,
+    AttrWhitespaceDirective,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
@@ -57,3 +60,29 @@ def test_parse_attribute_end_to_end():
 def test_error_unexpected_token():
     with pytest.raises(ParseError, match="unexpected token"):
         _program("$foo")
+
+
+# Whitespace directive
+
+
+@pytest.mark.parametrize(
+    "format_str, expected",
+    [("` `", " "), ("``", ""), ("`\\n`", "\n")],
+)
+def test_whitespace_print(format_str: str, expected: str):
+    assert _print(format_str) == expected
+
+
+def test_whitespace_parses_to_directive_and_consumes_nothing():
+    assert _program("` `").stmts == (AttrWhitespaceDirective(" "),)
+    assert _parse("` `", "") == []
+
+
+def test_error_invalid_whitespace():
+    with pytest.raises(ParseError, match="unexpected whitespace in directive"):
+        _program("`  `")
+
+
+def test_error_not_a_whitespace_directive():
+    with pytest.raises(ParseError, match="expected a whitespace directive"):
+        _program("`+`")
