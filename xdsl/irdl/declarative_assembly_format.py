@@ -1359,6 +1359,18 @@ class OptionalUnitAttrVariable(AttributeVariable):
         return False
 
 
+# ===========================================================================
+# Shared print helpers for the structural directives (whitespace, punctuation,
+# keyword), used by both the op-side and attr-side directive classes.
+# ===========================================================================
+
+
+def _print_whitespace(printer: Printer, state: PrintingState, whitespace: str) -> None:
+    printer.print_string(whitespace)
+    state.last_was_punctuation = whitespace == ""
+    state.should_emit_space = False
+
+
 @dataclass(frozen=True)
 class WhitespaceDirective(FormatDirective):
     """
@@ -1376,9 +1388,7 @@ class WhitespaceDirective(FormatDirective):
         return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        printer.print_string(self.whitespace)
-        state.last_was_punctuation = self.whitespace == ""
-        state.should_emit_space = False
+        _print_whitespace(printer, state, self.whitespace)
 
 
 @dataclass(frozen=True)
@@ -1534,6 +1544,32 @@ class AttrFormatDirective(ABC):
         """
 
 
+# ===========================================================================
+# Attr-side structural directives
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class AttrWhitespaceDirective(AttrFormatDirective):
+    """
+    A whitespace directive for attribute/type assembly format.
+
+    Mirrors the op-side WhitespaceDirective: only applied during printing,
+    with no effect during parsing.
+    """
+
+    whitespace: Literal[" ", "\n", ""]
+    """The whitespace that should be printed."""
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        return False
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        _print_whitespace(printer, state, self.whitespace)
+
+
 @dataclass(frozen=True)
 class AttrFormatProgram:
     """
@@ -1554,15 +1590,17 @@ class AttrFormatProgram:
 
     def parse(self, parser: AttrParser, attr_def: ParamAttrDef) -> list[Attribute]:
         """
-        Return the parsed parameter values.
+        Run each directive in order, returning the parsed parameter values.
 
-        Only the empty format is supported at this stage, so there are no
-        directives to run yet; IRDL constraint verification runs when the
-        attribute is constructed, not during this parse step.
+        IRDL constraint verification runs when the attribute is constructed,
+        not during this parse step.
         """
-        assert not self.stmts
         state = AttrParsingState(attr_def)
+        for stmt in self.stmts:
+            stmt.parse(parser, state)
         return cast(list[Attribute], state.parameters)
 
     def print(self, printer: Printer, attr: ParametrizedAttribute) -> None:
-        assert not self.stmts
+        state = PrintingState(last_was_punctuation=True, should_emit_space=False)
+        for stmt in self.stmts:
+            stmt.print(printer, state, attr)
