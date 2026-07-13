@@ -114,7 +114,7 @@ class PyBinOp(PyOperation):
         )
 
 
-Py = Dialect(
+Pybytecode = Dialect(
     "pybytecode",
     [
         PyBinOp,

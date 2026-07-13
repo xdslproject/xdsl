@@ -258,6 +258,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Py
 
+    def get_pybytecode():
+        from xdsl.dialects.pybytecode import Pybytecode
+
+        return Pybytecode
+
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
 
@@ -459,6 +464,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
         "py": get_py,
+        "pybytecode": get_pybytecode,
         "riscv": get_riscv,
         "rv32": get_RV32,
         "rv64": get_RV64,
