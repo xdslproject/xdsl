@@ -413,7 +413,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -798,7 +798,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -1000,13 +1000,13 @@ wheels = [
 
 [[package]]
 name = "heir-py"
-version = "2026.6.5.dev0"
+version = "2026.7.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fc/6b/b69b6a0cf6cbcdd22dd0593e0812e0bb2c6689276ebaaa85f4f403207b1d/heir_py-2026.6.5.dev0.tar.gz", hash = "sha256:3e3c68c0d4c8a8ae39fe31bf5414ddfbbefb886459dcf2aab62cb7cfdaa25401", size = 14203922, upload-time = "2026-06-05T10:16:35.643Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/cb/9500ca1eb17e615670a56908353751f186015fa9d87e247ec8e8bb7fcb13/heir_py-2026.7.1.tar.gz", hash = "sha256:9423e531d7cf1cef18c04ba41e13bb0677e9d76ae4a9b6bbf1d562d34fb498b7", size = 14296535, upload-time = "2026-07-01T02:16:28.832Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/06/f751aa96b5b2d8230b313d6a794316601d49617c7f9592167348efeddb5d/heir_py-2026.6.5.dev0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:660a25bb1eb9a9fa9d28554383af5ce00a2ac5a4676b6f7d1a3082c14d6810bf", size = 40159028, upload-time = "2026-06-05T10:16:27.286Z" },
-    { url = "https://files.pythonhosted.org/packages/12/e8/e2fdf517db256dcfa2e69f23a17ec05bd8e12776cb2abaa40b33c9577979/heir_py-2026.6.5.dev0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:9de278309560f8a8b7f971a1baedf7ac286b653e68e6ecbfde2da57bf824f4cc", size = 35744876, upload-time = "2026-06-05T10:16:30.271Z" },
-    { url = "https://files.pythonhosted.org/packages/94/bb/62ccfe579bf3bdd8b240fb31a654cad62d65e5edb84961c771ef6decda83/heir_py-2026.6.5.dev0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:48f7dff79517088716655b28c3dcea45cff65c9a4c86c28728cbfedfca7cb59f", size = 37187310, upload-time = "2026-06-05T10:16:33.113Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/9e/7670c25cd4d9bd7c50805ab7ea86f9a8681cf8897ab6a05b9a449f6d597f/heir_py-2026.7.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:b76748037db1cbabb03a236d2e21445c1eb13b37430ac92024e840c8223704b7", size = 35747987, upload-time = "2026-07-01T02:16:19.93Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/36/3c8b423c9980cb6bb6a2ae25859755d3cf98c41ae88a64dc457ed2a4b07e/heir_py-2026.7.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:0afa7904c911649ba37043834baa2eb0dab546080716fd7aa9e88e8265c16833", size = 32583366, upload-time = "2026-07-01T02:16:22.983Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/56/1b62ff27b1dc2401689c96897d3fe9ac7d0d62f30189e9af33a410248fb2/heir_py-2026.7.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:856ad7f8c4a06807a06da0ff8f0ad8bee889a503225a89c2443dc97912e8b648", size = 34519142, upload-time = "2026-07-01T02:16:26.071Z" },
 ]
 
 [[package]]
@@ -1098,17 +1098,17 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "colorama", marker = "python_full_version < '3.11' and sys_platform == 'win32'" },
-    { name = "decorator", marker = "python_full_version < '3.11'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "jedi", marker = "python_full_version < '3.11'" },
-    { name = "matplotlib-inline", marker = "python_full_version < '3.11'" },
-    { name = "pexpect", marker = "python_full_version < '3.11' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "prompt-toolkit", marker = "python_full_version < '3.11'" },
-    { name = "pygments", marker = "python_full_version < '3.11'" },
-    { name = "stack-data", marker = "python_full_version < '3.11'" },
-    { name = "traitlets", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "decorator" },
+    { name = "exceptiongroup" },
+    { name = "jedi" },
+    { name = "matplotlib-inline" },
+    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "prompt-toolkit" },
+    { name = "pygments" },
+    { name = "stack-data" },
+    { name = "traitlets" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/40/18/f8598d287006885e7136451fdea0755af4ebcbfe342836f24deefaed1164/ipython-8.39.0.tar.gz", hash = "sha256:4110ae96012c379b8b6db898a07e186c40a2a1ef5d57a7fa83166047d9da7624", size = 5513971, upload-time = "2026-03-27T10:02:13.94Z" }
 wheels = [
@@ -1125,18 +1125,18 @@ resolution-markers = [
     "python_full_version == '3.11.*'",
 ]
 dependencies = [
-    { name = "colorama", marker = "python_full_version >= '3.11' and sys_platform == 'win32'" },
-    { name = "decorator", marker = "python_full_version >= '3.11'" },
-    { name = "ipython-pygments-lexers", marker = "python_full_version >= '3.11'" },
-    { name = "jedi", marker = "python_full_version >= '3.11'" },
-    { name = "matplotlib-inline", marker = "python_full_version >= '3.11'" },
-    { name = "pexpect", marker = "python_full_version >= '3.11' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "prompt-toolkit", marker = "python_full_version >= '3.11'" },
-    { name = "psutil", marker = "python_full_version >= '3.11' and sys_platform != 'emscripten'" },
-    { name = "pygments", marker = "python_full_version >= '3.11'" },
-    { name = "stack-data", marker = "python_full_version >= '3.11'" },
-    { name = "traitlets", marker = "python_full_version >= '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version == '3.11.*'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "decorator" },
+    { name = "ipython-pygments-lexers" },
+    { name = "jedi" },
+    { name = "matplotlib-inline" },
+    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "prompt-toolkit" },
+    { name = "psutil", marker = "sys_platform != 'emscripten'" },
+    { name = "pygments" },
+    { name = "stack-data" },
+    { name = "traitlets" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e2/23/3a27530575643c8bb7bfc757a28e2e7ef80092afbf59a2bc5716320b6602/ipython-9.14.1.tar.gz", hash = "sha256:f913bf74df06d458e46ced84ca506c23797590d594b236fe60b14df213291e7b", size = 4433457, upload-time = "2026-06-05T08:12:34.921Z" }
 wheels = [
@@ -1148,7 +1148,7 @@ name = "ipython-pygments-lexers"
 version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pygments", marker = "python_full_version >= '3.11'" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ef/4c/5dd1d8af08107f88c7f741ead7a40854b8ac24ddf9ae850afbcf698aa552/ipython_pygments_lexers-1.1.1.tar.gz", hash = "sha256:09c0138009e56b6854f9535736f4171d855c8c08a563a0dcd8022f78355c7e81", size = 8393, upload-time = "2025-01-17T11:24:34.505Z" }
 wheels = [
@@ -1621,7 +1621,7 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "packaging", marker = "python_full_version < '3.12'" },
+    { name = "packaging" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f7/14/2801c64f5aff127521d16e574b87a7af93176ef0d488d8c1acce9d0d1641/micropip-0.7.2.tar.gz", hash = "sha256:e50f67efb5bdec33d4e5f6930206f8715e9a3c6f4006224c59fbc9def359960e", size = 1718933, upload-time = "2024-11-26T10:27:34.072Z" }
 wheels = [
@@ -4098,7 +4098,7 @@ docs = [
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
-    { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.6.5.dev0" },
+    { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.7.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19" },
