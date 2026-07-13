@@ -188,7 +188,6 @@ class PyBuilder(ast.NodeVisitor):
             self.visit(node.right)
             rhs = self.inserter.get_operand()
 
-        print(node.op, type(node.op))
         dunder = dunder_op_name(node.op)
 
         result_type = lhs.type if (lhs.type == rhs.type) else ObjectType("Unknown")
@@ -288,7 +287,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-s",
-        dest="source",
+        dest="src",
         action="store_true",
         help="More text please",
     )
@@ -304,23 +303,33 @@ if __name__ == "__main__":
         action="store_true",
         help="More text please",
     )
+    parser.add_argument(
+        "-T",
+        dest="test",
+        action="store_true",
+        help="More text please",
+    )
 
     args = parser.parse_args()
 
     with open(args.source) as f:
         source = f.read()
 
-    if args.source or args.all:
+    program = ast.parse(source)
+    module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
+    if not args.test and (args.src or args.all):
         print(f"-=-=-=-=-=[ Source ]=-=-=-=-=-\n{source}\n")
 
-    if args.disassemble or args.all:
+    if not args.test and (args.disassemble or args.all):
         print("-=-=-=-=-=[ Disassemble ]=-=-=-=-=-\n")
         dis(source)
         print()
 
-    program = ast.parse(source)
-    if args.tree or args.all:
+    if not args.test and (args.tree or args.all):
         print(f"-=-=-=-=-=[ AST ]=-=-=-=-=-\n{ast.dump(program, indent=4)}\n")
 
-    module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
-    print(f"-=-=-=-=-=[ Module ]=-=-=-=-=-\n{module}\n")
+    if args.test:
+        print(module)
+    else:
+        print("-=-=-=-=-=[ Module ]=-=-=-=-=-\n")
+        print(module)
