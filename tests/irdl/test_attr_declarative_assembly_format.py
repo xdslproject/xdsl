@@ -13,10 +13,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
-from xdsl.irdl.declarative_assembly_format import (
-    AttrFormatProgram,
-    AttrWhitespaceDirective,
-)
+from xdsl.irdl.declarative_assembly_format import AttrFormatProgram
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
@@ -46,9 +43,13 @@ def test_empty_format_produces_empty_program():
     assert _program("").stmts == ()
 
 
-def test_empty_format_prints_and_parses_nothing():
-    assert _print("") == ""
-    assert _parse("", "") == []
+@pytest.mark.parametrize(
+    "format_str, printed",
+    [("", ""), ("` `", " "), ("``", ""), ("`\\n`", "\n")],
+)
+def test_prints_and_parses_nothing(format_str: str, printed: str):
+    assert _print(format_str) == printed
+    assert _parse(format_str, "") == []
 
 
 def test_parse_attribute_end_to_end():
@@ -57,32 +58,14 @@ def test_parse_attribute_end_to_end():
     assert Parser(ctx, "!test_af.empty").parse_type() == EmptyType()
 
 
-def test_error_unexpected_token():
-    with pytest.raises(ParseError, match="unexpected token"):
-        _program("$foo")
-
-
-# Whitespace directive
-
-
 @pytest.mark.parametrize(
-    "format_str, expected",
-    [("` `", " "), ("``", ""), ("`\\n`", "\n")],
+    "format_str, error",
+    [
+        ("$foo", "unexpected token"),
+        ("`  `", "unexpected whitespace in directive"),
+        ("`+`", "expected a whitespace directive"),
+    ],
 )
-def test_whitespace_print(format_str: str, expected: str):
-    assert _print(format_str) == expected
-
-
-def test_whitespace_parses_to_directive_and_consumes_nothing():
-    assert _program("` `").stmts == (AttrWhitespaceDirective(" "),)
-    assert _parse("` `", "") == []
-
-
-def test_error_invalid_whitespace():
-    with pytest.raises(ParseError, match="unexpected whitespace in directive"):
-        _program("`  `")
-
-
-def test_error_not_a_whitespace_directive():
-    with pytest.raises(ParseError, match="expected a whitespace directive"):
-        _program("`+`")
+def test_error(format_str: str, error: str):
+    with pytest.raises(ParseError, match=error):
+        _program(format_str)
