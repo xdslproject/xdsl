@@ -36,7 +36,7 @@ from xdsl.irdl import (
 class PyObjectType(ParametrizedAttribute, TypeAttribute):
     """Python opaque type"""
 
-    name = "py.object"
+    name = "pybytecode.object"
 
 
 ##==------------------------------------------------------------------------==##
@@ -59,9 +59,9 @@ class PyModuleOp(PyOperation):
 
     For example if you have the following MLIR:
 
-    %0 = py.const 0
-    %1 = py.const 1
-    %2 = py.binop "add" %0 %1
+    %0 = pybytecode.const 0
+    %1 = pybytecode.const 1
+    %2 = pybytecode.binop "add" %0 %1
 
     We mean the following Python code:
     _0 = 1
@@ -69,7 +69,7 @@ class PyModuleOp(PyOperation):
     _2 = _0 + _1
     """
 
-    name = "py.module"
+    name = "pybytecode.module"
     body = region_def()
 
 
@@ -79,7 +79,7 @@ class PyConstOp(PyOperation):
     x = CONST
     """
 
-    name = "py.const"
+    name = "pybytecode.const"
     assembly_format = "$const attr-dict"
 
     # We can expand this to other types later.
@@ -96,7 +96,7 @@ class PyBinOp(PyOperation):
     x BINOP y
     """
 
-    name = "py.binop"
+    name = "pybytecode.binop"
     lhs = operand_def(PyObjectType())
     rhs = operand_def(PyObjectType())
     res = result_def(PyObjectType())
@@ -115,7 +115,7 @@ class PyBinOp(PyOperation):
 
 
 Py = Dialect(
-    "py",
+    "pybytecode",
     [
         PyBinOp,
         PyConstOp,
