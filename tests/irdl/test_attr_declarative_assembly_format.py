@@ -59,11 +59,23 @@ def test_parse_attribute_end_to_end():
 
 
 @pytest.mark.parametrize(
+    "format_str, printed",
+    [("`hello`", "hello"), ("`foo``bar`", "foo bar")],
+)
+def test_keyword_print(format_str: str, printed: str):
+    assert _print(format_str) == printed
+
+
+def test_keyword_parse():
+    assert _parse("`kw`", "kw") == []
+
+
+@pytest.mark.parametrize(
     "format_str, error",
     [
         ("$foo", "unexpected token"),
         ("`  `", "unexpected whitespace in directive"),
-        ("`+`", "expected a whitespace directive"),
+        ("`+`", "punctuation or identifier expected"),
     ],
 )
 def test_error(format_str: str, error: str):
