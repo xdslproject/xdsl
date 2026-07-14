@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatNonfiniteBehavior,
     IndexType,
     IntAttr,
     IntAttrConstraint,
@@ -38,6 +39,7 @@ from xdsl.dialects.builtin import (
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
+    _ReducedPrecisionFloatType,
     bf16,
     f4E2M1FN,
     f6E2M3FN,
@@ -79,6 +81,8 @@ from xdsl.irdl import (
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+# pyright: reportPrivateUsage=false
 
 
 def test_FloatType_bitwidths():
@@ -298,6 +302,77 @@ def test_reduced_float_pack_bit_patterns(
 ):
     assert type_.pack((value,)) == expected_raw
     assert type_.unpack(expected_raw, 1)[0] == value
+
+
+_REDUCED_TYPES = (
+    tf32,
+    f8E5M2,
+    f8E4M3,
+    f8E4M3FN,
+    f8E5M2FNUZ,
+    f8E4M3FNUZ,
+    f8E4M3B11FNUZ,
+    f8E3M4,
+    f8E8M0FNU,
+    f6E2M3FN,
+    f6E3M2FN,
+    f4E2M1FN,
+)
+
+
+@pytest.mark.parametrize("type_", [t for t in _REDUCED_TYPES if t.bitwidth <= 8])
+def test_reduced_float_bit_pattern_roundtrip(type_: AnyFloat):
+    """Every bit pattern decodes, and every finite value re-encodes to the same bits."""
+    for pattern in range(1 << type_.bitwidth):
+        raw = pattern.to_bytes(type_.size, "little")
+        value = type_.unpack(raw, 1)[0]
+        if math.isnan(value) or math.isinf(value):
+            continue
+        assert type_.pack((value,)) == raw
+
+
+@pytest.mark.parametrize("type_", _REDUCED_TYPES)
+def test_reduced_float_encode_nonfinite(type_: _ReducedPrecisionFloatType):
+    """Infinities, NaNs and overflowing magnitudes encode per the format's semantics."""
+    behavior = type_.SEMANTICS.nonfinite
+    for magnitude in (math.inf, -math.inf, 1e40):
+        result = type_.unpack(type_.pack((magnitude,)), 1)[0]
+        if behavior is FloatNonfiniteBehavior.IEEE:
+            assert math.isinf(result)
+        elif behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+            assert math.isfinite(result)  # saturates to the largest finite value
+        else:
+            assert math.isnan(result)
+    nan_result = type_.unpack(type_.pack((math.nan,)), 1)[0]
+    if behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+        assert math.isfinite(nan_result)
+    else:
+        assert math.isnan(nan_result)
+
+
+def test_reduced_float_encode_zero():
+    """Zero encodes to +0, honouring signed vs unsigned (FNUZ) zero."""
+    assert f8E5M2.pack((0.0,)) == b"\x00"
+    assert f8E5M2.pack((-0.0,)) == b"\x80"
+    assert f8E5M2FNUZ.pack((0.0,)) == b"\x00"
+    assert f8E5M2FNUZ.pack((-0.0,)) == b"\x00"  # FNUZ has no negative zero
+
+
+def test_reduced_float_codec_edge_cases():
+    assert f8E5M2.compile_time_size == 1
+    buffer = bytearray(2)
+    f8E5M2.pack_into(buffer, 1, 1.5)
+    assert bytes(buffer[1:]) == f8E5M2.pack((1.5,))
+    # a subnormal f64 input underflows to zero
+    assert f8E5M2.unpack(f8E5M2.pack((5e-324,)), 1)[0] == 0.0
+    # e8m0 has no subnormals; tiny magnitudes underflow to the smallest value
+    assert f8E8M0FNU.unpack(f8E8M0FNU.pack((1e-40,)), 1)[0] == 2.0**-127
+    # a subnormal that rounds up lands on the smallest normal
+    assert f8E5M2.unpack(f8E5M2.pack((0.95 * 2.0**-14,)), 1)[0] == 2.0**-14
+    # round_half_even left-shifts exactly for a non-positive shift
+    assert f8E5M2.round_half_even(5, -2) == 20
+    # unpacking an empty buffer yields nothing
+    assert list(f8E5M2.iter_unpack(b"")) == []
 
 
 def test_IntegerType_size():
