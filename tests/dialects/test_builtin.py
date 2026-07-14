@@ -112,23 +112,9 @@ def test_FloatType_formats():
         f80.format
     with pytest.raises(NotImplementedError):
         f128.format
-    reduced_precision_floats = (
-        tf32,
-        f8E5M2,
-        f8E4M3,
-        f8E4M3FN,
-        f8E5M2FNUZ,
-        f8E4M3FNUZ,
-        f8E4M3B11FNUZ,
-        f8E3M4,
-        f8E8M0FNU,
-        f6E2M3FN,
-        f6E3M2FN,
-        f4E2M1FN,
-    )
-    for float_type in reduced_precision_floats:
-        with pytest.raises(NotImplementedError):
-            float_type.format
+    # Reduced-precision floats pack via the reduced-float codec, not a struct
+    # format string, so (like bf16) they have no `format` attribute.
+    assert not hasattr(tf32, "format")
 
 
 def test_IntegerType_verifier():
@@ -224,23 +210,10 @@ def test_bf16_pack_rounds_to_nearest_even():
 @pytest.mark.parametrize(
     "value, type_, tolerance",
     [
-        # f80/f128 and the reduced-precision types have no precision-normalisation
-        # path (their format raises NotImplementedError); FloatAttr stores the
-        # float as-is.
+        # f80/f128 have no precision-normalisation path (their format raises
+        # NotImplementedError); FloatAttr stores the float as-is.
         (0.1, f80, None),
         (0.1, f128, None),
-        (0.1, tf32, None),
-        (0.1, f8E5M2, None),
-        (0.1, f8E4M3, None),
-        (0.1, f8E4M3FN, None),
-        (0.1, f8E5M2FNUZ, None),
-        (0.1, f8E4M3FNUZ, None),
-        (0.1, f8E4M3B11FNUZ, None),
-        (0.1, f8E3M4, None),
-        (0.1, f8E8M0FNU, None),
-        (0.1, f6E2M3FN, None),
-        (0.1, f6E3M2FN, None),
-        (0.1, f4E2M1FN, None),
         # bf16 normalises through pack/unpack; 1.5 is exactly representable.
         (1.5, bf16, None),
         # 0.1 is not exactly representable in bf16; round-trip is within ULP.
@@ -256,6 +229,75 @@ def test_FloatAttr_normalisation(
     else:
         assert data != value
         assert abs(data - value) < tolerance
+
+
+# (value, type, expected narrowed value): each `value` is not exactly
+# representable in the target type, so FloatAttr must round it to `expected`.
+_REDUCED_NARROWING = [
+    (0.1, tf32, 0.0999755859375),
+    (0.1, f8E5M2, 0.09375),
+    (0.1, f8E4M3, 0.1015625),
+    (0.1, f8E4M3FN, 0.1015625),
+    (0.1, f8E5M2FNUZ, 0.09375),
+    (0.1, f8E4M3FNUZ, 0.1015625),
+    (0.1, f8E4M3B11FNUZ, 0.1015625),
+    (0.1, f8E3M4, 0.09375),
+    # e8m0 has no mantissa; it snaps to the nearest power of two.
+    (3.0, f8E8M0FNU, 4.0),
+    (0.1, f6E2M3FN, 0.125),
+    (0.1, f6E3M2FN, 0.125),
+    (0.1, f4E2M1FN, 0.0),
+]
+
+
+@pytest.mark.parametrize("value, type_, expected", _REDUCED_NARROWING)
+def test_reduced_float_narrowing(value: float, type_: AnyFloat, expected: float):
+    data = FloatAttr(value, type_).value.data
+    assert data != value
+    assert data == expected
+
+
+# (type, representable value): `value` is exactly representable, so pack/unpack
+# must round-trip it bit-exactly.
+_REDUCED_REPRESENTABLE = [
+    (tf32, 1.5),
+    (f8E5M2, 1.5),
+    (f8E4M3, 1.25),
+    (f8E4M3FN, 1.25),
+    (f8E5M2FNUZ, 0.5),
+    (f8E4M3FNUZ, 1.25),
+    (f8E4M3B11FNUZ, 1.25),
+    (f8E3M4, 1.0625),
+    (f8E8M0FNU, 4.0),
+    (f6E2M3FN, 1.375),
+    (f6E3M2FN, 1.5),
+    (f4E2M1FN, 1.5),
+]
+
+
+@pytest.mark.parametrize("type_, value", _REDUCED_REPRESENTABLE)
+def test_reduced_float_packing(type_: AnyFloat, value: float):
+    packed = type_.pack((value,))
+    assert len(packed) == type_.size
+    assert type_.unpack(packed, 1)[0] == value
+
+
+@pytest.mark.parametrize(
+    "type_, value, expected_raw",
+    [
+        # f4E2M1FN: 1.5 = 1.1b, sign 0, exp_field bias(1)+0, mantissa 1 -> 0b011.
+        (f4E2M1FN, 1.5, b"\x03"),
+        # f8E4M3: 1.0 = sign 0, exp_field bias(7), mantissa 0 -> 0b0111000 = 0x38.
+        (f8E4M3, 1.0, b"\x38"),
+        # f8E8M0FNU: 4.0 = 2**2, biased exponent 127+2 = 129 = 0x81.
+        (f8E8M0FNU, 4.0, b"\x81"),
+    ],
+)
+def test_reduced_float_pack_bit_patterns(
+    type_: AnyFloat, value: float, expected_raw: bytes
+):
+    assert type_.pack((value,)) == expected_raw
+    assert type_.unpack(expected_raw, 1)[0] == value
 
 
 def test_IntegerType_size():
