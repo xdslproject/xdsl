@@ -113,7 +113,6 @@ lint.ignore = [
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
   "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
-  "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
   "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]
