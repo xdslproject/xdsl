@@ -49,6 +49,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrFormatDirective,
     AttrFormatProgram,
     AttributeVariable,
+    AttrKeywordDirective,
     AttrWhitespaceDirective,
     DenseArrayAttributeVariable,
     Directive,
@@ -949,4 +950,10 @@ class AttrFormatParser(BaseParser):
                 )
             return AttrWhitespaceDirective(whitespace)
 
-        self.raise_error("expected a whitespace directive")
+        # Identifier case
+        ident = self.parse_optional_identifier()
+        if ident is None or ident == "`":
+            self.raise_error("punctuation or identifier expected")
+
+        self.parse_characters("`")
+        return AttrKeywordDirective(ident)

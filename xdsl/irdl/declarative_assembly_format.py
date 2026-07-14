@@ -1371,6 +1371,14 @@ def _print_whitespace(printer: Printer, state: PrintingState, whitespace: str) -
     state.should_emit_space = False
 
 
+def _print_keyword(printer: Printer, state: PrintingState, keyword: str) -> None:
+    if state.should_emit_space:
+        printer.print_string(" ")
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+    printer.print_string(keyword)
+
+
 @dataclass(frozen=True)
 class WhitespaceDirective(FormatDirective):
     """
@@ -1446,12 +1454,7 @@ class KeywordDirective(FormatDirective):
         return parser.parse_optional_keyword(self.keyword) is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
-
-        printer.print_string(self.keyword)
+        _print_keyword(printer, state, self.keyword)
 
     def is_optional_like(self) -> bool:
         return True
@@ -1568,6 +1571,27 @@ class AttrWhitespaceDirective(AttrFormatDirective):
         self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
     ) -> None:
         _print_whitespace(printer, state, self.whitespace)
+
+
+@dataclass(frozen=True)
+class AttrKeywordDirective(AttrFormatDirective):
+    """
+    A keyword directive for attribute/type assembly format.
+
+    Mirrors the op-side KeywordDirective: expects a specific identifier and
+    requests a space to be printed after.
+    """
+
+    keyword: str
+    """The identifier that should be printed."""
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        return parser.parse_optional_keyword(self.keyword) is not None
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        _print_keyword(printer, state, self.keyword)
 
 
 @dataclass(frozen=True)

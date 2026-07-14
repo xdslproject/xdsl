@@ -44,12 +44,19 @@ def test_empty_format_produces_empty_program():
 
 
 @pytest.mark.parametrize(
-    "format_str, printed",
-    [("", ""), ("` `", " "), ("``", ""), ("`\\n`", "\n")],
+    "format_str, body, printed",
+    [
+        ("", "", ""),
+        ("` `", "", " "),
+        ("``", "", ""),
+        ("`\\n`", "", "\n"),
+        ("`hello`", "hello", "hello"),
+        ("`foo``bar`", "foo bar", "foo bar"),
+    ],
 )
-def test_prints_and_parses_nothing(format_str: str, printed: str):
+def test_print_and_parse(format_str: str, body: str, printed: str):
     assert _print(format_str) == printed
-    assert _parse(format_str, "") == []
+    assert _parse(format_str, body) == []
 
 
 def test_parse_attribute_end_to_end():
@@ -63,7 +70,7 @@ def test_parse_attribute_end_to_end():
     [
         ("$foo", "unexpected token"),
         ("`  `", "unexpected whitespace in directive"),
-        ("`+`", "expected a whitespace directive"),
+        ("`+`", "punctuation or identifier expected"),
     ],
 )
 def test_error(format_str: str, error: str):
