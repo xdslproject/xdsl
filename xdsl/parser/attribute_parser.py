@@ -47,7 +47,6 @@ from xdsl.dialects.builtin import (
     Float80Type,
     Float128Type,
     FloatAttr,
-    FloatTF32Type,
     FunctionType,
     FusedLoc,
     IndexType,
@@ -78,6 +77,7 @@ from xdsl.dialects.builtin import (
     bf16,
     f64,
     i64,
+    tf32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
@@ -1571,11 +1571,13 @@ class AttrParser(BaseParser):
         )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
-    _builtin_float_type_regex = re.compile(r"^f(\d+)$")
-    # Float types whose spelling is not `f<width>` and so cannot be matched by
-    # `_builtin_float_type_regex` (reduced-precision types and tf32).
-    _builtin_named_float_types = {
-        "tf32": FloatTF32Type,
+    _builtin_float_type_regex = re.compile(r"^(f\d+\w*)$")
+    _builtin_float_types = {
+        "f16": Float16Type,
+        "f32": Float32Type,
+        "f64": Float64Type,
+        "f80": Float80Type,
+        "f128": Float128Type,
         "f8E5M2": Float8E5M2Type,
         "f8E4M3": Float8E4M3Type,
         "f8E4M3FN": Float8E4M3FNType,
@@ -1595,8 +1597,10 @@ class AttrParser(BaseParser):
           integer-or-float-type ::= index-type | integer-type | float-type
           index-type            ::= `index`
           integer-type          ::= (`i` | `si` | `ui`) decimal-literal
-          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
-                                  | `tf32` | reduced-precision-float-type
+          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16` | `tf32`
+                                  | `f8E5M2` | `f8E4M3` | `f8E4M3FN` | `f8E5M2FNUZ`
+                                  | `f8E4M3FNUZ` | `f8E4M3B11FNUZ` | `f8E3M4` | `f8E8M0FNU`
+                                  | `f6E2M3FN` | `f6E3M2FN` | `f4E2M1FN`
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
@@ -1621,24 +1625,15 @@ class AttrParser(BaseParser):
         if name == "bf16":
             self._consume_token()
             return bf16
-
-        # Named float types (tf32 and reduced-precision types)
-        if (named_float_type := self._builtin_named_float_types.get(name)) is not None:
+        # tf32 type
+        if name == "tf32":
             self._consume_token()
-            return named_float_type()
+            return tf32
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:
-            width = int(re_match.group(1))
-            type = {
-                16: Float16Type,
-                32: Float32Type,
-                64: Float64Type,
-                80: Float80Type,
-                128: Float128Type,
-            }.get(width, None)
-            if type is None:
-                self.raise_error(f"Unsupported floating point width: {width}")
+            if (type := self._builtin_float_types.get(re_match.group(1))) is None:
+                self.raise_error(f"Unsupported floating point type: {name}")
             self._consume_token()
             return type()
 
