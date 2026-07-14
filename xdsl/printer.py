@@ -179,18 +179,19 @@ class Printer(BasePrinter):
 
     def _get_block_name(self, block: Block, block_id: int | None = None) -> str:
         """Assign a name to a block if it does not already have one."""
-        if block in self._blocks:
-            return self._blocks[block]
-        if block.name_hint:
-            curr_ind = self.block_names.get(block.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{block.name_hint}{suffix}"
-            self.block_names[block.name_hint] = curr_ind + 1
-        elif block_id is not None:
-            name = f"bb{block_id}"
-        else:
-            name = f"bb{self._get_new_valid_block_id()}"
-        self._blocks[block] = name
+        try:
+            name = self._blocks[block]
+        except KeyError:
+            if block.name_hint:
+                curr_ind = self.block_names.get(block.name_hint, 0)
+                suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+                name = f"{block.name_hint}{suffix}"
+                self.block_names[block.name_hint] = curr_ind + 1
+            elif block_id is not None:
+                name = f"bb{block_id}"
+            else:
+                name = f"bb{self._get_new_valid_block_id()}"
+            self._blocks[block] = name
         return name
 
     def print_block_name(self, block: Block) -> str:

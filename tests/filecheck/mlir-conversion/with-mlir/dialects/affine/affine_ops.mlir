@@ -36,7 +36,7 @@
     }) : (index) -> ()
 
     // CHECK:      %{{.*}} = "affine.for"(%{{.*}}) <{lowerBoundMap = affine_map<() -> (-10)>, operandSegmentSizes = array<i32: 0, 0, 1>, step = 1 : index, upperBoundMap = affine_map<() -> (10)>}> ({
-    // CHECK-NEXT: ^bb1(%{{.*}}: index, %{{.*}}: i32):
+    // CHECK-NEXT: ^bb0(%{{.*}}: index, %{{.*}}: i32):
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
     // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (i32) -> ()
     // CHECK-NEXT: }) : (i32) -> i32

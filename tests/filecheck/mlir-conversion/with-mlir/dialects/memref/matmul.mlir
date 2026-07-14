@@ -46,12 +46,12 @@
 // CHECK-NEXT:     %{{.+}} = "memref.alloca"(%{{.+}}, %{{.+}}) <{operandSegmentSizes = array<i32: 2, 0>}> : (index, index) -> memref<?x?xi64>
 // CHECK-NEXT:     %{{.+}} = "arith.constant"() <{value = 0 : i64}> : () -> i64
 // CHECK-NEXT:     "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
-// CHECK-NEXT:     ^bb1(%{{.+}}: index):
+// CHECK-NEXT:     ^bb0(%{{.+}}: index):
 // CHECK-NEXT:       "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
-// CHECK-NEXT:       ^bb2(%{{.+}}: index):
+// CHECK-NEXT:       ^bb0(%{{.+}}: index):
 // CHECK-NEXT:         "memref.store"(%{{.+}}, %{{.+}}, %{{.+}}, %{{.+}}) : (i64, memref<?x?xi64>, index, index) -> ()
 // CHECK-NEXT:         "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
-// CHECK-NEXT:         ^bb3(%{{.+}}: index):
+// CHECK-NEXT:         ^bb0(%{{.+}}: index):
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64

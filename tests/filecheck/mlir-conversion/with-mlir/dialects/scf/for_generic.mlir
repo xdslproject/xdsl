@@ -27,7 +27,7 @@
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:   }) : (index, index, index, index) -> index
 // CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^bb1(%{{.*}}: index):
+// CHECK-NEXT:   ^bb0(%{{.*}}: index):
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) : (index, index, index) -> ()
 // CHECK-NEXT: }) : () -> ()
