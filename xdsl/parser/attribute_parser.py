@@ -1570,13 +1570,14 @@ class AttrParser(BaseParser):
         )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
-    _builtin_float_type_regex = re.compile(r"^(f\d+\w*)$")
     _builtin_float_types = {
+        "bf16": bf16,
         "f16": f16,
         "f32": f32,
         "f64": f64,
         "f80": f80,
         "f128": f128,
+        "tf32": tf32,
         "f8E5M2": f8E5M2,
         "f8E4M3": f8E4M3,
         "f8E4M3FN": f8E4M3FN,
@@ -1620,19 +1621,8 @@ class AttrParser(BaseParser):
             self._consume_token()
             return IntegerType(int(match.group(1)), signedness[name[0]])
 
-        # bf16 type
-        if name == "bf16":
-            self._consume_token()
-            return bf16
-        # tf32 type
-        if name == "tf32":
-            self._consume_token()
-            return tf32
-
         # Float type
-        if (re_match := self._builtin_float_type_regex.match(name)) is not None:
-            if (float_type := self._builtin_float_types.get(re_match.group(1))) is None:
-                self.raise_error(f"Unsupported floating point type: {name}")
+        if (float_type := self._builtin_float_types.get(name)) is not None:
             self._consume_token()
             return float_type
 
