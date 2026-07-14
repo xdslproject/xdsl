@@ -3,7 +3,7 @@ from typing import IO
 
 import llvmlite.ir as ir
 
-from xdsl.backend.llvm.convert_op import convert_op
+from xdsl.backend.llvm.convert_op import convert_op, create_constant
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.context import Context
 from xdsl.dialects import llvm
@@ -120,13 +120,56 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
             convert_op(op_in_block, builder, val_map, block_map)
 
 
+def _convert_global(op: llvm.GlobalOp, llvm_module: ir.Module) -> None:
+    gvar = ir.GlobalVariable(
+        llvm_module,
+        convert_type(op.global_type),
+        name=op.sym_name.data,
+        addrspace=op.addr_space.value.data,
+    )
+    gvar.linkage = op.linkage.linkage.data
+    if op.constant is not None:
+        gvar.global_constant = True
+    if op.value is not None:
+        if isinstance(op.value, StringAttr):
+            raw = op.value.data.encode("utf-8")
+            arr_type = ir.ArrayType(ir.IntType(8), len(raw))
+            gvar.initializer = ir.Constant(arr_type, bytearray(raw))
+        else:
+            gvar.initializer = create_constant(op.global_type, op.value)
+
+
 def convert_module(
     module: ModuleOp,
-    target_triple: str = "",
+    *,
+    fallback_target_triple: str | None,
     data_layout: str = "",
 ) -> ir.Module:
     """
     Convert an xDSL module to an LLVM module.
+
+    Args:
+        module: The xDSL module to convert.
+        fallback_target_triple: The target triple to use when the module does not
+            carry an ``llvm.target_triple`` attribute. The triple of the resulting
+            module is resolved as follows:
+
+            1. If the module has an ``llvm.target_triple`` attribute, its value is
+               always used and ``fallback_target_triple`` is ignored.
+            2. Otherwise, if ``fallback_target_triple`` is not ``None``, it is used
+               as-is.
+            3. Otherwise (it is ``None``), the host's default triple, as reported by
+               ``llvmlite.binding.get_default_triple()``, is used.
+        data_layout: The data layout to set on the resulting module. If empty, no
+            data layout is set.
+
+    Returns:
+        The corresponding llvmlite IR module.
+
+    Raises:
+        LLVMTranslationException: If the ``llvm.target_triple`` attribute is present
+            but is not a ``StringAttr``.
+        NotImplementedError: If the module contains an op that is not a ``llvm.func`` or ``llvm.global``.
     """
     llvm_module = ir.Module()
     module_triple = module.attributes.get("llvm.target_triple")
@@ -136,16 +179,31 @@ def convert_module(
                 f"Unsupported llvm.target_triple attribute: {module_triple}"
             )
         llvm_module.triple = module_triple.data
-    if target_triple:
-        llvm_module.triple = target_triple
+    else:
+        if fallback_target_triple is None:
+            from llvmlite import binding
+
+            fallback_target_triple = binding.get_default_triple()
+        llvm_module.triple = fallback_target_triple
     if data_layout:
         llvm_module.data_layout = data_layout
 
+    global_ops: list[llvm.GlobalOp] = []
     func_ops: list[llvm.FuncOp] = []
     for op in module.ops:
-        if not isinstance(op, llvm.FuncOp):
-            raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
-        func_ops.append(op)
+        match op:
+            case llvm.GlobalOp():
+                global_ops.append(op)
+            case llvm.FuncOp():
+                func_ops.append(op)
+            case _:
+                raise NotImplementedError(
+                    f"Conversion not implemented for op: {op.name}"
+                )
+
+    # Convert globals first so that addressof lookups can always find them
+    for global_op in global_ops:
+        _convert_global(global_op, llvm_module)
 
     # Declare all functions (enables forward references)
     for op in func_ops:
@@ -164,5 +222,5 @@ class LLVMTarget(Target):
     name = "llvm"
 
     def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
-        llvm_module = convert_module(module)
+        llvm_module = convert_module(module, fallback_target_triple=None)
         print(llvm_module, file=output)

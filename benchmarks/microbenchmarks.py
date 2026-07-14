@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
 from xdsl.ir import Block, OpResult, SSAValues
@@ -62,13 +63,14 @@ class HasManyTraitOp(IRDLOperation):
     traits = traits_def(*[trait() for trait in optrait_subclasses.values()])
 
 
-class IRTraversal:
+class IRTraversal(BenchmarkClass):
     """Benchmark the time to traverse xDSL IR."""
 
     EXAMPLE_BLOCK_NUM_OPS = 1_000
     EXAMPLE_OPS = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
+    @safe_to_repeat
     def time_iterate_ops(self) -> None:
         """Time directly iterating over a python list of operations.
 
@@ -92,6 +94,7 @@ class IRTraversal:
         for op in IRTraversal.EXAMPLE_OPS:
             op  # pyright: ignore[reportUnusedExpression]
 
+    @safe_to_repeat
     def time_iterate_block_ops(self) -> None:
         """Time directly iterating over the linked list of a block's operations.
 
@@ -115,6 +118,7 @@ class IRTraversal:
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
             op  # pyright: ignore[reportUnusedExpression]
 
+    @safe_to_repeat
     def time_walk_block_ops(self) -> None:
         """Time walking a block's operations.
 
@@ -137,7 +141,7 @@ class IRTraversal:
             op  # pyright: ignore[reportUnusedExpression]
 
 
-class Extensibility:
+class Extensibility(BenchmarkClass):
     """Benchmark the time to check interface and trait properties."""
 
     EMPTY_OP = EmptyOp()
@@ -146,10 +150,12 @@ class Extensibility:
     TRAIT_4 = optrait_subclasses[4]
     TRAIT_4_INSTANCE = TRAIT_4()
 
+    @safe_to_repeat
     def time_interface_check_trait(self) -> None:
         """Time checking the class hierarchy of a trait."""
         isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
+    @safe_to_repeat
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
 
@@ -173,6 +179,7 @@ class Extensibility:
         """
         isinstance(Extensibility.EMPTY_OP, EmptyOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
+    @safe_to_repeat
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
@@ -203,10 +210,12 @@ class Extensibility:
         """
         assert Extensibility.OP_WITH_REGION.has_trait(Extensibility.TRAIT_4)
 
+    @safe_to_repeat
     def time_trait_check_single(self) -> None:
         """Time checking the trait of an operation with one trait."""
         Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
+    @safe_to_repeat
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
 
@@ -240,12 +249,13 @@ def get_clone_op() -> ModuleOp:
     return module
 
 
-class OpCreation:
+class OpCreation(BenchmarkClass):
     """Benchmark creating an operation in xDSL."""
 
     CLONE_OPERATION = get_clone_op()
     EMPTY_OP = EmptyOp()
 
+    @safe_to_repeat
     def time_operation_create(self) -> None:
         """Time creating an empty operation.
 
@@ -263,6 +273,7 @@ class OpCreation:
         """
         EmptyOp.create()
 
+    @safe_to_repeat
     def time_operation_build(self) -> None:
         """Time building an empty operation.
 
@@ -282,6 +293,7 @@ class OpCreation:
         """
         EmptyOp.build()
 
+    @safe_to_repeat
     def time_operation_create_optimised(self) -> None:
         """Time creating an empty operation directly."""
         empty_op = EmptyOp.__new__(EmptyOp)
@@ -292,10 +304,12 @@ class OpCreation:
         empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
         empty_op.regions = ()
 
+    @safe_to_repeat
     def time_operation_constant_init(self) -> None:
         """Time instantiating a constant integer."""
         ConstantOp(IntegerAttr(100, i32))
 
+    @safe_to_repeat
     def time_operation_constant_create(self) -> None:
         """Time creating a constant integer."""
         int_attr = IntAttr.__new__(IntAttr)
@@ -311,6 +325,7 @@ class OpCreation:
         constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
         constant_op.regions = ()
 
+    @safe_to_repeat
     def time_operation_clone(self) -> None:
         """Time cloning an module of 100 empty operations.
 
@@ -333,50 +348,61 @@ class OpCreation:
         """
         OpCreation.CLONE_OPERATION.clone()
 
+    @safe_to_repeat
     def time_operation_clone_single(self) -> None:
         """Time cloning an empty operation."""
         OpCreation.EMPTY_OP.clone()
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmark, profile
+    from bench_utils import BenchmarkFunction, profile
 
     EXTENSIBILITY = Extensibility()
     IR_TRAVERSAL = IRTraversal()
     OP_CREATION = OpCreation()
     profile(
         {
-            "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
-            "IRTraversal.iterate_block_ops": Benchmark(
+            "IRTraversal.iterate_ops": BenchmarkFunction(IR_TRAVERSAL.time_iterate_ops),
+            "IRTraversal.iterate_block_ops": BenchmarkFunction(
                 IR_TRAVERSAL.time_iterate_block_ops
             ),
-            "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
-            "Extensibility.interface_check_trait": Benchmark(
+            "IRTraversal.walk_block_ops": BenchmarkFunction(
+                IR_TRAVERSAL.time_walk_block_ops
+            ),
+            "Extensibility.interface_check_trait": BenchmarkFunction(
                 EXTENSIBILITY.time_interface_check_trait
             ),
-            "Extensibility.interface_check": Benchmark(
+            "Extensibility.interface_check": BenchmarkFunction(
                 EXTENSIBILITY.time_interface_check
             ),
-            "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
-            "Extensibility.trait_check_single": Benchmark(
+            "Extensibility.trait_check": BenchmarkFunction(
+                EXTENSIBILITY.time_trait_check
+            ),
+            "Extensibility.trait_check_single": BenchmarkFunction(
                 EXTENSIBILITY.time_trait_check_single
             ),
-            "Extensibility.trait_check_neg": Benchmark(
+            "Extensibility.trait_check_neg": BenchmarkFunction(
                 EXTENSIBILITY.time_trait_check_neg
             ),
-            "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
-            "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
-            "OpCreation.operation_create_optimised": Benchmark(
+            "OpCreation.operation_create": BenchmarkFunction(
+                OP_CREATION.time_operation_create
+            ),
+            "OpCreation.operation_build": BenchmarkFunction(
+                OP_CREATION.time_operation_build
+            ),
+            "OpCreation.operation_create_optimised": BenchmarkFunction(
                 OP_CREATION.time_operation_create_optimised
             ),
-            "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
-            "OpCreation.operation_clone_single": Benchmark(
+            "OpCreation.operation_clone": BenchmarkFunction(
+                OP_CREATION.time_operation_clone
+            ),
+            "OpCreation.operation_clone_single": BenchmarkFunction(
                 OP_CREATION.time_operation_clone_single
             ),
-            "OpCreation.operation_constant_init": Benchmark(
+            "OpCreation.operation_constant_init": BenchmarkFunction(
                 OP_CREATION.time_operation_constant_init
             ),
-            "OpCreation.operation_constant_create": Benchmark(
+            "OpCreation.operation_constant_create": BenchmarkFunction(
                 OP_CREATION.time_operation_constant_create
             ),
         }
