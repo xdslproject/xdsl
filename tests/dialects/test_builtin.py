@@ -39,6 +39,17 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     bf16,
+    f4E2M1FN,
+    f6E2M3FN,
+    f6E3M2FN,
+    f8E3M4,
+    f8E4M3,
+    f8E4M3B11FNUZ,
+    f8E4M3FN,
+    f8E4M3FNUZ,
+    f8E5M2,
+    f8E5M2FNUZ,
+    f8E8M0FNU,
     f16,
     f32,
     f64,
@@ -49,6 +60,7 @@ from xdsl.dialects.builtin import (
     i16,
     i32,
     i64,
+    tf32,
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
@@ -76,6 +88,18 @@ def test_FloatType_bitwidths():
     assert f64.bitwidth == 64
     assert f80.bitwidth == 80
     assert f128.bitwidth == 128
+    assert tf32.bitwidth == 19
+    assert f8E5M2.bitwidth == 8
+    assert f8E4M3.bitwidth == 8
+    assert f8E4M3FN.bitwidth == 8
+    assert f8E5M2FNUZ.bitwidth == 8
+    assert f8E4M3FNUZ.bitwidth == 8
+    assert f8E4M3B11FNUZ.bitwidth == 8
+    assert f8E3M4.bitwidth == 8
+    assert f8E8M0FNU.bitwidth == 8
+    assert f6E2M3FN.bitwidth == 6
+    assert f6E3M2FN.bitwidth == 6
+    assert f4E2M1FN.bitwidth == 4
 
 
 def test_FloatType_formats():
@@ -88,6 +112,23 @@ def test_FloatType_formats():
         f80.format
     with pytest.raises(NotImplementedError):
         f128.format
+    reduced_precision_floats = (
+        tf32,
+        f8E5M2,
+        f8E4M3,
+        f8E4M3FN,
+        f8E5M2FNUZ,
+        f8E4M3FNUZ,
+        f8E4M3B11FNUZ,
+        f8E3M4,
+        f8E8M0FNU,
+        f6E2M3FN,
+        f6E3M2FN,
+        f4E2M1FN,
+    )
+    for float_type in reduced_precision_floats:
+        with pytest.raises(NotImplementedError):
+            float_type.format
 
 
 def test_IntegerType_verifier():
@@ -183,10 +224,23 @@ def test_bf16_pack_rounds_to_nearest_even():
 @pytest.mark.parametrize(
     "value, type_, tolerance",
     [
-        # f80 and f128 have no precision-normalisation path (their format
-        # raises NotImplementedError); FloatAttr stores the float as-is.
+        # f80/f128 and the reduced-precision types have no precision-normalisation
+        # path (their format raises NotImplementedError); FloatAttr stores the
+        # float as-is.
         (0.1, f80, None),
         (0.1, f128, None),
+        (0.1, tf32, None),
+        (0.1, f8E5M2, None),
+        (0.1, f8E4M3, None),
+        (0.1, f8E4M3FN, None),
+        (0.1, f8E5M2FNUZ, None),
+        (0.1, f8E4M3FNUZ, None),
+        (0.1, f8E4M3B11FNUZ, None),
+        (0.1, f8E3M4, None),
+        (0.1, f8E8M0FNU, None),
+        (0.1, f6E2M3FN, None),
+        (0.1, f6E3M2FN, None),
+        (0.1, f4E2M1FN, None),
         # bf16 normalises through pack/unpack; 1.5 is exactly representable.
         (1.5, bf16, None),
         # 0.1 is not exactly representable in bf16; round-trip is within ULP.

@@ -30,12 +30,24 @@ from xdsl.dialects.builtin import (
     DenseResourceAttr,
     DictionaryAttr,
     FileLineColLoc,
+    Float4E2M1FNType,
+    Float6E2M3FNType,
+    Float6E3M2FNType,
+    Float8E3M4Type,
+    Float8E4M3B11FNUZType,
+    Float8E4M3FNType,
+    Float8E4M3FNUZType,
+    Float8E4M3Type,
+    Float8E5M2FNUZType,
+    Float8E5M2Type,
+    Float8E8M0FNUType,
     Float16Type,
     Float32Type,
     Float64Type,
     Float80Type,
     Float128Type,
     FloatAttr,
+    FloatTF32Type,
     FunctionType,
     FusedLoc,
     IndexType,
@@ -1560,6 +1572,22 @@ class AttrParser(BaseParser):
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_type_regex = re.compile(r"^f(\d+)$")
+    # Float types whose spelling is not `f<width>` and so cannot be matched by
+    # `_builtin_float_type_regex` (reduced-precision types and tf32).
+    _builtin_named_float_types = {
+        "tf32": FloatTF32Type,
+        "f8E5M2": Float8E5M2Type,
+        "f8E4M3": Float8E4M3Type,
+        "f8E4M3FN": Float8E4M3FNType,
+        "f8E5M2FNUZ": Float8E5M2FNUZType,
+        "f8E4M3FNUZ": Float8E4M3FNUZType,
+        "f8E4M3B11FNUZ": Float8E4M3B11FNUZType,
+        "f8E3M4": Float8E3M4Type,
+        "f8E8M0FNU": Float8E8M0FNUType,
+        "f6E2M3FN": Float6E2M3FNType,
+        "f6E3M2FN": Float6E3M2FNType,
+        "f4E2M1FN": Float4E2M1FNType,
+    }
 
     def _parse_optional_integer_or_float_type(self) -> TypeAttribute | None:
         """
@@ -1568,6 +1596,7 @@ class AttrParser(BaseParser):
           index-type            ::= `index`
           integer-type          ::= (`i` | `si` | `ui`) decimal-literal
           float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
+                                  | `tf32` | reduced-precision-float-type
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
@@ -1592,6 +1621,11 @@ class AttrParser(BaseParser):
         if name == "bf16":
             self._consume_token()
             return bf16
+
+        # Named float types (tf32 and reduced-precision types)
+        if (named_float_type := self._builtin_named_float_types.get(name)) is not None:
+            self._consume_token()
+            return named_float_type()
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:
