@@ -268,6 +268,14 @@ def test_parse_argument_fail(text: str, expect_type: bool):
         parser.parse_argument(expect_type=expect_type)
 
 
+@pytest.mark.parametrize("text", ["f0", "f13", "f256"])
+def test_parse_unsupported_float_type(text: str):
+    """`f`-spelled names that are not builtin float types give a descriptive error."""
+    parser = Parser(Context(), text)
+    with pytest.raises(ParseError, match=f"Unsupported floating point type: {text}"):
+        parser.parse_type()
+
+
 @pytest.mark.parametrize(
     "text,num_ops_and_args",
     [
