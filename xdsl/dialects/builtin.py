@@ -1147,122 +1147,6 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
         printer.print_string(self.name)
 
 
-@irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, _FloatType):
-    name = "bf16"
-
-    @property
-    def bitwidth(self) -> int:
-        return 16
-
-    @property
-    def compile_time_size(self) -> int:
-        return 2
-
-    @staticmethod
-    def _encode(value: float) -> bytes:
-        """
-        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
-        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
-        quiet-NaN preservation; matches LLVM APFloat semantics.
-        """
-        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
-        # NaN must remain a NaN after truncation; force the quiet bit on so a
-        # signaling NaN with mantissa entirely in the truncated bits doesn't
-        # become inf.
-        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
-            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
-        else:
-            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
-            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
-        return bits.to_bytes(2, "little")
-
-    @staticmethod
-    def _decode(raw: bytes) -> float:
-        # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
-        # inverse is to zero-extend with two low bytes in little-endian.
-        return struct.unpack("<f", b"\x00\x00" + raw)[0]
-
-    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
-        mv = memoryview(buffer)
-        for i in range(0, len(mv), 2):
-            yield self._decode(bytes(mv[i : i + 2]))
-
-    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
-
-    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
-        memoryview(buffer)[offset : offset + 2] = self._encode(value)
-
-    def pack(self, values: Sequence[float]) -> bytes:
-        return b"".join(self._encode(v) for v in values)
-
-
-@irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
-    name = "f16"
-
-    @property
-    def bitwidth(self) -> int:
-        return 16
-
-    @property
-    def format(self) -> str:
-        return "<e"
-
-
-@irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
-    name = "f32"
-
-    @property
-    def bitwidth(self) -> int:
-        return 32
-
-    @property
-    def format(self) -> str:
-        return "<f"
-
-
-@irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
-    name = "f64"
-
-    @property
-    def bitwidth(self) -> int:
-        return 64
-
-    @property
-    def format(self) -> str:
-        return "<d"
-
-
-@irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
-    name = "f80"
-
-    @property
-    def bitwidth(self) -> int:
-        return 80
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
-
-
-@irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
-    name = "f128"
-
-    @property
-    def bitwidth(self) -> int:
-        return 128
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
-
-
 class FloatNonfiniteBehavior(Enum):
     """How a reduced-precision float format represents infinities and NaNs.
 
@@ -1511,6 +1395,122 @@ class _ReducedPrecisionFloatType(_FloatType, ABC):
     def pack(self, values: Sequence[float]) -> bytes:
         size = self.size
         return b"".join(self.encode_bits(v).to_bytes(size, "little") for v in values)
+
+
+@irdl_attr_definition
+class BFloat16Type(ParametrizedAttribute, _FloatType):
+    name = "bf16"
+
+    @property
+    def bitwidth(self) -> int:
+        return 16
+
+    @property
+    def compile_time_size(self) -> int:
+        return 2
+
+    @staticmethod
+    def _encode(value: float) -> bytes:
+        """
+        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
+        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
+        quiet-NaN preservation; matches LLVM APFloat semantics.
+        """
+        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+        # NaN must remain a NaN after truncation; force the quiet bit on so a
+        # signaling NaN with mantissa entirely in the truncated bits doesn't
+        # become inf.
+        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        else:
+            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+        return bits.to_bytes(2, "little")
+
+    @staticmethod
+    def _decode(raw: bytes) -> float:
+        # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
+        # inverse is to zero-extend with two low bytes in little-endian.
+        return struct.unpack("<f", b"\x00\x00" + raw)[0]
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        mv = memoryview(buffer)
+        for i in range(0, len(mv), 2):
+            yield self._decode(bytes(mv[i : i + 2]))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        memoryview(buffer)[offset : offset + 2] = self._encode(value)
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        return b"".join(self._encode(v) for v in values)
+
+
+@irdl_attr_definition
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f16"
+
+    @property
+    def bitwidth(self) -> int:
+        return 16
+
+    @property
+    def format(self) -> str:
+        return "<e"
+
+
+@irdl_attr_definition
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f32"
+
+    @property
+    def bitwidth(self) -> int:
+        return 32
+
+    @property
+    def format(self) -> str:
+        return "<f"
+
+
+@irdl_attr_definition
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f64"
+
+    @property
+    def bitwidth(self) -> int:
+        return 64
+
+    @property
+    def format(self) -> str:
+        return "<d"
+
+
+@irdl_attr_definition
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f80"
+
+    @property
+    def bitwidth(self) -> int:
+        return 80
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f128"
+
+    @property
+    def bitwidth(self) -> int:
+        return 128
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
 
 
 @irdl_attr_definition
