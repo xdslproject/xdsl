@@ -301,7 +301,7 @@ def test_insert_block2():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^bb0:
+^bb1:
 }) : () -> ()
 """
 
@@ -348,7 +348,7 @@ def test_insert_block_after():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^bb0:
+^bb1:
 }) : () -> ()
 """
 
@@ -540,11 +540,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -574,11 +574,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -608,11 +608,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^bb0:
-  %1 = "test.op"() : () -> f64
 ^bb1:
-  %2 = "test.op"() : () -> i32
+  %1 = "test.op"() : () -> f64
 ^bb2:
+  %2 = "test.op"() : () -> i32
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -642,11 +642,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> i64
 ^bb1:
-  %2 = "test.op"() : () -> f32
+  %1 = "test.op"() : () -> i64
 ^bb2:
+  %2 = "test.op"() : () -> f32
+^bb3:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """

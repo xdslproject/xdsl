@@ -37,7 +37,7 @@ builtin.module {
 // CHECK-NEXT:     %1 = "test.op"() : () -> !csl.comptime_struct
 // CHECK-NEXT:     "csl_wrapper.yield"(%1, %1, %0) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^bb1(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: !csl.comptime_struct, %arg8: !csl.comptime_struct, %arg9: i1):
+// CHECK-NEXT:   ^bb0(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: !csl.comptime_struct, %arg8: !csl.comptime_struct, %arg9: i1):
 // CHECK-NEXT:     %2 = memref.alloc() : memref<4xf32>
 // CHECK-NEXT:     %3 = memref.alloc() : memref<4xf32>
 // CHECK-NEXT:     %iteration = csl.variable(0 : i32) : !csl.var<i32>
@@ -63,10 +63,10 @@ builtin.module {
 // CHECK-NEXT:       %iteration_bdy = csl.load_var(%iteration : !csl.var<i32>) : i32
 // CHECK-NEXT:       %9 = memref.alloc() : memref<2xf32>
 // CHECK-NEXT:       csl_stencil.apply(%2 : memref<4xf32>, %9 : memref<2xf32>) outs (%3 : memref<4xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 1 : i64, swaps = [#csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>], topo = #dmp.topo<2>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> ({
-// CHECK-NEXT:       ^bb2(%arg23: memref<4x2xf32>, %arg24: index, %arg25: memref<2xf32>):
+// CHECK-NEXT:       ^bb0(%arg23: memref<4x2xf32>, %arg24: index, %arg25: memref<2xf32>):
 // CHECK-NEXT:         csl_stencil.yield %arg25 : memref<2xf32>
 // CHECK-NEXT:       }, {
-// CHECK-NEXT:       ^bb3(%arg11: memref<4xf32>, %arg12: memref<2xf32>):
+// CHECK-NEXT:       ^bb0(%arg11: memref<4xf32>, %arg12: memref<2xf32>):
 // CHECK-NEXT:         "csl.call"() <{callee = @for_inc0}> : () -> ()
 // CHECK-NEXT:         csl_stencil.yield
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>

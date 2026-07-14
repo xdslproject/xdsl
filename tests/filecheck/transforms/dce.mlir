@@ -12,8 +12,8 @@
 
 /// Block removal
 // CHECK:      "test.op"() ({
-// CHECK-NEXT:   "test.termop"() [^bb0] : () -> ()
-// CHECK-NEXT: ^bb0:
+// CHECK-NEXT:   "test.termop"() [^bb1] : () -> ()
+// CHECK-NEXT: ^bb1:
 // CHECK-NEXT:   "test.termop"() : () -> ()
 // CHECK-NEXT: }) : () -> ()
 "test.op"() ({

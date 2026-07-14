@@ -158,10 +158,10 @@ func.func @cond_br_same_successor_insert_select(
 /// Test folding conditional branches that are successors of conditional
 /// branches with the same condition.
 // CHECK:      func.func @cond_br_from_cond_br_with_same_condition(%cond: i1) {
-// CHECK-NEXT:   cf.cond_br %cond, ^bb0, ^bb1
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   func.return
+// CHECK-NEXT:   cf.cond_br %cond, ^bb1, ^bb2
 // CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: ^bb2:
 // CHECK-NEXT:   "test.termop"() : () -> ()
 // CHECK-NEXT: }
 func.func @cond_br_from_cond_br_with_same_condition(%cond: i1) {
@@ -201,10 +201,10 @@ func.func @branchCondProp(%arg0: i1) {
 
 /// Test the folding of SwitchOp
 // CHECK:      func.func @switch_only_default(%flag: i32, %caseOperand0: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.br ^bb1(%caseOperand0 : f32)
-// CHECK-NEXT: ^bb1(%arg: f32):
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2] : () -> ()
+// CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.br ^bb2(%caseOperand0 : f32)
+// CHECK-NEXT: ^bb2(%arg: f32):
 // CHECK-NEXT:   "test.termop"(%arg) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_only_default(%flag: i32, %caseOperand0: f32) {
@@ -220,15 +220,15 @@ func.func @switch_only_default(%flag: i32, %caseOperand0: f32) {
 
 
 // CHECK:      func.func @switch_case_matching_default(%flag: i32, %caseOperand0: f32, %caseOperand1: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2] : () -> ()
-// CHECK-NEXT: ^bb0:
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb3] : () -> ()
+// CHECK-NEXT: ^bb1:
 // CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb1(%caseOperand0 : f32),
-// CHECK-NEXT:     10: ^bb2(%caseOperand1 : f32)
+// CHECK-NEXT:     default: ^bb2(%caseOperand0 : f32),
+// CHECK-NEXT:     10: ^bb3(%caseOperand1 : f32)
 // CHECK-NEXT:   ]
-// CHECK-NEXT: ^bb1(%arg: f32):
+// CHECK-NEXT: ^bb2(%arg: f32):
 // CHECK-NEXT:   "test.termop"(%arg) : (f32) -> ()
-// CHECK-NEXT: ^bb2(%arg2: f32):
+// CHECK-NEXT: ^bb3(%arg2: f32):
 // CHECK-NEXT:   "test.termop"(%arg2) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_case_matching_default(%flag: i32, %caseOperand0: f32, %caseOperand1: f32) {
@@ -249,14 +249,14 @@ func.func @switch_case_matching_default(%flag: i32, %caseOperand0: f32, %caseOpe
 
 
 // CHECK:      func.func @switch_on_const_no_match(%caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.br ^bb1(%caseOperand0 : f32)
-// CHECK-NEXT: ^bb1(%arg: f32):
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb3, ^bb4] : () -> ()
+// CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.br ^bb2(%caseOperand0 : f32)
+// CHECK-NEXT: ^bb2(%arg: f32):
 // CHECK-NEXT:   "test.termop"(%arg) : (f32) -> ()
-// CHECK-NEXT: ^bb2(%arg2: f32):
+// CHECK-NEXT: ^bb3(%arg2: f32):
 // CHECK-NEXT:   "test.termop"(%arg2) : (f32) -> ()
-// CHECK-NEXT: ^bb3(%arg3: f32):
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_on_const_no_match(%caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
@@ -278,14 +278,14 @@ func.func @switch_on_const_no_match(%caseOperand0: f32, %caseOperand1: f32, %cas
 }
 
 // CHECK:      func.func @switch_on_const_with_match(%caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.br ^bb3(%caseOperand2 : f32)
-// CHECK-NEXT: ^bb1(%arg: f32):
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb3, ^bb4] : () -> ()
+// CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.br ^bb4(%caseOperand2 : f32)
+// CHECK-NEXT: ^bb2(%arg: f32):
 // CHECK-NEXT:   "test.termop"(%arg) : (f32) -> ()
-// CHECK-NEXT: ^bb2(%arg2: f32):
+// CHECK-NEXT: ^bb3(%arg2: f32):
 // CHECK-NEXT:   "test.termop"(%arg2) : (f32) -> ()
-// CHECK-NEXT: ^bb3(%arg3: f32):
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_on_const_with_match(%caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
@@ -307,22 +307,22 @@ func.func @switch_on_const_with_match(%caseOperand0: f32, %caseOperand1: f32, %c
 }
 
 // CHECK:      func.func @switch_passthrough(%flag: i32, %caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32, %caseOperand3: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3, ^bb4, ^bb5] : () -> ()
-// CHECK-NEXT: ^bb0:
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb3, ^bb4, ^bb5, ^bb6] : () -> ()
+// CHECK-NEXT: ^bb1:
 // CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb4(%caseOperand0 : f32),
-// CHECK-NEXT:     43: ^bb5(%caseOperand1 : f32),
-// CHECK-NEXT:     44: ^bb3(%caseOperand2 : f32)
+// CHECK-NEXT:     default: ^bb5(%caseOperand0 : f32),
+// CHECK-NEXT:     43: ^bb6(%caseOperand1 : f32),
+// CHECK-NEXT:     44: ^bb4(%caseOperand2 : f32)
 // CHECK-NEXT:   ]
-// CHECK-NEXT: ^bb1(%arg: f32):
-// CHECK-NEXT:   cf.br ^bb4(%arg : f32)
-// CHECK-NEXT: ^bb2(%arg2: f32):
-// CHECK-NEXT:   cf.br ^bb5(%arg2 : f32)
-// CHECK-NEXT: ^bb3(%arg3: f32):
+// CHECK-NEXT: ^bb2(%arg: f32):
+// CHECK-NEXT:   cf.br ^bb5(%arg : f32)
+// CHECK-NEXT: ^bb3(%arg2: f32):
+// CHECK-NEXT:   cf.br ^bb6(%arg2 : f32)
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
-// CHECK-NEXT: ^bb4(%arg4: f32):
+// CHECK-NEXT: ^bb5(%arg4: f32):
 // CHECK-NEXT:   "test.termop"(%arg4) : (f32) -> ()
-// CHECK-NEXT: ^bb5(%arg5: f32):
+// CHECK-NEXT: ^bb6(%arg5: f32):
 // CHECK-NEXT:   "test.termop"(%arg5) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_passthrough(%flag : i32,
@@ -351,20 +351,20 @@ func.func @switch_passthrough(%flag : i32,
 }
 
 // CHECK:      func.func @switch_from_switch_with_same_value_with_match(%flag: i32, %caseOperand0: f32, %caseOperand1: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb1,
-// CHECK-NEXT:     42: ^bb4
-// CHECK-NEXT:   ]
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb4, ^bb5] : () -> ()
 // CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.switch %flag : i32, [
+// CHECK-NEXT:     default: ^bb2,
+// CHECK-NEXT:     42: ^bb3
+// CHECK-NEXT:   ]
+// CHECK-NEXT: ^bb2:
 // CHECK-NEXT:   "test.termop"() : () -> ()
-// CHECK-NEXT: ^bb4:
+// CHECK-NEXT: ^bb3:
 // CHECK-NEXT:   "test.op"() : () -> ()
-// CHECK-NEXT:   cf.br ^bb3(%caseOperand1 : f32)
-// CHECK-NEXT: ^bb2(%arg3: f32):
+// CHECK-NEXT:   cf.br ^bb5(%caseOperand1 : f32)
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
-// CHECK-NEXT: ^bb3(%arg4: f32):
+// CHECK-NEXT: ^bb5(%arg4: f32):
 // CHECK-NEXT:   "test.termop"(%arg4) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_from_switch_with_same_value_with_match(%flag: i32, %caseOperand0: f32, %caseOperand1: f32) {
@@ -392,22 +392,22 @@ func.func @switch_from_switch_with_same_value_with_match(%flag: i32, %caseOperan
 }
 
 // CHECK:      func.func @switch_from_switch_with_same_value_no_match(%flag: i32, %caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3, ^bb4] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb1,
-// CHECK-NEXT:     42: ^bb5
-// CHECK-NEXT:   ]
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb4, ^bb5, ^bb6] : () -> ()
 // CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.switch %flag : i32, [
+// CHECK-NEXT:     default: ^bb2,
+// CHECK-NEXT:     42: ^bb3
+// CHECK-NEXT:   ]
+// CHECK-NEXT: ^bb2:
 // CHECK-NEXT:   "test.termop"() : () -> ()
-// CHECK-NEXT: ^bb5:
+// CHECK-NEXT: ^bb3:
 // CHECK-NEXT:   "test.op"() : () -> ()
-// CHECK-NEXT:   cf.br ^bb2(%caseOperand0 : f32)
-// CHECK-NEXT: ^bb2(%arg3: f32):
+// CHECK-NEXT:   cf.br ^bb4(%caseOperand0 : f32)
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
-// CHECK-NEXT: ^bb3(%arg4: f32):
+// CHECK-NEXT: ^bb5(%arg4: f32):
 // CHECK-NEXT:   "test.termop"(%arg4) : (f32) -> ()
-// CHECK-NEXT: ^bb4(%arg5: f32):
+// CHECK-NEXT: ^bb6(%arg5: f32):
 // CHECK-NEXT:   "test.termop"(%arg5) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_from_switch_with_same_value_no_match(%flag: i32, %caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
@@ -436,25 +436,25 @@ func.func @switch_from_switch_with_same_value_no_match(%flag: i32, %caseOperand0
 }
 
 // CHECK:      func.func @switch_from_switch_default_with_same_value(%flag: i32, %caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {
-// CHECK-NEXT:   "test.termop"() [^bb0, ^bb1, ^bb2, ^bb3, ^bb4] : () -> ()
-// CHECK-NEXT: ^bb0:
-// CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb5,
-// CHECK-NEXT:     42: ^bb1
-// CHECK-NEXT:   ]
+// CHECK-NEXT:   "test.termop"() [^bb1, ^bb2, ^bb4, ^bb5, ^bb6] : () -> ()
 // CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   cf.switch %flag : i32, [
+// CHECK-NEXT:     default: ^bb3,
+// CHECK-NEXT:     42: ^bb2
+// CHECK-NEXT:   ]
+// CHECK-NEXT: ^bb2:
 // CHECK-NEXT:   "test.termop"() : () -> ()
-// CHECK-NEXT: ^bb5:
+// CHECK-NEXT: ^bb3:
 // CHECK-NEXT:   "test.op"() : () -> ()
 // CHECK-NEXT:   cf.switch %flag : i32, [
-// CHECK-NEXT:     default: ^bb2(%caseOperand0 : f32),
-// CHECK-NEXT:     43: ^bb4(%caseOperand2 : f32)
+// CHECK-NEXT:     default: ^bb4(%caseOperand0 : f32),
+// CHECK-NEXT:     43: ^bb6(%caseOperand2 : f32)
 // CHECK-NEXT:   ]
-// CHECK-NEXT: ^bb2(%arg3: f32):
+// CHECK-NEXT: ^bb4(%arg3: f32):
 // CHECK-NEXT:   "test.termop"(%arg3) : (f32) -> ()
-// CHECK-NEXT: ^bb3(%arg4: f32):
+// CHECK-NEXT: ^bb5(%arg4: f32):
 // CHECK-NEXT:   "test.termop"(%arg4) : (f32) -> ()
-// CHECK-NEXT: ^bb4(%arg5: f32):
+// CHECK-NEXT: ^bb6(%arg5: f32):
 // CHECK-NEXT:   "test.termop"(%arg5) : (f32) -> ()
 // CHECK-NEXT: }
 func.func @switch_from_switch_default_with_same_value(%flag: i32, %caseOperand0: f32, %caseOperand1: f32, %caseOperand2: f32) {

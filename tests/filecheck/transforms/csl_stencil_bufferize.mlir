@@ -53,7 +53,7 @@ builtin.module {
 // CHECK-NEXT:       %19 = bufferization.to_buffer %18 : tensor<510xf32> to memref<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %19 : memref<510xf32>
 // CHECK-NEXT:     }, {
-// CHECK-NEXT:     ^bb1(%20: memref<512xf32>, %21: memref<510xf32>, %22: memref<512xf32>):
+// CHECK-NEXT:     ^bb0(%20: memref<512xf32>, %21: memref<510xf32>, %22: memref<512xf32>):
 // CHECK-NEXT:       %23 = bufferization.to_tensor %21 restrict writable : memref<510xf32>
 // CHECK-NEXT:       %24 = bufferization.to_tensor %20 restrict : memref<512xf32>
 // CHECK-NEXT:       %25 = arith.constant dense<1.666600e-01> : memref<510xf32>

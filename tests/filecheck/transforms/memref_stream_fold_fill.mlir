@@ -81,7 +81,7 @@ memref_stream.generic {
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "reduction"]
 // CHECK-NEXT:    } ins(%m3 : memref<5x3xf64>) outs(%m0, %m1, %m2 : memref<5xf64>, memref<5xf64>, memref<5xf64>) {
-// CHECK-NEXT:    ^bb1(%in_1: f64, %out0_1: f64, %out1_1: f64, %out2_1: f64):
+// CHECK-NEXT:    ^bb0(%in_1: f64, %out0_1: f64, %out1_1: f64, %out2_1: f64):
 // CHECK-NEXT:      %sum0_1 = arith.addf %out0_1, %in_1 : f64
 // CHECK-NEXT:      %sum1_1 = arith.addf %out1_1, %in_1 : f64
 // CHECK-NEXT:      %sum2_1 = arith.addf %out2_1, %in_1 : f64
