@@ -30,11 +30,6 @@ from xdsl.dialects.builtin import (
     DenseResourceAttr,
     DictionaryAttr,
     FileLineColLoc,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
     FloatAttr,
     FunctionType,
     FusedLoc,
@@ -64,8 +59,24 @@ from xdsl.dialects.builtin import (
     UnregisteredAttr,
     VectorType,
     bf16,
+    f4E2M1FN,
+    f6E2M3FN,
+    f6E3M2FN,
+    f8E3M4,
+    f8E4M3,
+    f8E4M3B11FNUZ,
+    f8E4M3FN,
+    f8E4M3FNUZ,
+    f8E5M2,
+    f8E5M2FNUZ,
+    f8E8M0FNU,
+    f16,
+    f32,
     f64,
+    f80,
+    f128,
     i64,
+    tf32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
@@ -1559,7 +1570,26 @@ class AttrParser(BaseParser):
         )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
-    _builtin_float_type_regex = re.compile(r"^f(\d+)$")
+    _builtin_float_types = {
+        "bf16": bf16,
+        "f16": f16,
+        "f32": f32,
+        "f64": f64,
+        "f80": f80,
+        "f128": f128,
+        "tf32": tf32,
+        "f8E5M2": f8E5M2,
+        "f8E4M3": f8E4M3,
+        "f8E4M3FN": f8E4M3FN,
+        "f8E5M2FNUZ": f8E5M2FNUZ,
+        "f8E4M3FNUZ": f8E4M3FNUZ,
+        "f8E4M3B11FNUZ": f8E4M3B11FNUZ,
+        "f8E3M4": f8E3M4,
+        "f8E8M0FNU": f8E8M0FNU,
+        "f6E2M3FN": f6E2M3FN,
+        "f6E3M2FN": f6E3M2FN,
+        "f4E2M1FN": f4E2M1FN,
+    }
 
     def _parse_optional_integer_or_float_type(self) -> TypeAttribute | None:
         """
@@ -1567,7 +1597,10 @@ class AttrParser(BaseParser):
           integer-or-float-type ::= index-type | integer-type | float-type
           index-type            ::= `index`
           integer-type          ::= (`i` | `si` | `ui`) decimal-literal
-          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
+          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16` | `tf32`
+                                  | `f8E5M2` | `f8E4M3` | `f8E4M3FN` | `f8E5M2FNUZ`
+                                  | `f8E4M3FNUZ` | `f8E4M3B11FNUZ` | `f8E3M4` | `f8E8M0FNU`
+                                  | `f6E2M3FN` | `f6E3M2FN` | `f4E2M1FN`
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
@@ -1588,25 +1621,10 @@ class AttrParser(BaseParser):
             self._consume_token()
             return IntegerType(int(match.group(1)), signedness[name[0]])
 
-        # bf16 type
-        if name == "bf16":
-            self._consume_token()
-            return bf16
-
         # Float type
-        if (re_match := self._builtin_float_type_regex.match(name)) is not None:
-            width = int(re_match.group(1))
-            type = {
-                16: Float16Type,
-                32: Float32Type,
-                64: Float64Type,
-                80: Float80Type,
-                128: Float128Type,
-            }.get(width, None)
-            if type is None:
-                self.raise_error(f"Unsupported floating point width: {width}")
+        if (float_type := self._builtin_float_types.get(name)) is not None:
             self._consume_token()
-            return type()
+            return float_type
 
         return None
 
