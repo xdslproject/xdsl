@@ -58,25 +58,25 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
-    i64,
     bf16,
-    tf32,
+    f4E2M1FN,
+    f6E2M3FN,
+    f6E3M2FN,
+    f8E3M4,
+    f8E4M3,
+    f8E4M3B11FNUZ,
+    f8E4M3FN,
+    f8E4M3FNUZ,
+    f8E5M2,
+    f8E5M2FNUZ,
+    f8E8M0FNU,
     f16,
     f32,
     f64,
     f80,
     f128,
-    f8E5M2,
-    f8E4M3,
-    f8E4M3FN,
-    f8E5M2FNUZ,
-    f8E4M3FNUZ,
-    f8E4M3B11FNUZ,
-    f8E3M4,
-    f8E8M0FNU,
-    f6E2M3FN,
-    f6E3M2FN,
-    f4E2M1FN,
+    i64,
+    tf32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
@@ -1631,10 +1631,10 @@ class AttrParser(BaseParser):
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:
-            if (type := self._builtin_float_types.get(re_match.group(1))) is None:
+            if (float_type := self._builtin_float_types.get(re_match.group(1))) is None:
                 self.raise_error(f"Unsupported floating point type: {name}")
             self._consume_token()
-            return type()
+            return float_type
 
         return None
 
