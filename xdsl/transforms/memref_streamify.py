@@ -110,6 +110,12 @@ class StreamifyGenericOpPattern(RewritePattern):
             )
         )
         new_body = streaming_region_op.body.block
+        for stream_arg, (operand_index, _) in zip(
+            new_body.args, streamed_operand_indices
+        ):
+            if (name_hint := op.operands[operand_index].name_hint) is not None:
+                stream_arg.name_hint = f"{name_hint}_stream"
+
         new_operands = list(op.operands[: len(op.inputs) + len(op.outputs)])
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
