@@ -111,7 +111,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         )
         new_body = streaming_region_op.body.block
         for stream_arg, (operand_index, _) in zip(
-            new_body.args, streamed_operand_indices
+            new_body.args, streamed_operand_indices, strict=True
         ):
             if (name_hint := op.operands[operand_index].name_hint) is not None:
                 stream_arg.name_hint = f"{name_hint}_stream"
