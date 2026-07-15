@@ -141,7 +141,8 @@ class PatternRewriting(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_region_walk(self) -> None:
-        """Time `Region.walk`.
+        """
+        Time `Region.walk`.
 
         Exercise walking over an IR region, including iterator overhead. This
         is used to populate the worklist for pattern rewriting.
@@ -150,7 +151,8 @@ class PatternRewriting(RewritingMicrobenchmarks):
             assert block
 
     def time_worklist_push(self) -> None:
-        """Time `Worklist.push`.
+        """
+        Time `Worklist.push`.
 
         Exercise adding an operation to the worklist, including lookups in the
         worklist map, relying on operation's `__hash__` function. This is used
@@ -159,7 +161,8 @@ class PatternRewriting(RewritingMicrobenchmarks):
         self.worklist.push(self.add_op)
 
     def time_worklist_pop(self) -> None:
-        """Time `Worklist.pop`.
+        """
+        Time `Worklist.pop`.
 
         Exercise removing an operation from the worklist, from the worklist map,
         relying on operation's `__hash__` function. This is used to process
@@ -169,7 +172,8 @@ class PatternRewriting(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_get_trait(self) -> None:
-        """Time `Operation.get_trait`.
+        """
+        Time `Operation.get_trait`.
 
         Exercise getting an operation's trait, including `isinstance` checks and
         the traits iterator. This is used frequently in pattern rewriting, both
@@ -179,14 +183,16 @@ class PatternRewriting(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_insert_point_before(self) -> None:
-        """Time `InsertPoint.before`.
+        """
+        Time `InsertPoint.before`.
 
         Measure time to create an `InsertPoint` from the block's parent block.
         """
         InsertPoint.before(self.add_op)
 
     def ignore_time_pattern_rewriter_insert_op(self) -> None:
-        """Time `PatternRewriter.insert_op`.
+        """
+        Time `PatternRewriter.insert_op`.
 
         Exercise inserting an operation and running any required callbacks. This
         is used to effect the results of rewriting.
@@ -195,7 +201,8 @@ class PatternRewriting(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_verify_variadic_size(self) -> None:
-        """Time `verify_variadic_size`.
+        """
+        Time `verify_variadic_size`.
 
         Exercise verifying the variadic size of an operation, including a
         significant amount of logic to check lengths and types. This is invoked
@@ -208,7 +215,8 @@ class Canonicalization(RewritingMicrobenchmarks):
     """Microbenchmarks for canonicalization rewriting of constant folding."""
 
     def ignore_time_operation_drop_all_references(self) -> None:
-        """Time `Operation.drop_all_references`.
+        """
+        Time `Operation.drop_all_references`.
 
         Exercise dropping references to an operation, including removing
         references to its IR uses. This is used when removing unused operations.
@@ -216,7 +224,8 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.add_op.drop_all_references()
 
     def time_ssavalue_replace_by(self) -> None:
-        """Time `SSAValue.replace_by`.
+        """
+        Time `SSAValue.replace_by`.
 
         Exercise replacing an `SSAValue` and all its uses with another
         SSAValue. This is used when removing unused operations.
@@ -224,7 +233,8 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.add_op_result.replace_all_uses_with(self.sub_op_result)
 
     def ignore_time_irwithuses_remove_use(self) -> None:
-        """Time `IRWithUses.remove_use`.
+        """
+        Time `IRWithUses.remove_use`.
 
         Exercise removing references to IR uses. This is used when removing
         unused operations.
@@ -232,14 +242,16 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.add_op_result.remove_use(self.add_op_result_use)
 
     def time_irwithuses_add_use(self) -> None:
-        """Time `IRWithUses.add_use`.
+        """
+        Time `IRWithUses.add_use`.
 
         Exercise adding references to IR uses.
         """
         self.sub_op_result.add_use(self.add_op_result_use)
 
     def time_ssavalue_name_hint(self) -> None:
-        """Time `SSAValue.namehint`.
+        """
+        Time `SSAValue.namehint`.
 
         Exercise changing an `SSAValue` name hint, which performs regex
         validation at runtime. This is used when removing unused operations.
@@ -247,7 +259,8 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.add_op_result.name_hint = "valid_name"
 
     def time_handle_operation_removal(self) -> None:
-        """Time `PatternRewriter.handle_operation_removal`.
+        """
+        Time `PatternRewriter.handle_operation_removal`.
 
         Exercise removing an operation recursively from regions, and from the
         pattern rewriter worklist. This is used when removing unused operations.
@@ -255,7 +268,8 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.pattern_rewriter.handle_operation_removal(self.add_op)
 
     def ignore_time_block_detach_op(self) -> None:
-        """Time `Block.detach_op`.
+        """
+        Time `Block.detach_op`.
 
         Exercise detaching an operation from a block, including fixing the
         block's doubly linked list. This is used when removing unused
@@ -264,7 +278,8 @@ class Canonicalization(RewritingMicrobenchmarks):
         self.region.block.detach_op(self.add_op)
 
     def time_ssavalue_erase(self) -> None:
-        """Time `SSAValue.erase`.
+        """
+        Time `SSAValue.erase`.
 
         Exercise erasing an 'SSAValue'. This is used when removing unused
         operations.
@@ -273,7 +288,8 @@ class Canonicalization(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_integer_attr_creation(self) -> None:
-        """Time `IntegerAttr.__init__`.
+        """
+        Time `IntegerAttr.__init__`.
 
         Exercise instantiating an integer attribute, including getting a
         normalised value and constructing the class. This is used when creating
@@ -283,7 +299,8 @@ class Canonicalization(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_integer_type_normalized_value(self) -> None:
-        """Time `IntegerType.normalized_value`.
+        """
+        Time `IntegerType.normalized_value`.
 
         Exercise getting the normalised value for an integer. This is used when creating
         a new constant operation for folding.
@@ -292,7 +309,8 @@ class Canonicalization(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_integer_attr_verify(self) -> None:
-        """Time `IntegerAttr._verify`.
+        """
+        Time `IntegerAttr._verify`.
 
         Exercise verifying an integer attribute. This is used when creating a
         new constant operation for folding.
@@ -301,7 +319,8 @@ class Canonicalization(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_operation_create(self) -> None:
-        """Time `AddiOp.__init__`.
+        """
+        Time `AddiOp.__init__`.
 
         Exercising instantiating an add operation of two constant values.
         """
@@ -309,7 +328,8 @@ class Canonicalization(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_const_evaluate_operand(self) -> None:
-        """Time `const_evaluate_operand`.
+        """
+        Time `const_evaluate_operand`.
 
         Exercise getting the value from a constant.
         """
@@ -321,7 +341,8 @@ class RemoveUnused(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_is_trivially_dead(self) -> None:
-        """Time `is_trivially_dead`.
+        """
+        Time `is_trivially_dead`.
 
         Exercise checking if an operation has no observable effect. This is
         mostly checking if it would be trivially dead, and alse checking its
@@ -331,7 +352,8 @@ class RemoveUnused(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_would_be_trivially_dead(self) -> None:
-        """Time `would_be_trivially_dead`.
+        """
+        Time `would_be_trivially_dead`.
 
         Exercise checking if an operation would be dead if all its results were
         dead. This is around half trait checks and half getting result only
@@ -341,7 +363,8 @@ class RemoveUnused(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_result_only_effects(self) -> None:
-        """Time `result_only_effects`.
+        """
+        Time `result_only_effects`.
 
         Exercise checking if an operation has no observable effect beyond its
         return value. This is mostly getting its effects.
@@ -350,7 +373,8 @@ class RemoveUnused(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_operation_get_traits_of_type(self) -> None:
-        """Time `Operation.get_traits_of_type`.
+        """
+        Time `Operation.get_traits_of_type`.
 
         Exercise getting all the traits from an operatino of a give type. This
         is mostly `isinstance` checks.
@@ -363,7 +387,8 @@ class RegionDCE(RewritingMicrobenchmarks):
 
     @safe_to_repeat
     def time_post_order_iterator(self) -> None:
-        """Time `PostOrderIterator`.
+        """
+        Time `PostOrderIterator`.
 
         Exercise constructing and using a post-order iterator over a block. This
         is used for dead code elimination.
@@ -373,7 +398,8 @@ class RegionDCE(RewritingMicrobenchmarks):
             assert block
 
     def time_liveset_set_live(self) -> None:
-        """Time `LiveSet.set_live`.
+        """
+        Time `LiveSet.set_live`.
 
         Exercise adding an item to the live set. This is used for dead code
         elimination.
@@ -381,7 +407,8 @@ class RegionDCE(RewritingMicrobenchmarks):
         self.live_set.set_live(self.add_op)
 
     def time_liveset_delete_dead(self) -> None:
-        """Time `LiveSet.delete_dead`.
+        """
+        Time `LiveSet.delete_dead`.
 
         Exercise deleting operations not in the live set for a region. This is
         used for dead code elimination.

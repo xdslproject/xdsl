@@ -37,7 +37,8 @@ LLVMFunctionPassManagerRef = ...
 LLVMPassBuilderRef = ...
 
 class _LLVMLock:
-    """A Lock to guarantee thread-safety for the LLVM C-API.
+    """
+    A Lock to guarantee thread-safety for the LLVM C-API.
 
     This class implements __enter__ and __exit__ for acquiring and releasing
     the lock as a context manager.
@@ -47,7 +48,8 @@ class _LLVMLock:
     """
     def __init__(self) -> None: ...
     def register(self, acq_fn, rel_fn):  # -> None:
-        """Register callbacks that are invoked immediately after the lock is
+        """
+        Register callbacks that are invoked immediately after the lock is
         acquired (``acq_fn()``) and immediately before the lock is released
         (``rel_fn()``).
         """
@@ -69,7 +71,8 @@ class _suppress_cleanup_errors:
         ...
 
 class _lib_wrapper:
-    """Wrap libllvmlite with a lock such that only one thread may access it at
+    """
+    Wrap libllvmlite with a lock such that only one thread may access it at
     a time.
 
     This class duck-types a CDLL.
@@ -81,7 +84,8 @@ class _lib_wrapper:
         ...
 
 class _lib_fn_wrapper:
-    """Wraps and duck-types a ctypes.CFUNCTYPE to provide
+    """
+    Wraps and duck-types a ctypes.CFUNCTYPE to provide
     automatic locking when the wrapped function is called.
 
     TODO: we can add methods to mark the function as threadsafe
@@ -106,13 +110,15 @@ _importlib_resources_path = ...
 lib = ...
 
 def register_lock_callback(acq_fn, rel_fn):  # -> None:
-    """Register callback functions for lock acquire and release.
+    """
+    Register callback functions for lock acquire and release.
     *acq_fn* and *rel_fn* are callables that take no arguments.
     """
     ...
 
 def unregister_lock_callback(acq_fn, rel_fn):  # -> None:
-    """Remove the registered callback functions for lock acquire and release.
+    """
+    Remove the registered callback functions for lock acquire and release.
     The arguments are the same as used in `register_lock_callback()`.
     """
     ...
@@ -130,7 +136,8 @@ class OutputString:
     _as_parameter_ = ...
     @classmethod
     def from_return(cls, ptr):  # -> Self:
-        """Constructing from a pointer returned from the C-API.
+        """
+        Constructing from a pointer returned from the C-API.
         The pointer must be allocated with LLVMPY_CreateString.
 
         Note

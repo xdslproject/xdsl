@@ -18,7 +18,8 @@ from xdsl.ir import (
 
 @dataclass(frozen=True)
 class Position(ABC):
-    """The position class encodes a location in a pattern.
+    """
+    The position class encodes a location in a pattern.
     Each pattern has a root position. From there, other positions can be reached representing operands, results, and more.
     """
 

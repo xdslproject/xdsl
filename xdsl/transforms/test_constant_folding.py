@@ -66,7 +66,8 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
     name = "test-specialised-constant-folding"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        """Apply the pass.
+        """
+        Apply the pass.
 
         This is a full manual inlining of the call stack invoked by:
 

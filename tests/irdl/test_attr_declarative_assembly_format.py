@@ -1,4 +1,5 @@
-"""Tests for the attribute/type declarative assembly format.
+"""
+Tests for the attribute/type declarative assembly format.
 
 These tests drive ``AttrFormatProgram`` directly, covering the empty format and
 the structural directives (whitespace, punctuation, keyword).

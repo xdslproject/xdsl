@@ -82,7 +82,8 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class InnerSymTarget:
-    """The target of an inner symbol, the entity the symbol is a handle for.
+    """
+    The target of an inner symbol, the entity the symbol is a handle for.
 
     A None operation defines an invalid target, which is returned from InnerSymbolTable.lookup()
     when no matching operation is found. An invalid target is falsey when constrained to bool.
@@ -245,7 +246,8 @@ class InnerSymbolTableCollection:
 
 
 class InnerRefUserOpInterfaceTrait(OpTrait):
-    """This interface describes an operation that may use a `InnerRef`. This
+    """
+    This interface describes an operation that may use a `InnerRef`. This
     interface allows for users of inner symbols to hook into verification and
     other inner symbol related utilities that are either costly or otherwise
     disallowed within a traditional operation."""
@@ -286,7 +288,8 @@ InnerRefNamespaceLike.register(InnerRefNamespaceTrait)
 
 @dataclass
 class InnerRefNamespace:
-    """Class to perform symbol lookups within a InnerRef namespace, used during verification.
+    """
+    Class to perform symbol lookups within a InnerRef namespace, used during verification.
     Combines InnerSymbolTableCollection with a SymbolTable for resolution of InnerRefAttrs.
 
     Inner symbols are more costly than normal symbols, with tricker verification. For this reason,
@@ -357,7 +360,8 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
 class InnerSymAttr(
     ParametrizedAttribute, Iterable[InnerSymPropertiesAttr], OpaqueSyntaxAttribute
 ):
-    """Inner symbol definition
+    """
+    Inner symbol definition
 
     Defines the properties of an inner_sym attribute. It specifies the symbol name and symbol
     visibility for each field ID. For any ground types, there are no subfields and the field ID is 0.

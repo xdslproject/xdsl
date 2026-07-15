@@ -1,4 +1,5 @@
-"""Custom xDSL exceptions.
+"""
+Custom xDSL exceptions.
 
 This module contains all custom exceptions used by xDSL.
 """

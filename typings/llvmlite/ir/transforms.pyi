@@ -28,7 +28,8 @@ class ReplaceCalls(CallVisitor):
         ...
 
 def replace_all_calls(mod, orig, repl):  # -> list[Any]:
-    """Replace all calls to `orig` to `repl` in module `mod`.
+    """
+    Replace all calls to `orig` to `repl` in module `mod`.
     Returns the references to the returned calls
     """
     ...

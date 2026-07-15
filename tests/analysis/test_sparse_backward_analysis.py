@@ -94,7 +94,8 @@ def _make_block_executable(solver: DataFlowSolver, block: Block) -> None:
 
 
 def test_backward_analysis_initialization_visits_ops_with_operands():
-    """Initialization visits every op that has operands. Source ops (no
+    """
+    Initialization visits every op that has operands. Source ops (no
     operands) are skipped — there is nothing for backward propagation to
     write into them."""
     ctx = Context()
@@ -159,7 +160,8 @@ def test_visit_operation_skips_non_executable_blocks():
 
 
 def test_visit_operation_skips_when_parent_block_not_executable():
-    """An op with operands whose parent block is not marked live is skipped
+    """
+    An op with operands whose parent block is not marked live is skipped
     before any lattice propagation happens."""
     ctx = Context()
     solver = DataFlowSolver(ctx)
@@ -181,7 +183,8 @@ def test_visit_operation_skips_when_parent_block_not_executable():
 
 
 def test_visit_with_block_point_is_noop():
-    """For backward analysis, visiting a program point whose `op is None`
+    """
+    For backward analysis, visiting a program point whose `op is None`
     (i.e., a block-anchored point) must be a no-op: it must not invoke
     `visit_operation` nor create any lattice state."""
     ctx = Context()

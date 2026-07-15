@@ -40,7 +40,8 @@ class WorkloadBuilder:
 
     @classmethod
     def constant_folding_module(cls, size: int = 100) -> ModuleOp:
-        """Generate a constant folding workload of a given size.
+        """
+        Generate a constant folding workload of a given size.
 
         The output of running the command
         `print(WorkloadBuilder().constant_folding_module(size=5))` is shown
@@ -82,7 +83,8 @@ class WorkloadBuilder:
 
     @classmethod
     def large_dense_attr_module(cls, x: int = 1024, y: int = 1024) -> ModuleOp:
-        """Get the MLIR text representation of a large dense attr.
+        """
+        Get the MLIR text representation of a large dense attr.
 
         An example of running
         `print(WorkloadBuilder().large_dense_attr_module(x=3, y=3))`
@@ -112,7 +114,8 @@ class WorkloadBuilder:
 
     @classmethod
     def large_dense_attr_hex(cls, x: int = 1024, y: int = 1024) -> str:
-        """Get the MLIR hex representation of a large dense attr.
+        """
+        Get the MLIR hex representation of a large dense attr.
 
         An example of running `WorkloadBuilder().large_dense_attr(x=3, y=3)`
         is as follows:
@@ -144,7 +147,8 @@ class WorkloadBuilder:
         tensor_shape: tuple[int, ...],
         num_add_ops: int = 10,
     ) -> ModuleOp:
-        """Create a module with a function that adds multiple large constant tensors.
+        """
+        Create a module with a function that adds multiple large constant tensors.
 
         Args:
             tensor_shape: The shape of the constant tensors to be created.
