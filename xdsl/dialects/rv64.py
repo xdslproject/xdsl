@@ -240,9 +240,11 @@ class RorIOp(RV64RdRsImmShiftOperation):
 
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
+        unsigned_rs1 = rs1.value.data % 0x10000000000000000
+        shamt = self.immediate.value.data
         return IntegerAttr(
-            rs1.value.data >> self.immediate.value.data
-            | rs1.value.data << (64 - self.immediate.value.data),
+            (unsigned_rs1 >> shamt | unsigned_rs1 << (64 - shamt))
+            % 0x10000000000000000,
             i64,
         )
 

@@ -5,6 +5,7 @@ from xdsl.dialects import riscv, rv32
 from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
+    i32,
 )
 from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
@@ -104,6 +105,60 @@ def test_immediate_rori_inst():
         rv32.RorIOp(a1, -1, rd=riscv.Registers.A0)
 
     rv32.RorIOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+
+
+def test_bclri_py_operation():
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = rv32.BclrIOp(a1, 3, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b1111, i32)) == IntegerAttr(0b0111, i32)
+
+    # Clearing a bit that is already clear leaves the value unchanged
+    op = rv32.BclrIOp(a1, 2, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b1011, i32)) == IntegerAttr(0b1011, i32)
+
+
+def test_bexti_py_operation():
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = rv32.BextIOp(a1, 3, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b1000, i32)) == IntegerAttr(1, i32)
+
+    op = rv32.BextIOp(a1, 2, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b1000, i32)) == IntegerAttr(0, i32)
+
+
+def test_bseti_py_operation():
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = rv32.BsetIOp(a1, 3, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b0001, i32)) == IntegerAttr(0b1001, i32)
+
+    # Setting a bit that is already set leaves the value unchanged
+    assert op.py_operation(IntegerAttr(0b1001, i32)) == IntegerAttr(0b1001, i32)
+
+
+def test_binvi_py_operation():
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = rv32.BinvIOp(a1, 3, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0b0101, i32)) == IntegerAttr(0b1101, i32)
+    assert op.py_operation(IntegerAttr(0b1101, i32)) == IntegerAttr(0b0101, i32)
+
+
+def test_rori_py_operation():
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    # The low nibble rotates into the top nibble
+    op = rv32.RorIOp(a1, 4, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0xB3, i32)) == IntegerAttr(0x3000000B, i32)
+
+    # Rotating by zero leaves the value unchanged
+    op = rv32.RorIOp(a1, 0, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(0xB3, i32)) == IntegerAttr(0xB3, i32)
+
+    op = rv32.RorIOp(a1, 1, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(1, i32)) == IntegerAttr(0x80000000, i32)
 
 
 def test_get_constant_value():
