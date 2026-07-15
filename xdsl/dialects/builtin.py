@@ -1176,7 +1176,7 @@ class FloatNanEncoding(Enum):
 class FloatSemantics:
     """The parameters that fully define a reduced-precision float format.
 
-    Modeled on LLVM's `fltSemantics`: the single codec on `_ReducedPrecisionFloatType`
+    Modeled on LLVM's `fltSemantics`: the single codec on `ReducedPrecisionFloatType`
     encodes and decodes any format entirely from this descriptor, with no per-format code.
     """
 
@@ -1189,7 +1189,7 @@ class FloatSemantics:
     has_sign: bool = True
 
 
-class _ReducedPrecisionFloatType(_FloatType, ABC):
+class ReducedPrecisionFloatType(_FloatType, ABC):
     """Base for reduced-precision floats packed bit-exactly by a single descriptor-driven codec.
 
     Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
@@ -1514,7 +1514,7 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
 
 
 @irdl_attr_definition
-class FloatTF32Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "tf32"
     SEMANTICS = FloatSemantics(
         exponent_bits=8,
@@ -1524,7 +1524,7 @@ class FloatTF32Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E5M2Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2"
     SEMANTICS = FloatSemantics(
         exponent_bits=5,
@@ -1534,7 +1534,7 @@ class Float8E5M2Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E4M3Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3"
     SEMANTICS = FloatSemantics(
         exponent_bits=4,
@@ -1544,7 +1544,7 @@ class Float8E4M3Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E4M3FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E4M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FN"
     SEMANTICS = FloatSemantics(
         exponent_bits=4,
@@ -1556,7 +1556,7 @@ class Float8E4M3FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E5M2FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E5M2FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2FNUZ"
     SEMANTICS = FloatSemantics(
         exponent_bits=5,
@@ -1568,7 +1568,7 @@ class Float8E5M2FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E4M3FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E4M3FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FNUZ"
     SEMANTICS = FloatSemantics(
         exponent_bits=4,
@@ -1580,7 +1580,7 @@ class Float8E4M3FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E4M3B11FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3B11FNUZ"
     SEMANTICS = FloatSemantics(
         exponent_bits=4,
@@ -1592,7 +1592,7 @@ class Float8E4M3B11FNUZType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E3M4Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E3M4"
     SEMANTICS = FloatSemantics(
         exponent_bits=3,
@@ -1602,7 +1602,7 @@ class Float8E3M4Type(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float8E8M0FNUType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float8E8M0FNUType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E8M0FNU"
     SEMANTICS = FloatSemantics(
         exponent_bits=8,
@@ -1616,7 +1616,7 @@ class Float8E8M0FNUType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float6E2M3FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float6E2M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E2M3FN"
     SEMANTICS = FloatSemantics(
         exponent_bits=2,
@@ -1627,7 +1627,7 @@ class Float6E2M3FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float6E3M2FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float6E3M2FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E3M2FN"
     SEMANTICS = FloatSemantics(
         exponent_bits=3,
@@ -1638,7 +1638,7 @@ class Float6E3M2FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
 
 
 @irdl_attr_definition
-class Float4E2M1FNType(ParametrizedAttribute, _ReducedPrecisionFloatType):
+class Float4E2M1FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f4E2M1FN"
     SEMANTICS = FloatSemantics(
         exponent_bits=2,
@@ -1759,7 +1759,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
             | Float32Type
             | Float16Type
             | BFloat16Type
-            | _ReducedPrecisionFloatType,
+            | ReducedPrecisionFloatType,
         ):
             value = type.unpack(type.pack((value,)), 1)[0]
 

@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     NoneAttr,
+    ReducedPrecisionFloatType,
     ShapedType,
     Signedness,
     StaticShapeArrayConstr,
@@ -39,7 +40,6 @@ from xdsl.dialects.builtin import (
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
-    _ReducedPrecisionFloatType,
     bf16,
     f4E2M1FN,
     f6E2M3FN,
@@ -81,8 +81,6 @@ from xdsl.irdl import (
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-
-# pyright: reportPrivateUsage=false
 
 
 def test_FloatType_bitwidths():
@@ -332,7 +330,7 @@ def test_reduced_float_bit_pattern_roundtrip(type_: AnyFloat):
 
 
 @pytest.mark.parametrize("type_", _REDUCED_TYPES)
-def test_reduced_float_encode_nonfinite(type_: _ReducedPrecisionFloatType):
+def test_reduced_float_encode_nonfinite(type_: ReducedPrecisionFloatType):
     """Infinities, NaNs and overflowing magnitudes encode per the format's semantics."""
     behavior = type_.SEMANTICS.nonfinite
     for magnitude in (math.inf, -math.inf, 1e40):
