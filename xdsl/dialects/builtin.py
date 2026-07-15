@@ -1198,7 +1198,7 @@ class FloatSemantics:
 
 class ReducedPrecisionFloatType(_FloatType, ABC):
     """
-    Base for reduced-precision floats packed bit-exactly by a single descriptor-driven codec.
+    Base for reduced-precision float types, described by a `FloatSemantics`.
 
     Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
     special-value handling is shared here and parameterised by that `FloatSemantics`.
