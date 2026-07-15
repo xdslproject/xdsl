@@ -46,6 +46,7 @@ def test_op_asm_interface():
 
 
 def test_op_asm_interface_storage_is_isolated():
+    """Resource storage belongs to each interface instance."""
     first = OpAsmDialectInterface()
     second = OpAsmDialectInterface()
 

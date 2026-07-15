@@ -167,6 +167,7 @@ def test_invalid_irdl_options():
 
 class MutableIRDLOpts(IRDLOperation):
     name = "test.mutable_irdl_options_field"
+    # Intentionally exercise the deprecated mutable-list input below.
     irdl_options = [AttrSizedRegionSegments()]  # noqa: RUF012
 
 

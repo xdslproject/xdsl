@@ -30,8 +30,10 @@ class OpAsmDialectInterface(DialectInterface):
     compared to keeping these resources tied to ir objects.
     """
 
+    _blob_storage: dict[str, str] = {}  # noqa: RUF012
+
     def __init__(self) -> None:
-        self._blob_storage: dict[str, str] = {}
+        self._blob_storage = {}
 
     def declare_resource(self, key: str) -> str:
         """
