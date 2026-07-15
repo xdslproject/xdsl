@@ -49,6 +49,71 @@ def test_immediate_shift_inst():
     rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
+def test_immediate_bclri_inst():
+    # BCLRI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.BclrIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.BclrIOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.BclrIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_bexti_inst():
+    # BEXTI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.BextIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.BextIOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.BextIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_bseti_inst():
+    # BSETI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.BsetIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.BsetIOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.BsetIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_binvi_inst():
+    # BINVI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.BinvIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.BinvIOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.BinvIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_rori_inst():
+    # RORI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.RorIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.RorIOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.RorIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
 def test_get_constant_value():
     # Test 64-bit LiOp
     li_op = rv64.LiOp(1)
