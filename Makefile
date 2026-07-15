@@ -99,8 +99,8 @@ tests-marimo: uv-installed
 	@bash -c '\
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
-		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
-		for file in docs/marimo/*.py; do \
+		files_requiring_mlir_opt=("docs/notebooks/mlir_interoperation.py"); \
+		for file in docs/notebooks/*.py; do \
 			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
 					echo "Skipping $$file (mlir-opt is not available)"; \
