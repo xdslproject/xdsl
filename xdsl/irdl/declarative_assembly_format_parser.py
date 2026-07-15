@@ -908,6 +908,10 @@ class FormatParser(BaseParser):
             self.raise_error("'results' is ambiguous with multiple variadic results")
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
+            if any(
+                isinstance(o, VariadicDef | OptionalDef) for _, o in self.op_def.results
+            ):
+                self.seen_attributes.add(AttrSizedResultSegments.attribute_name)
         return ResultsDirective()
 
 

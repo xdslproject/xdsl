@@ -1843,6 +1843,26 @@ def test_results_directive_with_variadic(program: str):
     check_roundtrip(program, ctx)
 
 
+def test_results_directive_hides_result_segment_sizes():
+    @irdl_op_definition
+    class ResultsDirectiveOp(IRDLOperation):
+        name = "test.results_directive_with_sizes"
+
+        res1 = result_def()
+        res2 = var_result_def()
+
+        irdl_options = (AttrSizedResultSegments(),)
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(ResultsDirectiveOp)
+
+    check_roundtrip(
+        "%0, %1 = test.results_directive_with_sizes : i32, i64",
+        ctx,
+    )
+
+
 @pytest.mark.parametrize(
     "program",
     [

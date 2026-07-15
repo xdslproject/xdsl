@@ -32,6 +32,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     BaseAccessor,
+    BaseAttrAccessor,
     ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
@@ -39,6 +40,7 @@ from xdsl.irdl import (
     OptionalDef,
     ParamAttrDef,
     Successor,
+    VariadicDef,
     VarIRConstruct,
     VarOperand,
     get_construct_defs,
@@ -688,6 +690,28 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
 _T = TypeVar("_T")
 
 
+def _infer_segment_sizes_from_variadic_index(
+    op_def: OpDef, construct: VarIRConstruct, length: int
+) -> tuple[int, ...]:
+    defs = get_construct_defs(op_def, construct)
+    variadic_defs = tuple(d for _, d in defs if isinstance(d, VariadicDef))
+    has_optional = any(isinstance(d, OptionalDef) for d in variadic_defs)
+
+    if not variadic_defs:
+        return tuple(1 for _ in defs)
+
+    if has_optional:
+        optional_size = 1 if length == len(defs) else 0
+        return tuple(
+            1 if not isinstance(d, VariadicDef) else optional_size for _, d in defs
+        )
+
+    variadic_size = (length - len(defs) + len(variadic_defs)) // len(variadic_defs)
+    return tuple(
+        1 if not isinstance(d, VariadicDef) else variadic_size for _, d in defs
+    )
+
+
 @dataclass(frozen=True)
 class OperandsOrResultDirective(TypeableDirective, ABC):
     """
@@ -713,8 +737,14 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
 
         for i, (name, _) in enumerate(get_construct_defs(op_def, construct)):
             accessor = op_type.__dict__[name]
-            assert isinstance(accessor, BaseAccessor)
-            res = accessor.index(set_to)
+            if isinstance(accessor, BaseAccessor):
+                res = accessor.index(set_to)
+            else:
+                assert isinstance(accessor, BaseAttrAccessor)
+                sizes = _infer_segment_sizes_from_variadic_index(
+                    op_def, construct, len(set_to)
+                )
+                res = accessor.index(sizes, set_to)
             if res is None:
                 res = ()
             if not isinstance(res, Sequence):
