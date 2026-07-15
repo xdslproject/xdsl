@@ -43,3 +43,13 @@ def test_op_asm_interface():
     assert interf.build_resources(["some_key", "non_assigned_key"]) == {
         "some_key": "0x0800000001"
     }
+
+
+def test_op_asm_interface_storage_is_isolated():
+    first = OpAsmDialectInterface()
+    second = OpAsmDialectInterface()
+
+    first.declare_resource("some_key")
+
+    assert second.lookup("some_key") is None
+    assert second.declare_resource("some_key") == "some_key"

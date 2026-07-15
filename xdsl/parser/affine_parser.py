@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from xdsl.ir.affine import (
     AffineConstraintExpr,
@@ -17,7 +18,7 @@ from .generic_parser import ParserState  # noqa: TID251
 
 
 class AffineParser(BaseParser):
-    _BINOP_PRECEDENCE = {
+    _BINOP_PRECEDENCE: ClassVar = {
         "+": 10,
         "-": 10,
         "*": 20,

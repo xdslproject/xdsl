@@ -167,7 +167,7 @@ def test_invalid_irdl_options():
 
 class MutableIRDLOpts(IRDLOperation):
     name = "test.mutable_irdl_options_field"
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = [AttrSizedRegionSegments()]  # noqa: RUF012
 
 
 def test_list_irdl_options():

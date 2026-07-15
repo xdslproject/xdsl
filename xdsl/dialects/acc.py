@@ -11,7 +11,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 
 from abc import ABC
 from collections.abc import Hashable, Iterable, Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import TypeVar
 
@@ -1807,12 +1807,12 @@ class CombinedConstructsLoop(CustomDirective):
     combined: AttributeVariable
 
     _KEYWORDS = ("kernels", "parallel", "serial")
-    _BY_KEYWORD = {
+    _BY_KEYWORD: ClassVar = {
         "kernels": CombinedConstructsType.KERNELS_LOOP,
         "parallel": CombinedConstructsType.PARALLEL_LOOP,
         "serial": CombinedConstructsType.SERIAL_LOOP,
     }
-    _BY_VALUE = {v: k for k, v in _BY_KEYWORD.items()}
+    _BY_VALUE: ClassVar = {v: k for k, v in _BY_KEYWORD.items()}
 
     def is_anchorable(self) -> bool:
         return True

@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
-from typing import cast
+from typing import ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
@@ -119,7 +119,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     the MpiLibraryInfo class.
     """
 
-    MPI_SYMBOL_NAMES = {
+    MPI_SYMBOL_NAMES: ClassVar[dict[str, str]] = {
         "mpi.init": "MPI_Init",
         "mpi.finalize": "MPI_Finalize",
         "mpi.irecv": "MPI_Irecv",

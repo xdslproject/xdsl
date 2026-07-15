@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
@@ -67,8 +69,8 @@ class IRTraversal(BenchmarkClass):
     """Benchmark the time to traverse xDSL IR."""
 
     EXAMPLE_BLOCK_NUM_OPS = 1_000
-    EXAMPLE_OPS = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
-    EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
+    EXAMPLE_OPS: ClassVar = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
+    EXAMPLE_BLOCK: ClassVar = Block(ops=EXAMPLE_OPS)
 
     @safe_to_repeat
     def time_iterate_ops(self) -> None:
