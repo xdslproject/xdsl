@@ -1816,7 +1816,8 @@ class BaseAccessor(ABC):
         return self.index(args)
 
     def __set__(self, instance, value) -> NoReturn:
-        """Writing to a named Operation construct is unsupported.
+        """
+        Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
         raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."
@@ -1949,7 +1950,8 @@ class BaseAttrAccessor(ABC):
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
     def __set__(self, instance, value) -> NoReturn:
-        """Writing to a named Operation construct is unsupported.
+        """
+        Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
         raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."

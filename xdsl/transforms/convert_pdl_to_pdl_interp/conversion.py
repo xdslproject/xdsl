@@ -1613,7 +1613,8 @@ class MatcherGenerator:
         return block
 
     def get_value_at(self, position: Position) -> SSAValue:
-        """Get or create SSA value for a position.
+        """
+        Get or create SSA value for a position.
 
         Assumes self.builder.insertion_point is correctly set.
         May modify the insertion point (e.g., when creating foreach loops).
@@ -1802,7 +1803,8 @@ class MatcherGenerator:
         return value
 
     def generate_bool_node(self, node: BoolNode, val: SSAValue) -> None:
-        """Generate operations for a boolean predicate node.
+        """
+        Generate operations for a boolean predicate node.
 
         Assumes self.builder.insertion_point is correctly set.
         """
@@ -1901,7 +1903,8 @@ class MatcherGenerator:
             self.generate_matcher(node.success_node, region, success_block)
 
     def generate_switch_node(self, node: SwitchNode, val: SSAValue) -> None:
-        """Generate operations for a switch node.
+        """
+        Generate operations for a switch node.
 
         Assumes self.builder.insertion_point is correctly set.
         """
@@ -2034,7 +2037,8 @@ class MatcherGenerator:
         self.builder.insert(switch_op)
 
     def generate_success_node(self, node: SuccessNode) -> None:
-        """Generate operations for a successful match.
+        """
+        Generate operations for a successful match.
 
         Assumes self.builder.insertion_point is correctly set.
         """
@@ -2103,7 +2107,8 @@ class MatcherGenerator:
         self.builder.insert(record_op)
 
     def generate_choose_node(self, node: ChooseNode) -> None:
-        """Generate operations for a choose node
+        """
+        Generate operations for a choose node
 
         Assumes self.builder.insertion_point is correctly set.
         """

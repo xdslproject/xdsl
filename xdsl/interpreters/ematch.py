@@ -198,7 +198,8 @@ class EmatchFunctions(InterpreterFunctions):
         a: equivalence.AnyClassOp,
         b: equivalence.AnyClassOp,
     ) -> bool:
-        """Unions two eclasses, merging their operands and results.
+        """
+        Unions two eclasses, merging their operands and results.
         Returns True if the eclasses were merged, False if they were already the same."""
         a = self.eclass_union_find.find(a)
         b = self.eclass_union_find.find(b)

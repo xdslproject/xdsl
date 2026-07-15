@@ -48,7 +48,8 @@ class BenchmarkClass:
 
 
 def safe_to_repeat(benchmark: _BenchmarkMethodT) -> _BenchmarkMethodT:
-    """Mark a benchmark as safe to time with repeated calls per setup.
+    """
+    Mark a benchmark as safe to time with repeated calls per setup.
 
     Use on ``time_*`` functions or methods that do not consume or mutate state
     prepared in ``setup``. For airspeed velocity, this sets ``number=0`` and

@@ -1148,7 +1148,8 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
 
 
 class FloatNonfiniteBehavior(Enum):
-    """How a reduced-precision float format represents infinities and NaNs.
+    """
+    How a reduced-precision float format represents infinities and NaNs.
 
     Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
     """
@@ -1162,7 +1163,9 @@ class FloatNonfiniteBehavior(Enum):
 
 
 class FloatNanEncoding(Enum):
-    """Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`."""
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
 
     IEEE = auto()
     """All-ones exponent with a non-zero mantissa."""
@@ -1174,7 +1177,8 @@ class FloatNanEncoding(Enum):
 
 @dataclass(frozen=True)
 class FloatSemantics:
-    """The parameters that fully define a reduced-precision float format.
+    """
+    The parameters that fully define a reduced-precision float format.
 
     Modeled on LLVM's `fltSemantics`: the single codec on `ReducedPrecisionFloatType`
     encodes and decodes any format entirely from this descriptor, with no per-format code.
@@ -1188,9 +1192,14 @@ class FloatSemantics:
     has_zero: bool = True
     has_sign: bool = True
 
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
 
 class ReducedPrecisionFloatType(_FloatType, ABC):
-    """Base for reduced-precision floats packed bit-exactly by a single descriptor-driven codec.
+    """
+    Base for reduced-precision floats packed bit-exactly by a single descriptor-driven codec.
 
     Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
     special-value handling is shared here and parameterised by that `FloatSemantics`.
@@ -1200,10 +1209,7 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
 
     @property
     def bitwidth(self) -> int:
-        semantics = self.SEMANTICS
-        return (
-            int(semantics.has_sign) + semantics.exponent_bits + semantics.mantissa_bits
-        )
+        return self.SEMANTICS.bitwidth
 
     @property
     def compile_time_size(self) -> int:
@@ -1326,7 +1332,8 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         return exponent_field > self.max_exponent
 
     def _round_to_fields(self, magnitude: float) -> tuple[int, int] | None:
-        """Round a positive, finite magnitude to `(exponent_field, mantissa)`.
+        """
+        Round a positive, finite magnitude to `(exponent_field, mantissa)`.
 
         Returns `(0, 0)` on underflow to the smallest value and `None` on overflow.
         """

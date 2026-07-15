@@ -968,7 +968,8 @@ def test_extract_operand_tree_predicates_with_value_type():
 
 
 def test_extract_non_tree_predicates_existing_constraint_result():
-    """Test extract_non_tree_predicates when constraint result already exists in inputs
+    """
+    Test extract_non_tree_predicates when constraint result already exists in inputs
 
     Note: This test documents a limitation where the existing constraint result
     handling has issues with ConstraintPosition.get_operation_depth().
@@ -2256,7 +2257,8 @@ def test_get_value_at_operand_group_position():
 
 
 def test_get_value_at_operation_position_passthrough():
-    """Test get_value_at with OperationPosition passthrough (not operand-defining-op)
+    """
+    Test get_value_at with OperationPosition passthrough (not operand-defining-op)
 
     This case occurs when a constraint returns a pdl.OperationType and we need
     to access it through an OperationPosition that just passes through the parent value.

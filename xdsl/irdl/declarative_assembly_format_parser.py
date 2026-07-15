@@ -289,7 +289,8 @@ class FormatParser(BaseParser):
                     )
 
     def verify_results(self, var_constraint_names: AbstractSet[str]):
-        """Check that all result types are refered at least once, or inferred
+        """
+        Check that all result types are refered at least once, or inferred
         from another construct."""
 
         for result_type, (result_name, result_def) in zip(

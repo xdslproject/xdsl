@@ -97,9 +97,9 @@ sources.toy = { path = "docs/Toy", editable = true }
 [tool.ruff]
 target-version = "py310"
 extend-include = [ "*.ipynb", "*.pyi" ]
-exclude = [ ".venv", "docs/marimo" ]
-format.exclude = [ "docs/marimo/**/*.py" ]
-lint.select = [ "E", "F", "I", "INP", "PT", "PYI", "RUF", "TID251", "UP", "W" ]
+exclude = [ ".venv", "docs/notebooks" ]
+format.exclude = [ "docs/notebooks/**/*.py" ]
+lint.select = [ "D213", "E", "F", "I", "INP", "PT", "PYI", "RUF", "TID251", "UP", "W" ]
 lint.ignore = [
   "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
   "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
@@ -113,7 +113,6 @@ lint.ignore = [
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
   "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
-  "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
   "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]
@@ -156,7 +155,7 @@ lint.pycodestyle.max-line-length = 130
 [tool.pyright]
 typeCheckingMode = "strict"
 include = [ "benchmarks", "docs", "tests", "xdsl" ]
-exclude = [ "docs/marimo" ]
+exclude = [ "docs/notebooks" ]
 extraPaths = [ "tests" ]
 # We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
@@ -171,7 +170,7 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 
 [tool.pytest]
-ini_options.python_files = [ "docs/marimo/**.py", "tests/*test_*.py" ]
+ini_options.python_files = [ "docs/notebooks/**.py", "tests/*test_*.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
 ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]
