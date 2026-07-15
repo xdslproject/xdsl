@@ -6,11 +6,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -1146,6 +1147,76 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
         printer.print_string(self.name)
 
 
+class FloatNonfiniteBehavior(Enum):
+    """
+    How a reduced-precision float format represents infinities and NaNs.
+
+    Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
+    """
+
+    IEEE = auto()
+    """The all-ones exponent encodes infinities (zero mantissa) and NaNs."""
+    NAN_ONLY = auto()
+    """No infinities; a NaN is present (see `FloatNanEncoding`)."""
+    FINITE_ONLY = auto()
+    """No infinities or NaNs; overflow saturates to the largest finite value."""
+
+
+class FloatNanEncoding(Enum):
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
+
+    IEEE = auto()
+    """All-ones exponent with a non-zero mantissa."""
+    ALL_ONES = auto()
+    """All-ones exponent and mantissa."""
+    NEGATIVE_ZERO = auto()
+    """The sign-bit-only pattern; the format has no negative zero."""
+
+
+@dataclass(frozen=True)
+class FloatSemantics:
+    """
+    The parameters that fully define a reduced-precision float format.
+
+    Modelled on LLVM's `fltSemantics`. This describes the bit layout; the codec that
+    encodes and decodes values from this descriptor is added separately.
+    """
+
+    exponent_bits: int
+    mantissa_bits: int
+    exponent_bias: int
+    nonfinite: FloatNonfiniteBehavior = FloatNonfiniteBehavior.IEEE
+    nan_encoding: FloatNanEncoding = FloatNanEncoding.IEEE
+    has_zero: bool = True
+    has_sign: bool = True
+
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
+
+class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
+    """
+    Base for reduced-precision float types, described by a `FloatSemantics`.
+
+    Concrete subclasses set only `SEMANTICS`. This carries the type structure; the packing
+    codec that consumes the semantics is added separately, so packing is not yet supported
+    (`format` raises, as these types have no `struct` format string).
+    """
+
+    SEMANTICS: ClassVar[FloatSemantics]
+
+    @property
+    def bitwidth(self) -> int:
+        return self.SEMANTICS.bitwidth
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, _FloatType):
     name = "bf16"
@@ -1263,161 +1334,138 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
 
 
 @irdl_attr_definition
-class FloatTF32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "tf32"
-
-    @property
-    def bitwidth(self) -> int:
-        return 19
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=10,
+        exponent_bias=127,
+    )
 
 
 @irdl_attr_definition
-class Float8E5M2Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=15,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+    )
 
 
 @irdl_attr_definition
-class Float8E5M2FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E5M2FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=16,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=8,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3B11FNUZType(
-    ParametrizedAttribute, _FloatType, StructPackableType[float]
-):
+class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3B11FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=11,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E3M4Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E3M4"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=4,
+        exponent_bias=3,
+    )
 
 
 @irdl_attr_definition
-class Float8E8M0FNUType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E8M0FNUType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E8M0FNU"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=0,
+        exponent_bias=127,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+        has_zero=False,
+        has_sign=False,
+    )
 
 
 @irdl_attr_definition
-class Float6E2M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float6E2M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E2M3FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 6
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=3,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 @irdl_attr_definition
-class Float6E3M2FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float6E3M2FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E3M2FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 6
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=2,
+        exponent_bias=3,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 @irdl_attr_definition
-class Float4E2M1FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float4E2M1FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f4E2M1FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 4
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=1,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 AnyFloat: TypeAlias = (
