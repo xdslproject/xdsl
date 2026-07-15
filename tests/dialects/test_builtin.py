@@ -83,9 +83,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @pytest.mark.parametrize(
-    "e",
-    "m",
-    "s",
+    "e, m, s",
     [
         (5, 3, True),
         (3, 0, True),
@@ -98,7 +96,7 @@ from xdsl.utils.exceptions import VerifyException
     ],
 )
 def test_FloatSemantics_bitwidths(e: int, m: int, s: bool):
-    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, has_sign=s)
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=12, has_sign=s)
     expected = e + m + int(s)
     assert fs.bitwidth == expected
 
