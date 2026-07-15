@@ -195,7 +195,7 @@ class InnerSymbolTable:
         default_factory=dict[StringAttr, InnerSymTarget]
     )
 
-    def __post_init__(self, op: Operation | None = None) -> None:
+    def __post_init__(self, op: Operation | None) -> None:
         pass
         # Here will populate self.symbol_table
 
@@ -209,7 +209,7 @@ class InnerSymbolTableCollection:
     )
     op: InitVar[Operation | None] = None
 
-    def __post_init__(self, op: Operation | None = None) -> None:
+    def __post_init__(self, op: Operation | None) -> None:
         if op is None:
             return
         if not op.has_trait(trait := InnerRefNamespaceTrait):
