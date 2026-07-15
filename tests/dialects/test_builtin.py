@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatSemantics,
     IndexType,
     IntAttr,
     IntAttrConstraint,
@@ -79,6 +80,27 @@ from xdsl.irdl import (
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@pytest.mark.parametrize(
+    "e",
+    "m",
+    "s",
+    [
+        (5, 3, True),
+        (3, 0, True),
+        (0, 3, True),
+        (1, 3, True),
+        (5, 3, False),
+        (3, 0, False),
+        (0, 1, False),
+        (1, 7, False),
+    ],
+)
+def test_FloatSemantics_bitwidths(e: int, m: int, s: bool):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, has_sign=s)
+    expected = e + m + int(s)
+    assert fs.bitwidth == expected
 
 
 def test_FloatType_bitwidths():
