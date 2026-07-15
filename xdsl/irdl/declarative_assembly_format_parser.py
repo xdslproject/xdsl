@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     AttrSizedSegments,
     ConstraintContext,
     OpDef,
@@ -448,6 +449,8 @@ class FormatParser(BaseParser):
                 if self.seen_result_types[idx]:
                     self.raise_error(f"type of '{variable_name}' is already bound")
                 self.seen_result_types[idx] = True
+                if isinstance(result_def, VariadicDef | OptionalDef):
+                    self.seen_attributes.add(AttrSizedResultSegments.attribute_name)
             match result_def:
                 case OptResultDef():
                     return OptionalResultVariable(variable_name, idx)

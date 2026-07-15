@@ -1746,6 +1746,24 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+def test_result_segment_sizes_not_printed_in_attr_dict():
+    @irdl_op_definition
+    class VariadicResultOp(IRDLOperation):
+        name = "test.variadic_result_with_sizes"
+        res = var_result_def()
+
+        irdl_options = (AttrSizedResultSegments(),)
+        assembly_format = "`:` type($res) attr-dict"
+
+    ctx = Context()
+    ctx.load_op(VariadicResultOp)
+
+    check_roundtrip(
+        "%0, %1 = test.variadic_result_with_sizes : i32, i64",
+        ctx,
+    )
+
+
 def test_variadic_result_failure():
     """Test that inferring a range of inferrable attributes of unknown length fails."""
 
