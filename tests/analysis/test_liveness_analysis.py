@@ -46,7 +46,8 @@ def test_side_effecting_op_marks_operands_live():
 
 
 def test_read_only_op_does_not_force_operands_live():
-    """A read-only op is treated as trivially dead; operands stay dead unless
+    """
+    A read-only op is treated as trivially dead; operands stay dead unless
     a downstream live result demands them."""
     ctx = Context()
     solver = DataFlowSolver(ctx)
@@ -142,7 +143,8 @@ def test_liveness_propagates_through_pure_chain():
 
 
 def test_side_effect_at_tail_propagates_liveness_back():
-    """A real-world style chain: pure producer → pure transform → side-effecting
+    """
+    A real-world style chain: pure producer → pure transform → side-effecting
     consumer. The consumer's side effect alone keeps the whole chain live."""
     ctx = Context()
     solver = DataFlowSolver(ctx)

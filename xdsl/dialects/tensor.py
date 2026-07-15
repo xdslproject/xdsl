@@ -171,7 +171,8 @@ class ConcatOp(IRDLOperation):
 
     @staticmethod
     def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
-        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
+        """
+        Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
         expected length of the non-concatenated dimension.
         """
         dim = DYNAMIC_INDEX
@@ -185,7 +186,8 @@ class ConcatOp(IRDLOperation):
         return dim
 
     def _verify_result_shape(self, inferred_shape: tuple[int, ...]) -> None:
-        """Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
+        """
+        Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
 
         Raises a VerifyException is any dimension that is not ``DYNAMIC_INDEX`` in either ``inferred_shape`` or the result type
         shape is unequal between the inferred size and the result type shape's dimension size.
