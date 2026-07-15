@@ -304,6 +304,33 @@ class XoriSelfInverse(RewritePattern):
                 rewriter.erase_op(op.rs1.op)
 
 
+class XoriOfXori(RewritePattern):
+    """
+    (x ^ a) ^ b -> x ^ (a ^ b)
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
+
+        if not isinstance(op.rs1, OpResult):
+            return
+
+        inner_op = op.rs1.op
+        if (
+            not isinstance(inner_op, riscv.XoriOp)
+            or not isinstance(op.immediate, IntegerAttr)
+            or not isinstance(inner_op.immediate, IntegerAttr)
+        ):
+            return
+
+        combined_immediate = inner_op.immediate.value.data ^ op.immediate.value.data
+        new_op = riscv.XoriOp(inner_op.rs1, combined_immediate, rd=op.rd.type)
+        can_erase = inner_op.rd.has_one_use()
+        rewriter.replace_op(op, new_op)
+        if can_erase:
+            rewriter.erase_op(inner_op)
+
+
 class XoriImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
