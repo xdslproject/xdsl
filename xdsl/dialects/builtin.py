@@ -1180,8 +1180,7 @@ class FloatSemantics:
     """
     The parameters that fully define a reduced-precision float format.
 
-    Modeled on LLVM's `fltSemantics`: the single codec on `ReducedPrecisionFloatType`
-    encodes and decodes any format entirely from this descriptor, with no per-format code.
+    Modelled on LLVM's `fltSemantics`.
     """
 
     exponent_bits: int
