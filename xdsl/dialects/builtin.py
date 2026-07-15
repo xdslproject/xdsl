@@ -1330,19 +1330,31 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
 @irdl_attr_definition
 class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "tf32"
-    SEMANTICS = FloatSemantics(exponent_bits=8, mantissa_bits=10, exponent_bias=127)
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=10,
+        exponent_bias=127,
+    )
 
 
 @irdl_attr_definition
 class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2"
-    SEMANTICS = FloatSemantics(exponent_bits=5, mantissa_bits=2, exponent_bias=15)
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=15,
+    )
 
 
 @irdl_attr_definition
 class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3"
-    SEMANTICS = FloatSemantics(exponent_bits=4, mantissa_bits=3, exponent_bias=7)
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+    )
 
 
 @irdl_attr_definition
@@ -1396,7 +1408,11 @@ class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
 @irdl_attr_definition
 class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E3M4"
-    SEMANTICS = FloatSemantics(exponent_bits=3, mantissa_bits=4, exponent_bias=3)
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=4,
+        exponent_bias=3,
+    )
 
 
 @irdl_attr_definition
