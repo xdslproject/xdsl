@@ -1148,7 +1148,8 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
 
 
 class FloatNonfiniteBehavior(Enum):
-    """How a reduced-precision float format represents infinities and NaNs.
+    """
+    How a reduced-precision float format represents infinities and NaNs.
 
     Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
     """
@@ -1162,7 +1163,9 @@ class FloatNonfiniteBehavior(Enum):
 
 
 class FloatNanEncoding(Enum):
-    """Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`."""
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
 
     IEEE = auto()
     """All-ones exponent with a non-zero mantissa."""
@@ -1174,7 +1177,8 @@ class FloatNanEncoding(Enum):
 
 @dataclass(frozen=True)
 class FloatSemantics:
-    """The parameters that fully define a reduced-precision float format.
+    """
+    The parameters that fully define a reduced-precision float format.
 
     Modelled on LLVM's `fltSemantics`. This describes the bit layout; the codec that
     encodes and decodes values from this descriptor is added separately.
@@ -1188,9 +1192,14 @@ class FloatSemantics:
     has_zero: bool = True
     has_sign: bool = True
 
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
 
 class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
-    """Base for reduced-precision float types, described by a `FloatSemantics`.
+    """
+    Base for reduced-precision float types, described by a `FloatSemantics`.
 
     Concrete subclasses set only `SEMANTICS`. This carries the type structure; the packing
     codec that consumes the semantics is added separately, so packing is not yet supported
@@ -1201,10 +1210,7 @@ class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
 
     @property
     def bitwidth(self) -> int:
-        semantics = self.SEMANTICS
-        return (
-            int(semantics.has_sign) + semantics.exponent_bits + semantics.mantissa_bits
-        )
+        return self.SEMANTICS.bitwidth
 
     @property
     def format(self) -> str:
