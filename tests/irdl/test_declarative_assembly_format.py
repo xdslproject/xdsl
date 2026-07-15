@@ -1764,6 +1764,25 @@ def test_result_segment_sizes_not_printed_in_attr_dict():
     )
 
 
+def test_separately_bound_result_segment_sizes_not_printed():
+    @irdl_op_definition
+    class VariadicResultsOp(IRDLOperation):
+        name = "test.separate_variadic_results_with_sizes"
+        res0 = var_result_def()
+        res1 = var_result_def()
+
+        irdl_options = (AttrSizedResultSegments(),)
+        assembly_format = "`(` type($res0) `)` `(` type($res1) `)` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(VariadicResultsOp)
+
+    check_roundtrip(
+        "%0, %1, %2 = test.separate_variadic_results_with_sizes(i32, i64) (i32)",
+        ctx,
+    )
+
+
 def test_variadic_result_failure():
     """Test that inferring a range of inferrable attributes of unknown length fails."""
 
