@@ -180,20 +180,20 @@ class PipelineGenericPattern(RewritePattern):
             AffineMapAttr(
                 m.data.replace_dims_and_symbols(
                     (
-                        tuple(
-                            AffineExpr.dimension(i)
-                            for i in range(interleave_bound_index)
-                        )
-                        + (
+                        (
+                            *tuple(
+                                AffineExpr.dimension(i)
+                                for i in range(interleave_bound_index)
+                            ),
                             AffineExpr.dimension(interleave_bound_index)
                             * interleave_factor
                             + AffineExpr.dimension(m.data.num_dims),
-                        )
-                        + tuple(
-                            AffineExpr.dimension(i)
-                            for i in range(
-                                interleave_bound_index + 1, m.data.num_dims + 2
-                            )
+                            *tuple(
+                                AffineExpr.dimension(i)
+                                for i in range(
+                                    interleave_bound_index + 1, m.data.num_dims + 2
+                                )
+                            ),
                         )
                     ),
                     (),
@@ -221,8 +221,10 @@ class PipelineGenericPattern(RewritePattern):
                 new_region,
                 new_indexing_maps,
                 ArrayAttr(
-                    op.iterator_types.data
-                    + (memref_stream.IteratorTypeAttr.interleaved(),)
+                    (
+                        *op.iterator_types.data,
+                        memref_stream.IteratorTypeAttr.interleaved(),
+                    )
                 ),
                 ArrayAttr(new_bounds),
                 op.init_indices,

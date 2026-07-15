@@ -127,7 +127,7 @@ class CastInstrWithFlags(instructions.CastInstr):
 
     def descr(self, buf: list[str]) -> None:
         opname = (
-            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
+            " ".join([self.opname, *list(self.flags)]) if self.flags else self.opname
         )
         op = self.operands[0]
         buf.append(

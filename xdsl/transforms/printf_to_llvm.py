@@ -135,9 +135,9 @@ class PrintlnOpToPrintfCall(RewritePattern):
 
         rewriter.replace_op(
             op,
-            casts
-            + [
-                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType()),
+            [
+                *casts,
+                (ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType())),
                 llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
             ],
         )

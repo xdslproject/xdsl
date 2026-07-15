@@ -829,7 +829,7 @@ class FromElementsOp(IRDLOperation):
         *tail_elements: SSAValue,
         result_type: Attribute | None = None,
     ):
-        elements = (head_element,) + tail_elements
+        elements = (head_element, *tail_elements)
 
         if result_type is None:
             result_type = TensorType(head_element.type, (len(elements),))
