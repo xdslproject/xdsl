@@ -565,3 +565,54 @@ def test_constraint_inference(
     else:
         assert constr.can_infer(var_dict.keys())
         assert constr.infer(ConstraintContext(var_dict)) == inferred
+
+
+@pytest.mark.parametrize(
+    "constr1, constr2, result",
+    [
+        (AnyAttr(), AnyAttr(), AnyAttr()),
+        (
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+        ),
+        (VarConstraint("A", AnyAttr()), VarConstraint("B", AnyAttr()), None),
+        (BaseAttr(AttrB), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (BaseAttr(AttrB), BaseAttr(AttrA), None),
+        (BaseAttr(AttrB), ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB)),
+        (ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrB), None),
+        (BaseAttr(AttrB), ParamAttrConstraint.get(AttrD, AttrA), None),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD), BaseAttr(AttrD)),
+        (BaseAttr(AttrD), ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD)),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrD, AttrC),
+            ParamAttrConstraint.get(AttrD, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrC),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA | AttrC, AttrA),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+    ],
+)
+def test_relax_constaint(
+    constr1: AttrConstraint, constr2: AttrConstraint, result: AttrConstraint | None
+):
+    assert constr1.relax_constraint(constr2) == result
