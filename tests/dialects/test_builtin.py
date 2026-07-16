@@ -101,6 +101,42 @@ def test_FloatSemantics_bitwidths(e: int, m: int, s: bool):
     assert fs.bitwidth == expected
 
 
+@pytest.mark.parametrize(
+    "e, m",
+    [
+        (5, 2),
+        (4, 3),
+        (2, 1),
+        (8, 0),
+        (0, 3),
+    ],
+)
+def test_FloatSemantics_field_layout_properties(e: int, m: int):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=0)
+    assert fs.max_exponent == (1 << e) - 1
+    assert fs.max_mantissa == (1 << m) - 1
+    assert fs.sign_shift == e + m
+
+
+@pytest.mark.parametrize(
+    "significand, shift, expected",
+    [
+        # shift <= 0 is a plain left shift, no rounding.
+        (5, 0, 5),
+        (3, -2, 12),
+        # Below the halfway point rounds down.
+        (5, 2, 1),
+        # Above the halfway point rounds up.
+        (7, 2, 2),
+        # Exact ties go to even: 2.5 -> 2, 3.5 -> 4.
+        (5, 1, 2),
+        (7, 1, 4),
+    ],
+)
+def test_FloatSemantics_round_half_even(significand: int, shift: int, expected: int):
+    assert FloatSemantics.round_half_even(significand, shift) == expected
+
+
 def test_FloatType_bitwidths():
     assert bf16.bitwidth == 16
     assert f16.bitwidth == 16

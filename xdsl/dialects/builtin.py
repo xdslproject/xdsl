@@ -1196,6 +1196,33 @@ class FloatSemantics:
     def bitwidth(self) -> int:
         return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
 
+    @property
+    def max_exponent(self) -> int:
+        """The all-ones exponent field."""
+        return (1 << self.exponent_bits) - 1
+
+    @property
+    def max_mantissa(self) -> int:
+        """The all-ones mantissa field."""
+        return (1 << self.mantissa_bits) - 1
+
+    @property
+    def sign_shift(self) -> int:
+        """Bit position of the sign bit."""
+        return self.exponent_bits + self.mantissa_bits
+
+    @staticmethod
+    def round_half_even(significand: int, shift: int) -> int:
+        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
+        if shift <= 0:
+            return significand << (-shift)
+        quotient = significand >> shift
+        dropped = significand & ((1 << shift) - 1)
+        halfway = 1 << (shift - 1)
+        if dropped > halfway or (dropped == halfway and quotient & 1):
+            quotient += 1
+        return quotient
+
 
 class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
     """
