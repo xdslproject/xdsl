@@ -1195,6 +1195,33 @@ class FloatSemantics:
     def bitwidth(self) -> int:
         return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
 
+    @property
+    def max_exponent(self) -> int:
+        """The all-ones exponent field."""
+        return (1 << self.exponent_bits) - 1
+
+    @property
+    def max_mantissa(self) -> int:
+        """The all-ones mantissa field."""
+        return (1 << self.mantissa_bits) - 1
+
+    @property
+    def sign_shift(self) -> int:
+        """Bit position of the sign bit."""
+        return self.exponent_bits + self.mantissa_bits
+
+    @staticmethod
+    def round_half_even(significand: int, shift: int) -> int:
+        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
+        if shift <= 0:
+            return significand << (-shift)
+        quotient = significand >> shift
+        dropped = significand & ((1 << shift) - 1)
+        halfway = 1 << (shift - 1)
+        if dropped > halfway or (dropped == halfway and quotient & 1):
+            quotient += 1
+        return quotient
+
 
 class ReducedPrecisionFloatType(_FloatType, ABC):
     """
@@ -1214,33 +1241,6 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
     def compile_time_size(self) -> int:
         return self.size
 
-    @property
-    def max_exponent(self) -> int:
-        """The all-ones exponent field."""
-        return (1 << self.SEMANTICS.exponent_bits) - 1
-
-    @property
-    def max_mantissa(self) -> int:
-        """The all-ones mantissa field."""
-        return (1 << self.SEMANTICS.mantissa_bits) - 1
-
-    @property
-    def sign_shift(self) -> int:
-        """Bit position of the sign bit."""
-        return self.SEMANTICS.exponent_bits + self.SEMANTICS.mantissa_bits
-
-    @staticmethod
-    def round_half_even(significand: int, shift: int) -> int:
-        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
-        if shift <= 0:
-            return significand << (-shift)
-        quotient = significand >> shift
-        dropped = significand & ((1 << shift) - 1)
-        halfway = 1 << (shift - 1)
-        if dropped > halfway or (dropped == halfway and quotient & 1):
-            quotient += 1
-        return quotient
-
     @staticmethod
     def f64_significand(magnitude: float) -> tuple[int, int]:
         """Return `(significand, power)` with `magnitude == significand * 2**power`, exact for positive finite floats."""
@@ -1257,7 +1257,7 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         """Value of a reserved infinity/NaN pattern, or None if the pattern is finite."""
         semantics = self.SEMANTICS
         if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
-            if exponent != self.max_exponent:
+            if exponent != semantics.max_exponent:
                 return None
             if mantissa:
                 return math.nan
@@ -1265,7 +1265,10 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
             return None
         if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
-            if exponent == self.max_exponent and mantissa == self.max_mantissa:
+            if (
+                exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            ):
                 return math.nan
             return None
         return math.nan if negative and exponent == 0 and mantissa == 0 else None
@@ -1274,9 +1277,9 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         semantics = self.SEMANTICS
         mantissa_bits = semantics.mantissa_bits
         bias = semantics.exponent_bias
-        negative = bool(semantics.has_sign and (bits >> self.sign_shift) & 1)
-        exponent = (bits >> mantissa_bits) & self.max_exponent
-        mantissa = bits & self.max_mantissa
+        negative = bool(semantics.has_sign and (bits >> semantics.sign_shift) & 1)
+        exponent = (bits >> mantissa_bits) & semantics.max_exponent
+        mantissa = bits & semantics.max_mantissa
         special = self._decode_special(negative, exponent, mantissa)
         if special is not None:
             return special
@@ -1289,15 +1292,15 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         """Bits a too-large magnitude maps to: infinity, NaN, or the largest finite value."""
         semantics = self.SEMANTICS
         if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
-            return (sign << self.sign_shift) | (
-                self.max_exponent << semantics.mantissa_bits
+            return (sign << semantics.sign_shift) | (
+                semantics.max_exponent << semantics.mantissa_bits
             )
         if semantics.nonfinite is FloatNonfiniteBehavior.NAN_ONLY:
             return self._encode_nan(sign)
         return (
-            (sign << self.sign_shift)
-            | (self.max_exponent << semantics.mantissa_bits)
-            | self.max_mantissa
+            (sign << semantics.sign_shift)
+            | (semantics.max_exponent << semantics.mantissa_bits)
+            | semantics.max_mantissa
         )
 
     def _encode_nan(self, sign: int) -> int:
@@ -1306,29 +1309,32 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
             return self._encode_overflow(sign)
         if semantics.nan_encoding is FloatNanEncoding.IEEE:
-            return (self.max_exponent << mantissa_bits) | (1 << (mantissa_bits - 1))
+            return (semantics.max_exponent << mantissa_bits) | (
+                1 << (mantissa_bits - 1)
+            )
         if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
             return (
-                (sign << self.sign_shift)
-                | (self.max_exponent << mantissa_bits)
-                | self.max_mantissa
+                (sign << semantics.sign_shift)
+                | (semantics.max_exponent << mantissa_bits)
+                | semantics.max_mantissa
             )
-        return 1 << self.sign_shift  # NEGATIVE_ZERO
+        return 1 << semantics.sign_shift  # NEGATIVE_ZERO
 
     def _encode_zero(self, sign: int) -> int:
         if self.SEMANTICS.nan_encoding is FloatNanEncoding.NEGATIVE_ZERO:
             return 0  # no negative zero
-        return sign << self.sign_shift
+        return sign << self.SEMANTICS.sign_shift
 
     def _overflows(self, exponent_field: int, mantissa: int) -> bool:
         semantics = self.SEMANTICS
         if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
-            return exponent_field >= self.max_exponent
+            return exponent_field >= semantics.max_exponent
         if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
-            return exponent_field > self.max_exponent or (
-                exponent_field == self.max_exponent and mantissa == self.max_mantissa
+            return exponent_field > semantics.max_exponent or (
+                exponent_field == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
             )
-        return exponent_field > self.max_exponent
+        return exponent_field > semantics.max_exponent
 
     def _round_to_fields(self, magnitude: float) -> tuple[int, int] | None:
         """
@@ -1346,13 +1352,15 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         if exponent < smallest_normal_exponent:
             if not semantics.has_zero:
                 return 0, 0  # no subnormals: underflow to the smallest value
-            quotient = self.round_half_even(
+            quotient = semantics.round_half_even(
                 significand, (1 - bias - mantissa_bits) - power
             )
             if quotient < implicit_bit:
                 return 0, quotient
             return 1, 0  # rounded up into the smallest normal
-        quotient = self.round_half_even(significand, (exponent - mantissa_bits) - power)
+        quotient = semantics.round_half_even(
+            significand, (exponent - mantissa_bits) - power
+        )
         if quotient == implicit_bit << 1:
             exponent += 1
             quotient = implicit_bit
@@ -1378,7 +1386,7 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         if semantics.has_zero and not exponent_field and not mantissa:
             return self._encode_zero(sign)
         return (
-            (sign << self.sign_shift)
+            (sign << semantics.sign_shift)
             | (exponent_field << semantics.mantissa_bits)
             | mantissa
         )
