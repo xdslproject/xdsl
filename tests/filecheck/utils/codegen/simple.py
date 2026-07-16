@@ -288,7 +288,7 @@ dump_dialect_pyfile(
 # CHECK-EMPTY:
 # CHECK-NEXT:      irdl_options = (
 # CHECK-NEXT:          SameVariadicOperandSize(),
-# CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
+# CHECK-NEXT:          AttrSizedOperandSegments(as_property=True),
 # CHECK-NEXT:      )
 
 # CHECK:       @irdl_op_definition

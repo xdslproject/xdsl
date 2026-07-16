@@ -1127,7 +1127,8 @@ class DmaStartOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    irdl_options = (AttrSizedOperandSegments(),)
+    # Upstream MLIR still models this generated segment size as an attribute.
+    irdl_options = (AttrSizedOperandSegments(as_property=False),)
 
     @staticmethod
     def get(
