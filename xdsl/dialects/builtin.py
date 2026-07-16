@@ -1256,22 +1256,28 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
     ) -> float | None:
         """Value of a reserved infinity/NaN pattern, or None if the pattern is finite."""
         semantics = self.SEMANTICS
-        if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
-            if exponent != semantics.max_exponent:
+        match semantics:
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.FINITE_ONLY):
                 return None
-            if mantissa:
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if (
+                exponent != semantics.max_exponent
+            ):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if mantissa:
                 return math.nan
-            return -math.inf if negative else math.inf
-        if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
-            return None
-        if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
-            if (
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE):
+                return -math.inf if negative else math.inf
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES) if (
                 exponent == semantics.max_exponent
                 and mantissa == semantics.max_mantissa
             ):
                 return math.nan
-            return None
-        return math.nan if negative and exponent == 0 and mantissa == 0 else None
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES):
+                return None
+            case _:
+                return (
+                    math.nan if negative and exponent == 0 and mantissa == 0 else None
+                )
 
     def decode_bits(self, bits: int) -> float:
         semantics = self.SEMANTICS
@@ -1291,34 +1297,38 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
     def _encode_overflow(self, sign: int) -> int:
         """Bits a too-large magnitude maps to: infinity, NaN, or the largest finite value."""
         semantics = self.SEMANTICS
-        if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
-            return (sign << semantics.sign_shift) | (
-                semantics.max_exponent << semantics.mantissa_bits
-            )
-        if semantics.nonfinite is FloatNonfiniteBehavior.NAN_ONLY:
-            return self._encode_nan(sign)
-        return (
-            (sign << semantics.sign_shift)
-            | (semantics.max_exponent << semantics.mantissa_bits)
-            | semantics.max_mantissa
-        )
+        match semantics.nonfinite:
+            case FloatNonfiniteBehavior.IEEE:
+                return (sign << semantics.sign_shift) | (
+                    semantics.max_exponent << semantics.mantissa_bits
+                )
+            case FloatNonfiniteBehavior.NAN_ONLY:
+                return self._encode_nan(sign)
+            case FloatNonfiniteBehavior.FINITE_ONLY:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << semantics.mantissa_bits)
+                    | semantics.max_mantissa
+                )
 
     def _encode_nan(self, sign: int) -> int:
         semantics = self.SEMANTICS
         mantissa_bits = semantics.mantissa_bits
         if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
             return self._encode_overflow(sign)
-        if semantics.nan_encoding is FloatNanEncoding.IEEE:
-            return (semantics.max_exponent << mantissa_bits) | (
-                1 << (mantissa_bits - 1)
-            )
-        if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
-            return (
-                (sign << semantics.sign_shift)
-                | (semantics.max_exponent << mantissa_bits)
-                | semantics.max_mantissa
-            )
-        return 1 << semantics.sign_shift  # NEGATIVE_ZERO
+        match semantics.nan_encoding:
+            case FloatNanEncoding.IEEE:
+                return (semantics.max_exponent << mantissa_bits) | (
+                    1 << (mantissa_bits - 1)
+                )
+            case FloatNanEncoding.ALL_ONES:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << mantissa_bits)
+                    | semantics.max_mantissa
+                )
+            case FloatNanEncoding.NEGATIVE_ZERO:
+                return 1 << semantics.sign_shift
 
     def _encode_zero(self, sign: int) -> int:
         if self.SEMANTICS.nan_encoding is FloatNanEncoding.NEGATIVE_ZERO:
