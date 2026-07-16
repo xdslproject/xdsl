@@ -132,10 +132,12 @@ def test_property_option():
     ],
 )
 def test_attr_sized_segments_default_to_properties(
-    option_type: type[AttrSizedOperandSegments]
-    | type[AttrSizedResultSegments]
-    | type[AttrSizedRegionSegments]
-    | type[AttrSizedSuccessorSegments],
+    option_type: type[
+        AttrSizedOperandSegments
+        | AttrSizedResultSegments
+        | AttrSizedRegionSegments
+        | AttrSizedSuccessorSegments
+    ],
 ):
     assert option_type().as_property
 
@@ -150,10 +152,12 @@ def test_attr_sized_segments_default_to_properties(
     ],
 )
 def test_attr_sized_segments_attributes_are_deprecated(
-    option_type: type[AttrSizedOperandSegments]
-    | type[AttrSizedResultSegments]
-    | type[AttrSizedRegionSegments]
-    | type[AttrSizedSuccessorSegments],
+    option_type: type[
+        AttrSizedOperandSegments
+        | AttrSizedResultSegments
+        | AttrSizedRegionSegments
+        | AttrSizedSuccessorSegments
+    ],
 ):
     with pytest.warns(
         DeprecationWarning,
