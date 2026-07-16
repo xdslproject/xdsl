@@ -98,6 +98,9 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
+        def assembly_line(self) -> str | None:
+            raise NotImplementedError
+
     available_registers = RiscvRegisterStack(allow_infinite=True)
     register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)
 

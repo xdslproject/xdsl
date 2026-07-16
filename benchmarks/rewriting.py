@@ -3,6 +3,7 @@
 
 from typing import cast
 
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.context import Context
 from xdsl.dialects.arith import (
@@ -51,7 +52,7 @@ def parse_module(context: Context, contents: str) -> ModuleOp:
     return parser.parse_module()
 
 
-class ConstantFolding:
+class ConstantFolding(BenchmarkClass):
     """Benchmark rewriting in xDSL."""
 
     WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
@@ -101,7 +102,7 @@ class ConstantFolding:
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_1000)
 
 
-class RewritingMicrobenchmarks:
+class RewritingMicrobenchmarks(BenchmarkClass):
     """Microbenchmarks for rewriting of constant folding."""
 
     WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
@@ -123,7 +124,7 @@ class RewritingMicrobenchmarks:
         self.add_op_def = AddiOp.get_irdl_definition()
         self.add_op_construct = VarIRConstruct.OPERAND
         self.add_op_result = self.add_op.result
-        self.add_op_result_use = list(self.add_op_result.uses)[0]
+        self.add_op_result_use = next(iter(self.add_op_result.uses))
         self.sub_op = SubiOp(self.const_1, self.const_0)
         self.sub_op_result = self.sub_op.result
         self.insert_point = InsertPoint.before(self.add_op)
@@ -138,6 +139,7 @@ class RewritingMicrobenchmarks:
 class PatternRewriting(RewritingMicrobenchmarks):
     """Microbenchmarks for general pattern rewriting of constant folding."""
 
+    @safe_to_repeat
     def time_region_walk(self) -> None:
         """Time `Region.walk`.
 
@@ -165,6 +167,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.worklist.pop()
 
+    @safe_to_repeat
     def time_get_trait(self) -> None:
         """Time `Operation.get_trait`.
 
@@ -174,6 +177,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.add_op.get_trait(HasCanonicalizationPatternsTrait)
 
+    @safe_to_repeat
     def time_insert_point_before(self) -> None:
         """Time `InsertPoint.before`.
 
@@ -189,6 +193,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
 
+    @safe_to_repeat
     def time_verify_variadic_size(self) -> None:
         """Time `verify_variadic_size`.
 
@@ -266,6 +271,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.add_op_result.erase(safe_erase=False)
 
+    @safe_to_repeat
     def time_integer_attr_creation(self) -> None:
         """Time `IntegerAttr.__init__`.
 
@@ -275,6 +281,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         IntegerAttr(0, 64)
 
+    @safe_to_repeat
     def time_integer_type_normalized_value(self) -> None:
         """Time `IntegerType.normalized_value`.
 
@@ -283,6 +290,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.integer_type.normalized_value(0)
 
+    @safe_to_repeat
     def time_integer_attr_verify(self) -> None:
         """Time `IntegerAttr._verify`.
 
@@ -291,6 +299,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.integer_attr._verify()  # pyright: ignore[reportPrivateUsage]
 
+    @safe_to_repeat
     def time_operation_create(self) -> None:
         """Time `AddiOp.__init__`.
 
@@ -298,6 +307,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         AddiOp(self.const_1, self.const_0)
 
+    @safe_to_repeat
     def time_const_evaluate_operand(self) -> None:
         """Time `const_evaluate_operand`.
 
@@ -309,6 +319,7 @@ class Canonicalization(RewritingMicrobenchmarks):
 class RemoveUnused(RewritingMicrobenchmarks):
     """Microbenchmarks for unused code removal rewriting of constant folding."""
 
+    @safe_to_repeat
     def time_is_trivially_dead(self) -> None:
         """Time `is_trivially_dead`.
 
@@ -318,6 +329,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         is_trivially_dead(self.add_op)
 
+    @safe_to_repeat
     def time_would_be_trivially_dead(self) -> None:
         """Time `would_be_trivially_dead`.
 
@@ -327,6 +339,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         would_be_trivially_dead(self.add_op)
 
+    @safe_to_repeat
     def time_result_only_effects(self) -> None:
         """Time `result_only_effects`.
 
@@ -335,6 +348,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         result_only_effects(self.add_op)
 
+    @safe_to_repeat
     def time_operation_get_traits_of_type(self) -> None:
         """Time `Operation.get_traits_of_type`.
 
@@ -347,6 +361,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
 class RegionDCE(RewritingMicrobenchmarks):
     """Microbenchmarks for region dead-code elimination of constant folding."""
 
+    @safe_to_repeat
     def time_post_order_iterator(self) -> None:
         """Time `PostOrderIterator`.
 
@@ -375,7 +390,7 @@ class RegionDCE(RewritingMicrobenchmarks):
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmark, profile
+    from bench_utils import BenchmarkFunction, profile
 
     GENERAL = PatternRewriting()
     CONSTANT_FOLDING = ConstantFolding()
@@ -384,128 +399,130 @@ if __name__ == "__main__":
     REGION_DCE = RegionDCE()
     profile(
         {
-            "ConstantFolding.20": Benchmark(
+            "ConstantFolding.20": BenchmarkFunction(
                 CONSTANT_FOLDING.time_constant_folding_20,
                 CONSTANT_FOLDING.setup_constant_folding_20,
             ),
-            "ConstantFoldingSimple.20": Benchmark(
+            "ConstantFoldingSimple.20": BenchmarkFunction(
                 CONSTANT_FOLDING.time_constant_folding_simple_20,
                 CONSTANT_FOLDING.setup_constant_folding_20,
             ),
-            "ConstantFoldingSpecialised.20": Benchmark(
+            "ConstantFoldingSpecialised.20": BenchmarkFunction(
                 CONSTANT_FOLDING.time_constant_folding_specialised_20,
                 CONSTANT_FOLDING.setup_constant_folding_20,
             ),
-            "ConstantFolding.100": Benchmark(
+            "ConstantFolding.100": BenchmarkFunction(
                 CONSTANT_FOLDING.time_constant_folding_100,
                 CONSTANT_FOLDING.setup_constant_folding_100,
             ),
-            "ConstantFolding.1000": Benchmark(
+            "ConstantFolding.1000": BenchmarkFunction(
                 CONSTANT_FOLDING.time_constant_folding_1000,
                 CONSTANT_FOLDING.setup_constant_folding_1000,
             ),
             # ================================================================ #
-            "General.region_walk": Benchmark(GENERAL.time_region_walk, GENERAL.setup),
-            "General.worklist_push": Benchmark(
+            "General.region_walk": BenchmarkFunction(
+                GENERAL.time_region_walk, GENERAL.setup
+            ),
+            "General.worklist_push": BenchmarkFunction(
                 GENERAL.time_worklist_push,
                 GENERAL.setup,
             ),
-            "General.worklist_pop": Benchmark(
+            "General.worklist_pop": BenchmarkFunction(
                 GENERAL.time_worklist_pop,
                 GENERAL.setup,
             ),
-            "General.get_trait": Benchmark(
+            "General.get_trait": BenchmarkFunction(
                 GENERAL.time_get_trait,
                 GENERAL.setup,
             ),
-            "General.insert_point_before": Benchmark(
+            "General.insert_point_before": BenchmarkFunction(
                 GENERAL.time_insert_point_before,
                 GENERAL.setup,
             ),
-            "General.pattern_rewriter_insert_op": Benchmark(
+            "General.pattern_rewriter_insert_op": BenchmarkFunction(
                 GENERAL.ignore_time_pattern_rewriter_insert_op,
                 GENERAL.setup,
             ),
-            "General.verify_variadic_size": Benchmark(
+            "General.verify_variadic_size": BenchmarkFunction(
                 GENERAL.time_verify_variadic_size, GENERAL.setup
             ),
-            "Canonicalization.operation_drop_all_references": Benchmark(
+            "Canonicalization.operation_drop_all_references": BenchmarkFunction(
                 CANONICALIZATION.ignore_time_operation_drop_all_references,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.ssavalue_replace_by": Benchmark(
+            "Canonicalization.ssavalue_replace_by": BenchmarkFunction(
                 CANONICALIZATION.time_ssavalue_replace_by,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.irwithuses_remove_use": Benchmark(
+            "Canonicalization.irwithuses_remove_use": BenchmarkFunction(
                 CANONICALIZATION.ignore_time_irwithuses_remove_use,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.irwithuses_add_use": Benchmark(
+            "Canonicalization.irwithuses_add_use": BenchmarkFunction(
                 CANONICALIZATION.time_irwithuses_add_use,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.ssavalue_name_hint": Benchmark(
+            "Canonicalization.ssavalue_name_hint": BenchmarkFunction(
                 CANONICALIZATION.time_ssavalue_name_hint,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.handle_operation_removal": Benchmark(
+            "Canonicalization.handle_operation_removal": BenchmarkFunction(
                 CANONICALIZATION.time_handle_operation_removal,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.block_detach_op": Benchmark(
+            "Canonicalization.block_detach_op": BenchmarkFunction(
                 CANONICALIZATION.ignore_time_block_detach_op,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.ssavalue_erase": Benchmark(
+            "Canonicalization.ssavalue_erase": BenchmarkFunction(
                 CANONICALIZATION.time_ssavalue_erase,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.integer_attr_creation": Benchmark(
+            "Canonicalization.integer_attr_creation": BenchmarkFunction(
                 CANONICALIZATION.time_integer_attr_creation,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.integer_type_normalized_value": Benchmark(
+            "Canonicalization.integer_type_normalized_value": BenchmarkFunction(
                 CANONICALIZATION.time_integer_type_normalized_value,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.integer_attr_verify": Benchmark(
+            "Canonicalization.integer_attr_verify": BenchmarkFunction(
                 CANONICALIZATION.time_integer_attr_verify,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.operation_create": Benchmark(
+            "Canonicalization.operation_create": BenchmarkFunction(
                 CANONICALIZATION.time_operation_create,
                 CANONICALIZATION.setup,
             ),
-            "Canonicalization.const_evaluate_operand": Benchmark(
+            "Canonicalization.const_evaluate_operand": BenchmarkFunction(
                 CANONICALIZATION.time_const_evaluate_operand,
                 CANONICALIZATION.setup,
             ),
-            "RemoveUnused.is_trivially_dead": Benchmark(
+            "RemoveUnused.is_trivially_dead": BenchmarkFunction(
                 REMOVE_UNUSED.time_is_trivially_dead,
                 REMOVE_UNUSED.setup,
             ),
-            "RemoveUnused.would_be_trivially_dead": Benchmark(
+            "RemoveUnused.would_be_trivially_dead": BenchmarkFunction(
                 REMOVE_UNUSED.time_would_be_trivially_dead,
                 REMOVE_UNUSED.setup,
             ),
-            "RemoveUnused.result_only_effects": Benchmark(
+            "RemoveUnused.result_only_effects": BenchmarkFunction(
                 REMOVE_UNUSED.time_result_only_effects,
                 REMOVE_UNUSED.setup,
             ),
-            "RemoveUnused.operation_get_traits_of_type": Benchmark(
+            "RemoveUnused.operation_get_traits_of_type": BenchmarkFunction(
                 REMOVE_UNUSED.time_operation_get_traits_of_type,
                 REMOVE_UNUSED.setup,
             ),
-            "RegionDCE.post_order_iterator": Benchmark(
+            "RegionDCE.post_order_iterator": BenchmarkFunction(
                 REGION_DCE.time_post_order_iterator,
                 REGION_DCE.setup,
             ),
-            "RegionDCE.liveset_set_live": Benchmark(
+            "RegionDCE.liveset_set_live": BenchmarkFunction(
                 REGION_DCE.time_liveset_set_live,
                 REGION_DCE.setup,
             ),
-            "RegionDCE.liveset_delete_dead": Benchmark(
+            "RegionDCE.liveset_delete_dead": BenchmarkFunction(
                 REGION_DCE.time_liveset_delete_dead,
                 REGION_DCE.setup,
             ),

@@ -36,13 +36,13 @@ optional-dependencies.dev = [
   "pytest<9.2",
   "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.15.19",
+  "ruff==0.15.20",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.6.5.dev0" ]
+optional-dependencies.heir = [ "heir-py==2026.7.1" ]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
@@ -112,7 +112,6 @@ lint.ignore = [
   "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
-  "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
   "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
   "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
   "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern

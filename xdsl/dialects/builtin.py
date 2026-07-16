@@ -1262,8 +1262,183 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
         raise NotImplementedError()
 
 
+@irdl_attr_definition
+class FloatTF32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "tf32"
+
+    @property
+    def bitwidth(self) -> int:
+        return 19
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E5M2Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E5M2"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E4M3Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E4M3"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E4M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E4M3FN"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E5M2FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E5M2FNUZ"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E4M3FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E4M3FNUZ"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E4M3B11FNUZType(
+    ParametrizedAttribute, _FloatType, StructPackableType[float]
+):
+    name = "f8E4M3B11FNUZ"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E3M4Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E3M4"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float8E8M0FNUType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f8E8M0FNU"
+
+    @property
+    def bitwidth(self) -> int:
+        return 8
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float6E2M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f6E2M3FN"
+
+    @property
+    def bitwidth(self) -> int:
+        return 6
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float6E3M2FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f6E3M2FN"
+
+    @property
+    def bitwidth(self) -> int:
+        return 6
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
+@irdl_attr_definition
+class Float4E2M1FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+    name = "f4E2M1FN"
+
+    @property
+    def bitwidth(self) -> int:
+        return 4
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
+
 AnyFloat: TypeAlias = (
-    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+    BFloat16Type
+    | Float16Type
+    | Float32Type
+    | Float64Type
+    | Float80Type
+    | Float128Type
+    | FloatTF32Type
+    | Float8E5M2Type
+    | Float8E4M3Type
+    | Float8E4M3FNType
+    | Float8E5M2FNUZType
+    | Float8E4M3FNUZType
+    | Float8E4M3B11FNUZType
+    | Float8E3M4Type
+    | Float8E8M0FNUType
+    | Float6E2M3FNType
+    | Float6E3M2FNType
+    | Float4E2M1FNType
 )
 AnyFloatConstr = (
     BaseAttr(BFloat16Type)
@@ -1272,6 +1447,18 @@ AnyFloatConstr = (
     | BaseAttr(Float64Type)
     | BaseAttr(Float80Type)
     | BaseAttr(Float128Type)
+    | BaseAttr(FloatTF32Type)
+    | BaseAttr(Float8E5M2Type)
+    | BaseAttr(Float8E4M3Type)
+    | BaseAttr(Float8E4M3FNType)
+    | BaseAttr(Float8E5M2FNUZType)
+    | BaseAttr(Float8E4M3FNUZType)
+    | BaseAttr(Float8E4M3B11FNUZType)
+    | BaseAttr(Float8E3M4Type)
+    | BaseAttr(Float8E8M0FNUType)
+    | BaseAttr(Float6E2M3FNType)
+    | BaseAttr(Float6E3M2FNType)
+    | BaseAttr(Float4E2M1FNType)
 )
 
 
@@ -2503,6 +2690,18 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float80Type()
 f128 = Float128Type()
+tf32 = FloatTF32Type()
+f8E5M2 = Float8E5M2Type()
+f8E4M3 = Float8E4M3Type()
+f8E4M3FN = Float8E4M3FNType()
+f8E5M2FNUZ = Float8E5M2FNUZType()
+f8E4M3FNUZ = Float8E4M3FNUZType()
+f8E4M3B11FNUZ = Float8E4M3B11FNUZType()
+f8E3M4 = Float8E3M4Type()
+f8E8M0FNU = Float8E8M0FNUType()
+f6E2M3FN = Float6E2M3FNType()
+f6E3M2FN = Float6E3M2FNType()
+f4E2M1FN = Float4E2M1FNType()
 
 
 _MemRefTypeElement = TypeVar(
@@ -3089,6 +3288,18 @@ Builtin = Dialect(
         Float64Type,
         Float80Type,
         Float128Type,
+        FloatTF32Type,
+        Float8E5M2Type,
+        Float8E4M3Type,
+        Float8E4M3FNType,
+        Float8E5M2FNUZType,
+        Float8E4M3FNUZType,
+        Float8E4M3B11FNUZType,
+        Float8E3M4Type,
+        Float8E8M0FNUType,
+        Float6E2M3FNType,
+        Float6E3M2FNType,
+        Float4E2M1FNType,
         FloatAttr,
         SignednessAttr,
         TupleType,

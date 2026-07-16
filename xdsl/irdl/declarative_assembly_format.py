@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    ParamAttrDef,
     Successor,
     VarIRConstruct,
     VarOperand,
@@ -44,7 +45,7 @@ from xdsl.irdl import (
     is_const_classvar,
     verify_variadic_same_size,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.hints import isa
@@ -1358,6 +1359,26 @@ class OptionalUnitAttrVariable(AttributeVariable):
         return False
 
 
+# ===========================================================================
+# Shared print helpers for the structural directives (whitespace, punctuation,
+# keyword), used by both the op-side and attr-side directive classes.
+# ===========================================================================
+
+
+def _print_whitespace(printer: Printer, state: PrintingState, whitespace: str) -> None:
+    printer.print_string(whitespace)
+    state.last_was_punctuation = whitespace == ""
+    state.should_emit_space = False
+
+
+def _print_keyword(printer: Printer, state: PrintingState, keyword: str) -> None:
+    if state.should_emit_space:
+        printer.print_string(" ")
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+    printer.print_string(keyword)
+
+
 @dataclass(frozen=True)
 class WhitespaceDirective(FormatDirective):
     """
@@ -1375,9 +1396,7 @@ class WhitespaceDirective(FormatDirective):
         return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        printer.print_string(self.whitespace)
-        state.last_was_punctuation = self.whitespace == ""
-        state.should_emit_space = False
+        _print_whitespace(printer, state, self.whitespace)
 
 
 @dataclass(frozen=True)
@@ -1435,12 +1454,7 @@ class KeywordDirective(FormatDirective):
         return parser.parse_optional_keyword(self.keyword) is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
-
-        printer.print_string(self.keyword)
+        _print_keyword(printer, state, self.keyword)
 
     def is_optional_like(self) -> bool:
         return True
@@ -1486,3 +1500,131 @@ class OptionalGroupDirective(FormatDirective):
             element.set_empty(state)
         for element in self.else_elements:
             element.set_empty(state)
+
+
+# ===========================================================================
+# Attribute/Type declarative assembly format
+# ===========================================================================
+
+
+@dataclass
+class AttrParsingState:
+    """
+    State during parsing of a ParametrizedAttribute using declarative format.
+    """
+
+    parameters: list[Attribute | None]
+    attr_def: ParamAttrDef
+
+    def __init__(self, attr_def: ParamAttrDef):
+        self.attr_def = attr_def
+        self.parameters = [None] * len(attr_def.parameters)
+
+
+@dataclass(frozen=True)
+class AttrFormatDirective(ABC):
+    """
+    Base class for attribute/type format directives.
+
+    Separate from FormatDirective because operation formats parse full ops
+    (operands, results, regions, etc.) using Parser and ParsingState, while
+    attribute/type formats only fill parameter slots of a ParametrizedAttribute
+    using AttrParser and AttrParsingState.
+    """
+
+    @abstractmethod
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        """
+        Parse the directive, returning True if input was consumed.
+        """
+
+    @abstractmethod
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        """
+        Print the directive.
+        """
+
+
+# ===========================================================================
+# Attr-side structural directives
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class AttrWhitespaceDirective(AttrFormatDirective):
+    """
+    A whitespace directive for attribute/type assembly format.
+
+    Mirrors the op-side WhitespaceDirective: only applied during printing,
+    with no effect during parsing.
+    """
+
+    whitespace: Literal[" ", "\n", ""]
+    """The whitespace that should be printed."""
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        return False
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        _print_whitespace(printer, state, self.whitespace)
+
+
+@dataclass(frozen=True)
+class AttrKeywordDirective(AttrFormatDirective):
+    """
+    A keyword directive for attribute/type assembly format.
+
+    Mirrors the op-side KeywordDirective: expects a specific identifier and
+    requests a space to be printed after.
+    """
+
+    keyword: str
+    """The identifier that should be printed."""
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        return parser.parse_optional_keyword(self.keyword) is not None
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        _print_keyword(printer, state, self.keyword)
+
+
+@dataclass(frozen=True)
+class AttrFormatProgram:
+    """
+    The toplevel data structure of a declarative assembly format program
+    for attributes/types.
+    """
+
+    stmts: tuple[AttrFormatDirective, ...]
+    """
+    The statements composing the program. They are executed in order.
+    """
+
+    @staticmethod
+    def from_str(format_str: str, attr_def: ParamAttrDef) -> AttrFormatProgram:
+        from xdsl.irdl.declarative_assembly_format_parser import AttrFormatParser
+
+        return AttrFormatParser(format_str, attr_def).parse_format()
+
+    def parse(self, parser: AttrParser, attr_def: ParamAttrDef) -> list[Attribute]:
+        """
+        Run each directive in order, returning the parsed parameter values.
+
+        IRDL constraint verification runs when the attribute is constructed,
+        not during this parse step.
+        """
+        state = AttrParsingState(attr_def)
+        for stmt in self.stmts:
+            stmt.parse(parser, state)
+        return cast(list[Attribute], state.parameters)
+
+    def print(self, printer: Printer, attr: ParametrizedAttribute) -> None:
+        state = PrintingState(last_was_punctuation=True, should_emit_space=False)
+        for stmt in self.stmts:
+            stmt.print(printer, state, attr)

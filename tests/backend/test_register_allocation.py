@@ -188,6 +188,9 @@ def test_deprecated_iter_used_registers():
         def iter_used_registers(self):
             yield x1
 
+        def get_register_constraints(self) -> RegisterConstraints:
+            raise NotImplementedError
+
     o = TestDepracatedAllocatableOp.create()
 
     with pytest.deprecated_call():

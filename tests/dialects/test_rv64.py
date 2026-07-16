@@ -6,9 +6,18 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
 )
-from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
+from xdsl.dialects.riscv.attrs import si12
+from xdsl.traits import (
+    ConstantLike,
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    Pure,
+)
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_immediate_pseudo_inst():
@@ -27,6 +36,19 @@ def test_immediate_pseudo_inst():
     rv64.LiOp(lb, rd=riscv.Registers.A0)
 
 
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
 def test_get_constant_value():
     # Test 64-bit LiOp
     li_op = rv64.LiOp(1)
@@ -43,6 +65,44 @@ def test_get_constant_value():
     assert zero_val == IntegerAttr(0, 64)
 
 
+def test_ld_op_construction():
+    lb, ub = Signedness.SIGNED.value_range(12)
+    rs1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.LdOp(rs1, ub)
+
+    with pytest.raises(VerifyException):
+        rv64.LdOp(rs1, lb - 1)
+
+    rv64.LdOp(rs1, ub - 1)
+    rv64.LdOp(rs1, lb)
+    rv64.LdOp(rs1, 0)
+
+    ld = rv64.LdOp(rs1, 8, rd=riscv.Registers.A0)
+    assert ld.rd.type == riscv.Registers.A0
+    assert ld.immediate == IntegerAttr(8, si12)
+
+
+def test_sd_op_construction():
+    lb, ub = Signedness.SIGNED.value_range(12)
+    rs1 = create_ssa_value(riscv.Registers.A1)
+    rs2 = create_ssa_value(riscv.Registers.A2)
+
+    with pytest.raises(VerifyException):
+        rv64.SdOp(rs1, rs2, ub)
+
+    with pytest.raises(VerifyException):
+        rv64.SdOp(rs1, rs2, lb - 1)
+
+    rv64.SdOp(rs1, rs2, ub - 1)
+    rv64.SdOp(rs1, rs2, lb)
+    rv64.SdOp(rs1, rs2, 0)
+
+    sd = rv64.SdOp(rs1, rs2, 8)
+    assert sd.immediate == IntegerAttr(8, si12)
+
+
 def test_effect_traits():
     """
     Check effects of operations in the rv64 dialect.
@@ -52,7 +112,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 2
+    assert len(effects_ops) == 9
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -65,12 +125,28 @@ def test_effect_traits():
     assert all_effects_trait_types == {
         Pure,
         RegisterAllocatedMemoryEffect,
+        MemoryReadEffect,
+        MemoryWriteEffect,
     }
 
     register_effects_ops = {
         op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
     }
+    read_effects_ops = {op for op in effects_ops if op.has_trait(MemoryReadEffect)}
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert register_effects_ops == {rv64.LiOp}
+    # RISCVInstruction base adds RegisterAllocatedMemoryEffect to all instructions
+    assert register_effects_ops == {
+        rv64.SlliOp,
+        rv64.SrliOp,
+        rv64.SraiOp,
+        rv64.SlliwOp,
+        rv64.SrliwOp,
+        rv64.LiOp,
+        rv64.LdOp,
+        rv64.SdOp,
+    }
+    assert read_effects_ops == {rv64.LdOp}
+    assert write_effects_ops == {rv64.SdOp}
     assert no_effects_ops == {rv64.GetRegisterOp}
