@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -207,18 +208,27 @@ class IRDLOption(ABC):
 @dataclass
 class AttrSizedSegments(IRDLOption, ABC):
     """
-    Expect an attribute on the operation that contains the segment sizes of the
-    operand, result, region, or successor lists.
+    Expect a property on the operation that contains the segment sizes of the
+    operand, result, region, or successor lists. Storing segment sizes in an
+    attribute is deprecated.
     For instance, the list `[a, b, c, d]` with segment sizes `[1, 3]` will result
     in the `[a], [b, c, d]` lists.
-    The attribute must be a dense array of `i32`, its lenght must be equal to the
+    The property must be a dense array of `i32`, its length must be equal to the
     number of segments (e.g. the number of operand definitions), and its sum must
     be equal to the number of elements in the list (e.g. the number of operands).
     """
 
     attribute_name: ClassVar[str]
-    as_property: bool = False
-    """Name of the attribute containing the segment sizes."""
+    as_property: bool = True
+    """Whether the segment sizes are stored in a property instead of an attribute."""
+
+    def __post_init__(self) -> None:
+        if not self.as_property:
+            warnings.warn(
+                "Storing segment sizes in attributes is deprecated; use properties instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     def container(self, op: Operation) -> dict[str, Attribute]:
         if self.as_property:

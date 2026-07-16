@@ -1128,6 +1128,9 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.filterwarnings(
+    "ignore:Storing segment sizes in attributes is deprecated:DeprecationWarning"
+)
 @pytest.mark.parametrize(
     "program, generic_program, as_property",
     [
@@ -1746,43 +1749,6 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
-def test_result_segment_sizes_not_printed_in_attr_dict():
-    @irdl_op_definition
-    class VariadicResultOp(IRDLOperation):
-        name = "test.variadic_result_with_sizes"
-        res = var_result_def()
-
-        irdl_options = (AttrSizedResultSegments(),)
-        assembly_format = "`:` type($res) attr-dict"
-
-    ctx = Context()
-    ctx.load_op(VariadicResultOp)
-
-    check_roundtrip(
-        "%0, %1 = test.variadic_result_with_sizes : i32, i64",
-        ctx,
-    )
-
-
-def test_separately_bound_result_segment_sizes_not_printed():
-    @irdl_op_definition
-    class VariadicResultsOp(IRDLOperation):
-        name = "test.separate_variadic_results_with_sizes"
-        res0 = var_result_def()
-        res1 = var_result_def()
-
-        irdl_options = (AttrSizedResultSegments(),)
-        assembly_format = "`(` type($res0) `)` `(` type($res1) `)` attr-dict"
-
-    ctx = Context()
-    ctx.load_op(VariadicResultsOp)
-
-    check_roundtrip(
-        "%0, %1, %2 = test.separate_variadic_results_with_sizes(i32, i64) (i32)",
-        ctx,
-    )
-
-
 def test_variadic_result_failure():
     """Test that inferring a range of inferrable attributes of unknown length fails."""
 
@@ -1860,26 +1826,6 @@ def test_results_directive_with_variadic(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
-
-
-def test_results_directive_hides_result_segment_sizes():
-    @irdl_op_definition
-    class ResultsDirectiveOp(IRDLOperation):
-        name = "test.results_directive_with_sizes"
-
-        res1 = result_def()
-        res2 = var_result_def()
-
-        irdl_options = (AttrSizedResultSegments(),)
-        assembly_format = "attr-dict `:` type(results)"
-
-    ctx = Context()
-    ctx.load_op(ResultsDirectiveOp)
-
-    check_roundtrip(
-        "%0, %1 = test.results_directive_with_sizes : i32, i64",
-        ctx,
-    )
 
 
 @pytest.mark.parametrize(

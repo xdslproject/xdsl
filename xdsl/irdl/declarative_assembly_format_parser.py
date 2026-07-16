@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    AttrSizedResultSegments,
     AttrSizedSegments,
     ConstraintContext,
     OpDef,
@@ -449,8 +448,6 @@ class FormatParser(BaseParser):
                 if self.seen_result_types[idx]:
                     self.raise_error(f"type of '{variable_name}' is already bound")
                 self.seen_result_types[idx] = True
-                if isinstance(result_def, VariadicDef | OptionalDef):
-                    self.seen_attributes.add(AttrSizedResultSegments.attribute_name)
             match result_def:
                 case OptResultDef():
                     return OptionalResultVariable(variable_name, idx)
@@ -908,10 +905,6 @@ class FormatParser(BaseParser):
             self.raise_error("'results' is ambiguous with multiple variadic results")
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
-            if any(
-                isinstance(o, VariadicDef | OptionalDef) for _, o in self.op_def.results
-            ):
-                self.seen_attributes.add(AttrSizedResultSegments.attribute_name)
         return ResultsDirective()
 
 

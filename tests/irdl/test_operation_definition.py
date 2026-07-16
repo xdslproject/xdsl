@@ -95,11 +95,11 @@ def test_get_definition():
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
-        attributes={
-            "attr": AttributeDef(AnyAttr()),
-            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
+        attributes={"attr": AttributeDef(AnyAttr())},
+        properties={
+            "prop": PropertyDef(AnyAttr()),
+            "operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase)),
         },
-        properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
         accessor_names={"attr": ("attr", "attribute"), "prop": ("prop", "property")},
         options=[AttrSizedOperandSegments()],
@@ -120,6 +120,48 @@ def test_property_option():
         properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
         options=[AttrSizedOperandSegments(as_property=True)],
     )
+
+
+@pytest.mark.parametrize(
+    "option_type",
+    [
+        AttrSizedOperandSegments,
+        AttrSizedResultSegments,
+        AttrSizedRegionSegments,
+        AttrSizedSuccessorSegments,
+    ],
+)
+def test_attr_sized_segments_default_to_properties(
+    option_type: type[AttrSizedOperandSegments]
+    | type[AttrSizedResultSegments]
+    | type[AttrSizedRegionSegments]
+    | type[AttrSizedSuccessorSegments],
+):
+    assert option_type().as_property
+
+
+@pytest.mark.parametrize(
+    "option_type",
+    [
+        AttrSizedOperandSegments,
+        AttrSizedResultSegments,
+        AttrSizedRegionSegments,
+        AttrSizedSuccessorSegments,
+    ],
+)
+def test_attr_sized_segments_attributes_are_deprecated(
+    option_type: type[AttrSizedOperandSegments]
+    | type[AttrSizedResultSegments]
+    | type[AttrSizedRegionSegments]
+    | type[AttrSizedSuccessorSegments],
+):
+    with pytest.warns(
+        DeprecationWarning,
+        match="Storing segment sizes in attributes is deprecated",
+    ):
+        option = option_type(as_property=False)
+
+    assert not option.as_property
 
 
 ################################################################################
