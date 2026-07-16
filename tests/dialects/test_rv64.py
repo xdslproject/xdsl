@@ -50,69 +50,23 @@ def test_immediate_shift_inst():
     rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
-def test_immediate_bclri_inst():
-    # BCLRI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
+@pytest.mark.parametrize(
+    "op_type",
+    [rv64.BclrIOp, rv64.BextIOp, rv64.BsetIOp, rv64.BinvIOp, rv64.RorIOp],
+)
+def test_immediate_bit_manipulation_inst(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+):
+    # Bit manipulation instructions - 6-bits immediate for RV64
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        rv64.BclrIOp(a1, 1 << 6, rd=riscv.Registers.A0)
+        op_type(a1, 1 << 6, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        rv64.BclrIOp(a1, -1, rd=riscv.Registers.A0)
+        op_type(a1, -1, rd=riscv.Registers.A0)
 
-    rv64.BclrIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
-
-
-def test_immediate_bexti_inst():
-    # BEXTI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        rv64.BextIOp(a1, 1 << 6, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.BextIOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv64.BextIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
-
-
-def test_immediate_bseti_inst():
-    # BSETI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        rv64.BsetIOp(a1, 1 << 6, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.BsetIOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv64.BsetIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
-
-
-def test_immediate_binvi_inst():
-    # BINVI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        rv64.BinvIOp(a1, 1 << 6, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.BinvIOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv64.BinvIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
-
-
-def test_immediate_rori_inst():
-    # RORI - 5-bits immediate, shamt[5]=1 encodings are reserved on rv64
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        rv64.RorIOp(a1, 1 << 6, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.RorIOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv64.RorIOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+    op_type(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
 def test_bclri_py_operation():
