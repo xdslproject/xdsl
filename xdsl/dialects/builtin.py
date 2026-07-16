@@ -1265,8 +1265,10 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
                 return None
             case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if mantissa:
                 return math.nan
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if negative:
+                return -math.inf
             case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE):
-                return -math.inf if negative else math.inf
+                return math.inf
             case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES) if (
                 exponent == semantics.max_exponent
                 and mantissa == semantics.max_mantissa
@@ -1274,10 +1276,10 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
                 return math.nan
             case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES):
                 return None
+            case _ if negative and exponent == 0 and mantissa == 0:
+                return math.nan
             case _:
-                return (
-                    math.nan if negative and exponent == 0 and mantissa == 0 else None
-                )
+                return None
 
     def decode_bits(self, bits: int) -> float:
         semantics = self.SEMANTICS
