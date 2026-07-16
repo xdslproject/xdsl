@@ -457,7 +457,7 @@ class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    A pseudo instruction that zero-extends the least-significant word of the source to XLEN by inserting 0’s
+    A pseudo instruction that zero-extends the least-significant word of the source to XLEN by inserting 0's
     into all of the bits more significant than 31.
 
     Equivalent to `add.uw rd, rs1, 0`
@@ -1239,7 +1239,7 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 @irdl_op_definition
 class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
-    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
+    Performs an XLEN-bit by XLEN-bit multiplication of signed rs1 by signed rs2
     and places the lower XLEN bits in the destination register.
     x[rd] = x[rs1] * x[rs2]
 
@@ -1254,9 +1254,9 @@ class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 @irdl_op_definition
 class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
-    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
+    Performs an XLEN-bit by XLEN-bit multiplication of signed rs1 by signed rs2
     and places the upper XLEN bits in the destination register.
-    x[rd] = (x[rs1] s×s x[rs2]) >>s XLEN
+    x[rd] = (x[rs1] s*s x[rs2]) >>s XLEN
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh).
     """
@@ -1267,9 +1267,9 @@ class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 @irdl_op_definition
 class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
-    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
+    Performs an XLEN-bit by XLEN-bit multiplication of signed rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
-    x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
+    x[rd] = (x[rs1] s * x[rs2]) >>s XLEN
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu).
     """
@@ -1280,9 +1280,9 @@ class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 @irdl_op_definition
 class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
-    Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
+    Performs an XLEN-bit by XLEN-bit multiplication of unsigned rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
-    x[rd] = (x[rs1] u × x[rs2]) >>u XLEN
+    x[rd] = (x[rs1] u * x[rs2]) >>u XLEN
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu).
     """
@@ -1293,9 +1293,9 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 @irdl_op_definition
 class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
-    Performs an 32-bit × 32-bit multiplication of signed rs1 by signed rs2.
+    Performs a 32-bit by 32-bit multiplication of signed rs1 by signed rs2.
     ```
-    x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
+    x[rd] = (x[rs1] s * x[rs2]) >>s XLEN
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulw).
@@ -1485,7 +1485,7 @@ class SextHOp(RdRsIntegerOperation[IntRegisterType]):
 class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
     """
     This instruction zero-extends the least-significant halfword of the source to XLEN by inserting
-    0’s into all of the bits more significant than 15.
+    0's into all of the bits more significant than 15.
     ```
     x[rd] = EXTZ(x[rs][15..0]);
     ```
@@ -1585,7 +1585,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 @irdl_op_definition
 class ClzOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instruction counts the number of 0’s before the first 1, starting at the most-significant bit
+    This instruction counts the number of 0's before the first 1, starting at the most-significant bit
     (i.e., XLEN-1) and progressing to bit 0. Accordingly, if the input is 0, the output is XLEN, and if
     the most-significant bit of the input is a 1, the output is 0.
 
@@ -1600,7 +1600,7 @@ class ClzOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class ClzwOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instruction counts the number of 0’s before the first 1 starting at bit 31 and progressing to
+    This instruction counts the number of 0's before the first 1 starting at bit 31 and progressing to
     bit 0. Accordingly, if the least-significant word is 0, the output is 32, and if the most-significant
     bit of the word (i.e., bit 31) is a 1, the output is 0.
 
@@ -1615,7 +1615,7 @@ class ClzwOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class CpopOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instructions counts the number of 1’s (i.e., set bits) in the source register.
+    This instructions counts the number of 1's (i.e., set bits) in the source register.
 
     See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpop)
     """
@@ -1628,7 +1628,7 @@ class CpopOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class CpopwOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instructions counts the number of 1’s (i.e., set bits) in the least-significant word of the
+    This instructions counts the number of 1's (i.e., set bits) in the least-significant word of the
     source register.
 
     See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpopw)
@@ -1642,7 +1642,7 @@ class CpopwOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class CtzOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    This instruction counts the number of 0's before the first 1, starting at the least-significant bit
     (i.e., 0) and progressing to the most-significant bit (i.e., XLEN-1). Accordingly, if the input is 0,
     the output is XLEN, and if the least-significant bit of the input is a 1, the output is 0.
 
@@ -1657,7 +1657,7 @@ class CtzOp(RdRsIntegerOperation[IntRegisterType]):
 @irdl_op_definition
 class CtzwOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    This instruction counts the number of 0's before the first 1, starting at the least-significant bit
     (i.e., 0) and progressing to the most-significant bit of the least-significant word (i.e., 31).
     Accordingly, if the least-significant word is 0, the output is 32, and if the least-significant bit
     of the input is a 1, the output is 0.
@@ -2402,7 +2402,7 @@ class FMAddSOp(RdRsRsRsFloatOperation):
     Perform single-precision fused multiply addition.
 
     ```C
-    f[rd] = f[rs1]×f[rs2]+f[rs3]
+    f[rd] = f[rs1]*f[rs2]+f[rs3]
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-s).
@@ -2417,7 +2417,7 @@ class FMSubSOp(RdRsRsRsFloatOperation):
     Perform single-precision fused multiply substraction.
 
     ```C
-    f[rd] = f[rs1]×f[rs2]+f[rs3]
+    f[rd] = f[rs1]*f[rs2]+f[rs3]
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-s).
@@ -2432,7 +2432,7 @@ class FNMSubSOp(RdRsRsRsFloatOperation):
     Perform single-precision fused multiply substraction.
 
     ```C
-    f[rd] = -f[rs1]×f[rs2]+f[rs3]
+    f[rd] = -f[rs1]*f[rs2]+f[rs3]
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmsub-s).
@@ -2447,7 +2447,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
     Perform single-precision fused multiply addition.
 
     ```C
-    f[rd] = -f[rs1]×f[rs2]-f[rs3]
+    f[rd] = -f[rs1]*f[rs2]-f[rs3]
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmadd-s).
@@ -2494,7 +2494,7 @@ class FMulSOp(RdRsRsFloatOperationWithFastMath):
     Perform single-precision floating-point multiplication.
 
     ```C
-    f[rd] = f[rs1]×f[rs2]
+    f[rd] = f[rs1]*f[rs2]
     ```
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-s).
@@ -2537,7 +2537,7 @@ class FSqrtSOp(RdRsFloatOperation[FloatRegisterType]):
 class FSgnJSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
-    The result’s sign bit is rs2’s sign bit.
+    The result's sign bit is rs2's sign bit.
 
     ```C
     f[rd] = {f[rs2][31], f[rs1][30:0]}
@@ -2553,7 +2553,7 @@ class FSgnJSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
 class FSgnJNSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
-    The result’s sign bit is opposite of rs2’s sign bit.
+    The result's sign bit is opposite of rs2's sign bit.
 
     ```C
     f[rd] = {~f[rs2][31], f[rs1][30:0]}
@@ -2569,7 +2569,7 @@ class FSgnJNSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
 class FSgnJXSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
-    The result’s sign bit is XOR of sign bit of rs1 and rs2.
+    The result's sign bit is XOR of sign bit of rs1 and rs2.
 
     ```C
     f[rd] = {f[rs1][31] ^ f[rs2][31], f[rs1][30:0]}
@@ -2850,7 +2850,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
     """
     Perform double-precision fused multiply addition.
 
-    f[rd] = f[rs1]×f[rs2]+f[rs3]
+    f[rd] = f[rs1]*f[rs2]+f[rs3]
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d).
     """
@@ -2865,7 +2865,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
     """
     Perform double-precision fused multiply substraction.
 
-    f[rd] = f[rs1]×f[rs2]+f[rs3]
+    f[rd] = f[rs1]*f[rs2]+f[rs3]
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d).
     """
@@ -2923,7 +2923,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point multiplication.
 
-    f[rd] = f[rs1]×f[rs2]
+    f[rd] = f[rs1]*f[rs2]
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d).
     """

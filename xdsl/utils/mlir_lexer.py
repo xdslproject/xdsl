@@ -490,7 +490,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
         Lex a string literal. Return STRING_LIT when the payload can be decoded
-        as UTF‑8, otherwise BYTES_LIT.
+        as UTF-8, otherwise BYTES_LIT.
         """
         m = self._unescaped_characters_regex.match(self.input.content, start_pos)
         if m is None:

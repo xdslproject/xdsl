@@ -1,5 +1,5 @@
 """
-This is a stub of CIRCT’s hw dialect.
+This is a stub of CIRCT's hw dialect.
 Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
 See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.

@@ -554,7 +554,7 @@ def test_lattice_multiple_operations():
 
 @dataclass(frozen=True)
 class KnownLatticeValue(AbstractLatticeValue):
-    """A simple lattice value: Unknown (⊥) < Known < Top (⊤)"""
+    """A simple lattice value: Unknown (bottom) < Known < Top"""
 
     value: Literal["unknown", "top"] | int
 

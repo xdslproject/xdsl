@@ -28,7 +28,7 @@ class AbstractLatticeValue(Protocol):
     Protocol for the mathematical lattice value types used within Lattice wrappers.
     A lattice is a mathematical structure with a partial ordering and two operations:
 
-    - join (∨): computes the least upper bound (union of information)
+    - join: computes the least upper bound (union of information)
     - meet (∧): computes the greatest lower bound (intersection of information)
 
     Classes implementing this protocol should provide implementations for the `meet`
@@ -38,7 +38,7 @@ class AbstractLatticeValue(Protocol):
     This protocol represents the actual lattice element (the abstract value being
     tracked), separate from the propagation infrastructure. For example:
 
-    - In constant propagation: the lattice value might be `⊥ (bottom) | Constant(n) | ⊤ (top)`
+    - In constant propagation: the lattice value might be `bottom | Constant(n) | top`
     - In sign analysis: the lattice value might be `Positive | Negative | Zero | Unknown`
     - In range analysis: the lattice value might be `Interval(min, max)`
     """
@@ -74,7 +74,7 @@ class AbstractLatticeValue(Protocol):
         """
         Computes the least upper bound (union of information) of two lattice values.
 
-        `a.join(b)` (or `a ∨ b`) produces the least precise value that is greater than or
+        `a.join(b)` produces the least precise value that is greater than or
         equal to both `a` and `b` in the lattice ordering. It represents the merging of
         two abstract values where we keep any information that could hold in either.
 
@@ -82,9 +82,9 @@ class AbstractLatticeValue(Protocol):
 
         Examples:
 
-        - In constant propagation: `Constant(3) ∨ Constant(4) = ⊤ (top)`
-        - In sign analysis: `Positive ∨ Negative = Unknown`
-        - In range analysis: `[0, 10] ∨ [5, 15] = [0, 15]`
+        - In constant propagation: `join(Constant(3), Constant(4)) = top`
+        - In sign analysis: `join(Positive, Negative) = Unknown`
+        - In range analysis: `join([0, 10], [5, 15]) = [0, 15]`
         """
         ...
 

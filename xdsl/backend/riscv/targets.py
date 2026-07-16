@@ -8,7 +8,7 @@ Based on:
       Clarke, RISC-V International, November 2022.
       https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/tag/v1.0
  [2]: “The RISC-V Instruction Set Manual, Volume I: User-Level ISA, Document Version
-      20191213”, Editors Andrew Waterman and Krste Asanovi´c, RISC-V Foundation,
+      20191213”, Editors Andrew Waterman and Krste Asanovic, RISC-V Foundation,
       December 2019.
       https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
 

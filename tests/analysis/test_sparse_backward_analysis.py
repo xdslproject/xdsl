@@ -26,7 +26,7 @@ from xdsl.ir import Block, Operation, Region
 
 @dataclass(frozen=True)
 class LiveValue(AbstractLatticeValue):
-    """Boolean liveness lattice: live (⊤) ⊑ dead (⊥)."""
+    """Boolean liveness lattice: live (top) ⊑ dead (bottom)."""
 
     state: Literal["dead", "live"]
 
