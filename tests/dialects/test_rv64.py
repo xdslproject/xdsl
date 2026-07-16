@@ -69,60 +69,36 @@ def test_immediate_bit_manipulation_inst(
     op_type(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
-def test_bclri_py_operation():
+@pytest.mark.parametrize(
+    ("op_type", "shamt", "rs1", "expected"),
+    [
+        (rv64.BclrIOp, 3, 0b1111, 0b0111),
+        # Clearing a bit that is already clear leaves the value unchanged
+        (rv64.BclrIOp, 2, 0b1011, 0b1011),
+        (rv64.BextIOp, 3, 0b1000, 1),
+        (rv64.BextIOp, 2, 0b1000, 0),
+        (rv64.BsetIOp, 3, 0b0001, 0b1001),
+        # Setting a bit that is already set leaves the value unchanged
+        (rv64.BsetIOp, 3, 0b1001, 0b1001),
+        (rv64.BinvIOp, 3, 0b0101, 0b1101),
+        (rv64.BinvIOp, 3, 0b1101, 0b0101),
+        # The low nibble rotates into the top nibble
+        (rv64.RorIOp, 4, 0xB3, 0x300000000000000B),
+        # Rotating by zero leaves the value unchanged
+        (rv64.RorIOp, 0, 0xB3, 0xB3),
+        (rv64.RorIOp, 1, 1, 0x8000000000000000),
+    ],
+)
+def test_bit_manipulation_py_operation(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+    shamt: int,
+    rs1: int,
+    expected: int,
+):
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    op = rv64.BclrIOp(a1, 3, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b1111, i64)) == IntegerAttr(0b0111, i64)
-
-    # Clearing a bit that is already clear leaves the value unchanged
-    op = rv64.BclrIOp(a1, 2, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b1011, i64)) == IntegerAttr(0b1011, i64)
-
-
-def test_bexti_py_operation():
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    op = rv64.BextIOp(a1, 3, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b1000, i64)) == IntegerAttr(1, i64)
-
-    op = rv64.BextIOp(a1, 2, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b1000, i64)) == IntegerAttr(0, i64)
-
-
-def test_bseti_py_operation():
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    op = rv64.BsetIOp(a1, 3, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b0001, i64)) == IntegerAttr(0b1001, i64)
-
-    # Setting a bit that is already set leaves the value unchanged
-    assert op.py_operation(IntegerAttr(0b1001, i64)) == IntegerAttr(0b1001, i64)
-
-
-def test_binvi_py_operation():
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    op = rv64.BinvIOp(a1, 3, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0b0101, i64)) == IntegerAttr(0b1101, i64)
-    assert op.py_operation(IntegerAttr(0b1101, i64)) == IntegerAttr(0b0101, i64)
-
-
-def test_rori_py_operation():
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    # The low nibble rotates into the top nibble
-    op = rv64.RorIOp(a1, 4, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0xB3, i64)) == IntegerAttr(
-        0x300000000000000B, i64
-    )
-
-    # Rotating by zero leaves the value unchanged
-    op = rv64.RorIOp(a1, 0, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(0xB3, i64)) == IntegerAttr(0xB3, i64)
-
-    op = rv64.RorIOp(a1, 1, rd=riscv.Registers.A0)
-    assert op.py_operation(IntegerAttr(1, i64)) == IntegerAttr(0x8000000000000000, i64)
+    op = op_type(a1, shamt, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(rs1, i64)) == IntegerAttr(expected, i64)
 
 
 def test_get_constant_value():
