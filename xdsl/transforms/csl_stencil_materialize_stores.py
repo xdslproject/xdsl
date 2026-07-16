@@ -26,7 +26,8 @@ class MaterializeInApplyDest(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
         if not len(op.arguments) > 0:
             return
-        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
+        apply = op.parent_op()
+        assert isinstance(apply, csl_stencil.ApplyOp)
 
         if op.parent_region() != apply.done_exchange:
             return

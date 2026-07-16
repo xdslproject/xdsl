@@ -71,7 +71,8 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
             return
 
         # case 3: apply is followed by other code, split it off into a different func, call it from second callback of apply
-        assert (parent_block := op.parent_block()) is not None
+        parent_block = op.parent_block()
+        assert parent_block is not None
         next_block = parent_block.split_before(op.next_op)
         rewriter.insert_op(csl.ReturnOp(), InsertPoint.after(op))
         next_func = csl.FuncOp(f"step{self.counter}", FunctionType.from_lists([], []))

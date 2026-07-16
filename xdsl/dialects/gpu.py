@@ -157,7 +157,8 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(res_type := self.result.type, memref.MemRefType)
+        res_type = self.result.type
+        assert isinstance(res_type, memref.MemRefType)
         ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
