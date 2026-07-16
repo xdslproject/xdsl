@@ -107,7 +107,6 @@ lint.ignore = [
   "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
   # Help welcome removing ignores below
   # https://github.com/xdslproject/xdsl/issues/5927
-  "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
   "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
   "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
