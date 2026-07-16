@@ -610,6 +610,11 @@ def test_constraint_inference(
             ParamAttrConstraint.get(AttrF, AttrC, AttrC),
             None,
         ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            VarConstraint("A", AnyAttr()),
+            None,
+        ),
     ],
 )
 def test_relax_constaint(
