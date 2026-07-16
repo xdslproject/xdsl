@@ -206,7 +206,8 @@ def build_target_ptr(
 class ConvertStorePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
-        assert isa(memref_type := op.memref.type, memref.MemRefType)
+        memref_type = op.memref.type
+        assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
 
@@ -215,7 +216,8 @@ class ConvertStorePattern(RewritePattern):
 class ConvertLoadPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
-        assert isa(memref_type := op.memref.type, memref.MemRefType)
+        memref_type = op.memref.type
+        assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 

@@ -30,7 +30,8 @@ class EqsatConstraintFunctions(InterpreterFunctions):
     def run_is_not_unsound(
         self, interp: Interpreter, _op: Operation, args: PythonValues
     ):
-        assert isinstance(op := args[0], Operation)
+        op = args[0]
+        assert isinstance(op, Operation)
         return "unsound" not in op.attributes, ()
 
 

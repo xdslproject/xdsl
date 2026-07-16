@@ -1298,7 +1298,8 @@ class PredicateTreeBuilder:
             # the parent SwitchNode (`parent`) that leads to the ChooseNode and insert the
             # predicate as a new node (`replacement_node`) in place of the ChooseNode.
             # The failure path of the new node then points to the ChooseNode.
-            assert isinstance(parent := node.parent, SwitchNode)
+            parent = node.parent
+            assert isinstance(parent, SwitchNode)
             replacement_node = SwitchNode(
                 position=current_predicate.position,
                 question=current_predicate.question,

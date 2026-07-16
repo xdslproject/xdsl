@@ -491,10 +491,12 @@ def _visit_pdl_ops(op: Operation, visited: set[Operation]):
     # Traverse the operands
     if isinstance(op, OperationOp):
         for value in op.operand_values:
-            assert isinstance(owner := value.owner, Operation)
+            owner = value.owner
+            assert isinstance(owner, Operation)
             _visit_pdl_ops(owner, visited)
     elif isinstance(op, ResultOp | ResultsOp):
-        assert isinstance(owner := op.parent_.owner, Operation)
+        owner = op.parent_.owner
+        assert isinstance(owner, Operation)
         _visit_pdl_ops(owner, visited)
 
     # Traverse the users

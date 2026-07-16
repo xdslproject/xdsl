@@ -3196,15 +3196,16 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            assert isinstance(
-                element_type := self.get_element_type(), IntegerType | IndexType
-            )
+            element_type = self.get_element_type()
+            assert isinstance(element_type, IntegerType | IndexType)
             printer.print_int(val, element_type)
         elif isinstance(val, float):
-            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, AnyFloat)
             printer.print_float(val, element_type)
         else:  # complex
-            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, ComplexType)
             printer.print_complex(val, element_type)
 
     def _print_dense_list(

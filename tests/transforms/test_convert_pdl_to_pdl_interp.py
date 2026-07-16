@@ -122,10 +122,11 @@ def test_extract_tree_predicates():
 
     predicates = p.extract_tree_predicates(root, root_pos, {})
 
+    root_pos = OperationPosition(None, depth=0)
     assert predicates[0] == PositionalPredicate(
         OperationNameQuestion(),
         StringAnswer("op1"),
-        root_pos := OperationPosition(None, depth=0),
+        root_pos,
     )
     assert predicates[1] == PositionalPredicate(
         OperandCountQuestion(),
@@ -288,12 +289,13 @@ def test_operation_with_multiple_results():
     root_pos = OperationPosition(depth=0)
     predicates = p.extract_tree_predicates(root, root_pos, {})
 
+    root_pos = OperationPosition(None, depth=0)
     assert len(predicates) == 7
     assert (
         PositionalPredicate(
             ResultCountQuestion(),
             UnsignedAnswer(2),
-            root_pos := OperationPosition(None, depth=0),
+            root_pos,
         )
         in predicates
     )

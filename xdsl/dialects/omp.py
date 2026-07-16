@@ -270,7 +270,8 @@ class LoopWrapper(NoTerminator):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
             )
-        assert (inner := op.regions[0].block.first_op) is not None
+        inner = op.regions[0].block.first_op
+        assert inner is not None
         if not (inner.has_trait(LoopWrapper()) or isinstance(inner, LoopNestOp)):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: "
@@ -1033,7 +1034,8 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
         one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
         for var in self.mapped_vars:
-            assert isinstance(owner := var.owner, MapInfoOp)
+            owner = var.owner
+            assert isinstance(owner, MapInfoOp)
 
             mapped[owner.var_ptr] |= owner.map_type.data
             if len(mapped[owner.var_ptr] & one_of) != 1:
