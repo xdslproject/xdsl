@@ -151,7 +151,7 @@ def test_attr_sized_segments_default_to_properties(
         AttrSizedSuccessorSegments,
     ],
 )
-def test_attr_sized_segments_attributes_are_deprecated(
+def test_attr_sized_segments_support_explicit_attribute_storage(
     option_type: type[
         AttrSizedOperandSegments
         | AttrSizedResultSegments
@@ -159,12 +159,7 @@ def test_attr_sized_segments_attributes_are_deprecated(
         | AttrSizedSuccessorSegments
     ],
 ):
-    with pytest.warns(
-        DeprecationWarning,
-        match="Storing segment sizes in attributes is deprecated",
-    ):
-        option = option_type(as_property=False)
-
+    option = option_type(as_property=False)
     assert not option.as_property
 
 

@@ -1128,9 +1128,6 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
-@pytest.mark.filterwarnings(
-    "ignore:Storing segment sizes in attributes is deprecated:DeprecationWarning"
-)
 @pytest.mark.parametrize(
     "program, generic_program, as_property",
     [

@@ -222,14 +222,6 @@ class AttrSizedSegments(IRDLOption, ABC):
     as_property: bool = True
     """Whether the segment sizes are stored in a property instead of an attribute."""
 
-    def __post_init__(self) -> None:
-        if not self.as_property:
-            warnings.warn(
-                "Storing segment sizes in attributes is deprecated; use properties instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
     def container(self, op: Operation) -> dict[str, Attribute]:
         if self.as_property:
             return op.properties
