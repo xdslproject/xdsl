@@ -148,6 +148,15 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         """
         return None
 
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        """
+        Attempt to relax this constraint by merging it with `other`,
+        returning the result if successful.
+        """
+        return self if self == other else None
+
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /
     ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
@@ -369,6 +378,15 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         if is_runtime_final(self.attr):
             return {self.attr}
         return None
+
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        if not isinstance(other, BaseAttr):
+            # Trying to match on ParamAttrConstraint does strange things to pyright
+            # so we just appeal to symmetry instead.
+            return other.relax_constraint(self)
+        return super().relax_constraint(other)
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
@@ -710,6 +728,30 @@ class ParamAttrConstraint(
                 for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
             ),
         )
+
+    def relax_constraint(
+        self, other: AttrConstraint[ParametrizedAttributeCovT]
+    ) -> AttrConstraint[ParametrizedAttributeCovT] | None:
+        if isinstance(other, BaseAttr):
+            if self.base_attr == other.attr:
+                return other
+            return
+        if not isinstance(other, ParamAttrConstraint):
+            return
+        if self.base_attr != other.base_attr:
+            return
+        seen_difference = False
+        new_params: list[AttrConstraint] = []
+        for x, y in zip(self.param_constrs, other.param_constrs, strict=True):
+            if x == y:
+                new_params.append(x)
+            elif seen_difference:
+                return
+            else:
+                seen_difference = True
+                new_params.append(x | y)
+
+        return ParamAttrConstraint(self.base_attr, tuple(new_params))
 
 
 @dataclass(frozen=True, init=False)
