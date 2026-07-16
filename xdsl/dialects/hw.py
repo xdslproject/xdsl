@@ -179,7 +179,7 @@ class InnerSymbolTableTrait(OpTrait):
             )
 
         # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait (or similar),
-        # however don’t test InnerRefNamespace’s symbol lookups
+        # however don't test InnerRefNamespace's symbol lookups
         parent = op.parent_op()
         if parent is None or not parent.has_trait(trait := InnerRefNamespaceLike):
             raise VerifyException(
