@@ -343,6 +343,9 @@ def test_reduced_float_packing(type_: AnyFloat, value: float):
 @pytest.mark.parametrize(
     "type_, value, expected_raw",
     [
+        # tf32: 19 bits -> 3 little-endian bytes. 1.5 = sign 0, biased exp 127,
+        # mantissa 0x200 -> 0x1FE00, packed low byte first as 00 fe 01.
+        (tf32, 1.5, b"\x00\xfe\x01"),
         # f4E2M1FN: 1.5 = 1.1b, sign 0, exp_field bias(1)+0, mantissa 1 -> 0b011.
         (f4E2M1FN, 1.5, b"\x03"),
         # f8E4M3: 1.0 = sign 0, exp_field bias(7), mantissa 0 -> 0b0111000 = 0x38.

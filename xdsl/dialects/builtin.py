@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import math
 import struct
 from abc import ABC, abstractmethod
@@ -1406,13 +1407,14 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         )
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        # `int` packs the odd byte widths `struct` can't, e.g. tf32's 19 bits -> 3 bytes.
         size = self.size
         mv = memoryview(buffer)
         for i in range(0, len(mv), size):
             yield self.decode_bits(int.from_bytes(bytes(mv[i : i + size]), "little"))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+        return tuple(itertools.islice(self.iter_unpack(buffer), num))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
         size = self.size
@@ -1422,7 +1424,10 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
 
     def pack(self, values: Sequence[float]) -> bytes:
         size = self.size
-        return b"".join(self.encode_bits(v).to_bytes(size, "little") for v in values)
+        buffer = bytearray(size * len(values))
+        for index, value in enumerate(values):
+            self.pack_into(buffer, index * size, value)
+        return bytes(buffer)
 
 
 @irdl_attr_definition
