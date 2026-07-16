@@ -59,3 +59,42 @@ arith.constant 1.5 : f4E2M1FN
 // 0.1 underflows f4E2M1FN's subnormals and narrows to 0.0.
 arith.constant 0.1 : f4E2M1FN
 // CHECK-NEXT: {{%.*}} = arith.constant 0.000000e+00 : f4E2M1FN
+
+// Dense arrays roundtrip element-wise through both tools, narrowing the middle
+// element (non-representable) while keeping a representable value and a sign.
+
+arith.constant dense<[1.0, 0.3, -2.0]> : tensor<3xtf32>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 3.000490e-01, -2.000000e+00]> : tensor<3xtf32>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf8E5M2>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 9.375000e-02, -2.000000e+00]> : tensor<3xf8E5M2>
+
+arith.constant dense<[1.0, 0.3, -2.0]> : tensor<3xf8E4M3>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 3.125000e-01, -2.000000e+00]> : tensor<3xf8E4M3>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf8E3M4>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 9.375000e-02, -2.000000e+00]> : tensor<3xf8E3M4>
+
+arith.constant dense<[1.0, 0.3, -2.0]> : tensor<3xf8E4M3FN>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 3.125000e-01, -2.000000e+00]> : tensor<3xf8E4M3FN>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf8E5M2FNUZ>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 9.375000e-02, -2.000000e+00]> : tensor<3xf8E5M2FNUZ>
+
+arith.constant dense<[1.0, 0.3, -2.0]> : tensor<3xf8E4M3FNUZ>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 3.125000e-01, -2.000000e+00]> : tensor<3xf8E4M3FNUZ>
+
+arith.constant dense<[1.0, 0.3, -2.0]> : tensor<3xf8E4M3B11FNUZ>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 3.125000e-01, -2.000000e+00]> : tensor<3xf8E4M3B11FNUZ>
+
+arith.constant dense<[1.0, 0.1, 4.0]> : tensor<3xf8E8M0FNU>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 1.250000e-01, 4.000000e+00]> : tensor<3xf8E8M0FNU>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf6E2M3FN>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 1.250000e-01, -2.000000e+00]> : tensor<3xf6E2M3FN>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf6E3M2FN>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 1.250000e-01, -2.000000e+00]> : tensor<3xf6E3M2FN>
+
+arith.constant dense<[1.0, 0.1, -2.0]> : tensor<3xf4E2M1FN>
+// CHECK-NEXT: {{%.*}} = arith.constant dense<[1.000000e+00, 0.000000e+00, -2.000000e+00]> : tensor<3xf4E2M1FN>
