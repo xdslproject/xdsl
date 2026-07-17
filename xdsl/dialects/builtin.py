@@ -1411,7 +1411,7 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         size = self.size
         mv = memoryview(buffer)
         for i in range(0, len(mv), size):
-            yield self.decode_bits(int.from_bytes(bytes(mv[i : i + size]), "little"))
+            yield self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
         return tuple(itertools.islice(self.iter_unpack(buffer), num))
