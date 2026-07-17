@@ -359,6 +359,17 @@ def test_reduced_float_pack_bit_patterns(
     assert type_.unpack(expected_raw, 1)[0] == value
 
 
+def test_reduced_float_rejects_truncated_buffer():
+    """A buffer that is not a whole number of elements is rejected, not partially decoded."""
+    packed = tf32.pack((1.5, 2.0))  # 2 * 3 bytes
+    assert tf32.unpack(packed, 2) == (1.5, 2.0)
+    truncated = packed[:-1]  # 5 bytes: not a multiple of the 3-byte element size
+    with pytest.raises(ValueError, match="not a multiple"):
+        list(tf32.iter_unpack(truncated))
+    with pytest.raises(ValueError, match="not a multiple"):
+        tf32.unpack(truncated, 2)
+
+
 _REDUCED_TYPES = (
     tf32,
     f8E5M2,
