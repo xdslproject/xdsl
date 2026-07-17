@@ -986,6 +986,10 @@ class OpDef:
 
                 if field_name == "irdl_options":
                     if not isa(value, tuple[IRDLOption, ...]):
+                        if not isinstance(value, tuple):
+                            raise PyRDLOpDefinitionError(
+                                f"All values `irdl_options` must be a `tuple`, got `{type(value).__name__}`."
+                            )
                         raise PyRDLOpDefinitionError(
                             "All values in irdl_options should inherit IRDLOption"
                         )

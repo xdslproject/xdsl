@@ -165,6 +165,20 @@ def test_invalid_irdl_options():
         irdl_op_definition(InvalidIRDLOpts)
 
 
+class MutableIRDLOpts(IRDLOperation):
+    name = "test.mutable_irdl_options_field"
+    irdl_options = [AttrSizedRegionSegments()]
+
+
+def test_list_irdl_options():
+    """Check that irdl_options given as a list produces a warning"""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="All values `irdl_options` must be a `tuple`, got `list`",
+    ):
+        irdl_op_definition(MutableIRDLOpts)
+
+
 ################################################################################
 #                                  Verifiers                                   #
 ################################################################################
