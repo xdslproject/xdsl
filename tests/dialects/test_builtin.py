@@ -359,18 +359,20 @@ def test_reduced_float_pack_bit_patterns(
     assert type_.unpack(expected_raw, 1)[0] == value
 
 
-def test_reduced_float_rejects_truncated_buffer():
-    """A buffer that is not a whole number of elements is rejected, not partially decoded."""
-    packed = tf32.pack((1.5, 2.0))  # 2 * 3 bytes
-    assert tf32.unpack(packed, 2) == (1.5, 2.0)
-    truncated = packed[:-1]  # 5 bytes: one full element + a 2-byte partial
-    with pytest.raises(ValueError, match="partial"):
-        list(tf32.iter_unpack(truncated))
-    with pytest.raises(ValueError, match="partial"):
-        tf32.unpack(truncated, 2)
-    # The leading full element is still read lazily, before the partial is reached.
-    assert next(tf32.iter_unpack(truncated)) == 1.5
-    assert tf32.unpack(truncated, 1) == (1.5,)
+@pytest.mark.parametrize("type_", [f64, bf16, tf32])
+def test_float_rejects_truncated_buffer(type_: AnyFloat):
+    """
+    The struct-based (f64) and manual (bf16, tf32) float codecs all reject a truncated
+    buffer with struct.error: reading one to completion never silently decodes a partial
+    trailing element as if its missing bytes were zero.
+    """
+    packed = type_.pack((1.5, 2.0))
+    assert type_.unpack(packed, 2) == (1.5, 2.0)
+    truncated = packed[:-1]  # ends part-way through the final element
+    with pytest.raises(struct.error):
+        list(type_.iter_unpack(truncated))
+    with pytest.raises(struct.error):
+        type_.unpack(truncated, 2)
 
 
 _REDUCED_TYPES = (
