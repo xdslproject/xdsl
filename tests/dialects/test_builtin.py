@@ -163,7 +163,6 @@ def test_FloatType_bitwidths():
 def test_FloatType_formats():
     # bf16 subclasses PackableType directly (no struct format string).
     assert not hasattr(bf16, "format")
-    assert not hasattr(tf32, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -171,6 +170,8 @@ def test_FloatType_formats():
         f80.format
     with pytest.raises(NotImplementedError):
         f128.format
+    with pytest.raises(NotImplementedError):
+        tf32.format
 
 
 def test_IntegerType_verifier():

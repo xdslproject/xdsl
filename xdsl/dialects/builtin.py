@@ -1224,7 +1224,7 @@ class FloatSemantics:
         return quotient
 
 
-class ReducedPrecisionFloatType(_FloatType, ABC):
+class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
     """
     Base for reduced-precision float types, described by a `FloatSemantics`.
 
@@ -1237,6 +1237,10 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
     @property
     def bitwidth(self) -> int:
         return self.SEMANTICS.bitwidth
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
 
     @property
     def compile_time_size(self) -> int:
