@@ -177,22 +177,31 @@ class Printer(BasePrinter):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-    def _get_block_name(self, block: Block, block_id: int | None = None) -> str:
+    def _populate_block_name(
+        self, block: Block, block_index: int | None = None
+    ) -> None:
         """Assign a name to a block if it does not already have one."""
         try:
-            name = self._blocks[block]
+            self._blocks[block]
         except KeyError:
             if block.name_hint:
                 curr_ind = self.block_names.get(block.name_hint, 0)
                 suffix = f"_{curr_ind}" if curr_ind != 0 else ""
                 name = f"{block.name_hint}{suffix}"
                 self.block_names[block.name_hint] = curr_ind + 1
-            elif block_id is not None:
-                name = f"bb{block_id}"
+            elif block_index is not None:
+                name = f"bb{block_index}"
             else:
                 name = f"bb{self._get_new_valid_block_id()}"
             self._blocks[block] = name
-        return name
+
+    def _get_block_name(self, block: Block) -> str:
+        """Fetch a block name, assigning one on a cache miss."""
+        try:
+            return self._blocks[block]
+        except KeyError:
+            self._populate_block_name(block)
+            return self._blocks[block]
 
     def print_block_name(self, block: Block) -> str:
         """
@@ -265,8 +274,8 @@ class Printer(BasePrinter):
         """
         # Match MLIR by assigning block names in region order before successors are
         # printed.
-        for block_id, block in enumerate(region.blocks):
-            self._get_block_name(block, block_id)
+        for block_index, block in enumerate(region.blocks):
+            self._populate_block_name(block, block_index)
 
         # Empty region
         with self.in_braces():
