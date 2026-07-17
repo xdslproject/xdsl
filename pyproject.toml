@@ -104,7 +104,7 @@ lint.ignore = [
   "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
   "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
   "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-  "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
+  # PYI041 enabled: https://docs.astral.sh/ruff/rules/redundant-numeric-union
   # Help welcome removing ignores below
   # https://github.com/xdslproject/xdsl/issues/5927
   "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
