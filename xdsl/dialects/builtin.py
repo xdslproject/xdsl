@@ -1410,15 +1410,14 @@ class ReducedPrecisionFloatType(_FloatType, ABC):
         # `int` handles the odd byte widths `struct` can't, e.g. tf32's 19 bits -> 3 bytes.
         size = self.size
         mv = memoryview(buffer)
-        if len(mv) % size:
-            raise ValueError(
-                f"buffer of {len(mv)} bytes is not a multiple of the {size}-byte "
-                f"element size of {self.name}"
-            )
-        return (
-            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
-            for i in range(0, len(mv), size)
-        )
+        for i in range(0, len(mv), size):
+            chunk = mv[i : i + size]
+            if len(chunk) < size:
+                raise ValueError(
+                    f"buffer ends with a partial {self.name} value: "
+                    f"{len(chunk)} of {size} bytes"
+                )
+            yield self.decode_bits(int.from_bytes(chunk, "little"))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
         return tuple(itertools.islice(self.iter_unpack(buffer), num))

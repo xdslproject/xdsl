@@ -363,11 +363,14 @@ def test_reduced_float_rejects_truncated_buffer():
     """A buffer that is not a whole number of elements is rejected, not partially decoded."""
     packed = tf32.pack((1.5, 2.0))  # 2 * 3 bytes
     assert tf32.unpack(packed, 2) == (1.5, 2.0)
-    truncated = packed[:-1]  # 5 bytes: not a multiple of the 3-byte element size
-    with pytest.raises(ValueError, match="not a multiple"):
+    truncated = packed[:-1]  # 5 bytes: one full element + a 2-byte partial
+    with pytest.raises(ValueError, match="partial"):
         list(tf32.iter_unpack(truncated))
-    with pytest.raises(ValueError, match="not a multiple"):
+    with pytest.raises(ValueError, match="partial"):
         tf32.unpack(truncated, 2)
+    # The leading full element is still read lazily, before the partial is reached.
+    assert next(tf32.iter_unpack(truncated)) == 1.5
+    assert tf32.unpack(truncated, 1) == (1.5,)
 
 
 _REDUCED_TYPES = (
