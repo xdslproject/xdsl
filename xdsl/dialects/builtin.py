@@ -1477,6 +1477,10 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
         mv = memoryview(buffer)
+        if len(mv) % 2:
+            raise struct.error(
+                f"buffer size {len(mv)} is not a multiple of the 2-byte element size"
+            )
         for i in range(0, len(mv), 2):
             yield self._decode(bytes(mv[i : i + 2]))
 

@@ -364,14 +364,13 @@ def test_reduced_float_pack_bit_patterns(
 def test_float_rejects_truncated_buffer(type_: AnyFloat):
     """
     The struct-based (f64) and manual (bf16, tf32) float codecs all reject a truncated
-    buffer with struct.error: reading one to completion never silently decodes a partial
-    trailing element as if its missing bytes were zero.
+    buffer identically.
     """
     packed = type_.pack((1.5, 2.0))
     assert type_.unpack(packed, 2) == (1.5, 2.0)
     truncated = packed[:-1]  # ends part-way through the final element
     with pytest.raises(struct.error):
-        list(type_.iter_unpack(truncated))
+        next(type_.iter_unpack(truncated))
     with pytest.raises(struct.error):
         type_.unpack(truncated, 2)
 
