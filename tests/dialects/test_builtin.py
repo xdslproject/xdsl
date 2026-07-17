@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     NoneAttr,
+    PackableType,
     ShapedType,
     Signedness,
     StaticShapeArrayConstr,
@@ -596,6 +597,44 @@ def test_IntegerType_packing():
         tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
         == nums_complex_f32
     )
+
+
+@pytest.mark.parametrize("ftype", [f64, bf16])
+def test_packing_errors(ftype: PackableType[object]):
+    size = ftype.compile_time_size
+
+    data = ftype.pack((1, 2, 3))
+    len_data = len(data)
+    assert ftype.unpack(data, 3) == (1, 2, 3)
+
+    # Drop a byte
+    prefix = bytearray(data[:-1])
+    len_prefix = len(prefix)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+    ):
+        ftype.unpack(prefix, 2)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+    ):
+        ftype.iter_unpack(prefix)
+
+    # Only raise error if writing past the end.
+    ftype.pack_into(prefix, 0, 4)
+    assert next(ftype.iter_unpack(prefix[:size])) == 4
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"Buffer length {len_prefix} too small for packing {size} bytes at "
+            f"offset {size * 2}, expected at least {len_data}."
+        ),
+    ):
+        ftype.pack_into(prefix, size * 2, 4)
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
