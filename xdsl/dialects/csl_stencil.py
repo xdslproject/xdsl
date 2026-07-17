@@ -430,7 +430,7 @@ class ApplyOp(IRDLOperation):
 
     def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr):
         self.coeffs = builtin.ArrayAttr(
-            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
+            [*list(self.coeffs or []), CoeffAttr(offset, coeff)]
         )
 
 
