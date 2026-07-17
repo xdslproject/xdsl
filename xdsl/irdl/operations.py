@@ -986,19 +986,13 @@ class OpDef:
 
                 if field_name == "irdl_options":
                     if not isa(value, tuple[IRDLOption, ...]):
-                        if isa(value, list[IRDLOption]):
-                            import warnings
-
-                            warnings.warn(
-                                "Defining irdl_options as a `list` is deprecated, please use a "
-                                "`tuple`.",
-                                DeprecationWarning,
-                                stacklevel=2,
-                            )
-                        else:
+                        if not isinstance(value, tuple):
                             raise PyRDLOpDefinitionError(
-                                "All values in irdl_options should inherit IRDLOption"
+                                f"All values `irdl_options` must be a `tuple`, got `{type(value).__name__}`."
                             )
+                        raise PyRDLOpDefinitionError(
+                            "All values in irdl_options should inherit IRDLOption"
+                        )
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
