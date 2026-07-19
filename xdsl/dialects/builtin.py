@@ -599,7 +599,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
         """
         Yields unpacked values one at a time, starting at the beginning of the buffer.
 
-        Raises `ValueError` if `buffer` is not divisible by `self.compile_time_size`.
+        Raises `ValueError` if `len(buffer)` is not divisible by
+        `self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -668,8 +669,8 @@ class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
             compile_time_size = self.compile_time_size
             if buffer_size != num * compile_time_size:
                 raise ValueError(
-                    f"Buffer length {buffer_size} not multiple of {self.name} element "
-                    f"size {compile_time_size}."
+                    f"Buffer length {buffer_size} not product of {self.name} element "
+                    f"size {compile_time_size} and num {num}."
                 )
             # Re-raise unexpected struct.error
             raise
@@ -1333,10 +1334,11 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
         mv = memoryview(buffer)
         buffer_size = len(mv)
-        if buffer_size % 2:
+        compile_time_size = self.compile_time_size
+        if buffer_size != num * compile_time_size:
             raise ValueError(
-                f"Buffer length {buffer_size} not multiple of {self.name} element "
-                f"size 2."
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {compile_time_size} and num {num}."
             )
 
         return tuple(self._decode(mv[i : i + 2]) for i in range(0, buffer_size, 2))

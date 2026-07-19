@@ -613,7 +613,7 @@ def test_packing_errors(ftype: PackableType[object]):
 
     with pytest.raises(
         ValueError,
-        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+        match=f"Buffer length {len_prefix} not product of {ftype.name} element size {size} and num 2.",
     ):
         ftype.unpack(prefix, 2)
 
