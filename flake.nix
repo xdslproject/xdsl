@@ -22,6 +22,7 @@
                 llvmPackages_22.llvm
                 llvmPackages_22.mlir
                 llvmPackages_22.tblgen
+                markdownlint-cli2
               ];
               LLVM_SYMBOLIZER_PATH = "${llvmPackages_22.llvm}/bin/llvm-symbolizer";
               XDSL_MLIR_OPT = "${llvmPackages_22.mlir}/bin/mlir-opt";
