@@ -194,8 +194,12 @@ class Printer(BasePrinter):
         self._blocks[block] = name
 
     def _get_block_name(self, block: Block) -> str:
-        """Fetch the name of an already-populated block."""
-        return self._blocks[block]
+        """Fetch a block name, assigning one on a cache miss."""
+        try:
+            return self._blocks[block]
+        except KeyError:
+            self._populate_block_name(block)
+            return self._blocks[block]
 
     def print_block_name(self, block: Block) -> str:
         """
