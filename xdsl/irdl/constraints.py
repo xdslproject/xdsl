@@ -327,6 +327,14 @@ class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     def get_bases(self) -> set[type[Attribute]] | None:
         return {type(self.attr)}
 
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        if isinstance(other, AttrSetConstraint):
+            return AttrSetConstraint.get(self.attr, *other.values)
+        if isinstance(other, EqAttrConstraint):
+            return AttrSetConstraint.get(self.attr, other.attr)
+
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
@@ -358,6 +366,14 @@ class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return {type(attr) for attr in self.values}
+
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        if isinstance(other, AttrSetConstraint):
+            return AttrSetConstraint.get(*self.values, *other.values)
+        if isinstance(other, EqAttrConstraint):
+            return AttrSetConstraint.get(*self.values, other.attr)
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]

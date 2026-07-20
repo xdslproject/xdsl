@@ -666,6 +666,31 @@ def test_constraint_inference(
             VarConstraint("A", AnyAttr()),
             None,
         ),
+        (
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrA()),
+        ),
+        (
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrC()),
+            AttrSetConstraint.get(AttrA(), AttrC()),
+        ),
+        (
+            EqAttrConstraint(AttrA()),
+            AttrSetConstraint.get(AttrD(AttrA()), AttrD(AttrC())),
+            AttrSetConstraint.get(AttrA(), AttrD(AttrA()), AttrD(AttrC())),
+        ),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            EqAttrConstraint(AttrD(AttrA())),
+            AttrSetConstraint.get(AttrA(), AttrC(), AttrD(AttrA())),
+        ),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            AttrSetConstraint.get(AttrD(AttrA()), AttrD(AttrC())),
+            AttrSetConstraint.get(AttrA(), AttrC(), AttrD(AttrA()), AttrD(AttrC())),
+        ),
     ],
 )
 def test_relax_constaint(
