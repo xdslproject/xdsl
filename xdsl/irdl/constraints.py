@@ -334,6 +334,38 @@ class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
 
 @dataclass(frozen=True)
+class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
+    """Constrain an attribute to be one of a set of attributes."""
+
+    values: frozenset[AttributeCovT]
+
+    @staticmethod
+    def get(*values: AttributeInvT) -> AttrConstraint[AttributeInvT]:
+        s = frozenset(values)
+        if len(s) == 1:
+            return EqAttrConstraint(values[0])
+        return AttrSetConstraint(s)
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if attr not in self.values:
+            raise VerifyException(
+                f"Expected one of {', '.join(str(value) for value in self.values)}, but got {attr}"
+            )
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {type(attr) for attr in self.values}
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[AttributeCovT]:
+        return self
+
+
+@dataclass(frozen=True)
 class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Constrain an attribute to be of a given base type."""
 
