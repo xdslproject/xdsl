@@ -23,8 +23,8 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyOf,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintConvertible,
@@ -453,11 +453,11 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert irdl_to_attr_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(  # pyright: ignore[reportArgumentType]
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert irdl_to_attr_constraint(
+        Literal[TestEnum.A, TestEnum.B]  # pyright: ignore[reportArgumentType]
+    ) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
     assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
     assert irdl_to_attr_constraint(IntAttr[int]) == BaseAttr(IntAttr)
@@ -539,11 +539,9 @@ def test_get_constraint():
     assert get_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
 
     with pytest.raises(
