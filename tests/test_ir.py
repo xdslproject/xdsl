@@ -1073,6 +1073,62 @@ def test_verify_erased_ssa_value():
         b.verify()
 
 
+def test_verify_operand_defined_in_same_region():
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer])
+    Region(Block([producer, consumer]))
+
+    consumer.verify()
+
+
+def test_verify_operand_defined_in_ancestor_region():
+    outer_block = Block(arg_types=[i32])
+    consumer = test.TestOp(operands=[outer_block.args[0]])
+    inner_block = Block([consumer, test.TestTermOp()])
+    outer_block.add_op(test.TestOp(regions=[Region(inner_block)]))
+    Region(outer_block)
+
+    consumer.verify()
+
+
+def test_verify_operand_defined_by_detached_operation():
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer])
+    Region(Block([consumer]))
+
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Operation test.op contains operand at index 0 whose value is used but "
+            "not defined in the IR"
+        ),
+    ):
+        consumer.verify()
+
+
+def test_verify_operand_defined_in_unrelated_region():
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer])
+    Region(Block([producer]))
+    Region(Block([consumer]))
+
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Operation test.op contains operand at index 0 whose value is used but "
+            "not defined in the IR"
+        ),
+    ):
+        consumer.verify()
+
+
+def test_verify_detached_operation_operand():
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer])
+
+    consumer.verify()
+
+
 def test_block_walk():
     a = ConstantOp.from_int_and_width(1, 32)
     b = ConstantOp.from_int_and_width(2, 32)

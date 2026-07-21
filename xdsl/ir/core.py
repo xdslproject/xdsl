@@ -1253,6 +1253,20 @@ class Operation(_IRNode):
         parent_block = self.parent
         parent_region = None if parent_block is None else parent_block.parent
 
+        if parent_region is not None:
+            ancestor_regions = set[Region]()
+            ancestor: Region | None = parent_region
+            while ancestor is not None:
+                ancestor_regions.add(ancestor)
+                ancestor = ancestor.parent_region()
+
+            for operand_index, operand in enumerate(self.operands):
+                if operand.owner.parent_region() not in ancestor_regions:
+                    raise VerifyException(
+                        f"Operation {self.name} contains operand at index "
+                        f"{operand_index} whose value is used but not defined in the IR"
+                    )
+
         if self.successors:
             if parent_block is None or parent_region is None:
                 raise VerifyException(
