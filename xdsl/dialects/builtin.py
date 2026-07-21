@@ -1264,14 +1264,12 @@ class FloatSemantics:
         return quotient
 
 
-class ReducedPrecisionFloatType(_FloatType, ABC):
+class ReducedPrecisionFloatType(_FloatType, PackableType[float], ABC):
     """
     Base for reduced-precision float types, described by a `FloatSemantics`.
 
     Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
     special-value handling is shared here and parameterised by that `FloatSemantics`.
-    Like bf16, it implements `PackableType` directly: no `struct` format fits these
-    formats, so the codec below overrides every pack/unpack method.
     """
 
     SEMANTICS: ClassVar[FloatSemantics]
