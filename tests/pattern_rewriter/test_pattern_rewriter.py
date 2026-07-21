@@ -1423,7 +1423,7 @@ def test_inline_region_before():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1443,7 +1443,7 @@ def test_inline_region_before():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             if op.parent is None:
                 return
@@ -1469,7 +1469,7 @@ def test_inline_region_after():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
 ^bb0:
   %2 = "test.op"() : () -> i64
 }) : () -> ()
@@ -1490,7 +1490,7 @@ def test_inline_region_after():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             if op.parent is None:
                 return
@@ -1517,7 +1517,7 @@ def test_inline_region_at_start():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1537,7 +1537,7 @@ def test_inline_region_at_start():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             parent_region = op.parent_region()
             if parent_region is None:
@@ -1567,7 +1567,7 @@ def test_inline_region_at_end():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1587,7 +1587,7 @@ def test_inline_region_at_end():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             parent_region = op.parent_region()
             if parent_region is None:

@@ -22,6 +22,17 @@ riscv_func.func @main() {
   // Store 64-bit value to memory
   rv64.sd %li, %ld, 16 : (!riscv.reg, !riscv.reg) -> ()
   // CHECK: rv64.sd %{{.*}}, %{{.*}}, 16 : (!riscv.reg, !riscv.reg) -> ()
+  
+  %bclri = rv64.bclri %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  // CHECK-NEXT:      %{{.*}} = rv64.bclri %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  %binvi = rv64.binvi %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  // CHECK-NEXT: %{{.*}} = rv64.binvi %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  %bseti = rv64.bseti %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  // CHECK-NEXT: %{{.*}} = rv64.bseti %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  %rori = rv64.rori %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  // CHECK-NEXT:      %{{.*}} = rv64.rori %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  %bexti = rv64.bexti %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+  // CHECK-NEXT: %{{.*}} = rv64.bexti %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 
   riscv_func.return
 }
@@ -35,6 +46,12 @@ riscv_func.func @main() {
 // CHECK-GENERIC-NEXT:      %li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %ld = "rv64.ld"(%li) {immediate = 8 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "rv64.sd"(%li, %ld) {immediate = 16 : si12} : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      %bclri = "rv64.bclri"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %binvi = "rv64.binvi"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bseti = "rv64.bseti"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %rori = "rv64.rori"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bexti = "rv64.bexti"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
@@ -48,4 +65,9 @@ riscv_func.func @main() {
 // CHECK-ASM-NEXT:      li , 1
 // CHECK-ASM-NEXT:      ld , 8()
 // CHECK-ASM-NEXT:      sd , 16()
+// CHECK-ASM-NEXT:      bclri j_1, j_1, 1
+// CHECK-ASM-NEXT:      binvi j_1, j_1, 1
+// CHECK-ASM-NEXT:      bseti j_1, j_1, 1
+// CHECK-ASM-NEXT:      rori j_1, j_1, 1
+// CHECK-ASM-NEXT:      bexti j_1, j_1, 1
 // CHECK-ASM-NEXT:      ret

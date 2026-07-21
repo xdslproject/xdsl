@@ -22,13 +22,13 @@ from xdsl.utils.str_enum import StrEnum
 
 
 class Constant(StrEnum):
-    E = auto()  # 𝑒
+    E = auto()  # e
     PI = auto()  # π
     M_2_SQRTPI = auto()  # 2/sqrt(π)
-    LOG2E = auto()  # log2(𝑒)
+    LOG2E = auto()  # log2(e)
     PI_2 = auto()  # π/2
     SQRT2 = auto()  # sqrt(2)
-    LOG10E = auto()  # log10(𝑒)
+    LOG10E = auto()  # log10(e)
     PI_4 = auto()  # π/4
     SQRT1_2 = auto()  # sqrt(1/2)
     LN2 = auto()  # ln(2)

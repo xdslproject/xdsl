@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     NoneAttr,
+    PackableType,
     ReducedPrecisionFloatType,
     ShapedType,
     Signedness,
@@ -161,8 +162,10 @@ def test_FloatType_bitwidths():
 
 
 def test_FloatType_formats():
-    # bf16 subclasses PackableType directly (no struct format string).
+    # bf16 and the reduced-precision types implement PackableType directly, with no
+    # struct format string.
     assert not hasattr(bf16, "format")
+    assert not hasattr(tf32, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -170,8 +173,6 @@ def test_FloatType_formats():
         f80.format
     with pytest.raises(NotImplementedError):
         f128.format
-    with pytest.raises(NotImplementedError):
-        tf32.format
 
 
 def test_IntegerType_verifier():
@@ -376,9 +377,9 @@ def test_float_rejects_truncated_buffer(type_: AnyFloat):
     packed = type_.pack((1.5, 2.0))
     assert type_.unpack(packed, 2) == (1.5, 2.0)
     truncated = packed[:-1]  # ends part-way through the final element
-    with pytest.raises(struct.error):
+    with pytest.raises(ValueError, match="Buffer length"):
         next(type_.iter_unpack(truncated))
-    with pytest.raises(struct.error):
+    with pytest.raises(ValueError, match="Buffer length"):
         type_.unpack(truncated, 2)
 
 
@@ -733,6 +734,44 @@ def test_IntegerType_packing():
         tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
         == nums_complex_f32
     )
+
+
+@pytest.mark.parametrize("ftype", [f64, bf16, tf32])
+def test_packing_errors(ftype: PackableType[object]):
+    size = ftype.compile_time_size
+
+    data = ftype.pack((1, 2, 3))
+    len_data = len(data)
+    assert ftype.unpack(data, 3) == (1, 2, 3)
+
+    # Drop a byte
+    prefix = bytearray(data[:-1])
+    len_prefix = len(prefix)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not product of {ftype.name} element size {size} and num 2.",
+    ):
+        ftype.unpack(prefix, 2)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+    ):
+        ftype.iter_unpack(prefix)
+
+    # Only raise error if writing past the end.
+    ftype.pack_into(prefix, 0, 4)
+    assert next(ftype.iter_unpack(prefix[:size])) == 4
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"Buffer length {len_prefix} too small for packing {size} bytes at "
+            f"offset {size * 2}, expected at least {len_data}."
+        ),
+    ):
+        ftype.pack_into(prefix, size * 2, 4)
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():

@@ -167,7 +167,8 @@ class ApplyOpBufferize(RewritePattern):
             else:
                 done_exchange_arg_mapping.append(arg)
 
-        assert isa(typ := op.receive_chunk.block.args[0].type, TensorType[Attribute])
+        typ = op.receive_chunk.block.args[0].type
+        assert isa(typ, TensorType[Attribute])
         chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
 
         # inline blocks from old into new regions
@@ -267,7 +268,8 @@ class ApplyOpBufferize(RewritePattern):
         """
 
         # this is the unbufferized `tensor<(neighbours)x(ZDim)x(type)>` value
-        assert isa(typ := op.receive_chunk.block.args[0].type, TensorType[Attribute])
+        typ = op.receive_chunk.block.args[0].type
+        assert isa(typ, TensorType[Attribute])
 
         return tensor.ExtractSliceOp(
             operands=[to_tensor.tensor, [offset], [], []],

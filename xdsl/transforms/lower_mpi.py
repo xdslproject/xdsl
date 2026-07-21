@@ -204,7 +204,8 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         It then returns a list of operations calculating that size, and
         an OpResult containing the calculated value.
         """
-        assert isinstance(ssa_val_type := ssa_val.type, memref.MemRefType)
+        ssa_val_type = ssa_val.type
+        assert isinstance(ssa_val_type, memref.MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemRef!
         # TODO: handle -1 in sizes

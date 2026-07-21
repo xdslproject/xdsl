@@ -219,11 +219,12 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             XoriImmediate,
+            XoriOfXori,
             XoriSelfInverse,
             XoriZero,
         )
 
-        return (XoriZero(), XoriSelfInverse(), XoriImmediate())
+        return (XoriZero(), XoriSelfInverse(), XoriOfXori(), XoriImmediate())
 
 
 @irdl_op_definition
@@ -1531,24 +1532,6 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = X(rs1) & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
-    """
-
-    name = "riscv.bclri"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -1561,24 +1544,6 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.bext"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class BextIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = (X(rs1) >> index) & 1;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
-    """
-
-    name = "riscv.bexti"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1602,24 +1567,6 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BinvIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
-    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
-    """
-
-    name = "riscv.binvi"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit set at the index specified in rs2.
@@ -1632,24 +1579,6 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.bset"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class BsetIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
-    from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] | (1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
-    """
-
-    name = "riscv.bseti"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1778,26 +1707,6 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.rorw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class RoriOp(RdRsImmBitManipOperation):
-    """
-    This instruction performs a rotate right of rs1 by the amount in the least-significant
-    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
-    ```
-    let shamt = if   xlen == 32
-                    then shamt[4..0]
-                    else shamt[5..0];
-    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
-    X(rd) = result;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
-    """
-
-    name = "riscv.rori"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -3341,11 +3250,6 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        BclrIOp,
-        BextIOp,
-        BsetIOp,
-        BinvIOp,
-        RoriOp,
         RoriwOp,
         SlliUwOp,
         EcallOp,

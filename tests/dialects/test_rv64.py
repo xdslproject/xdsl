@@ -5,6 +5,7 @@ from xdsl.dialects import riscv, rv64
 from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
+    i64,
 )
 from xdsl.dialects.riscv.attrs import si12
 from xdsl.traits import (
@@ -47,6 +48,57 @@ def test_immediate_shift_inst():
         rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
     rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+@pytest.mark.parametrize(
+    "op_type",
+    [rv64.BclrIOp, rv64.BextIOp, rv64.BsetIOp, rv64.BinvIOp, rv64.RorIOp],
+)
+def test_immediate_bit_manipulation_inst(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+):
+    # Bit manipulation instructions - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        op_type(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        op_type(a1, -1, rd=riscv.Registers.A0)
+
+    op_type(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+@pytest.mark.parametrize(
+    ("op_type", "shamt", "rs1", "expected"),
+    [
+        (rv64.BclrIOp, 3, 0b1111, 0b0111),
+        # Clearing a bit that is already clear leaves the value unchanged
+        (rv64.BclrIOp, 2, 0b1011, 0b1011),
+        (rv64.BextIOp, 3, 0b1000, 1),
+        (rv64.BextIOp, 2, 0b1000, 0),
+        (rv64.BsetIOp, 3, 0b0001, 0b1001),
+        # Setting a bit that is already set leaves the value unchanged
+        (rv64.BsetIOp, 3, 0b1001, 0b1001),
+        (rv64.BinvIOp, 3, 0b0101, 0b1101),
+        (rv64.BinvIOp, 3, 0b1101, 0b0101),
+        # The low nibble rotates into the top nibble
+        (rv64.RorIOp, 4, 0xB3, 0x300000000000000B),
+        # Rotating by zero leaves the value unchanged
+        (rv64.RorIOp, 0, 0xB3, 0xB3),
+        (rv64.RorIOp, 1, 1, 0x8000000000000000),
+    ],
+)
+def test_bit_manipulation_py_operation(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+    shamt: int,
+    rs1: int,
+    expected: int,
+):
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = op_type(a1, shamt, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(rs1, i64)) == IntegerAttr(expected, i64)
 
 
 def test_get_constant_value():
@@ -112,7 +164,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 9
+    assert len(effects_ops) == 14
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -143,6 +195,11 @@ def test_effect_traits():
         rv64.SraiOp,
         rv64.SlliwOp,
         rv64.SrliwOp,
+        rv64.BclrIOp,
+        rv64.BextIOp,
+        rv64.BinvIOp,
+        rv64.BsetIOp,
+        rv64.RorIOp,
         rv64.LiOp,
         rv64.LdOp,
         rv64.SdOp,

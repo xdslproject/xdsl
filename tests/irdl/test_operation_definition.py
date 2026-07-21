@@ -172,9 +172,9 @@ class MutableIRDLOpts(IRDLOperation):
 
 def test_list_irdl_options():
     """Check that irdl_options given as a list produces a warning"""
-    with pytest.warns(
-        DeprecationWarning,
-        match="Defining irdl_options as a `list` is deprecated, please use a `tuple`.",
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="All values `irdl_options` must be a `tuple`, got `list`",
     ):
         irdl_op_definition(MutableIRDLOpts)
 

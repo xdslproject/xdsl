@@ -32,7 +32,7 @@ optional-dependencies.dev = [
   "nbconvert>=7.7.2,<8",
   "nbval<0.12",
   "prek~=0.4.0",
-  "pyright==1.1.410",
+  "pyright==1.1.411",
   "pytest<9.2",
   "pytest-asyncio",
   "pytest-cov",
@@ -107,12 +107,9 @@ lint.ignore = [
   "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
   # Help welcome removing ignores below
   # https://github.com/xdslproject/xdsl/issues/5927
-  "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
   "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
-  "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
-  "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
   "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]

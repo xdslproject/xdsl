@@ -6,7 +6,6 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     TypeAlias,
     TypeGuard,
@@ -148,6 +147,15 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         """
         return None
 
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        """
+        Attempt to relax this constraint by merging it with `other`,
+        returning the result if successful.
+        """
+        return self if self == other else None
+
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /
     ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
@@ -196,9 +204,6 @@ class AnyAttr(AttrConstraint):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AnyAttr:
-        return self
-
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
         return self
 
     def __and__(self, value: AttrConstraint[AttributeCovT], /):
@@ -370,6 +375,15 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             return {self.attr}
         return None
 
+    def relax_constraint(
+        self, other: AttrConstraint[AttributeCovT]
+    ) -> AttrConstraint[AttributeCovT] | None:
+        if not isinstance(other, BaseAttr):
+            # Trying to match on ParamAttrConstraint does strange things to pyright
+            # so we just appeal to symmetry instead.
+            return other.relax_constraint(self)
+        return super().relax_constraint(other)
+
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
@@ -401,12 +415,32 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     ) -> AttrConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
+        constrs = list(irdl_to_attr_constraint(c) for c in attr_constrs)
+        # Iterate through the constraints looking for optimisations
+        i = 0
+        while i < len(constrs):
+            c = constrs[i]
+            if c == AnyAttr():
+                return cast(AttrConstraint[AttributeInvT], AnyAttr())
+            if isinstance(c, AnyOf):
+                constrs = constrs[:i] + list(c.attr_constrs) + constrs[i + 1 :]
+                continue
+
+            # This is a quadratic check, but should likely be fine in practice
+            merged = False
+            for k, c2 in enumerate(constrs[:i]):
+                if (v := c2.relax_constraint(c)) is not None:
+                    merged = True
+                    constrs[k] = v
+                    constrs.pop(i)
+                    break
+            if not merged:
+                i += 1
 
         if len(constrs) == 1:
             return constrs[0]
 
-        return AnyOf(constrs)
+        return AnyOf(tuple(constrs))
 
     def __init__(
         self,
@@ -497,11 +531,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             self._abstr_constr.verify(attr, constraint_context)
             return
         raise VerifyException(f"Unexpected attribute {attr}")
-
-    def __or__(
-        self, value: AttrConstraint[_AttributeCovT], /
-    ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
-        return AnyOf.get(*(*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
         if not self.attr_constrs:
@@ -696,20 +725,29 @@ class ParamAttrConstraint(
             *(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
 
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
-        if (
-            not isinstance(value, ParamAttrConstraint)
-            or self.base_attr is not cast(ParamAttrConstraint[Any], value).base_attr
-            or len(self.param_constrs) > 1
-        ):
-            return super().__or__(value)  # pyright: ignore[reportUnknownArgumentType]
-        return ParamAttrConstraint(
-            self.base_attr,
-            tuple(
-                l | r
-                for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
-            ),
-        )
+    def relax_constraint(
+        self, other: AttrConstraint[ParametrizedAttributeCovT]
+    ) -> AttrConstraint[ParametrizedAttributeCovT] | None:
+        if isinstance(other, BaseAttr):
+            if self.base_attr == other.attr:
+                return other
+            return
+        if not isinstance(other, ParamAttrConstraint):
+            return
+        if self.base_attr != other.base_attr:
+            return
+        seen_difference = False
+        new_params: list[AttrConstraint] = []
+        for x, y in zip(self.param_constrs, other.param_constrs, strict=True):
+            if x == y:
+                new_params.append(x)
+            elif seen_difference:
+                return
+            else:
+                seen_difference = True
+                new_params.append(x | y)
+
+        return ParamAttrConstraint(self.base_attr, tuple(new_params))
 
 
 @dataclass(frozen=True, init=False)
