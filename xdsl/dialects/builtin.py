@@ -1398,6 +1398,10 @@ class ReducedPrecisionFloatType(_FloatType, StructPackableType[float], ABC):
             return self._encode_nan(sign)
         if value == 0.0:
             return self._encode_zero(sign)
+        if not semantics.has_sign and value < 0:
+            # Unsigned formats (e.g. f8E8M0FNU) reject signed finite values, as LLVM does,
+            # rather than silently dropping the sign. -0.0 is handled by the zero case above.
+            raise ValueError(f"{self.name} does not support signed values")
         fields = self._rounded_exponent_mantissa(abs(value))
         if fields is None:
             return self._encode_overflow(sign)

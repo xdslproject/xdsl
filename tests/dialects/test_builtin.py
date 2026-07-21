@@ -360,6 +360,13 @@ def test_reduced_float_pack_bit_patterns(
     assert type_.unpack(expected_raw, 1)[0] == value
 
 
+def test_f8e8m0fnu_rejects_signed_values():
+    """f8E8M0FNU is unsigned: -0.0 encodes like +0.0, negative finite values are rejected."""
+    assert f8E8M0FNU.pack((-0.0,)) == f8E8M0FNU.pack((0.0,)) == b"\x00"
+    with pytest.raises(ValueError, match="does not support signed values"):
+        f8E8M0FNU.pack((-4.0,))
+
+
 @pytest.mark.parametrize("type_", [f64, bf16, tf32])
 def test_float_rejects_truncated_buffer(type_: AnyFloat):
     """
