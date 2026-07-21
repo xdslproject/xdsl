@@ -558,7 +558,7 @@ class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
     @abstractmethod
     def compile_time_size(self) -> int:
         """
-        Contiguous memory footprint of the value during compilation.
+        Contiguous memory footprint in bytes of the value during compilation.
         """
         raise NotImplementedError()
 
@@ -598,6 +598,9 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
         """
         Yields unpacked values one at a time, starting at the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer)` is not divisible by
+        `self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -605,6 +608,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         """
         Unpack `num` values from the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer) != num * self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -612,6 +617,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
         """
         Pack a value at a given offset into a buffer.
+
+        Raises `ValueError` if `len(buffer) < offset + self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -640,14 +647,48 @@ class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
         raise NotImplementedError()
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
-        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        try:
+            return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size % compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not multiple of {self.name} element "
+                    f"size {compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         fmt = self.format[0] + str(num) + self.format[1:]
-        return struct.unpack(fmt, buffer)
+        try:
+            return struct.unpack(fmt, buffer)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size != num * compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not product of {self.name} element "
+                    f"size {compile_time_size} and num {num}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
-        struct.pack_into(self.format, buffer, offset, value)
+        try:
+            struct.pack_into(self.format, buffer, offset, value)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size < offset + compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} too small for packing "
+                    f"{compile_time_size} bytes at offset {offset}, expected at least "
+                    f"{offset + compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack(self, values: Sequence[_PyT]) -> bytes:
         fmt = self.format[0] + str(len(values)) + self.format[1:]
@@ -1275,20 +1316,43 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return bits.to_bytes(2, "little")
 
     @staticmethod
-    def _decode(raw: bytes) -> float:
+    def _decode(raw: ReadableBuffer) -> float:
         # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
         # inverse is to zero-extend with two low bytes in little-endian.
         return struct.unpack("<f", b"\x00\x00" + raw)[0]
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
         mv = memoryview(buffer)
-        for i in range(0, len(mv), 2):
-            yield self._decode(bytes(mv[i : i + 2]))
+        buffer_size = len(mv)
+        if buffer_size % 2:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size 2."
+            )
+        return (self._decode(mv[i : i + 2]) for i in range(0, len(mv), 2))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        compile_time_size = self.compile_time_size
+        if buffer_size != num * compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {compile_time_size} and num {num}."
+            )
+
+        return tuple(self._decode(mv[i : i + 2]) for i in range(0, buffer_size, 2))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        buffer_size = len(memoryview(buffer))
+        compile_time_size = self.compile_time_size
+        if buffer_size < offset + compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{compile_time_size} bytes at offset {offset}, expected at least "
+                f"{offset + compile_time_size}."
+            )
+
         memoryview(buffer)[offset : offset + 2] = self._encode(value)
 
     def pack(self, values: Sequence[float]) -> bytes:
