@@ -218,12 +218,13 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            XoriCombineImmediates,
             XoriImmediate,
             XoriSelfInverse,
             XoriZero,
         )
 
-        return (XoriZero(), XoriSelfInverse(), XoriImmediate())
+        return (XoriZero(), XoriSelfInverse(), XoriImmediate(), XoriCombineImmediates())
 
 
 @irdl_op_definition

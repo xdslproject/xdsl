@@ -316,6 +316,34 @@ class XoriImmediate(RewritePattern):
             )
 
 
+class XoriCombineImmediates(RewritePattern):
+    """
+    (x ^ a) ^ b -> x ^ (a ^ b)
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.XoriOp)
+            and isinstance(op.immediate, IntegerAttr)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+        ):
+            rd = op.rd.type
+            can_erase = op.rs1.op.rd.has_one_use()
+            rewriter.replace_op(
+                op,
+                riscv.XoriOp(
+                    op.rs1.op.rs1,
+                    op.rs1.op.immediate.value.data ^ op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                ),
+            )
+            if can_erase:
+                rewriter.erase_op(op.rs1.op)
+
+
 class ShiftbyZero(RewritePattern, Generic[IWidth]):
     """
     shift(x, 0) -> x
