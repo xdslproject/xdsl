@@ -919,14 +919,18 @@ class IntSetConstraint(IntConstraint):
 
     values: frozenset[int]
 
+    def __repr__(self) -> str:
+        return f"IntSetConstraint({{{', '.join(str(x) for x in sorted(self.values))}}})"
+
     def verify(
         self,
         i: int,
         constraint_context: ConstraintContext,
     ) -> None:
         if i not in self.values:
-            set_str = set(self.values) if self.values else "{}"
-            raise VerifyException(f"Invalid value {i}, expected one of {set_str}")
+            raise VerifyException(
+                f"Invalid value {i}, expected one of {{{', '.join(str(x) for x in sorted(self.values))}}}"
+            )
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return len(self.values) == 1
