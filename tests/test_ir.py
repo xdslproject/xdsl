@@ -1041,9 +1041,10 @@ class CustomVerifyOp(IRDLOperation):
         raise Exception("Custom Verification Check")
 
 
-def test_op_custom_verify_is_called():
+def test_detached_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
+    assert b.parent is None
     with pytest.raises(Exception, match="Custom Verification Check"):
         b.verify()
 
@@ -1091,7 +1092,7 @@ def test_verify_operand_defined_in_ancestor_region():
     consumer.verify()
 
 
-def test_verify_operand_defined_by_detached_operation():
+def test_verify_attached_operation_operand_defined_by_detached_operation():
     producer = test.TestOp(result_types=[i32])
     consumer = test.TestOp(operands=[producer])
     Region(Block([consumer]))
@@ -1122,9 +1123,11 @@ def test_verify_operand_defined_in_unrelated_region():
         consumer.verify()
 
 
-def test_verify_detached_operation_operand():
+def test_verify_detached_operation_with_detached_operand():
     producer = test.TestOp(result_types=[i32])
     consumer = test.TestOp(operands=[producer])
+    assert producer.parent is None
+    assert consumer.parent is None
 
     consumer.verify()
 
