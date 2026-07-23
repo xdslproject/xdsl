@@ -293,9 +293,6 @@ class DeallocOp(IRDLOperation):
     asyncDependencies = var_operand_def(AsyncTokenType)
     buffer = operand_def(memref.MemRefType)
 
-    # Upstream MLIR still models this generated segment size as an attribute.
-    irdl_options = (AttrSizedOperandSegments(as_property=False),)
-
     asyncToken = opt_result_def(AsyncTokenType)
 
     def __init__(
@@ -317,9 +314,6 @@ class MemcpyOp(IRDLOperation):
     asyncDependencies = var_operand_def(AsyncTokenType)
     dst = operand_def(memref.MemRefType)
     src = operand_def(memref.MemRefType)
-
-    # Upstream MLIR still models this generated segment size as an attribute.
-    irdl_options = (AttrSizedOperandSegments(as_property=False),)
 
     asyncToken = opt_result_def(AsyncTokenType)
 

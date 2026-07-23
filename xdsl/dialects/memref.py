@@ -1127,7 +1127,8 @@ class DmaStartOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    # Upstream MLIR still models this generated segment size as an attribute.
+    # xDSL splits MLIR's single variadic operand range into structured groups.
+    # Preserve the legacy attribute until this op uses MLIR-style custom accessors.
     irdl_options = (AttrSizedOperandSegments(as_property=False),)
 
     @staticmethod
