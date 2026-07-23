@@ -28,10 +28,9 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -113,7 +112,7 @@ class DialectOp(IRDLOperation):
 
     name = "irdl.dialect"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), SymbolTable())
@@ -121,7 +120,7 @@ class DialectOp(IRDLOperation):
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(attributes={"sym_name": name}, regions=[body])
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
     @classmethod
     def parse(cls, parser: Parser) -> DialectOp:
@@ -145,7 +144,7 @@ class TypeOp(IRDLOperation):
 
     name = "irdl.type"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -153,7 +152,7 @@ class TypeOp(IRDLOperation):
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(attributes={"sym_name": name}, regions=[body])
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
     @classmethod
     def parse(cls, parser: Parser) -> TypeOp:
@@ -184,7 +183,7 @@ class CPredOp(IRDLOperation):
 
     name = "irdl.c_pred"
 
-    pred = attr_def(StringAttr)
+    pred = prop_def(StringAttr)
 
     output = result_def(AttributeType())
 
@@ -193,7 +192,7 @@ class CPredOp(IRDLOperation):
     def __init__(self, pred: str | StringAttr):
         if isinstance(pred, str):
             pred = StringAttr(pred)
-        super().__init__(attributes={"pred": pred}, result_types=[AttributeType()])
+        super().__init__(properties={"pred": pred}, result_types=[AttributeType()])
 
 
 @irdl_op_definition
@@ -202,7 +201,7 @@ class AttributeOp(IRDLOperation):
 
     name = "irdl.attribute"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -210,7 +209,7 @@ class AttributeOp(IRDLOperation):
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(attributes={"sym_name": name}, regions=[body])
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
     @classmethod
     def parse(cls, parser: Parser) -> AttributeOp:
@@ -288,7 +287,7 @@ class OperationOp(IRDLOperation):
 
     name = "irdl.operation"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -296,7 +295,7 @@ class OperationOp(IRDLOperation):
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(attributes={"sym_name": name}, regions=[body])
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
     @classmethod
     def parse(cls, parser: Parser) -> OperationOp:
@@ -471,7 +470,7 @@ class AttributesOp(IRDLOperation):
 
     attribute_values = var_operand_def(AttributeType())
 
-    attribute_value_names = attr_def(ArrayAttr[StringAttr])
+    attribute_value_names = prop_def(ArrayAttr[StringAttr])
 
     def __init__(
         self,
@@ -480,7 +479,7 @@ class AttributesOp(IRDLOperation):
     ):
         super().__init__(
             operands=(attribute_values,),
-            attributes={"attribute_value_names": attribute_value_names},
+            properties={"attribute_value_names": attribute_value_names},
         )
 
     @classmethod
@@ -561,12 +560,12 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected = attr_def()
+    expected = prop_def()
     output = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):
         super().__init__(
-            attributes={"expected": expected}, result_types=[AttributeType()]
+            properties={"expected": expected}, result_types=[AttributeType()]
         )
 
     @classmethod
@@ -585,8 +584,8 @@ class BaseOp(IRDLOperation):
 
     name = "irdl.base"
 
-    base_ref = opt_attr_def(SymbolRefAttr)
-    base_name = opt_attr_def(StringAttr)
+    base_ref = opt_prop_def(SymbolRefAttr)
+    base_name = opt_prop_def(StringAttr)
     output = result_def(AttributeType)
 
     def __init__(
@@ -599,12 +598,14 @@ class BaseOp(IRDLOperation):
             base = StringAttr(base)
         if isinstance(base, StringAttr):
             super().__init__(
-                attributes={"base_name": base, **attr_dict},
+                properties={"base_name": base},
+                attributes=attr_dict,
                 result_types=[AttributeType()],
             )
         else:
             super().__init__(
-                attributes={"base_ref": base, **attr_dict},
+                properties={"base_ref": base},
+                attributes=attr_dict,
                 result_types=[AttributeType()],
             )
 
@@ -636,7 +637,7 @@ class ParametricOp(IRDLOperation):
 
     name = "irdl.parametric"
 
-    base_type = attr_def(SymbolRefAttr)
+    base_type = prop_def(SymbolRefAttr)
     args = var_operand_def(AttributeType)
     output = result_def(AttributeType)
 
@@ -646,7 +647,7 @@ class ParametricOp(IRDLOperation):
         if isinstance(base_type, str | StringAttr):
             base_type = SymbolRefAttr(base_type)
         super().__init__(
-            attributes={"base_type": base_type},
+            properties={"base_type": base_type},
             operands=[args],
             result_types=[AttributeType()],
         )
@@ -676,9 +677,9 @@ class RegionOp(IRDLOperation):
 
     entry_block_args = var_operand_def(AttributeType())
 
-    constrained_arguments = opt_attr_def(UnitAttr)
+    constrained_arguments = opt_prop_def(UnitAttr)
 
-    number_of_blocks = opt_attr_def(IntegerAttr[I32])
+    number_of_blocks = opt_prop_def(IntegerAttr[I32])
 
     output = result_def(RegionType())
 
@@ -693,12 +694,12 @@ class RegionOp(IRDLOperation):
         entry_block_args: Sequence[SSAValue],
         constrained_arguments: UnitAttr | NoneType = None,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "number_of_blocks": number_of_blocks,
         }
         if isinstance(constrained_arguments, UnitAttr):
-            attributes["constrained_arguments"] = constrained_arguments
-        super().__init__(operands=entry_block_args, attributes=attributes)
+            properties["constrained_arguments"] = constrained_arguments
+        super().__init__(operands=entry_block_args, properties=properties)
 
     def verify_(self) -> None:
         if len(self.entry_block_args) > 0 and not self.constrained_arguments:

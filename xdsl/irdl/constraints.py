@@ -6,7 +6,6 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     TypeAlias,
     TypeGuard,
@@ -205,9 +204,6 @@ class AnyAttr(AttrConstraint):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AnyAttr:
-        return self
-
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
         return self
 
     def __and__(self, value: AttrConstraint[AttributeCovT], /):
@@ -419,12 +415,32 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     ) -> AttrConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
+        constrs = list(irdl_to_attr_constraint(c) for c in attr_constrs)
+        # Iterate through the constraints looking for optimisations
+        i = 0
+        while i < len(constrs):
+            c = constrs[i]
+            if c == AnyAttr():
+                return cast(AttrConstraint[AttributeInvT], AnyAttr())
+            if isinstance(c, AnyOf):
+                constrs = constrs[:i] + list(c.attr_constrs) + constrs[i + 1 :]
+                continue
+
+            # This is a quadratic check, but should likely be fine in practice
+            merged = False
+            for k, c2 in enumerate(constrs[:i]):
+                if (v := c2.relax_constraint(c)) is not None:
+                    merged = True
+                    constrs[k] = v
+                    constrs.pop(i)
+                    break
+            if not merged:
+                i += 1
 
         if len(constrs) == 1:
             return constrs[0]
 
-        return AnyOf(constrs)
+        return AnyOf(tuple(constrs))
 
     def __init__(
         self,
@@ -515,11 +531,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             self._abstr_constr.verify(attr, constraint_context)
             return
         raise VerifyException(f"Unexpected attribute {attr}")
-
-    def __or__(
-        self, value: AttrConstraint[_AttributeCovT], /
-    ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
-        return AnyOf.get(*(*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
         if not self.attr_constrs:
@@ -712,21 +723,6 @@ class ParamAttrConstraint(
         return ParamAttrConstraint.get(
             self.base_attr,
             *(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
-        )
-
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
-        if (
-            not isinstance(value, ParamAttrConstraint)
-            or self.base_attr is not cast(ParamAttrConstraint[Any], value).base_attr
-            or len(self.param_constrs) > 1
-        ):
-            return super().__or__(value)  # pyright: ignore[reportUnknownArgumentType]
-        return ParamAttrConstraint(
-            self.base_attr,
-            tuple(
-                l | r
-                for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
-            ),
         )
 
     def relax_constraint(
@@ -923,14 +919,18 @@ class IntSetConstraint(IntConstraint):
 
     values: frozenset[int]
 
+    def __repr__(self) -> str:
+        return f"IntSetConstraint({{{', '.join(str(x) for x in sorted(self.values))}}})"
+
     def verify(
         self,
         i: int,
         constraint_context: ConstraintContext,
     ) -> None:
         if i not in self.values:
-            set_str = set(self.values) if self.values else "{}"
-            raise VerifyException(f"Invalid value {i}, expected one of {set_str}")
+            raise VerifyException(
+                f"Invalid value {i}, expected one of {{{', '.join(str(x) for x in sorted(self.values))}}}"
+            )
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return len(self.values) == 1

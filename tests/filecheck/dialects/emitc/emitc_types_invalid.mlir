@@ -9,7 +9,7 @@
 
 // -----
 
-// CHECK: Invalid value 0, expected one of {32, 1, 64, 16, 8}
+// CHECK: Invalid value 0, expected one of {1, 8, 16, 32, 64}
 "test.op"() {
   bad_type = !emitc.array<1xi0>>
 }: ()->()
@@ -93,7 +93,7 @@
 
 // -----
 
-// CHECK: Invalid value 17, expected one of {32, 1, 64, 16, 8}
+// CHECK: Invalid value 17, expected one of {1, 8, 16, 32, 64}
 "test.op"() {
   illegal_lvalue_type_3 = !emitc.lvalue<i17>
 }: ()->()
