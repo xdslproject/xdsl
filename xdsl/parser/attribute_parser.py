@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast, overload
+from typing import Any, Literal, NoReturn, cast, get_args, overload
 
 from immutabledict import immutabledict
 
@@ -58,25 +58,8 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
-    bf16,
-    f4E2M1FN,
-    f6E2M3FN,
-    f6E3M2FN,
-    f8E3M4,
-    f8E4M3,
-    f8E4M3B11FNUZ,
-    f8E4M3FN,
-    f8E4M3FNUZ,
-    f8E5M2,
-    f8E5M2FNUZ,
-    f8E8M0FNU,
-    f16,
-    f32,
     f64,
-    f80,
-    f128,
     i64,
-    tf32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
@@ -1571,24 +1554,7 @@ class AttrParser(BaseParser):
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_types = {
-        "bf16": bf16,
-        "f16": f16,
-        "f32": f32,
-        "f64": f64,
-        "f80": f80,
-        "f128": f128,
-        "tf32": tf32,
-        "f8E5M2": f8E5M2,
-        "f8E4M3": f8E4M3,
-        "f8E4M3FN": f8E4M3FN,
-        "f8E5M2FNUZ": f8E5M2FNUZ,
-        "f8E4M3FNUZ": f8E4M3FNUZ,
-        "f8E4M3B11FNUZ": f8E4M3B11FNUZ,
-        "f8E3M4": f8E3M4,
-        "f8E8M0FNU": f8E8M0FNU,
-        "f6E2M3FN": f6E2M3FN,
-        "f6E3M2FN": f6E3M2FN,
-        "f4E2M1FN": f4E2M1FN,
+        float_type().name: float_type() for float_type in get_args(AnyFloat)
     }
 
     def _parse_optional_integer_or_float_type(self) -> TypeAttribute | None:
