@@ -33,6 +33,7 @@ from xdsl.irdl import (
     AnyOf,
     AtLeast,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
@@ -266,6 +267,26 @@ def test_not_sized_constraint():
 
     with pytest.raises(VerifyException, match="Expected #test.attr_a to be sized"):
         constr.verify(AttrA(), ConstraintContext())
+
+
+def test_attr_set_constraint():
+    constr = AttrSetConstraint.get(AttrA(), AttrD(AttrA()), AttrD(AttrC()))
+
+    context = ConstraintContext()
+
+    constr.verify(AttrA(), context)
+    constr.verify(AttrD(AttrA()), context)
+    constr.verify(AttrD(AttrC()), context)
+
+    with pytest.raises(
+        VerifyException,
+        match="Expected one of #test.attr_a, #test.attr_d<#test.attr_a>, #test.attr_d<#test.attr_c>, but got #test.attr_c",
+    ):
+        constr.verify(AttrC(), context)
+
+    assert constr.get_bases() == {AttrA, AttrD}
+    assert not constr.can_infer(set())
+    assert not constr.variables()
 
 
 @pytest.mark.parametrize(
@@ -530,6 +551,11 @@ def test_mapping_type_vars():
         (AnyOf.get(), AnyOf(())),
         (AnyOf.get(AttrA), BaseAttr(AttrA)),
         (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            AttrSetConstraint(frozenset((AttrA(), AttrC()))),
+        ),
+        (AttrSetConstraint.get(AttrA()), EqAttrConstraint(AttrA())),
     ],
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
