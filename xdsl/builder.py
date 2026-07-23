@@ -296,8 +296,10 @@ class _ThreadLocalBuilder(threading.local):
     There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
+    builder: Builder | None
+
     def __init__(self) -> None:
-        self.builder: Builder | None = None
+        self.builder = None
 
 
 _current_builder = _ThreadLocalBuilder()
