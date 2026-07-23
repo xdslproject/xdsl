@@ -290,14 +290,16 @@ class Builder(BuilderListener):
 # Implicit builders
 
 
-@dataclass
 class _ThreadLocalBuilder(threading.local):
     """
     Stores the implicit builder for use in ImplicitBuilder, None by default.
     There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    builder: Builder | None = None
+    builder: Builder | None
+
+    def __init__(self) -> None:
+        self.builder = None
 
 
 _current_builder = _ThreadLocalBuilder()
