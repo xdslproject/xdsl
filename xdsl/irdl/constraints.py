@@ -339,6 +339,9 @@ class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
     values: frozenset[AttributeCovT]
 
+    def __repr__(self) -> str:
+        return f"AttrSetConstraint({{{', '.join(sorted(str(value) for value in self.values))}}})"
+
     @staticmethod
     def get(*values: AttributeInvT) -> AttrConstraint[AttributeInvT]:
         s = frozenset(values)
@@ -353,7 +356,7 @@ class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     ) -> None:
         if attr not in self.values:
             raise VerifyException(
-                f"Expected one of {', '.join(str(value) for value in self.values)}, but got {attr}"
+                f"Expected one of {', '.join(sorted(str(value) for value in self.values))}, but got {attr}"
             )
 
     def get_bases(self) -> set[type[Attribute]] | None:
