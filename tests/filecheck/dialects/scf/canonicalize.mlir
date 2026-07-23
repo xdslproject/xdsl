@@ -93,10 +93,10 @@ func.func @execute_region() -> i32 {
 // CHECK-NEXT:   %a, %b = "test.op"() : () -> (i32, i32)
 // CHECK-NEXT:   %d = scf.execute_region -> (i32) {
 // CHECK-NEXT:     %cond = "test.op"() : () -> i1
-// CHECK-NEXT:     cf.cond_br %cond, ^bb0, ^bb1
-// CHECK-NEXT:   ^bb0:
-// CHECK-NEXT:     scf.yield %a : i32
+// CHECK-NEXT:     cf.cond_br %cond, ^bb1, ^bb2
 // CHECK-NEXT:   ^bb1:
+// CHECK-NEXT:     scf.yield %a : i32
+// CHECK-NEXT:   ^bb2:
 // CHECK-NEXT:     scf.yield %b : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.return %d : i32

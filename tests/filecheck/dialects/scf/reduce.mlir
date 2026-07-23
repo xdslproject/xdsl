@@ -25,7 +25,7 @@ builtin.module {
 // CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
 // CHECK-NEXT:   ^bb0(%6: index):
 // CHECK-NEXT:     scf.reduce(%4 : f32) {
-// CHECK-NEXT:     ^bb1(%7: f32, %8: f32):
+// CHECK-NEXT:     ^bb0(%7: f32, %8: f32):
 // CHECK-NEXT:       %9 = arith.addf %7, %8 : f32
 // CHECK-NEXT:       scf.reduce.return %9 : f32
 // CHECK-NEXT:     }

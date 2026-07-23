@@ -2539,18 +2539,18 @@ def test_successors():
     program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^bb0] : () -> ()
-        ^bb0:
-          test.two_successors ^bb0 ^bb0
+          "test.op"() [^bb1] : () -> ()
+        ^bb1:
+          test.two_successors ^bb1 ^bb1
         }) : () -> ()"""
     )
 
     generic_program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^bb0] : () -> ()
-        ^bb0:
-          "test.two_successors"() [^bb0, ^bb0] : () -> ()
+          "test.op"() [^bb1] : () -> ()
+        ^bb1:
+          "test.two_successors"() [^bb1, ^bb1] : () -> ()
         }) : () -> ()"""
     )
 
@@ -2574,12 +2574,12 @@ def test_successors():
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.var_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.var_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
                   "test.var_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2588,17 +2588,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.var_successor ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.var_successor ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.var_successor"() [^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.var_successor"() [^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2606,17 +2606,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.var_successor ^bb0, ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.var_successor ^bb1, ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.var_successor"() [^bb0, ^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.var_successor"() [^bb1, ^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2644,12 +2644,12 @@ def test_variadic_successor(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.opt_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.opt_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
                   "test.opt_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2658,17 +2658,17 @@ def test_variadic_successor(program: str, generic_program: str):
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.opt_successor ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.opt_successor ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.opt_successor"() [^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.opt_successor"() [^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),

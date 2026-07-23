@@ -112,7 +112,7 @@ func.func @tile_partial_1d() {
 // CHECK-NEXT:      ^bb0(%3: index):
 // CHECK-NEXT:        %4 = "affine.min"(%1, %size, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
 // CHECK-NEXT:        "scf.parallel"(%0, %4, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
-// CHECK-NEXT:        ^bb1(%arg1: index):
+// CHECK-NEXT:        ^bb0(%arg1: index):
 // CHECK-NEXT:          %5 = arith.addi %3, %arg1 : index
 // CHECK-NEXT:          "test.op"() : () -> ()
 // CHECK-NEXT:          scf.reduce
@@ -147,7 +147,7 @@ func.func @tile_partial_1d() {
 // CHECK-LAST-NEXT:      ^bb0(%3: index):
 // CHECK-LAST-NEXT:        %4 = "affine.min"(%1, %size, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
 // CHECK-LAST-NEXT:        "scf.parallel"(%0, %4, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
-// CHECK-LAST-NEXT:        ^bb1(%arg1: index):
+// CHECK-LAST-NEXT:        ^bb0(%arg1: index):
 // CHECK-LAST-NEXT:          %5 = arith.addi %3, %arg1 : index
 // CHECK-LAST-NEXT:         "test.op"() : () -> ()
 // CHECK-LAST-NEXT:          scf.reduce

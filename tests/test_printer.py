@@ -559,6 +559,51 @@ def test_print_region():
     )
 
 
+def test_print_region_block_names_follow_region_order():
+    """Assign block names in region order, not successor visitation order."""
+    second_block = Block([test.TestTermOp()])
+    third_block = Block([test.TestTermOp()])
+    fourth_block = Block([test.TestTermOp()])
+    first_block = Block([test.TestTermOp(successors=[fourth_block, second_block])])
+    region = Region([first_block, second_block, third_block, fourth_block])
+
+    io = StringIO()
+    Printer(stream=io).print_region(region)
+
+    assert (
+        io.getvalue()
+        == """{
+  "test.termop"() [^bb3, ^bb1] : () -> ()
+^bb1:
+  "test.termop"() : () -> ()
+^bb2:
+  "test.termop"() : () -> ()
+^bb3:
+  "test.termop"() : () -> ()
+}"""
+    )
+
+
+def test_print_region_block_names_include_hint_positions():
+    """Count hinted blocks when assigning names from region positions."""
+    second_block = Block([test.TestTermOp()])
+    first_block = Block([test.TestTermOp(successors=[second_block])])
+    first_block.name_hint = "entry"
+    region = Region([first_block, second_block])
+
+    io = StringIO()
+    Printer(stream=io).print_region(region)
+
+    assert (
+        io.getvalue()
+        == """{
+  "test.termop"() [^bb1] : () -> ()
+^bb1:
+  "test.termop"() : () -> ()
+}"""
+    )
+
+
 def test_print_region_without_arguments():
     """Print a region and its arguments separately."""
     block = Block(arg_types=[i32, i32])
