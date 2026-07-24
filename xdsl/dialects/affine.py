@@ -540,18 +540,20 @@ class VectorLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue[MemRefType],
-        indices: Sequence[SSAValue],
+        memref: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
         map: AffineMapAttr | None = None,
         result_type: Attribute | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
+            assert isa(memref, SSAValue[MemRefType])
             rank = memref.type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
 
         if result_type is None:
+            assert isa(memref, SSAValue[MemRefType])
             result_type = VectorType(memref.type.get_element_type(), [])
 
         super().__init__(
@@ -609,14 +611,15 @@ class VectorStoreOp(IRDLOperation):
 
     def __init__(
         self,
-        value: SSAValue[VectorType],
-        memref: SSAValue[MemRefType],
-        indices: Sequence[SSAValue],
+        value: SSAValue | Operation,
+        memref: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
         map: AffineMapAttr | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
+            assert isa(memref, SSAValue[MemRefType])
             rank = memref.type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
 
