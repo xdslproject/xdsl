@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p eqsat-create-egraphs %s | filecheck %s
 
-// CHECK:      func.func @test(%x : index) -> index {
+// CHECK:      func.func @test(%x: index) -> index {
 // CHECK-NEXT:   %res = equivalence.graph -> index {
 // CHECK-NEXT:     %x_1 = equivalence.class %x : index
 // CHECK-NEXT:     %c2 = arith.constant 2 : index
@@ -11,13 +11,13 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.return %res : index
 // CHECK-NEXT: }
-func.func @test(%x : index) -> (index) {
+func.func @test(%x: index) -> (index) {
   %c2 = arith.constant 2 : index
   %res = arith.muli %x, %c2 : index
   func.return %res : index
 }
 
-// CHECK:      func.func @test2(%lb : i32) -> i32 {
+// CHECK:      func.func @test2(%lb: i32) -> i32 {
 // CHECK-NEXT:   %sum = equivalence.graph -> i32 {
 // CHECK-NEXT:     %lb_1 = equivalence.class %lb : i32
 // CHECK-NEXT:     %ub = arith.constant 42 : i32
@@ -46,7 +46,7 @@ func.func @test2(%lb: i32) -> (i32) {
   func.return %sum : i32
 }
 
-// CHECK:      func.func @test3(%a : index) -> (index, index, index) {
+// CHECK:      func.func @test3(%a: index) -> (index, index, index) {
 // CHECK-NEXT:   %a_1, %b = equivalence.graph -> index, index {
 // CHECK-NEXT:     %a_2 = equivalence.class %a : index
 // CHECK-NEXT:     %b_1 = "test.op"(%a_2) : (index) -> index

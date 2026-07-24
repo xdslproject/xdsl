@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialect_interfaces.constant_materialization import (
@@ -14,9 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FixedBitwidthType,
-    Float16Type,
-    Float32Type,
-    Float64Type,
     FloatAttr,
     IndexType,
     IndexTypeConstr,
@@ -29,11 +26,10 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.interfaces import HasFolderInterface
+from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
+from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Dialect,
     Operation,
     SSAValue,
@@ -57,7 +53,6 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
-    ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
@@ -69,8 +64,8 @@ from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
-floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
+signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
+floatingPointLike = ContainerOf(AnyFloatConstr)
 
 
 CMPI_COMPARISON_OPERATIONS = [
@@ -114,7 +109,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "arith.fastmath"
 
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -131,7 +126,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
     none_value = "none"
 
-    def __init__(self, flags: None | Sequence[IntegerOverflowFlag] | Literal["none"]):
+    def __init__(self, flags: None | Iterable[IntegerOverflowFlag] | Literal["none"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -236,7 +231,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                 assert lhs.type == rhs.type
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
-                    return (IntegerAttr(result, lhs.type),)
+                    return (IntegerAttr(result, lhs.type, truncate_bits=True),)
         if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
         if not self.has_trait(Commutative):
@@ -527,18 +522,8 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
         return attr.value.data == 0
 
 
-class DivUISpeculatable(ConditionallySpeculatable):
-    @classmethod
-    def is_speculatable(cls, op: Operation):
-        op = cast(DivUIOp, op)
-        if not isinstance(cst := op.rhs.owner, ConstantOp):
-            return False
-        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
-        return value.value.data != 0
-
-
 @irdl_op_definition
-class DivUIOp(SignlessIntegerBinaryOperation):
+class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -549,9 +534,12 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
-        DivUISpeculatable(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return isa(rhs, IntegerAttr[IntegerType | IndexType]) and rhs.value.data != 0
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -559,7 +547,7 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class DivSIOp(SignlessIntegerBinaryOperation):
+class DivSIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -571,6 +559,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
         NoMemoryEffect(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return (
+            isa(rhs, IntegerAttr[IntegerType | IndexType])
+            and rhs.value.data != 0
+            and rhs.value.data != -1
+        )
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -1195,15 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
@@ -1314,10 +1306,10 @@ class UIToFPOp(IntegerToFloatingPointBaseOp):
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
-    input = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
+    input = operand_def(floatingPointLike)
+    result = result_def(floatingPointLike)
 
-    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+    def __init__(self, op: SSAValue | Operation, target_type: Attribute):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -1329,10 +1321,10 @@ class ExtFOp(IRDLOperation):
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
-    input = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
+    input = operand_def(floatingPointLike)
+    result = result_def(floatingPointLike)
 
-    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+    def __init__(self, op: SSAValue | Operation, target_type: Attribute):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"

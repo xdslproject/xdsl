@@ -104,23 +104,11 @@ def test_error_on_construction(
         xDSLOptMain(args=args)
 
 
-@pytest.mark.parametrize(
-    "args, expected_error",
-    [
-        (
-            ["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"],
-            "invalid choice: 'wrong'",
-        ),
-    ],
-)
-def test_error_on_argparse(
-    capsys: pytest.CaptureFixture[str], args: list[str], expected_error: str
-):
+def test_error_on_unknown_target(capsys: pytest.CaptureFixture[str]):
     with pytest.raises(SystemExit):
-        xDSLOptMain(args=args)
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert expected_error in err
+        xDSLOptMain(args=["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"])
+    _, err = capsys.readouterr()
+    assert "invalid choice: 'wrong'" in err
 
 
 def test_print_to_file():
@@ -178,6 +166,25 @@ def test_print_between_passes():
 
     output = f.getvalue()
     assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
+
+
+def test_time_passes():
+    filename_in = "tests/xdsl_opt/empty_program.mlir"
+    passes = ["canonicalize", "cse", "dce"]
+    flags = ["--time-passes", "-p", ",".join(passes)]
+
+    f = StringIO("")
+
+    opt = xDSLOptMain(args=[*flags, filename_in])
+
+    with redirect_stdout(f):
+        opt.run()
+
+    output = f.getvalue()
+    lines = output.split("\n")
+    assert lines[0].startswith("Pass canonicalize took ")
+    assert lines[1].startswith("Pass cse took ")
+    assert lines[2].startswith("Pass dce took ")
 
 
 def test_verify_diagnostics_output():

@@ -54,6 +54,7 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FloatAttr,
@@ -64,14 +65,19 @@ from xdsl.dialects.builtin import (
     Signedness,
     TensorType,
     VectorType,
+    bf16,
+    f16,
     f32,
     f64,
+    f80,
+    f128,
     i1,
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.traits import ConstantLike
+from xdsl.dialects.test import TestConstantOp
+from xdsl.ir import Attribute, SSAValue
+from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -282,6 +288,20 @@ def test_select_op():
         (VectorType(i64, [3]), VectorType(f64, [3])),
         (VectorType(f32, [3]), VectorType(i32, [3])),
         (MemRefType(i32, [5]), MemRefType(f32, [5])),
+        (bf16, f16),
+        (f16, bf16),
+        (bf16, IntegerType(16)),
+        (IntegerType(16), bf16),
+        (VectorType(bf16, [4]), VectorType(IntegerType(16), [4])),
+        (MemRefType(bf16, [5]), MemRefType(IntegerType(16), [5])),
+        (f80, IntegerType(80)),
+        (IntegerType(80), f80),
+        (VectorType(f80, [4]), VectorType(IntegerType(80), [4])),
+        (MemRefType(f80, [5]), MemRefType(IntegerType(80), [5])),
+        (f128, IntegerType(128)),
+        (IntegerType(128), f128),
+        (VectorType(f128, [4]), VectorType(IntegerType(128), [4])),
+        (MemRefType(f128, [5]), MemRefType(IntegerType(128), [5])),
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
@@ -310,6 +330,9 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
         (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
         (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
         (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+        (bf16, f32, BITWIDTH_MISMATCH),
+        (f80, f128, BITWIDTH_MISMATCH),
+        (f128, f64, BITWIDTH_MISMATCH),
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
@@ -550,3 +573,62 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+    false_attr = BoolAttr.from_bool(False)
+    false_op = ConstantOp(false_attr)
+    true_attr = BoolAttr.from_bool(True)
+    true_op = ConstantOp(true_attr)
+
+    assert AddiOp(false_op, false_op).fold() == (false_attr,)
+    assert AddiOp(false_op, true_op).fold() == (true_attr,)
+    assert AddiOp(true_op, false_op).fold() == (true_attr,)
+    assert AddiOp(true_op, true_op).fold() == (false_attr,)
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(
+            ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
+        ),
+        pytest.param(TestConstantOp(0, i32).result, False, id="constantlike-zero-rhs"),
+        pytest.param(
+            TestConstantOp(1, i32).result, True, id="constantlike-non-zero-rhs"
+        ),
+    ],
+)
+def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivUIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(ConstantOp.from_int_and_width(1, i32).result, True, id="one-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(-1, i32).result, False, id="minus-one-rhs"
+        ),
+        pytest.param(TestConstantOp(1, i32).result, True, id="constantlike-one-rhs"),
+        pytest.param(
+            TestConstantOp(-1, i32).result, False, id="constantlike-minus-one-rhs"
+        ),
+    ],
+)
+def test_divsi_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivSIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability

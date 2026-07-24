@@ -9,15 +9,15 @@ riscv_func.func @free(!riscv.reg) -> ()
 riscv_func.func @main() -> () {
     %33 = rv32.li 33 : !riscv.reg
     %newline = rv32.li 10 : !riscv.reg
-    %ptr = riscv_func.call @malloc(%33) : (!riscv.reg) -> !riscv.reg
+    %ptr = riscv_func.call @malloc(%33): (!riscv.reg) -> !riscv.reg
     riscv.sw %ptr, %33, 0 : (!riscv.reg, !riscv.reg) -> ()
 
     %res = riscv.lw %ptr, 0 : (!riscv.reg) -> !riscv.reg
 
-    %nothing = riscv_func.call @putchar(%res) : (!riscv.reg) -> !riscv.reg
-    %nothing2 = riscv_func.call @putchar(%newline) : (!riscv.reg) -> !riscv.reg
+    %nothing = riscv_func.call @putchar(%res): (!riscv.reg) -> !riscv.reg
+    %nothing2 = riscv_func.call @putchar(%newline): (!riscv.reg) -> !riscv.reg
 
-    riscv_func.call @free(%ptr) : (!riscv.reg) -> ()
+    riscv_func.call @free(%ptr): (!riscv.reg) -> ()
 
     riscv_func.return
 }

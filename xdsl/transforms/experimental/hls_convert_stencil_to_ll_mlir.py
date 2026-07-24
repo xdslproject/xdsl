@@ -627,7 +627,7 @@ class ApplyOpToHLS(RewritePattern):
                     operation.erase()
 
             new_component = typing.cast(Operation, new_apply_block.last_op).results[0]
-            new_return_component = ReturnOp.get([new_component])
+            new_return_component = ReturnOp([new_component])
             new_apply_block.add_op(new_return_component)
 
             add_read_write_ops(

@@ -44,7 +44,8 @@ Key used to store the cost of computing the result of an operation.
 
 @irdl_op_definition
 class ConstantClassOp(IRDLOperation, HasFolderInterface):
-    """An e-class representing a known constant value.
+    """
+    An e-class representing a known constant value.
     For non-constant e-classes, use [ClassOp][xdsl.dialects.equivalence.ClassOp].
     """
 
@@ -80,7 +81,8 @@ class ConstantClassOp(IRDLOperation, HasFolderInterface):
 
 @irdl_op_definition
 class ClassOp(IRDLOperation):
-    """An e-class representing a set of equivalent values.
+    """
+    An e-class representing a set of equivalent values.
     E-classes that represent a constant value can instead
     be represented by [ConstantClassOp][xdsl.dialects.equivalence.ConstantClassOp].
     """

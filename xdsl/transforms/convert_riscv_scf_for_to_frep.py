@@ -2,6 +2,8 @@ from itertools import chain
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, rv32, snitch
+from xdsl.dialects.builtin import IntAttr, IntegerAttr
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -10,12 +12,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import Pure
-
-ALLOWED_FREP_OP_LOWERING_TYPES = (
-    *riscv_snitch.ALLOWED_FREP_OP_TYPES,
-    riscv_scf.YieldOp,
-)
 
 
 class ScfForLowering(RewritePattern):
@@ -23,18 +19,25 @@ class ScfForLowering(RewritePattern):
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
         body_block = op.body.block
         indvar = body_block.args[0]
+        # 1. Induction variable is not used
         if indvar.uses:
-            # 1. Induction variable is used
             return
 
-        if not (
-            isinstance(step_op := op.step.owner, rv32.LiOp)
-            and isinstance(step_op.immediate, builtin.IntegerAttr)
-            and step_op.immediate.value.data == 1
-        ):
-            # 2. Step is 1
-            return
+        # 2. Step is 1
+        match op.step:
+            case IntegerAttr(value=IntAttr(1)):
+                pass
+            case step_ssa if (
+                isinstance(step_ssa, SSAValue)
+                and isinstance(step_op := step_ssa.owner, rv32.LiOp)
+                and isinstance(step_op.immediate, builtin.IntegerAttr)
+                and step_op.immediate.value.data == 1
+            ):
+                pass
+            case _:
+                return
 
+        # 3. All operations in the loop operate on float registers
         if not all(
             isinstance(
                 value.type,
@@ -45,17 +48,16 @@ class ScfForLowering(RewritePattern):
             for o in body_block.ops
             for value in chain(o.operands, o.results)
         ):
-            # 3. All operations in the loop operate on float registers
             return
 
+        # 4. All operations are pure or one of
+        #     a) riscv_snitch.read
+        #     b) riscv_snitch.write
+        #     c) builtin.unrealized_conversion_cast
         if not all(
-            isinstance(o, ALLOWED_FREP_OP_LOWERING_TYPES) or o.has_trait(Pure)
+            isinstance(o, riscv_scf.YieldOp) or riscv_snitch.is_valid_frep_body_op(o)
             for o in body_block.ops
         ):
-            # 4. All operations are pure or one of
-            #     a) riscv_snitch.read
-            #     b) riscv_snitch.write
-            #     c) builtin.unrealized_conversion_cast
             return
 
         rewriter.erase_block_argument(indvar)

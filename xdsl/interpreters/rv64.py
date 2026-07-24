@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from xdsl.dialects import rv64
+from xdsl.dialects.builtin import IntegerAttr, i64
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -16,6 +17,21 @@ from xdsl.utils.exceptions import InterpretationError
 
 @register_impls
 class Rv64Functions(InterpreterFunctions):
+    @impl(rv64.SlliOp)
+    def run_shift_left_i(
+        self,
+        interpreter: Interpreter,
+        op: rv64.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        assert len(args) == 1
+        assert isinstance(args[0], int)
+        py_op_result = op.py_operation(IntegerAttr(args[0], i64))
+        assert py_op_result is not None
+        results = (py_op_result.value.data,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(rv64.LiOp)
     def run_li(
         self,

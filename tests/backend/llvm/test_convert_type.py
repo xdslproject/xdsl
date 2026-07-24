@@ -29,7 +29,7 @@ def test_convert_int():
         (builtin.NoneType(), ir.VoidType()),
         (LLVMVoidType(), ir.VoidType()),
         (LLVMPointerType(), ir.PointerType()),
-        (LLVMPointerType(builtin.IntAttr(1)), ir.PointerType(1)),
+        (LLVMPointerType(builtin.IntAttr(1)), ir.PointerType(addrspace=1)),
         (
             builtin.ComplexType(builtin.f32),
             ir.LiteralStructType([ir.FloatType(), ir.FloatType()]),

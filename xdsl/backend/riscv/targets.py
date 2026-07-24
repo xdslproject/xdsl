@@ -85,7 +85,7 @@ class ABISpec:
     abi_flen: Literal[0, 32, 64, 128]
     """
     ABI_FLEN refers to the width of a floating-point register in the ABI. The ABI_FLEN
-    must be no wider than the ISA’s FLEN. The ISA might have wider floating-point
+    must be no wider than the ISA's FLEN. The ISA might have wider floating-point
     registers than the ABI.
 
     (cited from section 2.2 [1], p. 10)

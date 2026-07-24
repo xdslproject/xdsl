@@ -27,6 +27,12 @@ riscv_scf.for %index0 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     riscv_scf.yield %f4 : !riscv.freg<ft2>
 }
 
+riscv_scf.for %index1b : !riscv.reg<a4> = %i0 to %i1 step 1 : si12 {
+    %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
+    %f5 = riscv.fadd.d %f4, %f4 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+    riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
+}
+
 // CHECK:         riscv_snitch.frep_outer %1 {
 // CHECK-NEXT:      %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
 // CHECK-NEXT:      %f5 = riscv.fadd.d %f4, %f4 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
@@ -38,53 +44,54 @@ riscv_scf.for %index0 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 // CHECK-NEXT:      %{{.*}} = riscv.fadd.d %f3, %f3 : (!riscv.freg<ft2>, !riscv.freg<ft2>) -> !riscv.freg<ft2>
 // CHECK-NEXT:      riscv_snitch.frep_yield %{{.*}} : !riscv.freg<ft2>
 // CHECK-NEXT:    }
+// CHECK-NEXT:    %[[C1_1:\w+]] = riscv.sub %i1, %i0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %[[C1_2:\w+]] = riscv.addi %[[C1_1]], -1 : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    riscv_snitch.frep_outer %[[C1_2]] {
+// CHECK-NEXT:      %[[F4:\w+]] = riscv_snitch.read from %readable : !riscv.freg<ft0>
+// CHECK-NEXT:      %[[F5:\w+]] = riscv.fadd.d %[[F4]], %[[F4]] : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+// CHECK-NEXT:      riscv_snitch.write %[[F5]] to %writable : !riscv.freg<ft1>
+// CHECK-NEXT:    }
 
 // Failure
 
 
 // 1. Induction variable is used
 
-riscv_scf.for %index2 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
+riscv_scf.for %index_ind_var : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
-    %f5 = riscv.fcvt.s.w %index2 : (!riscv.reg<a4>) -> !riscv.freg<ft1>
+    %f5 = riscv.fcvt.s.w %index_ind_var : (!riscv.reg<a4>) -> !riscv.freg<ft1>
     riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
 }
 
-// CHECK-NEXT:    riscv_scf.for %index2 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
-// CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
-// CHECK-NEXT:      %{{.*}} = riscv.fcvt.s.w %index2 : (!riscv.reg<a4>) -> !riscv.freg<ft1>
-// CHECK-NEXT:      riscv_snitch.write %{{.*}} to %writable : !riscv.freg<ft1>
-// CHECK-NEXT:    }
+// CHECK:    riscv_scf.for %index_ind_var : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 
 // 2. Step is 1
 
-riscv_scf.for %index3 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+riscv_scf.for %index3_c2 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+    %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
+    %f5 = riscv.fadd.d %f4, %f4 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+    riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
+}
+// CHECK:    riscv_scf.for %index3_c2 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+
+riscv_scf.for %index_c2_imm : !riscv.reg<a4> = %i0 to %i1 step 2 : si12 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %f5 = riscv.fadd.d %f4, %f4 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
     riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
 }
 
-// CHECK-NEXT:    riscv_scf.for %index3 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
-// CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
-// CHECK-NEXT:      %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
-// CHECK-NEXT:      riscv_snitch.write %{{.*}} to %writable : !riscv.freg<ft1>
-// CHECK-NEXT:    }
+// CHECK:    riscv_scf.for %index_c2_imm : !riscv.reg<a4> = %i0 to %i1 step 2 : si12 {
 
 
 // 3. All operations in the loop all operate on float registers
 
-riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
+riscv_scf.for %index_not_float : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %f5 = riscv.fcvt.s.w %i2 : (!riscv.reg) -> !riscv.freg<ft1>
     riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
 }
 
-// CHECK-NEXT:    riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
-// CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
-// CHECK-NEXT:      %{{.*}} = riscv.fcvt.s.w %i2 : (!riscv.reg) -> !riscv.freg<ft1>
-// CHECK-NEXT:      riscv_snitch.write %{{.*}} to %writable : !riscv.freg<ft1>
-// CHECK-NEXT:    }
-
+// CHECK:    riscv_scf.for %index_not_float : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 
 
 // 4. All operations are pure or one of
@@ -92,12 +99,9 @@ riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 //      b) riscv_snitch.write
 //      c) builtin.unrealized_conversion_cast
 
-riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
+riscv_scf.for %index_not_pure : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     "test.op"(%f4) : (!riscv.freg<ft0>) -> ()
 }
 
-// CHECK-NEXT:    riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
-// CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
-// CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.freg<ft0>) -> ()
-// CHECK-NEXT:    }
+// CHECK:    riscv_scf.for %index_not_pure : !riscv.reg<a4> = %i0 to %i1 step %c1 {

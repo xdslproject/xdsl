@@ -6,11 +6,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -19,7 +20,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -55,6 +56,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -66,6 +68,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -125,11 +128,24 @@ class ShapedType(Attribute, ABC):
         return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
 
     @staticmethod
-    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
-        import operator
-        from itertools import accumulate
-
-        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
+    def strides_for_shape(
+        shape: Sequence[int], factor: int = 1
+    ) -> tuple[int | None, ...]:
+        """
+        Returns a tuple of strides for a given shape, with row-major layout.
+        Strides that depend on a dynamic index are returned as `None`.
+        The optional `factor` parameter specifies the stride for the innermost
+        dimension, defaulting to 1.
+        """
+        rev_strides: list[int | None] = []
+        stride: int | None = factor
+        for dim in reversed(shape):
+            rev_strides.append(stride)
+            if stride is None or dim == DYNAMIC_INDEX:
+                stride = None
+            else:
+                stride *= dim
+        return tuple(reversed(rev_strides))
 
 
 _ContainerElementTypeT = TypeVar(
@@ -356,7 +372,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 
 
 FlatSymbolRefAttrConstr = MessageConstraint(
-    ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
+    ParamAttrConstraint.get(SymbolRefAttr, AnyAttr(), EmptyArrayAttrConstraint()),
     "Expected SymbolRefAttr with no nested symbols.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
@@ -387,8 +403,10 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
 
     @staticmethod
     @override
-    def constr(constr: IntConstraint | None = None) -> AttrConstraint[IntAttr]:
-        return IntAttrConstraint(
+    def constr(
+        constr: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        return IntAttrConstraint.get(
             IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
         )
 
@@ -398,6 +416,20 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     """
     Constrains the value of an IntAttr.
     """
+
+    @staticmethod
+    def get(
+        int_constraint: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        if int_constraint is None:
+            return BaseAttr(IntAttr)
+        if not isinstance(int_constraint, IntConstraint):
+            int_constraint = get_int_constraint(int_constraint)
+        if int_constraint == AnyInt():
+            return BaseAttr(IntAttr)
+        if isinstance(int_constraint, EqIntConstraint):
+            return EqAttrConstraint(IntAttr(int_constraint.value))
+        return IntAttrConstraint(int_constraint)
 
     int_constraint: IntConstraint
 
@@ -421,7 +453,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ):
-        return IntAttrConstraint(
+        return IntAttrConstraint.get(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
 
@@ -526,7 +558,7 @@ class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
     @abstractmethod
     def compile_time_size(self) -> int:
         """
-        Contiguous memory footprint of the value during compilation.
+        Contiguous memory footprint in bytes of the value during compilation.
         """
         raise NotImplementedError()
 
@@ -566,6 +598,9 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
         """
         Yields unpacked values one at a time, starting at the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer)` is not divisible by
+        `self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -573,6 +608,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         """
         Unpack `num` values from the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer) != num * self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -580,6 +617,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
         """
         Pack a value at a given offset into a buffer.
+
+        Raises `ValueError` if `len(buffer) < offset + self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -608,14 +647,48 @@ class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
         raise NotImplementedError()
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
-        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        try:
+            return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size % compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not multiple of {self.name} element "
+                    f"size {compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         fmt = self.format[0] + str(num) + self.format[1:]
-        return struct.unpack(fmt, buffer)
+        try:
+            return struct.unpack(fmt, buffer)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size != num * compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not product of {self.name} element "
+                    f"size {compile_time_size} and num {num}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
-        struct.pack_into(self.format, buffer, offset, value)
+        try:
+            struct.pack_into(self.format, buffer, offset, value)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size < offset + compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} too small for packing "
+                    f"{compile_time_size} bytes at offset {offset}, expected at least "
+                    f"{offset + compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack(self, values: Sequence[_PyT]) -> bytes:
         fmt = self.format[0] + str(len(values)) + self.format[1:]
@@ -753,11 +826,13 @@ class IntegerType(
         return f[format_index]
 
 
+I128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNLESS]]
 I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
 I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
 I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
 I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
 I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i128: I128 = IntegerType(128)
 i64: I64 = IntegerType(64)
 i32: I32 = IntegerType(32)
 i16: I16 = IntegerType(16)
@@ -779,6 +854,44 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
 
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
+
+
+class LocationConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
+            return
+        raise VerifyException(f"{attr} is not a location attribute")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+class LocationsArrayConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def __init__(self):
+        self.location_constraint = LocationConstraint()
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        array = cast(ArrayAttr[Attribute], attr)
+        element: Attribute
+        for element in array:
+            self.location_constraint.verify(element, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
 
 
 @irdl_attr_definition
@@ -805,7 +918,8 @@ class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc(unknown)")
+        with printer.in_location():
+            printer.print_string("unknown")
 
 
 @irdl_attr_definition
@@ -836,8 +950,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     column: IntAttr = param_def()
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc")
-        with printer.in_parens():
+        with printer.in_location():
             printer.print_string_literal(self.filename.data)
             printer.print_string(":")
             printer.print_int(self.line.data)
@@ -845,7 +958,65 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
             printer.print_int(self.column.data)
 
 
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+@irdl_attr_definition
+class CallSiteLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.callsite_loc"
+
+    callee: Attribute = param_def(LocationConstraint())
+    caller: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("callsite(")
+            printer.print_attribute(self.callee)
+            printer.print_string(" at ")
+            printer.print_attribute(self.caller)
+            printer.print_string(")")
+
+
+@irdl_attr_definition
+class FusedLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.fused_loc"
+
+    locations: Attribute = param_def(
+        constraint=LocationsArrayConstraint(), converter=ArrayAttr[Attribute].get
+    )
+    metadata: Attribute = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("fused")
+            if not isinstance(self.metadata, NoneAttr):
+                printer.print_string("<")
+                printer.print_attribute(self.metadata)
+                printer.print_string(">")
+            printer.print_attribute(self.locations)
+
+
+@irdl_attr_definition
+class NameLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.name_loc"
+
+    desc: StringAttr = param_def()
+    location: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_attribute(self.desc)
+            if not isinstance(self.location, NoneAttr):
+                printer.print_string("(")
+                printer.print_attribute(self.location)
+                printer.print_string(")")
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc | CallSiteLoc | NameLoc | FusedLoc
+"""
+Union of all MLIR location attribute types. Represents source location
+information that can be attached to operations, covering unknown locations,
+file/line/column positions, call-site chains, named locations, and fused
+(multi-location) aggregates.
+"""
+UNKNOWN_LOC: LocationAttr = UnknownLoc()
 
 
 @irdl_attr_definition
@@ -872,7 +1043,7 @@ _IntegerAttrType = TypeVar(
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
 ]
 """Type alias constrained to IndexType or signless IntegerType."""
 
@@ -972,16 +1143,11 @@ class IntegerAttr(
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         if isinstance(value, IntConstraint):
-            value = IntAttrConstraint(value)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
-            IntegerAttr,
-            (
-                value,
-                type,
-            ),
+            value = IntAttrConstraint.get(value)
+        return cast(
+            AttrConstraint[IntegerAttr[_IntegerAttrType]],
+            ParamAttrConstraint.get(IntegerAttr, value, type),
         )
 
     def __bool__(self) -> bool:
@@ -1011,7 +1177,7 @@ class IntegerAttr(
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
+class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -1020,6 +1186,318 @@ class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute,
     def print_builtin(self, printer: Printer) -> None:
         # All float types just print their name
         printer.print_string(self.name)
+
+
+class FloatNonfiniteBehavior(Enum):
+    """
+    How a reduced-precision float format represents infinities and NaNs.
+
+    Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
+    """
+
+    IEEE = auto()
+    """The all-ones exponent encodes infinities (zero mantissa) and NaNs."""
+    NAN_ONLY = auto()
+    """No infinities; a NaN is present (see `FloatNanEncoding`)."""
+    FINITE_ONLY = auto()
+    """No infinities or NaNs; overflow saturates to the largest finite value."""
+
+
+class FloatNanEncoding(Enum):
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
+
+    IEEE = auto()
+    """All-ones exponent with a non-zero mantissa."""
+    ALL_ONES = auto()
+    """All-ones exponent and mantissa."""
+    NEGATIVE_ZERO = auto()
+    """The sign-bit-only pattern; the format has no negative zero."""
+
+
+@dataclass(frozen=True)
+class FloatSemantics:
+    """
+    The parameters that fully define a reduced-precision float format.
+
+    Modelled on LLVM's `fltSemantics`.
+    """
+
+    exponent_bits: int
+    mantissa_bits: int
+    exponent_bias: int
+    nonfinite: FloatNonfiniteBehavior = FloatNonfiniteBehavior.IEEE
+    nan_encoding: FloatNanEncoding = FloatNanEncoding.IEEE
+    has_zero: bool = True
+    has_sign: bool = True
+
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
+    @property
+    def max_exponent(self) -> int:
+        """The all-ones exponent field."""
+        return (1 << self.exponent_bits) - 1
+
+    @property
+    def max_mantissa(self) -> int:
+        """The all-ones mantissa field."""
+        return (1 << self.mantissa_bits) - 1
+
+    @property
+    def sign_shift(self) -> int:
+        """Bit position of the sign bit."""
+        return self.exponent_bits + self.mantissa_bits
+
+    @staticmethod
+    def round_half_even(significand: int, shift: int) -> int:
+        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
+        if shift <= 0:
+            return significand << (-shift)
+        quotient = significand >> shift
+        dropped = significand & ((1 << shift) - 1)
+        halfway = 1 << (shift - 1)
+        if dropped > halfway or (dropped == halfway and quotient & 1):
+            quotient += 1
+        return quotient
+
+
+class ReducedPrecisionFloatType(_FloatType, PackableType[float], ABC):
+    """
+    Base for reduced-precision float types, described by a `FloatSemantics`.
+
+    Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
+    special-value handling is shared here and parameterised by that `FloatSemantics`.
+    """
+
+    SEMANTICS: ClassVar[FloatSemantics]
+
+    @property
+    def bitwidth(self) -> int:
+        return self.SEMANTICS.bitwidth
+
+    @property
+    def compile_time_size(self) -> int:
+        return self.size
+
+    @staticmethod
+    def decode_significand_power(magnitude: float) -> tuple[int, int]:
+        """Return `(significand, power)` with `magnitude == significand * 2**power`, exact for positive finite floats."""
+        bits = struct.unpack("<Q", struct.pack("<d", magnitude))[0]
+        biased_exponent = (bits >> 52) & 0x7FF
+        fraction = bits & ((1 << 52) - 1)
+        if biased_exponent:
+            return fraction | (1 << 52), biased_exponent - 1075
+        return fraction, -1074
+
+    def _decode_special(
+        self, negative: bool, biased_exponent: int, mantissa: int
+    ) -> float | None:
+        """Value of a reserved infinity/NaN pattern, or None if the pattern is finite."""
+        semantics = self.SEMANTICS
+        match semantics:
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.FINITE_ONLY):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if (
+                biased_exponent != semantics.max_exponent
+            ):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if mantissa:
+                return math.nan
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if negative:
+                return -math.inf
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE):
+                return math.inf
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES) if (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            ):
+                return math.nan
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES):
+                return None
+            case _ if negative and biased_exponent == 0 and mantissa == 0:
+                return math.nan
+            case _:
+                return None
+
+    def decode_bits(self, bits: int) -> float:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        negative = bool(semantics.has_sign and (bits >> semantics.sign_shift) & 1)
+        biased_exponent = (bits >> mantissa_bits) & semantics.max_exponent
+        mantissa = bits & semantics.max_mantissa
+        special = self._decode_special(negative, biased_exponent, mantissa)
+        if special is not None:
+            return special
+        sign = -1.0 if negative else 1.0
+        if semantics.has_zero and biased_exponent == 0:
+            return sign * mantissa * 2.0 ** (1 - bias - mantissa_bits)
+        return (
+            sign * (1 + mantissa / 2.0**mantissa_bits) * 2.0 ** (biased_exponent - bias)
+        )
+
+    def _encode_overflow(self, sign: int) -> int:
+        """Bits a too-large magnitude maps to: infinity, NaN, or the largest finite value."""
+        semantics = self.SEMANTICS
+        match semantics.nonfinite:
+            case FloatNonfiniteBehavior.IEEE:
+                return (sign << semantics.sign_shift) | (
+                    semantics.max_exponent << semantics.mantissa_bits
+                )
+            case FloatNonfiniteBehavior.NAN_ONLY:
+                return self._encode_nan(sign)
+            case FloatNonfiniteBehavior.FINITE_ONLY:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << semantics.mantissa_bits)
+                    | semantics.max_mantissa
+                )
+
+    def _encode_nan(self, sign: int) -> int:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
+            return self._encode_overflow(sign)
+        match semantics.nan_encoding:
+            case FloatNanEncoding.IEEE:
+                return (semantics.max_exponent << mantissa_bits) | (
+                    1 << (mantissa_bits - 1)
+                )
+            case FloatNanEncoding.ALL_ONES:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << mantissa_bits)
+                    | semantics.max_mantissa
+                )
+            case FloatNanEncoding.NEGATIVE_ZERO:
+                return 1 << semantics.sign_shift
+
+    def _encode_zero(self, sign: int) -> int:
+        if self.SEMANTICS.nan_encoding is FloatNanEncoding.NEGATIVE_ZERO:
+            return 0  # no negative zero
+        return sign << self.SEMANTICS.sign_shift
+
+    def _overflows(self, biased_exponent: int, mantissa: int) -> bool:
+        semantics = self.SEMANTICS
+        if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
+            return biased_exponent >= semantics.max_exponent
+        if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
+            return biased_exponent > semantics.max_exponent or (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            )
+        return biased_exponent > semantics.max_exponent
+
+    def _rounded_exponent_mantissa(self, magnitude: float) -> tuple[int, int] | None:
+        """
+        Round a positive, finite magnitude to `(biased_exponent, mantissa)`.
+
+        Returns `(0, 0)` on underflow to the smallest value and `None` on overflow.
+        """
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        implicit_bit = 1 << mantissa_bits
+        significand, power = self.decode_significand_power(magnitude)
+        exponent = math.frexp(magnitude)[1] - 1
+        smallest_normal_exponent = 1 - bias if semantics.has_zero else -bias
+        if exponent < smallest_normal_exponent:
+            if not semantics.has_zero:
+                return 0, 0  # no subnormals: underflow to the smallest value
+            quotient = semantics.round_half_even(
+                significand, (1 - bias - mantissa_bits) - power
+            )
+            if quotient < implicit_bit:
+                return 0, quotient
+            return 1, 0  # rounded up into the smallest normal
+        quotient = semantics.round_half_even(
+            significand, (exponent - mantissa_bits) - power
+        )
+        if quotient == implicit_bit << 1:
+            exponent += 1
+            quotient = implicit_bit
+        biased_exponent = exponent + bias
+        mantissa = quotient - implicit_bit
+        if self._overflows(biased_exponent, mantissa):
+            return None
+        return biased_exponent, mantissa
+
+    def encode_bits(self, value: float) -> int:
+        semantics = self.SEMANTICS
+        sign = 1 if semantics.has_sign and math.copysign(1.0, value) < 0 else 0
+        if math.isinf(value):
+            return self._encode_overflow(sign)
+        if math.isnan(value):
+            return self._encode_nan(sign)
+        if value == 0.0:
+            return self._encode_zero(sign)
+        if not semantics.has_sign and value < 0:
+            # Unsigned formats (e.g. f8E8M0FNU) reject signed finite values, as LLVM does,
+            # rather than silently dropping the sign. -0.0 is handled by the zero case above.
+            raise ValueError(f"{self.name} does not support signed values")
+        fields = self._rounded_exponent_mantissa(abs(value))
+        if fields is None:
+            return self._encode_overflow(sign)
+        biased_exponent, mantissa = fields
+        if semantics.has_zero and not biased_exponent and not mantissa:
+            return self._encode_zero(sign)
+        return (
+            (sign << semantics.sign_shift)
+            | (biased_exponent << semantics.mantissa_bits)
+            | mantissa
+        )
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        # `int` handles the odd byte widths `struct` can't (tf32's 19 bits -> 3 bytes).
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size % size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size {size}."
+            )
+        return (
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size != num * size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {size} and num {num}."
+            )
+        return tuple(
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        size = self.size
+        buffer_size = len(memoryview(buffer))
+        if buffer_size < offset + size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{size} bytes at offset {offset}, expected at least "
+                f"{offset + size}."
+            )
+        memoryview(buffer)[offset : offset + size] = self.encode_bits(value).to_bytes(
+            size, "little"
+        )
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        size = self.size
+        buffer = bytearray(size * len(values))
+        for index, value in enumerate(values):
+            self.pack_into(buffer, index * size, value)
+        return bytes(buffer)
 
 
 @irdl_attr_definition
@@ -1031,12 +1509,73 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return 16
 
     @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    def compile_time_size(self) -> int:
+        return 2
+
+    @staticmethod
+    def _encode(value: float) -> bytes:
+        """
+        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
+        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
+        quiet-NaN preservation; matches LLVM APFloat semantics.
+        """
+        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+        # NaN must remain a NaN after truncation; force the quiet bit on so a
+        # signaling NaN with mantissa entirely in the truncated bits doesn't
+        # become inf.
+        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        else:
+            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+        return bits.to_bytes(2, "little")
+
+    @staticmethod
+    def _decode(raw: ReadableBuffer) -> float:
+        # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
+        # inverse is to zero-extend with two low bytes in little-endian.
+        return struct.unpack("<f", b"\x00\x00" + raw)[0]
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size % 2:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size 2."
+            )
+        return (self._decode(mv[i : i + 2]) for i in range(0, len(mv), 2))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        compile_time_size = self.compile_time_size
+        if buffer_size != num * compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {compile_time_size} and num {num}."
+            )
+
+        return tuple(self._decode(mv[i : i + 2]) for i in range(0, buffer_size, 2))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        buffer_size = len(memoryview(buffer))
+        compile_time_size = self.compile_time_size
+        if buffer_size < offset + compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{compile_time_size} bytes at offset {offset}, expected at least "
+                f"{offset + compile_time_size}."
+            )
+
+        memoryview(buffer)[offset : offset + 2] = self._encode(value)
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        return b"".join(self._encode(v) for v in values)
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f16"
 
     @property
@@ -1049,7 +1588,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f32"
 
     @property
@@ -1062,7 +1601,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f64"
 
     @property
@@ -1075,7 +1614,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f80"
 
     @property
@@ -1088,7 +1627,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f128"
 
     @property
@@ -1100,8 +1639,160 @@ class Float128Type(ParametrizedAttribute, _FloatType):
         raise NotImplementedError()
 
 
+@irdl_attr_definition
+class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "tf32"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=10,
+        exponent_bias=127,
+    )
+
+
+@irdl_attr_definition
+class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E5M2"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=15,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+    )
+
+
+@irdl_attr_definition
+class Float8E5M2FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E5M2FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=16,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=8,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3B11FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=11,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E3M4"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=4,
+        exponent_bias=3,
+    )
+
+
+@irdl_attr_definition
+class Float8E8M0FNUType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E8M0FNU"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=0,
+        exponent_bias=127,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+        has_zero=False,
+        has_sign=False,
+    )
+
+
+@irdl_attr_definition
+class Float6E2M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f6E2M3FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=3,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
+@irdl_attr_definition
+class Float6E3M2FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f6E3M2FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=2,
+        exponent_bias=3,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
+@irdl_attr_definition
+class Float4E2M1FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f4E2M1FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=1,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
 AnyFloat: TypeAlias = (
-    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+    BFloat16Type
+    | Float16Type
+    | Float32Type
+    | Float64Type
+    | Float80Type
+    | Float128Type
+    | FloatTF32Type
+    | Float8E5M2Type
+    | Float8E4M3Type
+    | Float8E4M3FNType
+    | Float8E5M2FNUZType
+    | Float8E4M3FNUZType
+    | Float8E4M3B11FNUZType
+    | Float8E3M4Type
+    | Float8E8M0FNUType
+    | Float6E2M3FNType
+    | Float6E3M2FNType
+    | Float4E2M1FNType
 )
 AnyFloatConstr = (
     BaseAttr(BFloat16Type)
@@ -1110,6 +1801,18 @@ AnyFloatConstr = (
     | BaseAttr(Float64Type)
     | BaseAttr(Float80Type)
     | BaseAttr(Float128Type)
+    | BaseAttr(FloatTF32Type)
+    | BaseAttr(Float8E5M2Type)
+    | BaseAttr(Float8E4M3Type)
+    | BaseAttr(Float8E4M3FNType)
+    | BaseAttr(Float8E5M2FNUZType)
+    | BaseAttr(Float8E4M3FNUZType)
+    | BaseAttr(Float8E4M3B11FNUZType)
+    | BaseAttr(Float8E3M4Type)
+    | BaseAttr(Float8E8M0FNUType)
+    | BaseAttr(Float6E2M3FNType)
+    | BaseAttr(Float6E3M2FNType)
+    | BaseAttr(Float4E2M1FNType)
 )
 
 
@@ -1129,7 +1832,8 @@ class FloatData(Data[float]):
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
-            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+            (math.isnan(self.data) and math.isnan(other.data))
+            or self.data == other.data
         )
 
     def __hash__(self):
@@ -1175,7 +1879,14 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type):
+        if isinstance(
+            type,
+            Float64Type
+            | Float32Type
+            | Float16Type
+            | BFloat16Type
+            | ReducedPrecisionFloatType,
+        ):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)
@@ -1221,9 +1932,10 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     def constr(
         type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
     ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
-        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
-            FloatAttr,
-            (
+        return cast(
+            AttrConstraint[FloatAttr[_FloatAttrType]],
+            ParamAttrConstraint.get(
+                FloatAttr,
                 None,
                 type,
             ),
@@ -1317,10 +2029,12 @@ class ComplexType(
     def constr(
         element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
     ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
-        if element_type is None:
-            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
-        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
-            ComplexType, (element_type,)
+        return cast(
+            AttrConstraint[ComplexType[ComplexElementCovT]],
+            ParamAttrConstraint.get(
+                ComplexType,
+                element_type,
+            ),
         )
 
 
@@ -1363,8 +2077,8 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ArrayAttr[IntAttr]
     element_type: AttributeCovT
+    shape: ArrayAttr[IntAttr]
     scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
@@ -1379,7 +2093,7 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__(shape, element_type, scalable_dims)
+        super().__init__(element_type, shape, scalable_dims)
 
     @staticmethod
     def _print_vector_dim(printer: Printer, pair: tuple[IntAttr, BoolAttr]):
@@ -1437,15 +2151,14 @@ class VectorType(
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
     ) -> AttrConstraint[VectorType[AttributeCovT]]:
-        if element_type is None and shape is None and scalable_dims is None:
-            return BaseAttr[VectorType[AttributeCovT]](VectorType)
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
-        return ParamAttrConstraint[VectorType[AttributeCovT]](
-            VectorType,
-            (
-                shape_constr,
+        return cast(
+            AttrConstraint[VectorType[AttributeCovT]],
+            ParamAttrConstraint.get(
+                VectorType,
                 element_type,
+                shape_constr,
                 scalable_dims_constr,
             ),
         )
@@ -1503,13 +2216,11 @@ class TensorType(
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
-        shape: IRDLAttrConstraint[AttributeInvT] | None = None,
+        shape: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
-        if element_type is None and shape is None:
-            return BaseAttr[TensorType[AttributeInvT]](TensorType)
-        shape_constr = AnyAttr() if shape is None else shape
-        return ParamAttrConstraint[TensorType[AttributeInvT]](
-            TensorType, (shape_constr, element_type, AnyAttr())
+        return cast(
+            AttrConstraint[TensorType[AttributeInvT]],
+            ParamAttrConstraint.get(TensorType, shape, element_type, AnyAttr()),
         )
 
 
@@ -1820,10 +2531,9 @@ class DenseArrayBase(
     def constr(
         element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
     ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
-        if element_type is None:
-            return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
-        return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
-            DenseArrayBase, (element_type, AnyAttr())
+        return cast(
+            AttrConstraint[DenseArrayBase[DenseArrayInvT]],
+            ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
         )
 
 
@@ -1907,6 +2617,15 @@ class MemRefLayoutAttr(Attribute, ABC):
 
         This is only applicable to hyper-rectangular layouts.
         If this is not applicable for a given layout, returns None
+        """
+        return None
+
+    def get_offset(self) -> int | None:
+        """
+        (optional) Return the static offset of this memref layout, if available.
+
+        Returns `None` when the offset is dynamic or when this layout does not
+        expose a strided offset.
         """
         return None
 
@@ -2146,6 +2865,7 @@ class UnregisteredOp(Operation, ABC):
                 result_types: Sequence[Attribute] = (),
                 properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
+                location: LocationAttr | None = None,
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
@@ -2154,6 +2874,7 @@ class UnregisteredOp(Operation, ABC):
                     result_types=result_types,
                     properties=properties,
                     attributes=attributes,
+                    location=location,
                     successors=successors,
                     regions=regions,
                 )
@@ -2330,6 +3051,18 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float80Type()
 f128 = Float128Type()
+tf32 = FloatTF32Type()
+f8E5M2 = Float8E5M2Type()
+f8E4M3 = Float8E4M3Type()
+f8E4M3FN = Float8E4M3FNType()
+f8E5M2FNUZ = Float8E5M2FNUZType()
+f8E4M3FNUZ = Float8E4M3FNUZType()
+f8E4M3B11FNUZ = Float8E4M3B11FNUZType()
+f8E3M4 = Float8E3M4Type()
+f8E8M0FNU = Float8E8M0FNUType()
+f6E2M3FN = Float6E2M3FNType()
+f6E3M2FN = Float6E3M2FNType()
+f4E2M1FN = Float4E2M1FNType()
 
 
 _MemRefTypeElement = TypeVar(
@@ -2484,6 +3217,19 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
+    def get_offset(self) -> int | None:
+        """
+        Return the static offset of the memref layout.
+
+        Returns `0` for the default layout, and `None` when the offset is dynamic or
+        when the layout does not expose a strided offset.
+        """
+        match self.layout:
+            case NoneAttr():
+                return 0
+            case _:
+                return self.layout.get_offset()
+
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
@@ -2492,15 +3238,11 @@ class MemRefType(
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
-        if (
-            shape is None
-            and element_type == AnyAttr()
-            and layout is None
-            and memory_space is None
-        ):
-            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
-        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
-            MemRefType, (shape, element_type, layout, memory_space)
+        return cast(
+            AttrConstraint[MemRefType[_MemRefTypeElement]],
+            ParamAttrConstraint.get(
+                MemRefType, shape, element_type, layout, memory_space
+            ),
         )
 
 
@@ -2815,15 +3557,16 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            assert isinstance(
-                element_type := self.get_element_type(), IntegerType | IndexType
-            )
+            element_type = self.get_element_type()
+            assert isinstance(element_type, IntegerType | IndexType)
             printer.print_int(val, element_type)
         elif isinstance(val, float):
-            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, AnyFloat)
             printer.print_float(val, element_type)
         else:  # complex
-            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, ComplexType)
             printer.print_complex(val, element_type)
 
     def _print_dense_list(
@@ -2907,6 +3650,18 @@ Builtin = Dialect(
         Float64Type,
         Float80Type,
         Float128Type,
+        FloatTF32Type,
+        Float8E5M2Type,
+        Float8E4M3Type,
+        Float8E4M3FNType,
+        Float8E5M2FNUZType,
+        Float8E4M3FNUZType,
+        Float8E4M3B11FNUZType,
+        Float8E3M4Type,
+        Float8E8M0FNUType,
+        Float6E2M3FNType,
+        Float6E3M2FNType,
+        Float4E2M1FNType,
         FloatAttr,
         SignednessAttr,
         TupleType,

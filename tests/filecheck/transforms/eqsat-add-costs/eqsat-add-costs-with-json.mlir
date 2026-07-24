@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p 'eqsat-add-costs{cost_file="%p/costs.json"}' --verify-diagnostics --split-input-file %s | filecheck %s
 
-// CHECK:      func.func @trivial_arithmetic(%a : i32, %b : i32) -> i32 {
+// CHECK:      func.func @trivial_arithmetic(%a: i32, %b: i32) -> i32 {
 // CHECK-NEXT: %a_eq = equivalence.class %a {min_cost_index = #builtin.int<0>} : i32
 // CHECK-NEXT: %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : i32
 // CHECK-NEXT: %one_eq = equivalence.class %one {min_cost_index = #builtin.int<0>} : i32
@@ -12,7 +12,7 @@
 // CHECK-NEXT: func.return %res_eq : i32
 // CHECK-NEXT: }
 
-func.func @trivial_arithmetic(%a : i32, %b : i32) -> (i32) {
+func.func @trivial_arithmetic(%a: i32, %b: i32) -> (i32) {
     %a_eq = equivalence.class %a : i32
     %one = arith.constant 1 : i32
     %one_eq = equivalence.class %one : i32

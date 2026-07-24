@@ -4,27 +4,14 @@ from xdsl import ir, irdl
 from xdsl.backend.register_type import (
     RegisterAllocatedMemoryEffect,
     RegisterResource,
-    RegisterType,
 )
+from xdsl.dialects.test import TestRegisterType
 from xdsl.traits import (
     EffectInstance,
     MemoryEffectKind,
     get_effects,
     is_side_effect_free,
 )
-
-
-@irdl.irdl_attr_definition
-class TestRegister(RegisterType):
-    name = "test.reg"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "y"
 
 
 @irdl.irdl_op_definition
@@ -55,14 +42,14 @@ class TestAllocatableOp(irdl.IRDLOperation):
 
 def test_register_resource_name():
     """Test that RegisterResource returns a descriptive name."""
-    reg = TestRegister.from_name("x0")
+    reg = TestRegisterType.from_name("x0")
     resource = RegisterResource(reg)
     assert "<Register !test.reg<x0>>" == resource.name()
 
 
 def test_no_effects_for_unallocated_registers():
     """Test that unallocated registers produce no memory effects."""
-    op = TestAllocatableOp([], [], [TestRegister.unallocated()], [])
+    op = TestAllocatableOp([], [], [TestRegisterType.unallocated()], [])
     effects = get_effects(op)
     assert effects == set()
     assert is_side_effect_free(op)
@@ -70,7 +57,7 @@ def test_no_effects_for_unallocated_registers():
 
 def test_write_effect_for_allocated_result():
     """Test that allocated register results produce WRITE effects."""
-    allocated_reg = TestRegister.from_name("x0")
+    allocated_reg = TestRegisterType.from_name("x0")
     op = TestAllocatableOp([], [], [allocated_reg], [])
     effects = get_effects(op)
 
@@ -82,7 +69,7 @@ def test_write_effect_for_allocated_result():
 def test_read_effect_for_allocated_operand():
     """Test that allocated register operands produce READ effects."""
     # Create an op that produces an allocated register to use as operand
-    allocated_reg = TestRegister.from_name("x1")
+    allocated_reg = TestRegisterType.from_name("x1")
     producer = TestAllocatableOp([], [], [allocated_reg], [])
 
     # Use the result as an operand
@@ -96,8 +83,8 @@ def test_read_effect_for_allocated_operand():
 
 def test_mixed_read_write_effects():
     """Test an op with both allocated operands and results."""
-    reg_x0 = TestRegister.from_name("x0")
-    reg_x1 = TestRegister.from_name("x1")
+    reg_x0 = TestRegisterType.from_name("x0")
+    reg_x1 = TestRegisterType.from_name("x1")
 
     # Producer for operand
     producer = TestAllocatableOp([], [], [reg_x0], [])

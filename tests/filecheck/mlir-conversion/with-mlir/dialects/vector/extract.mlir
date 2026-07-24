@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt --print-op-generic %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 // CHECK-LABEL: @extract_const_idx
 func.func @extract_const_idx(%arg0: vector<4x8x16xf32>)

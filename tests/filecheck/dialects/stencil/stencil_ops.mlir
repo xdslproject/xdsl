@@ -1,7 +1,7 @@
 // RUN: XDSL_ROUNDTRIP
 
 builtin.module {
-  func.func @stencil_copy(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+  func.func @stencil_copy(%0: !stencil.field<?x?x?xf64>, %1: !stencil.field<?x?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
@@ -16,7 +16,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func @stencil_copy(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+// CHECK-NEXT:    func.func @stencil_copy(%0: !stencil.field<?x?x?xf64>, %1: !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
@@ -51,7 +51,7 @@ builtin.module {
   }
 }
 
-// CHECK:         func.func private @myfunc(%b0 : !stencil.field<?x?x?xf32>, %b1 : !stencil.field<?x?x?xf32>)  attributes {param_names = ["data"]} {
+// CHECK:         func.func private @myfunc(%b0: !stencil.field<?x?x?xf32>, %b1: !stencil.field<?x?x?xf32>)  attributes {param_names = ["data"]} {
 // CHECK-NEXT:      %f0 = stencil.cast %b0 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
 // CHECK-NEXT:      %f1 = stencil.cast %b1 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
 // CHECK-NEXT:      %time_m = arith.constant 0 : index
@@ -72,7 +72,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_laplace(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+  func.func private @stencil_laplace(%0: !stencil.field<?x?xf64>, %1: !stencil.field<?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]xf64>
@@ -96,7 +96,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func private @stencil_laplace(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+// CHECK-NEXT:    func.func private @stencil_laplace(%0: !stencil.field<?x?xf64>, %1: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]xf64>
@@ -121,7 +121,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
+  func.func private @stencil_buffer(%0: !stencil.field<[-4,68]xf64>, %1: !stencil.field<[-4,68]xf64>) {
     %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %5 = stencil.access %4[0] : !stencil.temp<?xf64>
@@ -139,7 +139,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
+// CHECK-NEXT:    func.func private @stencil_buffer(%0: !stencil.field<[-4,68]xf64>, %1: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %5 = stencil.access %4[0] : !stencil.temp<?xf64>
@@ -158,7 +158,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_offset_mapping(%0 : !stencil.field<?xf64>, %1 : !stencil.field<?x?xf64>) {
+  func.func private @stencil_offset_mapping(%0: !stencil.field<?xf64>, %1: !stencil.field<?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?xf64> -> !stencil.field<[-4,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
@@ -173,7 +173,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func private @stencil_offset_mapping(%0 : !stencil.field<?xf64>, %1 : !stencil.field<?x?xf64>) {
+// CHECK-NEXT:    func.func private @stencil_offset_mapping(%0: !stencil.field<?xf64>, %1: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %0 : !stencil.field<?xf64> -> !stencil.field<[-4,68]xf64>
 // CHECK-NEXT:      %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
@@ -190,7 +190,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_dyn_access(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+  func.func private @stencil_dyn_access(%0: !stencil.field<?x?xf64>, %1: !stencil.field<?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]xf64>
@@ -206,7 +206,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func private @stencil_dyn_access(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+// CHECK-NEXT:    func.func private @stencil_dyn_access(%0: !stencil.field<?x?xf64>, %1: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %3 = stencil.cast %1 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]xf64>
@@ -223,7 +223,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @stencil_copy_bufferized(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+  func.func @stencil_copy_bufferized(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
     stencil.apply(%6 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
       %7 = stencil.access %6[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
       %8 = stencil.store_result %7 : !stencil.result<f64>
@@ -234,7 +234,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func @stencil_copy_bufferized(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// CHECK-NEXT:    func.func @stencil_copy_bufferized(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // CHECK-NEXT:      stencil.apply(%2 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // CHECK-NEXT:        %3 = stencil.access %2[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:        %4 = stencil.store_result %3 : !stencil.result<f64>
@@ -243,3 +243,27 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+builtin.module {
+  func.func @stencil_reduce(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        %sum = arith.addf %x, %y : f64
+        stencil.yield %sum : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   func.func @stencil_reduce(%a: f64, %b: f64) {
+// CHECK-NEXT:     stencil.reduce %a init %b {
+// CHECK-NEXT:     ^bb0(%x: f64, %y: f64):
+// CHECK-NEXT:       %sum = arith.addf %x, %y : f64
+// CHECK-NEXT:       stencil.yield %sum : f64
+// CHECK-NEXT:     } : f64
+// CHECK-NEXT:     func.return
+// CHECK-NEXT:   }
+// CHECK-NEXT: }

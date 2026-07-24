@@ -257,7 +257,8 @@ class BitAndOp(BinaryOperation):
 
 @irdl_op_definition
 class DivOp(IRDLOperation):
-    """Divide two `bigint`s, yielding a 64-bit floating point type.
+    """
+    Divide two `bigint`s, yielding a 64-bit floating point type.
 
     Note that this operation follows Python semantics, for example by rounding
     to minus infinity.

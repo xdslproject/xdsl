@@ -1,7 +1,6 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith
+from xdsl.dialects import arith, csl_wrapper
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
-from xdsl.dialects.csl import csl_wrapper
 
 
 def test_get_layout_arg():

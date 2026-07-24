@@ -5,6 +5,8 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
+    IntegerAttr,
+    LocationAttr,
     StringAttr,
 )
 from xdsl.ir import (
@@ -19,6 +21,7 @@ from xdsl.ir import (
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 
 
 class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
@@ -39,7 +42,7 @@ def print_for_op_like(
     printer: Printer,
     lower_bound: SSAValue,
     upper_bound: SSAValue,
-    step: SSAValue,
+    step: IntegerAttr | SSAValue,
     iter_args: Sequence[SSAValue],
     body: Region,
     default_indvar_type: type[TypeAttribute] | None = None,
@@ -56,6 +59,9 @@ def print_for_op_like(
     hence moving the induction variable type printing to the end of the for expression.
     The induction variable type printing is ommited when it matches the expected default
     type (`default_indvar_type`).
+
+    The `step` may be a dynamic SSAValue or a static `IntegerAttr`. When static, the
+    typed integer literal is printed (value and type), not an SSA value reference.
     """
 
     block = body.block
@@ -81,7 +87,10 @@ def print_for_op_like(
 
     printer.print_ssa_value(upper_bound)
     printer.print_string(" step ")
-    printer.print_ssa_value(step)
+    if isinstance(step, IntegerAttr):
+        step.print_builtin(printer)
+    else:
+        printer.print_ssa_value(step)
     printer.print_string(" ")
     if block_iter_args:
         printer.print_string("iter_args(")
@@ -106,11 +115,33 @@ def print_for_op_like(
     )
 
 
+@overload
+def parse_for_op_like(
+    parser: Parser,
+    default_indvar_type: TypeAttribute | None = ...,
+    bound_words: Sequence[str] = ...,
+    *,
+    allow_static_step: Literal[False] = ...,
+) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]: ...
+
+
+@overload
+def parse_for_op_like(
+    parser: Parser,
+    default_indvar_type: TypeAttribute | None = ...,
+    bound_words: Sequence[str] = ...,
+    *,
+    allow_static_step: Literal[True],
+) -> tuple[SSAValue, SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region]: ...
+
+
 def parse_for_op_like(
     parser: Parser,
     default_indvar_type: TypeAttribute | None = None,
     bound_words: Sequence[str] = ["to"],
-) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]:
+    *,
+    allow_static_step: bool = False,
+) -> tuple[SSAValue, SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region]:
     """
     Returns the loop bounds, step, iteration arguments, and body.
 
@@ -120,6 +151,10 @@ def parse_for_op_like(
     all loop control variable types (induction, bounds and step) have the same type,
     hence the induction variable type is potentially expected at the end of the for
     expression.
+
+    When `allow_static_step=True`, the step may be either a static typed integer literal
+    or a dynamic SSA value. The default (`False`) only allows dynamic SSA values and
+    returns `SSAValue` for the step.
     """
 
     unresolved_indvar = parser.parse_argument(expect_type=False)
@@ -138,7 +173,19 @@ def parse_for_op_like(
 
     upper_bound = parser.parse_operand()
     parser.parse_characters("step")
-    step = parser.parse_operand()
+
+    step: IntegerAttr | SSAValue
+    if allow_static_step:
+        if (step_ssa := parser.parse_optional_operand()) is not None:
+            step = step_ssa
+        else:
+            pos = parser.pos
+            step_attr = parser.parse_attribute()
+            if not isa(step_attr, IntegerAttr):
+                parser.raise_error("Expected IntegerAttr", pos)
+            step = step_attr
+    else:
+        step = parser.parse_operand()
 
     # parse iteration arguments
     pos = parser.pos
@@ -372,6 +419,22 @@ def parse_func_op_like(
     def parse_fun_input() -> (
         Attribute | tuple[Parser.Argument, dict[str, Attribute]] | None
     ):
+        def parse_optional_attrs_and_loc() -> tuple[
+            dict[str, Attribute], LocationAttr | None
+        ]:
+            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            arg_loc = parser.parse_optional_location()
+
+            # Reject attrs after location, including empty dictionaries.
+            if arg_loc is not None:
+                arg_attr_pos = parser.pos
+                parser.parse_optional_dictionary_attr_dict()
+                if parser.pos != arg_attr_pos:
+                    parser.raise_error(
+                        "Expected function argument attributes before location."
+                    )
+            return arg_attr_dict, arg_loc
+
         nonlocal is_variadic
         if allow_variadic and parser.parse_optional_characters("...") is not None:
             is_variadic = True
@@ -381,8 +444,11 @@ def parse_func_op_like(
             ret = parser.parse_optional_type()
             if ret is None:
                 parser.raise_error("Expected argument or type")
+            # Declarative args keep only the type and consume attributes and location.
+            parse_optional_attrs_and_loc()
         else:
-            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            arg_attr_dict, arg_loc = parse_optional_attrs_and_loc()
+            arg.location = arg_loc
             ret = (arg, arg_attr_dict)
         return ret
 
@@ -454,9 +520,18 @@ def parse_func_op_like(
 def print_func_argument(
     printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
 ):
-    printer.print_block_argument(arg)
+    """
+    Keep function-argument syntax compatible with MLIR parser expectations:
+    `%arg : type {attrs} loc(...)` (location after attrs).
+    """
+    printer.print_block_argument(arg, print_type=False)
+    printer.print_string(": ")
+    printer.print_attribute(arg.type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
+    if printer.print_debuginfo:
+        printer.print_string(" ")
+        printer.print_attribute(arg.location)
 
 
 def print_func_output(

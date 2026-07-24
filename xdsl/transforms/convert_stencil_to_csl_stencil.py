@@ -4,7 +4,7 @@ from math import prod
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, csl_stencil, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyTensorType,
@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import (
     Attribute,
@@ -178,9 +177,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
             op.input_stencil.type
         )
-        assert isa(
-            t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
-        )
+        t_type = op.input_stencil.type.get_element_type()
+        assert isa(t_type, TensorType[Attribute])
         assert op.strategy.comm_layout() is not None, (
             f"topology on {type(op)} is not given"
         )
@@ -229,8 +227,10 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.replace_uses_with_if(
                 field_block_arg,
                 prefetch_block_arg,
-                lambda use: isinstance(use.operation, stencil.AccessOp)
-                and tuple(use.operation.offset) != (0, 0),
+                lambda use: (
+                    isinstance(use.operation, stencil.AccessOp)
+                    and tuple(use.operation.offset) != (0, 0)
+                ),
             )
 
             # rebuild stencil.apply op
@@ -620,7 +620,7 @@ class TransformPrefetch(RewritePattern):
             dest = acc
             for i, acc_offset in enumerate(offsets):
                 ac_op = csl_stencil.AccessOp(
-                    buf, stencil.IndexAttr.get(*acc_offset), chunk_t
+                    buf, stencil.IndexAttr.from_indices(*acc_offset), chunk_t
                 )
                 assert isa(ac_op.result.type, AnyTensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)

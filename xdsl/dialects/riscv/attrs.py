@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 from typing import Literal, TypeAlias
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
@@ -20,18 +20,20 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "riscv.fastmath"
 
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
 
 
 UI5: TypeAlias = IntegerType[Literal[5], Literal[Signedness.UNSIGNED]]
+UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
 SI20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNED]]
 SI12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNED]]
 I12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNLESS]]
 I20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNLESS]]
 ui5: UI5 = IntegerType(5, Signedness.UNSIGNED)
+ui6: UI6 = IntegerType(6, Signedness.UNSIGNED)
 si20: SI20 = IntegerType(20, Signedness.SIGNED)
 si12: SI12 = IntegerType(12, Signedness.SIGNED)
 i12: I12 = IntegerType(12, Signedness.SIGNLESS)

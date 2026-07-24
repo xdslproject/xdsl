@@ -463,18 +463,28 @@ class GlobalValue(NamedValue, _ConstOpMixin, _HasMetadata):
 
     name_prefix = ...
     deduplicate_name = ...
+    linkage: str
+    storage_class: str
+    section: str
     def __init__(self, *args, **kwargs) -> None: ...
 
 class GlobalVariable(GlobalValue):
     """
     A global variable.
     """
+
+    global_constant: bool
+    unnamed_addr: bool
+    thread_local: bool
+    initializer: Value | None
+    align: int | None
     def __init__(self, module, typ, name, addrspace=...) -> None: ...
     def descr(self, buf):  # -> None:
         ...
 
 class AttributeSet(set):
-    """A set of string attribute.
+    """
+    A set of string attribute.
     Only accept items listed in *_known*.
 
     Properties:
@@ -505,9 +515,12 @@ class FunctionAttributes(AttributeSet):
         ...
 
 class Function(GlobalValue):
-    """Represent a LLVM Function but does uses a Module as parent.
+    """
+    Represent a LLVM Function but does uses a Module as parent.
     Global Values are stored as a set of dependencies (attribute `depends`).
     """
+
+    attributes: FunctionAttributes
     def __init__(self, module, ftype, name) -> None: ...
     @property
     def module(self): ...
@@ -516,8 +529,7 @@ class Function(GlobalValue):
     @property
     def entry_basic_block(self): ...
     @property
-    def basic_blocks(self):  # -> list[Any]:
-        ...
+    def basic_blocks(self) -> list[Block]: ...
     def append_basic_block(self, name: str = ...) -> Block: ...
     def insert_basic_block(self, before: Block, name: str = ...) -> Block:
         """Insert block before"""
@@ -564,11 +576,11 @@ class ArgumentAttributes(AttributeSet):
         ...
 
 class _BaseArgument(NamedValue):
+    attributes: ArgumentAttributes
     def __init__(self, parent, typ, name=...) -> None: ...
     def __repr__(self):  # -> str:
         ...
-    def add_attribute(self, attr):  # -> None:
-        ...
+    def add_attribute(self, attr: str) -> None: ...
 
 class Argument(_BaseArgument):
     """

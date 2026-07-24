@@ -122,8 +122,9 @@ class ApplyEqsatPDLPass(ModulePass):
             matcher, rewriter_func = self._extract_matcher_and_rewriters(temp_module)
 
             assert matcher.body.last_block is not None
+            recordmatch = matcher.body.last_block.last_op
             assert isinstance(
-                recordmatch := matcher.body.last_block.last_op,
+                recordmatch,
                 eqsat_pdl_interp.RecordMatchOp,
             )
             name = (

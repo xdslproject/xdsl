@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     f16,
     f32,
 )
-from xdsl.dialects.linalg import IteratorType
+from xdsl.dialects.linalg.attrs import IteratorType
 from xdsl.ir import Attribute, Block, Operation
 from xdsl.ir.affine import AffineExpr
 from xdsl.passes import ModulePass

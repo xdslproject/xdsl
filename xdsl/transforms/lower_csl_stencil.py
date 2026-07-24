@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, func, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     Float16Type,
@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     f32,
     i16,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     BlockArgument,
@@ -426,9 +425,8 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             rewriter.erase_op(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
-        assert isinstance(
-            (elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type
-        )
+        elem_t = accumulator.type.get_element_type()
+        assert isinstance(elem_t, Float16Type | Float32Type)
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == f32 else csl.FmovhOp
         rewriter.insert(

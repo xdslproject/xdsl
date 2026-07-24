@@ -36,17 +36,15 @@ from xdsl.traits import Pure
 from xdsl.utils.hints import isa
 
 integerOrFloatLike = ContainerOf(
-    AnyOf(
-        [
-            IntegerType,
-            IndexType,
-            BFloat16Type,
-            Float16Type,
-            Float32Type,
-            Float64Type,
-            Float80Type,
-            Float128Type,
-        ]
+    AnyOf.get(
+        IntegerType,
+        IndexType,
+        BFloat16Type,
+        Float16Type,
+        Float32Type,
+        Float64Type,
+        Float80Type,
+        Float128Type,
     )
 )
 

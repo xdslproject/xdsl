@@ -414,7 +414,8 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        assert isinstance(shaped_type := op.input.type, ShapedType)
+        shaped_type = op.input.type
+        assert isinstance(shaped_type, ShapedType)
         shape = shaped_type.get_shape()
 
         format_str = "{}"

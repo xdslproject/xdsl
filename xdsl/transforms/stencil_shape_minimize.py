@@ -77,9 +77,7 @@ class RestrictStoreOp(RewritePattern):
         if new_bounds_attr != op.bounds:
             rewriter.replace_op(
                 op,
-                stencil.StoreOp.get(
-                    temp=op.temp, field=op.field, bounds=new_bounds_attr
-                ),
+                stencil.StoreOp(temp=op.temp, field=op.field, bounds=new_bounds_attr),
             )
 
 

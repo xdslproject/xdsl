@@ -208,7 +208,7 @@ class ParallelMovPattern(RewritePattern):
                 mvop = _insert_mv_op(rewriter, temp_ssa, cur_output.type, temp_ssa_type)
                 results[idx] = mvop.results[0]
 
-        rewriter.replace_matched_op((), results)
+        rewriter.replace_op(op, (), results)
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, scf
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, scf
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     i32,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     Operation,
@@ -72,7 +71,8 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
             return
 
         # case 3: apply is followed by other code, split it off into a different func, call it from second callback of apply
-        assert (parent_block := op.parent_block()) is not None
+        parent_block = op.parent_block()
+        assert parent_block is not None
         next_block = parent_block.split_before(op.next_op)
         rewriter.insert(csl.ReturnOp(), InsertPoint.after(op))
         next_func = csl.FuncOp(f"step{self.counter}", FunctionType.from_lists([], []))

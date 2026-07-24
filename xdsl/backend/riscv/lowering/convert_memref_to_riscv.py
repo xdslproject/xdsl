@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
-    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -43,7 +42,8 @@ from xdsl.utils.exceptions import DiagnosticException
 class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
@@ -98,13 +98,9 @@ def get_strided_pointer(
     assert isinstance(memref_type.element_type, FixedBitwidthType)
     bytes_per_element = memref_type.element_type.size
 
-    match memref_type.layout:
-        case NoneAttr():
-            strides = ShapedType.strides_for_shape(memref_type.get_shape())
-        case StridedLayoutAttr():
-            strides = memref_type.layout.get_strides()
-        case _:
-            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
+    strides = memref_type.get_strides()
+    if strides is None:
+        raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
 
     ops: list[Operation] = []
 
@@ -170,7 +166,8 @@ def get_strided_pointer(
 class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         value, mem, *indices = cast_operands_to_regs(rewriter, op)
@@ -213,9 +210,8 @@ class ConvertMemRefStoreOp(RewritePattern):
 class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
-            f"{op.memref.type}"
-        )
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter, op)
@@ -425,7 +421,6 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
                 ],
-                dce_enabled=False,
             )
         ).rewrite_module(op)
         if contains_malloc:

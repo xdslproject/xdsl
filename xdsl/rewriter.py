@@ -135,7 +135,7 @@ class Rewriter:
     def replace_op(
         op: Operation,
         new_ops: Operation | Sequence[Operation],
-        new_results: Sequence[SSAValue | None] | None = None,  # noqa
+        new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
     ):
         """

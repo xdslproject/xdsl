@@ -1,26 +1,26 @@
 // RUN: xdsl-opt -p eqsat-extract %s | filecheck %s
 
-// CHECK:         func.func @trivial_no_arithmetic(%a : index, %b : index) -> index {
+// CHECK:         func.func @trivial_no_arithmetic(%a: index, %b: index) -> index {
 // CHECK-NEXT:      func.return %a : index
 // CHECK-NEXT:    }
-func.func @trivial_no_arithmetic(%a : index, %b : index) -> index {
+func.func @trivial_no_arithmetic(%a: index, %b: index) -> index {
   %a_eq = equivalence.class %a {"min_cost_index" = #builtin.int<0>} : index
   func.return %a_eq : index
 }
 
-// CHECK:         func.func @trivial_no_extraction(%a : index, %b : index) -> index {
+// CHECK:         func.func @trivial_no_extraction(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %a_eq = equivalence.class %a : index
 // CHECK-NEXT:      func.return %a_eq : index
 // CHECK-NEXT:    }
-func.func @trivial_no_extraction(%a : index, %b : index) -> index {
+func.func @trivial_no_extraction(%a: index, %b: index) -> index {
   %a_eq = equivalence.class %a : index
   func.return %a_eq : index
 }
 
-// CHECK:         func.func @trivial_arithmetic(%a : index, %b : index) -> index {
+// CHECK:         func.func @trivial_arithmetic(%a: index, %b: index) -> index {
 // CHECK-NEXT:      func.return %a : index
 // CHECK-NEXT:    }
-func.func @trivial_arithmetic(%a : index, %b : index) -> index {
+func.func @trivial_arithmetic(%a: index, %b: index) -> index {
   %one = arith.constant {"eqsat_cost" = #builtin.int<1>} 1 : index
   %one_eq = equivalence.class %one {"min_cost_index" = #builtin.int<0>} : index
   %amul = arith.muli %a_eq, %one_eq {"eqsat_cost" = #builtin.int<2>} : index
@@ -28,12 +28,12 @@ func.func @trivial_arithmetic(%a : index, %b : index) -> index {
   func.return %a_eq : index
 }
 
-// CHECK:         func.func @non_trivial(%a : index, %b : index) -> index {
+// CHECK:         func.func @non_trivial(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %two = arith.constant 2 : index
 // CHECK-NEXT:      %a_times_two = arith.muli %a, %two : index
 // CHECK-NEXT:      func.return %a_times_two : index
 // CHECK-NEXT:    }
-func.func @non_trivial(%a : index, %b : index) -> index {
+func.func @non_trivial(%a: index, %b: index) -> index {
   %a_eq = equivalence.class %a {"min_cost_index" = #builtin.int<0>} : index
   %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1 : index
   %one_eq = equivalence.class %one {"min_cost_index" = #builtin.int<0>} : index
@@ -45,7 +45,7 @@ func.func @non_trivial(%a : index, %b : index) -> index {
   func.return %res_eq : index
 }
 
-// CHECK:         func.func @partial_extraction(%a : index, %b : index) -> index {
+// CHECK:         func.func @partial_extraction(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %one = arith.constant 1 : index
 // CHECK-NEXT:      %one_eq = equivalence.class %one : index
 // CHECK-NEXT:      %two = arith.constant 2 : index
@@ -54,7 +54,7 @@ func.func @non_trivial(%a : index, %b : index) -> index {
 // CHECK-NEXT:      %res_eq = equivalence.class %a_shift_one, %a_times_two : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }
-func.func @partial_extraction(%a : index, %b : index) -> index {
+func.func @partial_extraction(%a: index, %b: index) -> index {
   %a_eq = equivalence.class %a {"min_cost_index" = #builtin.int<0>} : index
   %one = arith.constant 1 : index
   %one_eq = equivalence.class %one : index
@@ -67,10 +67,10 @@ func.func @partial_extraction(%a : index, %b : index) -> index {
 }
 
 
-// CHECK:         func.func @cycles(%a : i32) -> i32 {
+// CHECK:         func.func @cycles(%a: i32) -> i32 {
 // CHECK-NEXT:      func.return %a : i32
 // CHECK-NEXT:    }
-func.func @cycles(%a : i32) -> i32 {
+func.func @cycles(%a: i32) -> i32 {
   %two = arith.constant {eqsat_cost = #builtin.int<1>} 2 : i32
   %two_1 = equivalence.class %two {min_cost_index = #builtin.int<0>} : i32
   %mul = arith.muli %div, %two_1 {eqsat_cost = #builtin.int<1>} : i32

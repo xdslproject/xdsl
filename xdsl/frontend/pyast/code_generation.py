@@ -87,7 +87,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.file,
             getattr(node, "lineno"),
             getattr(node, "col_offset"),
-            f"Unsupported Python AST node {str(node)}",
+            f"Unsupported Python AST node {node!s}",
         )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
@@ -383,6 +383,22 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"Comparison operation '{op_name}' "
             f"is not supported by type '{ir_type.name}' "
             f"which does not overload '{python_op}'.",
+        )
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if (
+            literal_op := self.type_converter.literal_registry.resolve_operation(
+                node.value
+            )
+        ) is not None:
+            self.inserter.insert_op(literal_op)
+            return
+
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:

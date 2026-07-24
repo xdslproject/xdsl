@@ -15,9 +15,9 @@ pdl_interp.func @argument_mismatch(%range: !pdl.range<type>) {
 // CHECK: Region must have exactly one argument
 
 "pdl_interp.func"() <{sym_name = "invalid_argcount", function_type = (!pdl.range<type>) -> ()}> ({
-    ^bb0(%range : !pdl.range<type>):
+    ^bb0(%range: !pdl.range<type>):
     "pdl_interp.foreach"(%range) [^final] ({
-        ^bb1(%val : !pdl.type, %extraval: !pdl.type):
+        ^bb1(%val: !pdl.type, %extraval: !pdl.type):
             "pdl_interp.continue"() : () -> ()
     }) : (!pdl.range<type>) -> ()
     ^final:
@@ -29,7 +29,7 @@ pdl_interp.func @argument_mismatch(%range: !pdl.range<type>) {
 // CHECK: Region must not be empty
 
 "pdl_interp.func"() <{sym_name = "invalid_argcount", function_type = (!pdl.range<type>) -> ()}> ({
-    ^bb0(%range : !pdl.range<type>):
+    ^bb0(%range: !pdl.range<type>):
     "pdl_interp.foreach"(%range) [^final] ({}) : (!pdl.range<type>) -> ()
     ^final:
     "pdl_interp.finalize"() : () -> ()

@@ -77,7 +77,7 @@ class ConstantFoldInterpPattern(RewritePattern):
     def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
         match (value, value_type):
             case int(), IntegerType():
-                return IntegerAttr(value, cast(IntegerType, value_type))
+                return IntegerAttr(value, value_type)
             case _:
                 return None
 

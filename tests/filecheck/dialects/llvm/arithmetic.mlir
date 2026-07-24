@@ -92,6 +92,9 @@
 %cst32 = llvm.mlir.constant(25 : i32) : i32
 // CHECK: %cst32 = llvm.mlir.constant(25 : i32) : i32
 
+%cst_zero = llvm.mlir.constant(0 : i32) : i32
+// CHECK: %cst_zero = llvm.mlir.constant(0 : i32) : i32
+
 %icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
 // CHECK: %icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
 

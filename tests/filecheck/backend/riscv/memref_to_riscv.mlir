@@ -33,7 +33,9 @@ memref.store %v_f32, %m_f32[%r, %c] {"nontemporal" = false} : memref<3x2xf32>
 // CHECK-NEXT:    %offset_pointer_1 = riscv.add %m_f32_2, %scaled_pointer_offset_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %x_f32 = riscv.flw %offset_pointer_1, 0 {comment = "load float from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
 // CHECK-NEXT:    %x_f32_1 = builtin.unrealized_conversion_cast %x_f32 : !riscv.freg to f32
+// CHECK-NEXT:    "test.op"(%x_f32_1) : (f32) -> ()
 %x_f32 = memref.load %m_f32[%r, %c] {"nontemporal" = false} : memref<3x2xf32>
+"test.op"(%x_f32) : (f32) -> ()
 
 // CHECK-NEXT:    %v_i32_1 = builtin.unrealized_conversion_cast %v_i32 : i32 to !riscv.reg
 // CHECK-NEXT:    %m_i32_1 = builtin.unrealized_conversion_cast %m_i32 : memref<3xi32> to !riscv.reg
@@ -51,7 +53,9 @@ memref.store %v_i32, %m_i32[%c] {"nontemporal" = false} : memref<3xi32>
 // CHECK-NEXT:    %offset_pointer_3 = riscv.add %m_i32_2, %scaled_pointer_offset_3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %x_i32 = riscv.lw %offset_pointer_3, 0 {comment = "load word from memref of shape (3,)"} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %x_i32_1 = builtin.unrealized_conversion_cast %x_i32 : !riscv.reg to i32
+// CHECK-NEXT:    "test.op"(%x_i32_1) : (i32) -> ()
 %x_i32 = memref.load %m_i32[%c] {"nontemporal" = false} : memref<3xi32>
+"test.op"(%x_i32) : (i32) -> ()
 
 // CHECK-NEXT:    %v_f64_1 = builtin.unrealized_conversion_cast %v_f64 : f64 to !riscv.freg
 // CHECK-NEXT:    %m_f64_1 = builtin.unrealized_conversion_cast %m_f64 : memref<3x2xf64> to !riscv.reg
@@ -87,7 +91,9 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 // CHECK-NEXT:    %offset_pointer_5 = riscv.add %m_f64_2, %scaled_pointer_offset_5 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %x_f64 = riscv.fld %offset_pointer_5, 0 {comment = "load double from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
 // CHECK-NEXT:    %x_f64_1 = builtin.unrealized_conversion_cast %x_f64 : !riscv.freg to f64
+// CHECK-NEXT:    "test.op"(%x_f64_1) : (f64) -> ()
 %x_f64 = memref.load %m_f64[%r, %c] {"nontemporal" = false} : memref<3x2xf64>
+"test.op"(%x_f64) : (f64) -> ()
 
 // CHECK-NEXT:   riscv.assembly_section ".data" {
 // CHECK-NEXT:       riscv.label "global"
@@ -97,7 +103,9 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 
 // CHECK-NEXT:    %global = rv32.li "global" : !riscv.reg
 // CHECK-NEXT:    %global_1 = builtin.unrealized_conversion_cast %global : !riscv.reg to memref<2xi32>
+// CHECK-NEXT:    "test.op"(%global_1) : (memref<2xi32>) -> ()
 %global = memref.get_global @global : memref<2xi32>
+"test.op"(%global) : (memref<2xi32>) -> ()
 
 // CHECK-NEXT: }
 
@@ -110,14 +118,18 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 // CHECK-NEXT:    %m0_2 = riscv_func.call @malloc(%m0_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
 // CHECK-NEXT:    %m0_3 = riscv.mv %m0_2 : (!riscv.reg<a0>) -> !riscv.reg
 // CHECK-NEXT:    %m0_4 = builtin.unrealized_conversion_cast %m0_3 : !riscv.reg to memref<1x1xf32>
+// CHECK-NEXT:    "test.op"(%m0_4) : (memref<1x1xf32>) -> ()
 %m0 = memref.alloc() : memref<1x1xf32>
+"test.op"(%m0) : (memref<1x1xf32>) -> ()
 
 // CHECK-NEXT:    %m1 = rv32.li 8 {comment = "memref alloc size"} : !riscv.reg
 // CHECK-NEXT:    %m1_1 = riscv.mv %m1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:    %m1_2 = riscv_func.call @malloc(%m1_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
 // CHECK-NEXT:    %m1_3 = riscv.mv %m1_2 : (!riscv.reg<a0>) -> !riscv.reg
 // CHECK-NEXT:    %m1_4 = builtin.unrealized_conversion_cast %m1_3 : !riscv.reg to memref<1x1xf64>
+// CHECK-NEXT:    "test.op"(%m1_4) : (memref<1x1xf64>) -> ()
 %m1 = memref.alloc() : memref<1x1xf64>
+"test.op"(%m1) : (memref<1x1xf64>) -> ()
 
 // Check that the malloc external function is declared after lowering
 
@@ -131,10 +143,10 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 // CHECK-NEXT:    %m = "test.op"() : () -> memref<1x1xf32>
 %m = "test.op"() : () -> memref<1x1xf32>
 
-// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %m : memref<1x1xf32> to !riscv.reg
-// CHECK-NEXT:    %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
-// CHECK-NEXT:    riscv_func.call @free(%{{.*}}) : (!riscv.reg<a0>) -> ()
-"memref.dealloc"(%m) : (memref<1x1xf32>) -> ()
+// CHECK-NEXT:    %0 = builtin.unrealized_conversion_cast %m : memref<1x1xf32> to !riscv.reg
+// CHECK-NEXT:    %1 = riscv.mv %0 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:    riscv_func.call @free(%1) : (!riscv.reg<a0>) -> ()
+memref.dealloc %m : memref<1x1xf32>
 
 // Check that the dealloc external function is declared after lowering
 
@@ -206,13 +218,17 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 %original = "test.op"() : () -> memref<4x3x2xf64>
 
 // CHECK-NEXT:    %zero_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to memref<3x2xf64>
+// CHECK-NEXT:    "test.op"(%zero_subview) : (memref<3x2xf64>) -> ()
 %zero_subview = memref.subview %original[0, 0, 0][1, 3, 2][1, 1, 1] : memref<4x3x2xf64> to memref<3x2xf64>
+"test.op"(%zero_subview) : (memref<3x2xf64>) -> ()
 
 // CHECK-NEXT:    %static_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
 // CHECK-NEXT:    %static_subview_1 = riscv.addi %static_subview, 48 {comment = "subview offset"} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %static_subview_2 = builtin.unrealized_conversion_cast %static_subview_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: 6>>
+// CHECK-NEXT:    "test.op"(%static_subview_2) : (memref<3x2xf64, strided<[2, 1], offset: 6>>) -> ()
 %static_subview = memref.subview %original[1, 0, 0][1, 3, 2][1, 1, 1] :
   memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: 6>>
+"test.op"(%static_subview) : (memref<3x2xf64, strided<[2, 1], offset: 6>>) -> ()
 
 // CHECK-NEXT:    %dynamic_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
 // CHECK-NEXT:    %subview_dim_index = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
@@ -228,8 +244,10 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 // CHECK-NEXT:    %scaled_pointer_offset = riscv.mul %pointer_offset_1, %bytes_per_element {comment = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %offset_pointer = riscv.add %dynamic_subview, %scaled_pointer_offset : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %dynamic_subview_1 = builtin.unrealized_conversion_cast %offset_pointer : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+// CHECK-NEXT:    "test.op"(%dynamic_subview_1) : (memref<3x2xf64, strided<[2, 1], offset: ?>>) -> ()
 %dynamic_subview = memref.subview %original[%offset, 0, 0][1, 3, 2][1, 1, 1] :
   memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
+"test.op"(%dynamic_subview) : (memref<3x2xf64, strided<[2, 1], offset: ?>>) -> ()
 
 // CHECK-NEXT:    %larger_original = "test.op"() : () -> memref<5x4x3x2xf64>
 %larger_original = "test.op"() : () -> memref<5x4x3x2xf64>
@@ -251,8 +269,10 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 // CHECK-NEXT:    %scaled_pointer_offset_1 = riscv.mul %pointer_offset_4, %bytes_per_element_1 {comment = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %offset_pointer_1 = riscv.add %larger_dynamic_subview, %scaled_pointer_offset_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %larger_dynamic_subview_1 = builtin.unrealized_conversion_cast %offset_pointer_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+// CHECK-NEXT:    "test.op"(%larger_dynamic_subview_1) : (memref<3x2xf64, strided<[2, 1], offset: ?>>) -> ()
 %larger_dynamic_subview = memref.subview %larger_original[%offset, %offset, 0, 0][1, 1, 3, 2][1, 1, 1, 1] :
   memref<5x4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
+"test.op"(%larger_dynamic_subview) : (memref<3x2xf64, strided<[2, 1], offset: ?>>) -> ()
 
 // CHECK-NEXT:  }
 
@@ -264,6 +284,7 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 %1 = memref.subview %0[0, 2, 0][4, 4, 4][1, 1, 1]
   : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>> to
     memref<4x4x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2 + 8)>>
+"test.op"(%1) : (memref<4x4x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2 + 8)>>) -> ()
 
 // CHECK:      Only strided layout attrs implemented
 
@@ -283,7 +304,9 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 // CHECK-NEXT:    %offset_pointer = riscv.add %m_1, %scaled_pointer_offset
 // CHECK-NEXT:    %v = riscv.fld %offset_pointer, 0
 // CHECK-NEXT:    %v_1 = builtin.unrealized_conversion_cast %v : !riscv.freg to f64
+// CHECK-NEXT:    "test.op"(%v_1) : (f64) -> ()
 %v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
+"test.op"(%v) : (f64) -> ()
 
 // -----
 
@@ -310,5 +333,6 @@ memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
 %m = "test.op"() : () -> memref<2xf64, strided<[?]>>
 %i0 = "test.op"() : () -> index
 %v = memref.load %m[%i0] : memref<2xf64, strided<[?]>>
+"test.op"(%v) : (f64) -> ()
 
 // CHECK: MemRef memref<2xf64, strided<[?]>> with dynamic stride is not yet implemented

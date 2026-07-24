@@ -119,7 +119,7 @@ func.func @test_rescale(%arg0: tensor<13x21x3xi8>) -> tensor<13x21x3xi8> {
     %shift = "tosa.const"() {values = dense<30> : tensor<1xi8> } : () -> tensor<1xi8>
     %input_zp = "tosa.const"() <{values = dense<127> : tensor<1xi8>}> : () -> tensor<1xi8>
     %output_zp = "tosa.const"() <{values = dense<-1> : tensor<1xi8>}> : () -> tensor<1xi8>
-    %0 = tosa.rescale %arg0, %multiplier, %shift, %input_zp, %output_zp {rounding_mode = "SINGLE_ROUND", scale32 = true, per_channel = false, input_unsigned = false, output_unsigned = false} : (tensor<13x21x3xi8>, tensor<1xi32>, tensor<1xi8>, tensor<1xi8>, tensor<1xi8>) -> tensor<13x21x3xi8>
+    %0 = tosa.rescale %arg0, %multiplier, %shift, %input_zp, %output_zp {rounding_mode = SINGLE_ROUND, scale32 = true, per_channel = false, input_unsigned = false, output_unsigned = false} : (tensor<13x21x3xi8>, tensor<1xi32>, tensor<1xi8>, tensor<1xi8>, tensor<1xi8>) -> tensor<13x21x3xi8>
     return %0 : tensor<13x21x3xi8>
 }
 
@@ -199,7 +199,7 @@ func.func @test_reduce_sum(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
 // CHECK-LABEL: cond_if
 func.func @test_cond_if(%arg0: tensor<i1>, %arg1: tensor<3x4x5xf32>) -> tensor<3x4x5xf32> {
   // CHECK: {{%.*}} = tosa.cond_if {{%.*}} -> (tensor<3x4x5xf32>) {
-  %0 = tosa.cond_if %arg0 -> (tensor<3x4x5xf32>) {
+  %0 = tosa.cond_if %arg0: tensor<i1> -> (tensor<3x4x5xf32>) {
     // CHECK-NEXT: tosa.yield {{%.*}} : tensor<3x4x5xf32>
     tosa.yield %arg1 : tensor<3x4x5xf32>
     // CHECK-NEXT: } else {

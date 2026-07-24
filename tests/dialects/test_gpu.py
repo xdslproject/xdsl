@@ -188,7 +188,7 @@ def test_grid_dim():
 
 def test_host_register():
     memref_type = memref.MemRefType(builtin.i32, [-1])
-    unranked = memref.AllocaOp.get(memref_type, 0)
+    unranked = memref.AllocaOp.get(memref_type, None)
 
     register = HostRegisterOp(unranked)
 
@@ -198,7 +198,7 @@ def test_host_register():
 
 def test_host_unregister():
     memref_type = memref.MemRefType(builtin.i32, [-1])
-    unranked = memref.AllocaOp.get(memref_type, 0)
+    unranked = memref.AllocaOp.get(memref_type, None)
 
     unregister = HostUnregisterOp(unranked)
 
@@ -328,7 +328,7 @@ def test_launchfunc():
 
 def test_memcpy():
     memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
-    host_alloc = memref.AllocOp.get(builtin.f32, 0, [10, 10, 10])
+    host_alloc = memref.AllocOp.get(builtin.f32, None, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # for Pyright

@@ -341,7 +341,7 @@ csl.func @builtins() {
 // CHECK-NEXT: builtin.module {
 // CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
 // CHECK-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
-// CHECK-NEXT:     csl.func @func_with_args(%arg1 : i32, %arg2 : i16) -> i32 {
+// CHECK-NEXT:     csl.func @func_with_args(%arg1: i32, %arg2: i16) -> i32 {
 // CHECK-NEXT:       csl.return %arg1 : i32
 // CHECK-NEXT:     }
 // CHECK-NEXT:     %zero = arith.constant 0 : i32
@@ -351,13 +351,13 @@ csl.func @builtins() {
 // CHECK-NEXT:     csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 0 : ui5} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @data_task(%a : i32)  attributes {kind = #csl<task_kind data>, id = 1 : ui5} {
+// CHECK-NEXT:     csl.task @data_task(%a: i32)  attributes {kind = #csl<task_kind data>, id = 1 : ui5} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @control_task_args(%a_1 : i32)  attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
+// CHECK-NEXT:     csl.task @control_task_args(%a_1: i32)  attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
@@ -586,7 +586,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
 // CHECK-GENERIC-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "func_with_args", function_type = (i32, i16) -> i32}> ({
-// CHECK-GENERIC-NEXT:     ^bb0(%arg1 : i32, %arg2 : i16):
+// CHECK-GENERIC-NEXT:     ^bb0(%arg1: i32, %arg2: i16):
 // CHECK-GENERIC-NEXT:       "csl.return"(%arg1) : (i32) -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     %zero = "arith.constant"() <{value = 0 : i32}> : () -> i32
@@ -597,14 +597,14 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "data_task", function_type = (i32) -> (), kind = #csl<task_kind data>, id = 1 : ui5}> ({
-// CHECK-GENERIC-NEXT:     ^bb1(%a : i32):
+// CHECK-GENERIC-NEXT:     ^bb1(%a: i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task", function_type = () -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task_args", function_type = (i32) -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
-// CHECK-GENERIC-NEXT:     ^bb2(%a_1 : i32):
+// CHECK-GENERIC-NEXT:     ^bb2(%a_1: i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "runtime_bound_local_task", function_type = () -> (), kind = #csl<task_kind local>}> ({

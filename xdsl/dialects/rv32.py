@@ -7,44 +7,36 @@ using 5-bit immediates for 32-bit architectures.
 
 from __future__ import annotations
 
-from abc import ABC
-from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
-
 from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
 from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
+    UI5,
     IntRegisterType,
     LabelAttr,
     Registers,
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
     parse_immediate_value,
-    print_immediate_value,
+    ui5,
 )
-from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation
-from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
-from xdsl.interfaces import HasFolderInterface
+from xdsl.dialects.riscv.abstract_ops import (
+    GetAnyRegisterOperation,
+    ImmShiftOpHasCanonicalizationPatternsTrait,
+    LiOperation,
+    RdRsImmShiftOperation,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
+    Operation,
+    SSAValue,
 )
 from xdsl.irdl import (
-    attr_def,
     irdl_op_definition,
-    result_def,
-    traits_def,
+    lazy_traits_def,
 )
 from xdsl.parser import Parser
-from xdsl.printer import Printer
-from xdsl.traits import (
-    ConstantLike,
-    Pure,
-)
 
 
 @irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC):
+class LiOp(LiOperation[I32]):
     """
     Loads a 32-bit immediate into rd.
 
@@ -55,11 +47,6 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
 
     name = "rv32.li"
 
-    rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
-
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait(), ConstantLike())
-
     def __init__(
         self,
         immediate: int | IntegerAttr[I32] | str | LabelAttr,
@@ -69,24 +56,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.immediate
-
-    def fold(self) -> tuple[IntegerAttr[I32] | LabelAttr]:
-        return (self.immediate,)
+        super().__init__(immediate, rd=rd, comment=comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -94,22 +64,186 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
         attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
 
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
+class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
+    """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
+    traits = lazy_traits_def(
+        lambda: (ImmShiftOpRV32HasCanonicalizationPatternsTrait(),)
+    )
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | IntegerAttr[UI5],
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui5)
+
+        super().__init__(
+            rs1=rs1,
+            immediate=immediate,
+            rd=rd,
+            comment=comment,
+        )
+
+
+class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait[I32],
+    li_op_type=LiOp,
+    shift_op_type=RV32RdRsImmShiftOperation,
+):
+    """Trait for RISC-V 32-bit shift immediate operations with canonicalization patterns."""
+
+
+@irdl_op_definition
+class SlliOp(RV32RdRsImmShiftOperation):
+    """
+    Performs logical left shift on the value in register rs1 by the shift amount
+    held in the lower 5 bits of the immediate.
+
+    x[rd] = x[rs1] << shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
+    """
+
+    name = "rv32.slli"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
+
+
+@irdl_op_definition
+class SrliOp(RV32RdRsImmShiftOperation):
+    """
+    Performs logical right shift on the value in register rs1 by the shift amount held
+    in the lower 5 bits of the immediate.
+
+    x[rd] = x[rs1] >>u shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
+    """
+
+    name = "rv32.srli"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
+        )
+
+
+@irdl_op_definition
+class BclrIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bclri).
+    """
+
+    name = "rv32.bclri"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data & (~(1 << self.immediate.value.data)), i32)
+
+
+@irdl_op_definition
+class BextIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bexti).
+    """
+
+    name = "rv32.bexti"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            1 if (rs1.value.data & (1 << self.immediate.value.data)) != 0 else 0, i32
+        )
+
+
+@irdl_op_definition
+class BinvIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit inverted at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-binvi).
+    """
+
+    name = "rv32.binvi"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data ^ (1 << self.immediate.value.data), i32)
+
+
+@irdl_op_definition
+class BsetIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bseti).
+    """
+
+    name = "rv32.bseti"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data | (1 << self.immediate.value.data), i32)
+
+
+@irdl_op_definition
+class RorIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant log2(XLEN)
+    bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-rori).
+    """
+
+    name = "rv32.rori"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        unsigned_rs1 = rs1.value.data % 0x100000000
+        shamt = self.immediate.value.data
+        return IntegerAttr(
+            (unsigned_rs1 >> shamt | unsigned_rs1 << (32 - shamt)) % 0x100000000,
+            i32,
+        )
+
+
+@irdl_op_definition
+class SraiOp(RV32RdRsImmShiftOperation):
+    """
+    Performs arithmetic right shift on the value in register rs1 by the shift amount
+    held in the lower 5 bits of the immediate.
+
+    x[rd] = x[rs1] >>s shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
+    """
+
+    name = "rv32.srai"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
 
 
 @irdl_op_definition
@@ -120,6 +254,14 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 RV32 = Dialect(
     "rv32",
     [
+        SlliOp,
+        SrliOp,
+        SraiOp,
+        BclrIOp,
+        BextIOp,
+        BinvIOp,
+        BsetIOp,
+        RorIOp,
         LiOp,
         GetRegisterOp,
     ],

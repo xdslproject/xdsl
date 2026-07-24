@@ -63,8 +63,8 @@ class WhileOp(IRDLOperation):
     arguments = var_operand_def()
 
     res = var_result_def()
-    before_region = region_def()
-    after_region = region_def()
+    before_region = region_def("single_block")
+    after_region = region_def("single_block")
 
     traits = traits_def(RecursiveMemoryEffect())
 

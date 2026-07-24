@@ -8,15 +8,13 @@ from enum import Enum
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     ClassVar,
     Generic,
     Literal,
+    NoReturn,
     TypeAlias,
     cast,
-    get_args,
-    get_origin,
     overload,
 )
 
@@ -54,7 +52,6 @@ from .constraints import (  # noqa: TID251
     AnyAttr,
     AttrConstraint,
     ConstraintContext,
-    ConstraintVar,
     IntConstraint,
     RangeConstraint,
     RangeOf,
@@ -989,19 +986,13 @@ class OpDef:
 
                 if field_name == "irdl_options":
                     if not isa(value, tuple[IRDLOption, ...]):
-                        if isa(value, list[IRDLOption]):
-                            import warnings
-
-                            warnings.warn(
-                                "Defining irdl_options as a `list` is deprecated, please use a "
-                                "`tuple`.",
-                                DeprecationWarning,
-                                stacklevel=2,
-                            )
-                        else:
+                        if not isinstance(value, tuple):
                             raise PyRDLOpDefinitionError(
-                                "All values in irdl_options should inherit IRDLOption"
+                                f"All values `irdl_options` must be a `tuple`, got `{type(value).__name__}`."
                             )
+                        raise PyRDLOpDefinitionError(
+                            "All values in irdl_options should inherit IRDLOption"
+                        )
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
@@ -1055,17 +1046,6 @@ class OpDef:
                     value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
-                # Constraint variables are deprecated
-                if get_origin(value) is Annotated:
-                    if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                        import warnings
-
-                        warnings.warn(
-                            "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                        continue
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
@@ -1448,20 +1428,43 @@ def irdl_op_verify_regions(
     op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
     verify_variadic_size(op, op_def, VarIRConstruct.REGION)
-    for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
-        if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
-            raise VerifyException(
-                f"Region '{name}' at position {i} expected a single block, but got "
-                f"{len(region.blocks)} blocks"
-            )
-        if (first_block := region.blocks.first) is not None:
-            entry_args_types = first_block.arg_types
-            try:
-                region_def.entry_args.verify(entry_args_types, constraint_context)
-            except VerifyException as e:
-                raise VerifyException(
-                    f"region #{i} entry arguments do not verify:\n{e}"
-                ) from e
+
+    idx = 0
+    for region_def_name, region_def in op_def.regions:
+        regions: None | Region | tuple[Region, ...] = getattr(op, region_def_name)
+        block_counts: list[int] = []
+        entry_arg_types_list: list[None | Sequence[Attribute]] = []
+        if isinstance(regions, tuple):
+            for region in regions:
+                block_counts.append(len(region.blocks))
+                entry_block = region.first_block
+                entry_arg_types_list.append(entry_block and entry_block.arg_types)
+        elif isinstance(regions, Region):
+            block_counts.append(len(regions.blocks))
+            entry_block = regions.first_block
+            entry_arg_types_list.append(entry_block and entry_block.arg_types)
+
+        if isinstance(
+            region_def,
+            SingleBlockRegionDef | VarSingleBlockRegionDef | OptSingleBlockRegionDef,
+        ):
+            for i, block_count in enumerate(block_counts):
+                if block_count != 1:
+                    idx_msg = f"[{i}]" if isinstance(regions, tuple) else ""
+                    raise VerifyException(
+                        f"Region '{region_def_name}{idx_msg}' at position {idx + i} expected a single block, but got "
+                        f"{block_count} blocks"
+                    )
+        for i, entry_arg_types in enumerate(entry_arg_types_list):
+            if entry_arg_types is not None:
+                try:
+                    region_def.entry_args.verify(entry_arg_types, constraint_context)
+                except VerifyException as e:
+                    idx_msg = f"[{i}]" if isinstance(regions, tuple) else ""
+                    raise VerifyException(
+                        f"Region '{region_def_name}{idx_msg}' at position {idx + i} entry arguments do not verify:\n{e}"
+                    ) from e
+        idx += len(block_counts)
 
 
 def irdl_op_verify_arg_list(
@@ -1806,6 +1809,14 @@ class BaseAccessor(ABC):
         args = get_op_constructs(obj, self.construct)
         return self.index(args)
 
+    def __set__(self, instance, value) -> NoReturn:
+        """
+        Writing to a named Operation construct is unsupported.
+        It is recommended to create a new operation instead."""
+        raise NotImplementedError(
+            "Cannot write to named operands, regions, results, or successors."
+        )
+
 
 @dataclass(frozen=True)
 class BeforeVariadicSingleAccessor(BaseAccessor):
@@ -1931,6 +1942,14 @@ class BaseAttrAccessor(ABC):
         attr = self.option.container(obj)[self.option.attribute_name]
         args = get_op_constructs(obj, self.construct)
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
+
+    def __set__(self, instance, value) -> NoReturn:
+        """
+        Writing to a named Operation construct is unsupported.
+        It is recommended to create a new operation instead."""
+        raise NotImplementedError(
+            "Cannot write to named operands, regions, results, or successors."
+        )
 
 
 @dataclass(frozen=True)
@@ -2208,6 +2227,7 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
 
-    return type.__new__(
-        type(cls), cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
-    )
+    for k, v in new_attrs.items():
+        setattr(cls, k, v)
+
+    return cls

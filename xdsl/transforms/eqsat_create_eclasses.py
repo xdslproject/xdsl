@@ -62,14 +62,14 @@ class EqsatCreateEclassesPass(ModulePass):
 
     Input example:
        ```mlir
-       func.func @test(%a : index, %b : index) -> (index) {
+       func.func @test(%a: index, %b: index) -> (index) {
            %c = arith.addi %a, %b : index
            func.return %c : index
        }
        ```
     Output example:
         ```mlir
-        func.func @test(%a : index, %b : index) -> (index) {
+        func.func @test(%a: index, %b: index) -> (index) {
             %a_eq = equivalence.class %a : index
             %b_eq = equivalence.class %b : index
             %c = arith.addi %a_eq, %b_eq : index

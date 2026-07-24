@@ -4,7 +4,7 @@ Generic implementation of a disjoint set data structure.
 See external [documentation](https://en.wikipedia.org/wiki/Disjoint-set_data_structure).
 """
 
-from collections.abc import Hashable, Sequence
+from collections.abc import Hashable, Iterator, Sequence
 from typing import Generic
 
 from typing_extensions import TypeVar
@@ -123,6 +123,12 @@ class IntDisjointSet:
     def connected(self, lhs: int, rhs: int) -> bool:
         return self[lhs] == self[rhs]
 
+    def roots(self) -> Iterator[int]:
+        """
+        Returns an iterator over the roots of the disjoint set.
+        """
+        yield from (root for i, root in enumerate(self._parent) if i == root)
+
 
 _T = TypeVar("_T", bound=Hashable)
 
@@ -214,3 +220,18 @@ class DisjointSet(Generic[_T]):
         return self._base.connected(
             self._index_by_value[lhs], self._index_by_value[rhs]
         )
+
+    def roots(self) -> Iterator[_T]:
+        """
+        Returns an iterator over the roots of the disjoint set.
+        """
+        yield from (self._values[root] for root in self._base.roots())
+
+    def __str__(self) -> str:
+        values_by_root: dict[_T, list[_T]] = {}
+        for v in self._values:
+            root = self.find(v)
+            if root not in values_by_root:
+                values_by_root[root] = []
+            values_by_root[root].append(v)
+        return str(values_by_root)

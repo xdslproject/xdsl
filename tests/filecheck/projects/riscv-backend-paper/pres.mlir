@@ -3,7 +3,7 @@
 // A test that verifies that we can emit the target assembly for Snitch, below are the
 // versions of ssum (C=A+B where all have fixed size 128xf32) .
 
-riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+riscv_func.func @pres_1(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
@@ -20,7 +20,7 @@ riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
-riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+riscv_func.func @pres_2(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
@@ -37,7 +37,7 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
-riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+riscv_func.func @pres_3(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
@@ -58,7 +58,7 @@ riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
-riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+riscv_func.func @pres_4(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()

@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
     AnyFloatConstr,
-    ArrayAttr,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -33,10 +32,8 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
-    split_dynamic_index_list,
-)
-from xdsl.dialects.utils.dynamic_index_list import (
     DynamicIndexList,
+    split_dynamic_index_list,
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
@@ -79,6 +76,16 @@ from xdsl.traits import (
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+def _verify_memref_alloc_alignment(alignment: IntegerAttr | None) -> None:
+    if alignment is None:
+        return
+    v = alignment.value.data
+    if v <= 0:
+        raise VerifyException(f"Alignment attribute must be positive, got {v}")
+    if not is_power_of_two(v):
+        raise VerifyException(f"Alignment attribute {v} is not a power of 2")
 
 
 @irdl_op_definition
@@ -227,6 +234,7 @@ class AllocOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
     def print(self, printer: Printer):
         printer.print_string("(")
@@ -329,7 +337,11 @@ class AllocaOp(IRDLOperation):
 
     traits = traits_def(MemoryAllocEffect())
 
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+    irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
+
+    assembly_format = """
+    `(`$dynamic_sizes`)` (`` `[` $symbol_operands^ `]`)? attr-dict `:` type($memref)
+    """
 
     @staticmethod
     def get(
@@ -365,6 +377,7 @@ class AllocaOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
 
 @irdl_op_definition
@@ -473,6 +486,8 @@ class DimOp(IRDLOperation):
     result = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$source `,` $index attr-dict `:` type($source)"
 
     @staticmethod
     def from_source_and_index(
@@ -704,6 +719,98 @@ class SubviewOp(IRDLOperation):
         )
 
     @staticmethod
+    def infer_result_type(
+        source_type: MemRefType[Attribute],
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        *,
+        reduce_rank: bool = False,
+    ) -> MemRefType[Attribute]:
+        """
+        Infer the result type of a memref.subview from its source type and
+        offsets/sizes/strides.
+
+        Raises:
+            ValueError: If offsets, sizes, and strides do not match the source rank,
+                if the source layout is not strided-like, or if rank reduction is
+                requested with dynamic sizes.
+        """
+        rank = source_type.get_num_dims()
+        if not (len(offsets) == len(sizes) == len(strides) == rank):
+            raise ValueError(
+                "expected offsets, sizes, and strides to match source rank"
+            )
+
+        static_offsets = tuple(
+            value if isinstance(value, int) else None for value in offsets
+        )
+        static_sizes = tuple(
+            value if isinstance(value, int) else None for value in sizes
+        )
+        static_strides = tuple(
+            value if isinstance(value, int) else None for value in strides
+        )
+
+        source_strides = source_type.get_strides()
+        if source_strides is None:
+            raise ValueError(
+                "cannot infer memref.subview result type from non-strided "
+                f"source type {source_type}"
+            )
+        source_offset = source_type.get_offset()
+
+        result_shape = tuple(
+            DYNAMIC_INDEX if size is None else size for size in static_sizes
+        )
+
+        result_strides = tuple(
+            None
+            if source_stride is None or static_stride is None
+            else source_stride * static_stride
+            for source_stride, static_stride in zip(
+                source_strides, static_strides, strict=True
+            )
+        )
+
+        result_offset = source_offset
+        if result_offset is not None:
+            for static_offset, source_stride in zip(
+                static_offsets, source_strides, strict=True
+            ):
+                if static_offset == 0:
+                    continue
+                if static_offset is None or source_stride is None:
+                    result_offset = None
+                    break
+                result_offset += static_offset * source_stride
+
+        if reduce_rank:
+            if any(size is None for size in static_sizes):
+                raise ValueError(
+                    "cannot infer rank-reduced memref.subview result type with "
+                    "dynamic sizes"
+                )
+
+            reduced_shape: list[int] = []
+            reduced_strides: list[int | None] = []
+            for size, stride in zip(static_sizes, result_strides, strict=True):
+                assert size is not None
+                if size == 1:
+                    continue
+                reduced_shape.append(size)
+                reduced_strides.append(stride)
+            result_shape = tuple(reduced_shape)
+            result_strides = tuple(reduced_strides)
+
+        return MemRefType(
+            source_type.element_type,
+            result_shape,
+            StridedLayoutAttr(result_strides, result_offset),
+            source_type.memory_space,
+        )
+
+    @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
         source_type: MemRefType,
@@ -712,57 +819,30 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[int],
         reduce_rank: bool = False,
     ) -> SubviewOp:
+        """
+        Build a memref.subview from static offsets, sizes, and strides.
+
+        Raises:
+            ValueError: If offsets, sizes, and strides do not match the source rank,
+                if the source layout is not strided-like, or if rank reduction is
+                requested with dynamic sizes.
+        """
+
         source = SSAValue.get(source)
 
-        source_shape = source_type.get_shape()
-        source_offset = 0
-        source_strides = [1]
-        for input_size in reversed(source_shape[1:]):
-            source_strides.insert(0, source_strides[0] * input_size)
-        if isinstance(source_type.layout, StridedLayoutAttr):
-            if isinstance(source_type.layout.offset, IntAttr):
-                source_offset = source_type.layout.offset.data
-            if isa(source_type.layout.strides, ArrayAttr[IntAttr]):
-                source_strides = [s.data for s in source_type.layout.strides]
-
-        layout_strides = [a * b for (a, b) in zip(strides, source_strides)]
-
-        layout_offset = (
-            sum(stride * offset for stride, offset in zip(source_strides, offsets))
-            + source_offset
+        return_type = SubviewOp.infer_result_type(
+            source_type,
+            offsets,
+            sizes,
+            strides,
+            reduce_rank=reduce_rank,
         )
 
-        if reduce_rank:
-            composed_strides = layout_strides
-            layout_strides: list[int] = []
-            result_sizes: list[int] = []
-
-            for stride, size in zip(composed_strides, sizes):
-                if size == 1:
-                    continue
-                layout_strides.append(stride)
-                result_sizes.append(size)
-
-        else:
-            result_sizes = list(sizes)
-
-        layout = StridedLayoutAttr(layout_strides, layout_offset)
-
-        return_type = MemRefType(
-            source_type.element_type,
-            result_sizes,
-            layout,
-            source_type.memory_space,
-        )
-
-        return SubviewOp(
+        return SubviewOp.get(
             source,
-            (),
-            (),
-            (),
-            DenseArrayBase.from_list(i64, offsets),
-            DenseArrayBase.from_list(i64, sizes),
-            DenseArrayBase.from_list(i64, strides),
+            offsets,
+            sizes,
+            strides,
             return_type,
         )
 

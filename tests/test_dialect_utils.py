@@ -15,8 +15,8 @@ from xdsl.dialects.utils import (
     print_dynamic_index_list,
     print_empty_dimension_list_directive,
     split_dynamic_index_list,
+    verify_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer

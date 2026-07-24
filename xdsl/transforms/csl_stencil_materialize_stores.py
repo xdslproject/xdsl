@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import memref, scf
+from xdsl.dialects import csl_stencil, csl_wrapper, memref, scf
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.csl import csl_stencil, csl_wrapper
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -27,7 +26,8 @@ class MaterializeInApplyDest(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
         if not len(op.arguments) > 0:
             return
-        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
+        apply = op.parent_op()
+        assert isinstance(apply, csl_stencil.ApplyOp)
 
         if op.parent_region() != apply.done_exchange:
             return

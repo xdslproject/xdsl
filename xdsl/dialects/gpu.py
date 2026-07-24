@@ -157,7 +157,8 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(res_type := self.result.type, memref.MemRefType)
+        res_type = self.result.type
+        assert isinstance(res_type, memref.MemRefType)
         ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
@@ -550,7 +551,7 @@ class LaunchOp(IRDLOperation):
         args_type = self.body.blocks[0].arg_types
         if args_type != (IndexType(),) * 12:
             raise VerifyException(
-                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
+                f"Expected [12 x {IndexType()!s}], got {[str(t) for t in args_type]}. "
                 "gpu.launch's body arguments are 12 index arguments, with 3 block "
                 "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
             )
@@ -589,15 +590,15 @@ class LaunchFuncOp(IRDLOperation):
 
     name = "gpu.launch_func"
     asyncDependencies = var_operand_def(AsyncTokenType)
-    gridSizeX = operand_def(AnyOf((IndexType, i32, i64)))
-    gridSizeY = operand_def(AnyOf((IndexType, i32, i64)))
-    gridSizeZ = operand_def(AnyOf((IndexType, i32, i64)))
-    blockSizeX = operand_def(AnyOf((IndexType, i32, i64)))
-    blockSizeY = operand_def(AnyOf((IndexType, i32, i64)))
-    blockSizeZ = operand_def(AnyOf((IndexType, i32, i64)))
-    clusterSizeX = opt_operand_def(AnyOf((IndexType, i32, i64)))
-    clusterSizeY = opt_operand_def(AnyOf((IndexType, i32, i64)))
-    clusterSizeZ = opt_operand_def(AnyOf((IndexType, i32, i64)))
+    gridSizeX = operand_def(AnyOf.get(IndexType, i32, i64))
+    gridSizeY = operand_def(AnyOf.get(IndexType, i32, i64))
+    gridSizeZ = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeX = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeY = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeZ = operand_def(AnyOf.get(IndexType, i32, i64))
+    clusterSizeX = opt_operand_def(AnyOf.get(IndexType, i32, i64))
+    clusterSizeY = opt_operand_def(AnyOf.get(IndexType, i32, i64))
+    clusterSizeZ = opt_operand_def(AnyOf.get(IndexType, i32, i64))
     dynamicSharedMemorySize = opt_operand_def(i32)
     kernelOperands = var_operand_def()
     asyncObject = opt_operand_def()

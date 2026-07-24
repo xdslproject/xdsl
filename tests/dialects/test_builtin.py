@@ -1,5 +1,6 @@
 import math
 import re
+import struct
 from collections.abc import Sequence
 from io import StringIO
 
@@ -19,6 +20,8 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatNonfiniteBehavior,
+    FloatSemantics,
     IndexType,
     IntAttr,
     IntAttrConstraint,
@@ -26,6 +29,8 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     NoneAttr,
+    PackableType,
+    ReducedPrecisionFloatType,
     ShapedType,
     Signedness,
     StaticShapeArrayConstr,
@@ -38,6 +43,17 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     bf16,
+    f4E2M1FN,
+    f6E2M3FN,
+    f6E3M2FN,
+    f8E3M4,
+    f8E4M3,
+    f8E4M3B11FNUZ,
+    f8E4M3FN,
+    f8E4M3FNUZ,
+    f8E5M2,
+    f8E5M2FNUZ,
+    f8E8M0FNU,
     f16,
     f32,
     f64,
@@ -48,14 +64,16 @@ from xdsl.dialects.builtin import (
     i16,
     i32,
     i64,
+    tf32,
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
-    AnyInt,
+    AnyAttr,
     AtMost,
     BaseAttr,
     ConstraintContext,
     NotEqualIntConstraint,
+    ParamAttrConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -67,6 +85,61 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
+@pytest.mark.parametrize(
+    "e, m, s",
+    [
+        (5, 3, True),
+        (3, 0, True),
+        (0, 3, True),
+        (1, 3, True),
+        (5, 3, False),
+        (3, 0, False),
+        (0, 1, False),
+        (1, 7, False),
+    ],
+)
+def test_FloatSemantics_bitwidths(e: int, m: int, s: bool):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=12, has_sign=s)
+    expected = e + m + int(s)
+    assert fs.bitwidth == expected
+
+
+@pytest.mark.parametrize(
+    "e, m",
+    [
+        (5, 2),
+        (4, 3),
+        (2, 1),
+        (8, 0),
+        (0, 3),
+    ],
+)
+def test_FloatSemantics_field_layout_properties(e: int, m: int):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=0)
+    assert fs.max_exponent == (1 << e) - 1
+    assert fs.max_mantissa == (1 << m) - 1
+    assert fs.sign_shift == e + m
+
+
+@pytest.mark.parametrize(
+    "significand, shift, expected",
+    [
+        # shift <= 0 is a plain left shift, no rounding.
+        (5, 0, 5),
+        (3, -2, 12),
+        # Below the halfway point rounds down.
+        (5, 2, 1),
+        # Above the halfway point rounds up.
+        (7, 2, 2),
+        # Exact ties go to even: 2.5 -> 2, 3.5 -> 4.
+        (5, 1, 2),
+        (7, 1, 4),
+    ],
+)
+def test_FloatSemantics_round_half_even(significand: int, shift: int, expected: int):
+    assert FloatSemantics.round_half_even(significand, shift) == expected
+
+
 def test_FloatType_bitwidths():
     assert bf16.bitwidth == 16
     assert f16.bitwidth == 16
@@ -74,11 +147,25 @@ def test_FloatType_bitwidths():
     assert f64.bitwidth == 64
     assert f80.bitwidth == 80
     assert f128.bitwidth == 128
+    assert tf32.bitwidth == 19
+    assert f8E5M2.bitwidth == 8
+    assert f8E4M3.bitwidth == 8
+    assert f8E4M3FN.bitwidth == 8
+    assert f8E5M2FNUZ.bitwidth == 8
+    assert f8E4M3FNUZ.bitwidth == 8
+    assert f8E4M3B11FNUZ.bitwidth == 8
+    assert f8E3M4.bitwidth == 8
+    assert f8E8M0FNU.bitwidth == 8
+    assert f6E2M3FN.bitwidth == 6
+    assert f6E3M2FN.bitwidth == 6
+    assert f4E2M1FN.bitwidth == 4
 
 
 def test_FloatType_formats():
-    with pytest.raises(NotImplementedError):
-        bf16.format
+    # bf16 and the reduced-precision types implement PackableType directly, with no
+    # struct format string.
+    assert not hasattr(bf16, "format")
+    assert not hasattr(tf32, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -137,6 +224,232 @@ def test_FloatType_packing():
 
     pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
     assert pi == math.pi
+
+    # bf16 has no struct format code; pack/unpack are overridden directly.
+    bf16_buffer = bf16.pack(nums)
+    assert bf16.unpack(bf16_buffer, len(nums)) == nums
+
+
+@pytest.mark.parametrize(
+    "value, expected_raw",
+    [
+        (0.0, b"\x00\x00"),
+        (-0.0, b"\x00\x80"),
+        (1.0, b"\x80\x3f"),
+        (-1.0, b"\x80\xbf"),
+        (2.0, b"\x00\x40"),
+        (float("inf"), b"\x80\x7f"),
+        (float("-inf"), b"\x80\xff"),
+    ],
+)
+def test_bf16_pack_bit_patterns(value: float, expected_raw: bytes):
+    assert bf16.pack((value,)) == expected_raw
+    # Round-trip via struct so +0.0 and -0.0 stay distinguishable.
+    decoded = bf16.unpack(expected_raw, 1)[0]
+    assert struct.pack(">f", decoded) == struct.pack(">f", value)
+
+
+def test_bf16_pack_nan_stays_quiet():
+    raw = bf16.pack((float("nan"),))
+    bits = int.from_bytes(raw, "little")
+    assert (bits & 0x7F80) == 0x7F80  # exponent all-ones
+    assert (bits & 0x007F) != 0  # mantissa non-zero
+    assert bits & 0x0040  # quiet bit set
+
+
+def test_bf16_pack_rounds_to_nearest_even():
+    # Halfway between two bf16 values; ties go to even (mantissa LSB 0).
+    halfway = 1.0 + 2.0**-8
+    assert bf16.pack((halfway,)) == (0x3F80).to_bytes(2, "little")
+    just_above = 1.0 + 2.0**-8 + 2.0**-20
+    assert bf16.pack((just_above,)) == (0x3F81).to_bytes(2, "little")
+
+
+@pytest.mark.parametrize(
+    "value, type_, tolerance",
+    [
+        # f80/f128 have no precision-normalisation path (their format raises
+        # NotImplementedError); FloatAttr stores the float as-is.
+        (0.1, f80, None),
+        (0.1, f128, None),
+        # bf16 normalises through pack/unpack; 1.5 is exactly representable.
+        (1.5, bf16, None),
+        # 0.1 is not exactly representable in bf16; round-trip is within ULP.
+        (0.1, bf16, 2**-6),
+    ],
+)
+def test_FloatAttr_normalisation(
+    value: float, type_: AnyFloat, tolerance: float | None
+):
+    data = FloatAttr(value, type_).value.data
+    if tolerance is None:
+        assert data == value
+    else:
+        assert data != value
+        assert abs(data - value) < tolerance
+
+
+# (value, type, expected narrowed value): each `value` is not exactly
+# representable in the target type, so FloatAttr must round it to `expected`.
+_REDUCED_NARROWING = [
+    (0.1, tf32, 0.0999755859375),
+    (0.1, f8E5M2, 0.09375),
+    (0.1, f8E4M3, 0.1015625),
+    (0.1, f8E4M3FN, 0.1015625),
+    (0.1, f8E5M2FNUZ, 0.09375),
+    (0.1, f8E4M3FNUZ, 0.1015625),
+    (0.1, f8E4M3B11FNUZ, 0.1015625),
+    (0.1, f8E3M4, 0.09375),
+    # e8m0 has no mantissa; it snaps to the nearest power of two.
+    (3.0, f8E8M0FNU, 4.0),
+    (0.1, f6E2M3FN, 0.125),
+    (0.1, f6E3M2FN, 0.125),
+    (0.1, f4E2M1FN, 0.0),
+]
+
+
+@pytest.mark.parametrize("value, type_, expected", _REDUCED_NARROWING)
+def test_reduced_float_narrowing(value: float, type_: AnyFloat, expected: float):
+    data = FloatAttr(value, type_).value.data
+    assert data != value
+    assert data == expected
+
+
+# (type, representable value): `value` is exactly representable, so pack/unpack
+# must round-trip it bit-exactly.
+_REDUCED_REPRESENTABLE = [
+    (tf32, 1.5),
+    (f8E5M2, 1.5),
+    (f8E4M3, 1.25),
+    (f8E4M3FN, 1.25),
+    (f8E5M2FNUZ, 0.5),
+    (f8E4M3FNUZ, 1.25),
+    (f8E4M3B11FNUZ, 1.25),
+    (f8E3M4, 1.0625),
+    (f8E8M0FNU, 4.0),
+    (f6E2M3FN, 1.375),
+    (f6E3M2FN, 1.5),
+    (f4E2M1FN, 1.5),
+]
+
+
+@pytest.mark.parametrize("type_, value", _REDUCED_REPRESENTABLE)
+def test_reduced_float_packing(type_: AnyFloat, value: float):
+    packed = type_.pack((value,))
+    assert len(packed) == type_.size
+    assert type_.unpack(packed, 1)[0] == value
+
+
+@pytest.mark.parametrize(
+    "type_, value, expected_raw",
+    [
+        # tf32: 19 bits -> 3 little-endian bytes. 1.5 = sign 0, biased exp 127,
+        # mantissa 0x200 -> 0x1FE00, packed low byte first as 00 fe 01.
+        (tf32, 1.5, b"\x00\xfe\x01"),
+        # f4E2M1FN: 1.5 = 1.1b, sign 0, exp_field bias(1)+0, mantissa 1 -> 0b011.
+        (f4E2M1FN, 1.5, b"\x03"),
+        # f8E4M3: 1.0 = sign 0, exp_field bias(7), mantissa 0 -> 0b0111000 = 0x38.
+        (f8E4M3, 1.0, b"\x38"),
+        # f8E8M0FNU: 4.0 = 2**2, biased exponent 127+2 = 129 = 0x81.
+        (f8E8M0FNU, 4.0, b"\x81"),
+    ],
+)
+def test_reduced_float_pack_bit_patterns(
+    type_: AnyFloat, value: float, expected_raw: bytes
+):
+    assert type_.pack((value,)) == expected_raw
+    assert type_.unpack(expected_raw, 1)[0] == value
+
+
+def test_f8e8m0fnu_rejects_signed_values():
+    """f8E8M0FNU is unsigned: -0.0 encodes like +0.0, negative finite values are rejected."""
+    assert f8E8M0FNU.pack((-0.0,)) == f8E8M0FNU.pack((0.0,)) == b"\x00"
+    with pytest.raises(ValueError, match="does not support signed values"):
+        f8E8M0FNU.pack((-4.0,))
+
+
+@pytest.mark.parametrize("type_", [f64, bf16, tf32])
+def test_float_rejects_truncated_buffer(type_: AnyFloat):
+    """
+    The struct-based (f64) and manual (bf16, tf32) float codecs all reject a truncated
+    buffer identically.
+    """
+    packed = type_.pack((1.5, 2.0))
+    assert type_.unpack(packed, 2) == (1.5, 2.0)
+    truncated = packed[:-1]  # ends part-way through the final element
+    with pytest.raises(ValueError, match="Buffer length"):
+        next(type_.iter_unpack(truncated))
+    with pytest.raises(ValueError, match="Buffer length"):
+        type_.unpack(truncated, 2)
+
+
+_REDUCED_TYPES = (
+    tf32,
+    f8E5M2,
+    f8E4M3,
+    f8E4M3FN,
+    f8E5M2FNUZ,
+    f8E4M3FNUZ,
+    f8E4M3B11FNUZ,
+    f8E3M4,
+    f8E8M0FNU,
+    f6E2M3FN,
+    f6E3M2FN,
+    f4E2M1FN,
+)
+
+
+@pytest.mark.parametrize("type_", [t for t in _REDUCED_TYPES if t.bitwidth <= 8])
+def test_reduced_float_bit_pattern_roundtrip(type_: AnyFloat):
+    """Every bit pattern decodes, and every finite value re-encodes to the same bits."""
+    for pattern in range(1 << type_.bitwidth):
+        raw = pattern.to_bytes(type_.size, "little")
+        value = type_.unpack(raw, 1)[0]
+        if math.isnan(value) or math.isinf(value):
+            continue
+        assert type_.pack((value,)) == raw
+
+
+@pytest.mark.parametrize("type_", _REDUCED_TYPES)
+def test_reduced_float_encode_nonfinite(type_: ReducedPrecisionFloatType):
+    """Infinities, NaNs and overflowing magnitudes encode per the format's semantics."""
+    behavior = type_.SEMANTICS.nonfinite
+    for magnitude in (math.inf, -math.inf, 1e40):
+        result = type_.unpack(type_.pack((magnitude,)), 1)[0]
+        if behavior is FloatNonfiniteBehavior.IEEE:
+            assert math.isinf(result)
+        elif behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+            assert math.isfinite(result)  # saturates to the largest finite value
+        else:
+            assert math.isnan(result)
+    nan_result = type_.unpack(type_.pack((math.nan,)), 1)[0]
+    if behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+        assert math.isfinite(nan_result)
+    else:
+        assert math.isnan(nan_result)
+
+
+def test_reduced_float_encode_zero():
+    """Zero encodes to +0, honouring signed vs unsigned (FNUZ) zero."""
+    assert f8E5M2.pack((0.0,)) == b"\x00"
+    assert f8E5M2.pack((-0.0,)) == b"\x80"
+    assert f8E5M2FNUZ.pack((0.0,)) == b"\x00"
+    assert f8E5M2FNUZ.pack((-0.0,)) == b"\x00"  # FNUZ has no negative zero
+
+
+def test_reduced_float_codec_edge_cases():
+    assert f8E5M2.compile_time_size == 1
+    buffer = bytearray(2)
+    f8E5M2.pack_into(buffer, 1, 1.5)
+    assert bytes(buffer[1:]) == f8E5M2.pack((1.5,))
+    # a subnormal f64 input underflows to zero
+    assert f8E5M2.unpack(f8E5M2.pack((5e-324,)), 1)[0] == 0.0
+    # e8m0 has no subnormals; tiny magnitudes underflow to the smallest value
+    assert f8E8M0FNU.unpack(f8E8M0FNU.pack((1e-40,)), 1)[0] == 2.0**-127
+    # a subnormal that rounds up lands on the smallest normal
+    assert f8E5M2.unpack(f8E5M2.pack((0.95 * 2.0**-14,)), 1)[0] == 2.0**-14
+    # unpacking an empty buffer yields nothing
+    assert list(f8E5M2.iter_unpack(b"")) == []
 
 
 def test_IntegerType_size():
@@ -339,6 +652,22 @@ def test_IntegerType_packing():
     assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
 
+    # bf16
+    nums_bf16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_bf16 = bf16.pack(nums_bf16)
+    unpacked_bf16 = bf16.unpack(buffer_bf16, len(nums_bf16))
+    assert nums_bf16 == unpacked_bf16
+    attrs_bf16 = FloatAttr.unpack(bf16, buffer_bf16, len(nums_bf16))
+    assert attrs_bf16 == tuple(FloatAttr(n, bf16) for n in nums_bf16)
+    assert (
+        tuple(attr for attr in FloatAttr.iter_unpack(bf16, buffer_bf16)) == attrs_bf16
+    )
+    # pack_into mirrors pack for the same values.
+    pack_into_buffer = bytearray(2 * len(nums_bf16))
+    for i, n in enumerate(nums_bf16):
+        bf16.pack_into(pack_into_buffer, 2 * i, n)
+    assert bytes(pack_into_buffer) == buffer_bf16
+
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f16 = f16.pack(nums_f16)
@@ -405,6 +734,44 @@ def test_IntegerType_packing():
         tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
         == nums_complex_f32
     )
+
+
+@pytest.mark.parametrize("ftype", [f64, bf16, tf32])
+def test_packing_errors(ftype: PackableType[object]):
+    size = ftype.compile_time_size
+
+    data = ftype.pack((1, 2, 3))
+    len_data = len(data)
+    assert ftype.unpack(data, 3) == (1, 2, 3)
+
+    # Drop a byte
+    prefix = bytearray(data[:-1])
+    len_prefix = len(prefix)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not product of {ftype.name} element size {size} and num 2.",
+    ):
+        ftype.unpack(prefix, 2)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+    ):
+        ftype.iter_unpack(prefix)
+
+    # Only raise error if writing past the end.
+    ftype.pack_into(prefix, 0, 4)
+    assert next(ftype.iter_unpack(prefix[:size])) == 4
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"Buffer length {len_prefix} too small for packing {size} bytes at "
+            f"offset {size * 2}, expected at least {len_data}."
+        ),
+    ):
+        ftype.pack_into(prefix, size * 2, 4)
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -561,7 +928,7 @@ def test_tensor_constr():
     # int32 constraint with rank <= 3
     shape = ArrayOfConstraint(
         RangeLengthConstraint(
-            constraint=RangeOf(IntAttrConstraint(AnyInt())), length=AtMost(3)
+            constraint=RangeOf(IntAttrConstraint.get()), length=AtMost(3)
         )
     )
     constr = TensorType.constr(i32, shape)
@@ -835,6 +1202,20 @@ def test_strides():
     assert ShapedType.strides_for_shape((1,), factor=2) == (2,)
     assert ShapedType.strides_for_shape((2, 3)) == (3, 1)
     assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)
+    # Dynamic index
+    assert ShapedType.strides_for_shape((DYNAMIC_INDEX,)) == (1,)
+    assert ShapedType.strides_for_shape((DYNAMIC_INDEX, 3)) == (
+        3,
+        1,
+    )
+    assert ShapedType.strides_for_shape((2, DYNAMIC_INDEX)) == (
+        None,
+        1,
+    )
+    assert ShapedType.strides_for_shape((2, DYNAMIC_INDEX), factor=4) == (
+        None,
+        4,
+    )
 
 
 def test_integer_type_repr():
@@ -846,6 +1227,7 @@ def test_integer_type_repr():
 
 def test_vector_constr():
     constr = VectorType.constr(i32)
+    assert constr == ParamAttrConstraint.get(VectorType, i32, AnyAttr(), AnyAttr())
     constr.verify(VectorType(i32, [1]), ConstraintContext())
     constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
     with pytest.raises(VerifyException):
@@ -858,6 +1240,7 @@ def test_vector_constr():
         shape=shape,
         scalable_dims=scalable_dims,
     )
+    assert constr == ParamAttrConstraint.get(VectorType, i32, shape, scalable_dims)
     constr.verify(VectorType(i32, shape, scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())

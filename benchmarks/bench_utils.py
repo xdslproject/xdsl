@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Utilities for profiling ASV benchmarks with a variety of tools."""
+"""Utilities for running and profiling xDSL benchmarks."""
 
 import cProfile
 import subprocess
+import sys
 import time
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
+from typing_extensions import TypeVar
+
 from benchmarks.warmed_timeit import warmed_timeit
+
+_BenchmarkMethodT = TypeVar("_BenchmarkMethodT", bound=Callable[..., Any])
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
@@ -23,11 +28,62 @@ PROFILERS = (
 )
 
 
-class Benchmark(NamedTuple):
+class BenchmarkClass:
+    """
+    Base class for benchmark suites that share setup state.
+
+    Inherit this when a ``setup`` method prepares state that timed methods may
+    consume or mutate between calls. For airspeed velocity, this sets
+    ``number=1`` and ``warmup_time=0`` so each sample runs the timed function
+    once per ``setup``.
+
+    For methods that are safe to call repeatedly per ``setup`` without changing
+    what is measured, use :func:`safe_to_repeat` for a more accurate measurement.
+
+    See https://asv.readthedocs.io/en/latest/benchmarks.html#timing-benchmarks.
+    """
+
+    number = 1
+    warmup_time = 0
+
+
+def safe_to_repeat(benchmark: _BenchmarkMethodT) -> _BenchmarkMethodT:
+    """
+    Mark a benchmark as safe to time with repeated calls per setup.
+
+    Use on ``time_*`` functions or methods that do not consume or mutate state
+    prepared in ``setup``. For airspeed velocity, this sets ``number=0`` and
+    ``warmup_time=-1`` (platform default warmup) so ASV can calibrate how many
+    calls to batch per sample.
+
+    Standalone functions do not inherit :class:`BenchmarkClass`; apply this
+    decorator when repeated calls are equivalent, or set ``number`` and
+    ``warmup_time`` on the function for single-shot timing.
+    """
+    setattr(benchmark, "number", 0)
+    setattr(benchmark, "warmup_time", -1)
+    return benchmark
+
+
+class BenchmarkFunction(NamedTuple):
     """A wrapper for a benchmark function with optional setup funtion."""
 
     body: Callable[[], Any]
     setup: Callable[[], Any] | None = None
+
+
+def benchmark_root_directory() -> Path:
+    """
+    Resolve the path for this test fixture.
+
+    Prefer the ASV per-commit checkout (<env>/project) so benchmark inputs match
+    the commit under test, and fall back to the benchmark checkout for local runs.
+    """
+    asv_project_path = Path(sys.executable).parents[1] / "project"
+    asv_file = asv_project_path
+    if asv_file.exists():
+        return asv_file
+    return Path(__file__).parents[1]
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -62,8 +118,8 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
 
 def get_benchmark_runs(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
-) -> list[tuple[str, Benchmark]]:
+    benchmarks: dict[str, BenchmarkFunction],
+) -> list[tuple[str, BenchmarkFunction]]:
     """Get the benchmark to profile."""
     if args.test == "all":
         return list(benchmarks.items())
@@ -75,7 +131,7 @@ def get_benchmark_runs(
 
 def run_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
     warmup: bool = False,
 ) -> None:
     """Directly run a benchmark."""
@@ -94,7 +150,7 @@ def run_benchmark(
 
 def timeit_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
 ) -> None:
     """Use a custom function based on timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -105,7 +161,7 @@ def timeit_benchmark(
 
 def cprofile_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
     warmup: bool = False,
 ) -> Path:
     """Use cProfile to profile a benchmark."""
@@ -130,7 +186,7 @@ def cprofile_benchmark(
 
 def viztracer_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
     warmup: bool = True,
     duration: float | None = 0,
 ) -> Path:
@@ -172,7 +228,7 @@ def viztracer_benchmark(
 
 def pyinstrument_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
     warmup: bool = True,
 ) -> Path:
     """Use pyinstrument to profile a benchmark."""
@@ -199,7 +255,7 @@ def pyinstrument_benchmark(
 
 def dis_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
 ):
     """Use dis to disassemble a benchmark."""
     from bytesight import profile_bytecode
@@ -225,11 +281,11 @@ def show(
     if options is None:
         options = cast(tuple[str], ())
     command = ["uv", "run", tool, output_prof, *options]
-    subprocess.run(command, check=True)  # noqa: S603
+    subprocess.run(command, check=True)
 
 
 def profile(
-    benchmarks: dict[str, Benchmark],
+    benchmarks: dict[str, BenchmarkFunction],
     argv: list[str] | None = None,
 ) -> None:
     """Run the selected profiler."""

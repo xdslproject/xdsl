@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt --print-op-generic %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 // CHECK-LABEL: @insert_const_idx
 func.func @insert_const_idx(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>,

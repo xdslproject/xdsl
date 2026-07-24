@@ -52,7 +52,7 @@ riscv_func.func @main() {
 // CHECK-SMALL-FLEN-SAME: (!riscv.reg<sp>) -> !riscv.reg<sp>
 
 // CHECK: func @simple
-riscv_func.func @simple(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) -> !riscv.reg<a0> {
+riscv_func.func @simple(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) -> !riscv.reg<a0> {
   // CHECK-NOT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
   // CHECK-NOT: %{{.*}} = riscv.addi %{{.*}}, 0 : (!riscv.reg<sp>) -> !riscv.reg<sp>
 
@@ -73,7 +73,7 @@ riscv_func.func @simple(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) -> !riscv.reg<
 }
 
 // CHECK: func @simplefp
-riscv_func.func @simplefp(%0 : !riscv.freg<fa0>, %1 : !riscv.freg<fa1>) -> !riscv.freg<fa0> {
+riscv_func.func @simplefp(%0: !riscv.freg<fa0>, %1: !riscv.freg<fa1>) -> !riscv.freg<fa0> {
   // CHECK-NOT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
   // CHECK-NOT: %{{.*}} = riscv.addi %{{.*}}, 0 : (!riscv.reg<sp>) -> !riscv.reg<sp>
 

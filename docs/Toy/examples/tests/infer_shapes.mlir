@@ -1,4 +1,4 @@
-// RUN: python -m toy %s --emit=shape-inference --ir | filecheck %s
+// RUN: toyc %s --emit=shape-inference --ir | filecheck %s
 
 "builtin.module"() ({
   "toy.func"() ({

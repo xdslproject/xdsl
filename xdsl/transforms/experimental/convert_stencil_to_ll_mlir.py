@@ -176,7 +176,7 @@ class ReturnOpToMemRef(RewritePattern):
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * n_dims))
+                unroll = IndexAttr.from_indices(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
@@ -184,7 +184,7 @@ class ReturnOpToMemRef(RewritePattern):
                     IndexOp(
                         attributes={
                             "dim": builtin.IntegerAttr.from_index_int_value(i),
-                            "offset": IndexAttr.get(*([0] * n_dims)),
+                            "offset": IndexAttr.from_indices(*([0] * n_dims)),
                         },
                         result_types=[builtin.IndexType()],
                     )
@@ -342,8 +342,10 @@ class BufferOpToMemRef(RewritePattern):
 
 
 def field_subview(field: SSAValue):
-    assert isa(field_type := field.type, FieldType[Attribute])
-    assert isinstance(bounds := field_type.bounds, StencilBoundsAttr)
+    field_type = field.type
+    assert isa(field_type, FieldType[Attribute])
+    bounds = field_type.bounds
+    assert isinstance(bounds, StencilBoundsAttr)
     offsets = [i for i in -bounds.lb]
     sizes = [i for i in field_type.get_shape()]
     strides = [1] * len(sizes)
@@ -490,7 +492,9 @@ class AccessOpToMemRef(RewritePattern):
             IndexOp(
                 attributes={
                     "dim": builtin.IntegerAttr.from_index_int_value(i),
-                    "offset": IndexAttr.get(*([0] * op.get_apply().get_rank())),
+                    "offset": IndexAttr.from_indices(
+                        *([0] * op.get_apply().get_rank())
+                    ),
                 },
                 result_types=[builtin.IndexType()],
             )

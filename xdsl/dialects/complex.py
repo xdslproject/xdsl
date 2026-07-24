@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import abc
+import math
 from collections.abc import Sequence
 from typing import ClassVar, Generic, cast
 
 from typing_extensions import TypeVar
 
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -47,7 +51,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import Commutative, ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -176,7 +180,7 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
             )
 
 
-class ComplexBinaryOp(IRDLOperation, abc.ABC):
+class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
     """Base class for binary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
@@ -204,6 +208,36 @@ class ComplexBinaryOp(IRDLOperation, abc.ABC):
             properties={"fastmath": fastmath},
         )
 
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an tuple[float, float], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
+
+    def fold(self) -> tuple[ArrayAttr[FloatAttr[AnyFloat]]] | None:
+        lhs = ConstantLike.get_constant_value(self.lhs)
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        if (
+            lhs is not None
+            and rhs is not None
+            and isa(lhs, ArrayAttr[FloatAttr])
+            and isa(rhs, ArrayAttr[FloatAttr])
+        ):
+            assert lhs.data[0].type == rhs.data[0].type
+            assert lhs.data[1].type == rhs.data[1].type
+            re_lhs, im_lhs = lhs.data[0].value.data, lhs.data[1].value.data
+            re_rhs, im_rhs = rhs.data[0].value.data, rhs.data[1].value.data
+            res = self.py_operation((re_lhs, im_lhs), (re_rhs, im_rhs))
+            if res is not None:
+                type = lhs.data[0].type
+                return (ArrayAttr([FloatAttr(res[0], type), FloatAttr(res[1], type)]),)
+
 
 class ComplexCompareOp(IRDLOperation, abc.ABC):
     """Base class for comparison operations on complex numbers."""
@@ -229,6 +263,19 @@ class AbsOp(ComplexUnaryRealResultOperation):
 @irdl_op_definition
 class AddOp(ComplexBinaryOp):
     name = "complex.add"
+
+    traits = traits_def(Pure(), Commutative())
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        return (lhs[0] + rhs[0], lhs[1] + rhs[1])
 
 
 @irdl_op_definition
@@ -298,11 +345,9 @@ class ConstantOp(IRDLOperation, HasFolderInterface):
     value = prop_def(
         ArrayOfConstraint(
             RangeOf(
-                AnyOf(
-                    [
-                        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
-                        ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
-                    ]
+                AnyOf.get(
+                    ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
+                    ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
                 )
             ).of_length(EqIntConstraint(2))
         )
@@ -367,6 +412,33 @@ class CreateOp(IRDLOperation):
 class DivOp(ComplexBinaryOp):
     name = "complex.div"
 
+    traits = traits_def(
+        Pure(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
+        # 0.0 == -0.0 -> True
+        if re_rhs == 0.0 and im_rhs == 0.0:
+            inf = float("inf")
+            if re_lhs == 0.0:
+                real = float("nan")
+            else:
+                real = math.copysign(inf, re_lhs) / math.copysign(1.0, re_rhs)
+            if im_lhs == 0.0:
+                imag = float("nan")
+            else:
+                # Positive infinity if signs match, negative otherwise
+                imag = math.copysign(inf, im_lhs) / math.copysign(1.0, im_rhs)
+        else:
+            real = (re_lhs * re_rhs + im_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+            imag = (im_lhs * re_rhs - re_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+        return (real, imag)
+
 
 @irdl_op_definition
 class EqualOp(ComplexCompareOp):
@@ -401,6 +473,19 @@ class Log1pOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class MulOp(ComplexBinaryOp):
     name = "complex.mul"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
+        return (re_lhs * re_rhs - im_lhs * im_rhs, re_lhs * im_rhs + im_lhs * re_rhs)
 
 
 @irdl_op_definition
@@ -447,6 +532,16 @@ class SqrtOp(ComplexUnaryComplexResultOperation):
 class SubOp(ComplexBinaryOp):
     name = "complex.sub"
 
+    traits = traits_def(
+        Pure(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        return (lhs[0] - rhs[0], lhs[1] - rhs[1])
+
 
 @irdl_op_definition
 class TanOp(ComplexUnaryComplexResultOperation):
@@ -456,6 +551,11 @@ class TanOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class TanhOp(ComplexUnaryComplexResultOperation):
     name = "complex.tanh"
+
+
+class ComplexConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return ConstantOp.build(properties={"value": value}, result_types=(type,))
 
 
 Complex = Dialect(
@@ -492,5 +592,8 @@ Complex = Dialect(
     ],
     [
         ComplexNumberAttr,
+    ],
+    [
+        ComplexConstantMaterializationInterface(),
     ],
 )

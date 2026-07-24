@@ -159,9 +159,3 @@ def compile(program: str) -> str:
     riscv.print_assembly(op, io)
 
     return io.getvalue()
-
-
-def emulate_riscv(program: str):
-    from xdsl.interpreters.riscv_emulator import run_riscv
-
-    run_riscv(program, unlimited_regs=True, verbosity=0)

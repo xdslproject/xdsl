@@ -82,7 +82,7 @@ def test_callback():
     # xdsl-opt pattern.mlir -p eqsat-pdl-to-pdl-interp
     module_str = """
 builtin.module {
-  pdl_interp.func @matcher(%0 : !pdl.operation) {
+  pdl_interp.func @matcher(%0: !pdl.operation) {
     pdl_interp.check_operation_name of %0 is "arith.addf" -> ^bb0, ^bb1
   ^bb1:
     eqsat_pdl_interp.finalize
@@ -220,7 +220,7 @@ builtin.module {
     eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_3(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
   }
   builtin.module @rewriters {
-    pdl_interp.func @pdl_generated_rewriter(%0 : !pdl.operation) {
+    pdl_interp.func @pdl_generated_rewriter(%0: !pdl.operation) {
       %1 = pdl_interp.create_attribute 2.000000e+00 : f32
       %2 = pdl_interp.create_type f32
       %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
@@ -228,7 +228,7 @@ builtin.module {
       eqsat_pdl_interp.replace %0 with (%4 : !pdl.range<value>)
       eqsat_pdl_interp.finalize
     }
-    pdl_interp.func @pdl_generated_rewriter_2(%0 : !pdl.operation) {
+    pdl_interp.func @pdl_generated_rewriter_2(%0: !pdl.operation) {
       %1 = pdl_interp.create_attribute 3.000000e+00 : f32
       %2 = pdl_interp.create_type f32
       %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
@@ -236,7 +236,7 @@ builtin.module {
       eqsat_pdl_interp.replace %0 with (%4 : !pdl.range<value>)
       eqsat_pdl_interp.finalize
     }
-    pdl_interp.func @pdl_generated_rewriter_3(%0 : !pdl.operation) {
+    pdl_interp.func @pdl_generated_rewriter_3(%0: !pdl.operation) {
       %1 = pdl_interp.create_attribute 4.000000e+00 : f32
       %2 = pdl_interp.create_type f32
       %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
