@@ -99,7 +99,7 @@ func.func public @relu(%arg0: memref<16x16xf64>, %arg1: memref<16x16xf64>) -> me
 // CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
 // CHECK-NEXT:        ]
 // CHECK-NEXT:      } ins(%arg0 : memref<16x16xf64>) outs(%arg1 : memref<16x16xf64>) {
-// CHECK-NEXT:      ^bb0(%0: !memref_stream.readable<f64>, %1: !memref_stream.writable<f64>):
+// CHECK-NEXT:      ^bb0(%arg0_stream: !memref_stream.readable<f64>, %arg1_stream: !memref_stream.writable<f64>):
 // CHECK-NEXT:        memref_stream.generic {
 // CHECK-NEXT:          bounds = [16, 16],
 // CHECK-NEXT:          indexing_maps = [
@@ -107,10 +107,10 @@ func.func public @relu(%arg0: memref<16x16xf64>, %arg1: memref<16x16xf64>) -> me
 // CHECK-NEXT:            affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel"]
-// CHECK-NEXT:        } ins(%0 : !memref_stream.readable<f64>) outs(%1 : !memref_stream.writable<f64>) {
+// CHECK-NEXT:        } ins(%arg0_stream : !memref_stream.readable<f64>) outs(%arg1_stream : !memref_stream.writable<f64>) {
 // CHECK-NEXT:        ^bb1(%in: f64, %out: f64):
-// CHECK-NEXT:          %2 = arith.maximumf %in, %cst : f64
-// CHECK-NEXT:          memref_stream.yield %2 : f64
+// CHECK-NEXT:          %0 = arith.maximumf %in, %cst : f64
+// CHECK-NEXT:          memref_stream.yield %0 : f64
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:      func.return %arg1 : memref<16x16xf64>
@@ -411,7 +411,7 @@ func.func public @ssum(
 // CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, (d1 * 2))>
 // CHECK-NEXT:        ]
 // CHECK-NEXT:      } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
-// CHECK-NEXT:      ^bb0(%0: !memref_stream.readable<vector<2xf32>>, %1: !memref_stream.readable<vector<2xf32>>, %2: !memref_stream.writable<vector<2xf32>>):
+// CHECK-NEXT:      ^bb0(%X_stream: !memref_stream.readable<vector<2xf32>>, %Y_stream: !memref_stream.readable<vector<2xf32>>, %Z_stream: !memref_stream.writable<vector<2xf32>>):
 // CHECK-NEXT:        memref_stream.generic {
 // CHECK-NEXT:          bounds = [8, 8],
 // CHECK-NEXT:          indexing_maps = [
@@ -420,10 +420,10 @@ func.func public @ssum(
 // CHECK-NEXT:            affine_map<(d0, d1) -> (d0, (d1 * 2))>
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel"]
-// CHECK-NEXT:        } ins(%0, %1 : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%2 : !memref_stream.writable<vector<2xf32>>) {
+// CHECK-NEXT:        } ins(%X_stream, %Y_stream : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%Z_stream : !memref_stream.writable<vector<2xf32>>) {
 // CHECK-NEXT:        ^bb1(%in: vector<2xf32>, %in_1: vector<2xf32>, %out: vector<2xf32>):
-// CHECK-NEXT:          %3 = arith.addf %in, %in_1 : vector<2xf32>
-// CHECK-NEXT:          memref_stream.yield %3 : vector<2xf32>
+// CHECK-NEXT:          %0 = arith.addf %in, %in_1 : vector<2xf32>
+// CHECK-NEXT:          memref_stream.yield %0 : vector<2xf32>
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:      func.return

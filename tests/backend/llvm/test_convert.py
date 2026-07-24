@@ -1,17 +1,23 @@
 import pytest
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    StringAttr,
+    i32,
+)
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 
 ir = pytest.importorskip("llvmlite.ir")
+from llvmlite import binding  # noqa: E402
+
 from xdsl.backend.llvm.convert import convert_module  # noqa: E402
 
 
 def test_convert_empty_module():
     module = ModuleOp([])
-    llvm_module = convert_module(module)
+    llvm_module = convert_module(module, fallback_target_triple=None)
     assert isinstance(llvm_module, ir.Module)
     assert llvm_module.name == ""
 
@@ -23,22 +29,49 @@ def test_convert_module_with_op_raises():
     with pytest.raises(
         NotImplementedError, match="Conversion not implemented for op: test.op"
     ):
-        convert_module(module)
+        convert_module(module, fallback_target_triple=None)
 
 
-def test_convert_module_target_triple():
-    module = ModuleOp([])
+@pytest.mark.parametrize(
+    "module_triple,fallback_triple,expected",
+    [
+        # neither the module nor the call specifies a triple: host default is used
+        (None, None, binding.get_default_triple()),
+        # only the call specifies a fallback triple
+        (None, "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
+        # only the module specifies a triple
+        ("aarch64-unknown-linux-gnu", None, "aarch64-unknown-linux-gnu"),
+        # both specify a triple: the module attribute takes precedence over the
+        # fallback passed by the caller
+        (
+            "aarch64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+        ),
+    ],
+)
+def test_convert_module_target_triple(
+    module_triple: str | None, fallback_triple: str | None, expected: str
+):
+    attributes = (
+        {"llvm.target_triple": StringAttr(module_triple)}
+        if module_triple is not None
+        else None
+    )
+    module = ModuleOp([], attributes)
 
-    llvm_module = convert_module(module, target_triple="x86_64-unknown-linux-gnu")
+    llvm_module = convert_module(module, fallback_target_triple=fallback_triple)
 
-    assert llvm_module.triple == "x86_64-unknown-linux-gnu"
+    assert llvm_module.triple == expected
 
 
 def test_convert_module_data_layout():
     module = ModuleOp([])
 
     llvm_module = convert_module(
-        module, data_layout="e-m:e-p270:32:32-p271:32:32-p272:64:64"
+        module,
+        fallback_target_triple=None,
+        data_layout="e-m:e-p270:32:32-p271:32:32-p272:64:64",
     )
 
     assert llvm_module.data_layout == "e-m:e-p270:32:32-p271:32:32-p272:64:64"
@@ -49,7 +82,7 @@ def test_convert_module_target_config_combined():
 
     llvm_module = convert_module(
         module,
-        target_triple="x86_64-unknown-linux-gnu",
+        fallback_target_triple="x86_64-unknown-linux-gnu",
         data_layout="e-m:e-p270:32:32-p271:32:32-p272:64:64",
     )
 
@@ -63,7 +96,7 @@ def test_convert_module_declaration():
     func = llvm.FuncOp("my_decl", ft)
     module = ModuleOp([func])
 
-    llvm_module = convert_module(module)
+    llvm_module = convert_module(module, fallback_target_triple=None)
     fn = llvm_module.get_global("my_decl")
     assert fn is not None
     assert not fn.basic_blocks
@@ -93,7 +126,7 @@ def test_convert_module_forward_reference():
 
     # caller defined before callee
     module = ModuleOp([caller, callee])
-    llvm_module = convert_module(module)
+    llvm_module = convert_module(module, fallback_target_triple=None)
 
     caller_fn = llvm_module.get_global("caller")
     callee_fn = llvm_module.get_global("callee")

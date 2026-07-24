@@ -67,8 +67,10 @@ NEW_MARIMO_NOTEBOOK_NAMES = [
     "pdl.py",
 ]
 
+MARIMO_NOTEBOOKS_DOCS_DIR = docs_root / "notebooks"
+
 NEW_MARIMO_NOTEBOOKS = [
-    docs_root / "marimo" / name for name in NEW_MARIMO_NOTEBOOK_NAMES
+    MARIMO_NOTEBOOKS_DOCS_DIR / name for name in NEW_MARIMO_NOTEBOOK_NAMES
 ]
 """
 Notebooks expected to be run inline in mkdocs-marimo.
@@ -83,7 +85,7 @@ def gen_marimo_old():
         encoded_code = LZString.compress_to_encoded_URI_component(code)
         return f"https://marimo.app/?embed=true&show-chrome=false#code/{encoded_code}"
 
-    for path in sorted((docs_root / "marimo").rglob("*.py")):
+    for path in sorted(MARIMO_NOTEBOOKS_DOCS_DIR.rglob("*.py")):
         if path in NEW_MARIMO_NOTEBOOKS:
             continue
         doc_path = path.relative_to(docs_root).with_suffix(".html")
@@ -165,7 +167,7 @@ def gen_marimo_new_marimo():
             index_html_path = temp_path / "index.html"
             if index_html_path.exists():
                 with mkdocs_gen_files.open(
-                    f"marimo/html/{notebook_name}/index.html", "w"
+                    f"notebooks/html/{notebook_name}/index.html", "w"
                 ) as fd:
                     fd.write(index_html_path.read_text())
 
@@ -176,7 +178,7 @@ def gen_marimo_new_marimo():
                     if asset_file.is_file():
                         relative_path = asset_file.relative_to(temp_path)
                         with mkdocs_gen_files.open(
-                            f"marimo/html/{notebook_name}/{relative_path}", "wb"
+                            f"notebooks/html/{notebook_name}/{relative_path}", "wb"
                         ) as fd:
                             fd.write(asset_file.read_bytes())
 
@@ -184,7 +186,7 @@ def gen_marimo_new_marimo():
             for file_path in temp_path.glob("*"):
                 if file_path.is_file() and file_path.name != "index.html":
                     with mkdocs_gen_files.open(
-                        f"marimo/html/{notebook_name}/{file_path.name}", "wb"
+                        f"notebooks/html/{notebook_name}/{file_path.name}", "wb"
                     ) as fd:
                         fd.write(file_path.read_bytes())
 
@@ -222,10 +224,10 @@ gen_marimo_old()
 gen_marimo_new_marimo()
 
 # Replace links in the marimo README
-with open("docs/marimo/README.md") as rf:
+with open(MARIMO_NOTEBOOKS_DOCS_DIR / "README.md") as rf:
     marimo_readme = rf.read()
 
-with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
+with mkdocs_gen_files.open("notebooks/index.md", "w") as fd:
     for name in NEW_MARIMO_NOTEBOOK_NAMES:
         # Replace occurrences of notebook names in NEW_MARIMO_NOTEBOOK_NAMES with
         # readonly html versions.

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from xdsl.backend.riscv.lowering.utils import cast_op_results
-from xdsl.backend.x86.lowering.helpers import Arch
+from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import asm, builtin, scf, x86_scf
 from xdsl.ir import Block
@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 
 
-def cast_block_args_to_regs(block: Block, arch: Arch, rewriter: PatternRewriter):
+def cast_block_args_to_regs(block: Block, arch: X86Arch, rewriter: PatternRewriter):
     """
     Change the type of the block arguments to registers and add cast operations just after
     the block entry.
@@ -40,7 +40,7 @@ def cast_block_args_to_regs(block: Block, arch: Arch, rewriter: PatternRewriter)
 
 @dataclass
 class ScfForLowering(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
@@ -74,7 +74,7 @@ class ScfForLowering(RewritePattern):
 
 @dataclass
 class ScfYieldLowering(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
@@ -90,7 +90,7 @@ class ConvertScfToX86ScfPass(ModulePass):
     arch: str = field(default="unknown")
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        arch = Arch.arch_for_name(self.arch)
+        arch = X86Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

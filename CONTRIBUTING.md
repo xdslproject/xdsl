@@ -48,6 +48,7 @@ are opt-in and require explicit paths to upstream tools:
 - `XDSL_MLIR_OPT` — path to `mlir-opt`
 - `XDSL_MLIR_TRANSLATE` — path to `mlir-translate`
 - `XDSL_LLVM_DIFF` — path to `llvm-diff`
+- `XDSL_LLI` - path to `lli`
 
 If you use **Nix**, `nix develop` sets these automatically via the flake
 `shellHook` — no extra configuration is needed.

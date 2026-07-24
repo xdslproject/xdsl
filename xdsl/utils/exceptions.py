@@ -1,4 +1,5 @@
-"""Custom xDSL exceptions.
+"""
+Custom xDSL exceptions.
 
 This module contains all custom exceptions used by xDSL.
 """
@@ -145,9 +146,7 @@ class ArgSpecParseError(BaseException):
         )
 
 
-class LLVMTranslationException(Exception):
+class LLVMTranslationException(DiagnosticException):
     """
     Exception raised during LLVM translation.
     """
-
-    pass

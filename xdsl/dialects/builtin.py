@@ -6,11 +6,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -557,7 +558,7 @@ class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
     @abstractmethod
     def compile_time_size(self) -> int:
         """
-        Contiguous memory footprint of the value during compilation.
+        Contiguous memory footprint in bytes of the value during compilation.
         """
         raise NotImplementedError()
 
@@ -597,6 +598,9 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
         """
         Yields unpacked values one at a time, starting at the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer)` is not divisible by
+        `self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -604,6 +608,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         """
         Unpack `num` values from the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer) != num * self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -611,6 +617,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
         """
         Pack a value at a given offset into a buffer.
+
+        Raises `ValueError` if `len(buffer) < offset + self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -639,14 +647,48 @@ class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
         raise NotImplementedError()
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
-        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        try:
+            return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size % compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not multiple of {self.name} element "
+                    f"size {compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         fmt = self.format[0] + str(num) + self.format[1:]
-        return struct.unpack(fmt, buffer)
+        try:
+            return struct.unpack(fmt, buffer)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size != num * compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not product of {self.name} element "
+                    f"size {compile_time_size} and num {num}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
-        struct.pack_into(self.format, buffer, offset, value)
+        try:
+            struct.pack_into(self.format, buffer, offset, value)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size < offset + compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} too small for packing "
+                    f"{compile_time_size} bytes at offset {offset}, expected at least "
+                    f"{offset + compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack(self, values: Sequence[_PyT]) -> bytes:
         fmt = self.format[0] + str(len(values)) + self.format[1:]
@@ -1146,6 +1188,318 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
         printer.print_string(self.name)
 
 
+class FloatNonfiniteBehavior(Enum):
+    """
+    How a reduced-precision float format represents infinities and NaNs.
+
+    Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
+    """
+
+    IEEE = auto()
+    """The all-ones exponent encodes infinities (zero mantissa) and NaNs."""
+    NAN_ONLY = auto()
+    """No infinities; a NaN is present (see `FloatNanEncoding`)."""
+    FINITE_ONLY = auto()
+    """No infinities or NaNs; overflow saturates to the largest finite value."""
+
+
+class FloatNanEncoding(Enum):
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
+
+    IEEE = auto()
+    """All-ones exponent with a non-zero mantissa."""
+    ALL_ONES = auto()
+    """All-ones exponent and mantissa."""
+    NEGATIVE_ZERO = auto()
+    """The sign-bit-only pattern; the format has no negative zero."""
+
+
+@dataclass(frozen=True)
+class FloatSemantics:
+    """
+    The parameters that fully define a reduced-precision float format.
+
+    Modelled on LLVM's `fltSemantics`.
+    """
+
+    exponent_bits: int
+    mantissa_bits: int
+    exponent_bias: int
+    nonfinite: FloatNonfiniteBehavior = FloatNonfiniteBehavior.IEEE
+    nan_encoding: FloatNanEncoding = FloatNanEncoding.IEEE
+    has_zero: bool = True
+    has_sign: bool = True
+
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
+    @property
+    def max_exponent(self) -> int:
+        """The all-ones exponent field."""
+        return (1 << self.exponent_bits) - 1
+
+    @property
+    def max_mantissa(self) -> int:
+        """The all-ones mantissa field."""
+        return (1 << self.mantissa_bits) - 1
+
+    @property
+    def sign_shift(self) -> int:
+        """Bit position of the sign bit."""
+        return self.exponent_bits + self.mantissa_bits
+
+    @staticmethod
+    def round_half_even(significand: int, shift: int) -> int:
+        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
+        if shift <= 0:
+            return significand << (-shift)
+        quotient = significand >> shift
+        dropped = significand & ((1 << shift) - 1)
+        halfway = 1 << (shift - 1)
+        if dropped > halfway or (dropped == halfway and quotient & 1):
+            quotient += 1
+        return quotient
+
+
+class ReducedPrecisionFloatType(_FloatType, PackableType[float], ABC):
+    """
+    Base for reduced-precision float types, described by a `FloatSemantics`.
+
+    Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
+    special-value handling is shared here and parameterised by that `FloatSemantics`.
+    """
+
+    SEMANTICS: ClassVar[FloatSemantics]
+
+    @property
+    def bitwidth(self) -> int:
+        return self.SEMANTICS.bitwidth
+
+    @property
+    def compile_time_size(self) -> int:
+        return self.size
+
+    @staticmethod
+    def decode_significand_power(magnitude: float) -> tuple[int, int]:
+        """Return `(significand, power)` with `magnitude == significand * 2**power`, exact for positive finite floats."""
+        bits = struct.unpack("<Q", struct.pack("<d", magnitude))[0]
+        biased_exponent = (bits >> 52) & 0x7FF
+        fraction = bits & ((1 << 52) - 1)
+        if biased_exponent:
+            return fraction | (1 << 52), biased_exponent - 1075
+        return fraction, -1074
+
+    def _decode_special(
+        self, negative: bool, biased_exponent: int, mantissa: int
+    ) -> float | None:
+        """Value of a reserved infinity/NaN pattern, or None if the pattern is finite."""
+        semantics = self.SEMANTICS
+        match semantics:
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.FINITE_ONLY):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if (
+                biased_exponent != semantics.max_exponent
+            ):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if mantissa:
+                return math.nan
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if negative:
+                return -math.inf
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE):
+                return math.inf
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES) if (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            ):
+                return math.nan
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES):
+                return None
+            case _ if negative and biased_exponent == 0 and mantissa == 0:
+                return math.nan
+            case _:
+                return None
+
+    def decode_bits(self, bits: int) -> float:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        negative = bool(semantics.has_sign and (bits >> semantics.sign_shift) & 1)
+        biased_exponent = (bits >> mantissa_bits) & semantics.max_exponent
+        mantissa = bits & semantics.max_mantissa
+        special = self._decode_special(negative, biased_exponent, mantissa)
+        if special is not None:
+            return special
+        sign = -1.0 if negative else 1.0
+        if semantics.has_zero and biased_exponent == 0:
+            return sign * mantissa * 2.0 ** (1 - bias - mantissa_bits)
+        return (
+            sign * (1 + mantissa / 2.0**mantissa_bits) * 2.0 ** (biased_exponent - bias)
+        )
+
+    def _encode_overflow(self, sign: int) -> int:
+        """Bits a too-large magnitude maps to: infinity, NaN, or the largest finite value."""
+        semantics = self.SEMANTICS
+        match semantics.nonfinite:
+            case FloatNonfiniteBehavior.IEEE:
+                return (sign << semantics.sign_shift) | (
+                    semantics.max_exponent << semantics.mantissa_bits
+                )
+            case FloatNonfiniteBehavior.NAN_ONLY:
+                return self._encode_nan(sign)
+            case FloatNonfiniteBehavior.FINITE_ONLY:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << semantics.mantissa_bits)
+                    | semantics.max_mantissa
+                )
+
+    def _encode_nan(self, sign: int) -> int:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
+            return self._encode_overflow(sign)
+        match semantics.nan_encoding:
+            case FloatNanEncoding.IEEE:
+                return (semantics.max_exponent << mantissa_bits) | (
+                    1 << (mantissa_bits - 1)
+                )
+            case FloatNanEncoding.ALL_ONES:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << mantissa_bits)
+                    | semantics.max_mantissa
+                )
+            case FloatNanEncoding.NEGATIVE_ZERO:
+                return 1 << semantics.sign_shift
+
+    def _encode_zero(self, sign: int) -> int:
+        if self.SEMANTICS.nan_encoding is FloatNanEncoding.NEGATIVE_ZERO:
+            return 0  # no negative zero
+        return sign << self.SEMANTICS.sign_shift
+
+    def _overflows(self, biased_exponent: int, mantissa: int) -> bool:
+        semantics = self.SEMANTICS
+        if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
+            return biased_exponent >= semantics.max_exponent
+        if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
+            return biased_exponent > semantics.max_exponent or (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            )
+        return biased_exponent > semantics.max_exponent
+
+    def _rounded_exponent_mantissa(self, magnitude: float) -> tuple[int, int] | None:
+        """
+        Round a positive, finite magnitude to `(biased_exponent, mantissa)`.
+
+        Returns `(0, 0)` on underflow to the smallest value and `None` on overflow.
+        """
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        implicit_bit = 1 << mantissa_bits
+        significand, power = self.decode_significand_power(magnitude)
+        exponent = math.frexp(magnitude)[1] - 1
+        smallest_normal_exponent = 1 - bias if semantics.has_zero else -bias
+        if exponent < smallest_normal_exponent:
+            if not semantics.has_zero:
+                return 0, 0  # no subnormals: underflow to the smallest value
+            quotient = semantics.round_half_even(
+                significand, (1 - bias - mantissa_bits) - power
+            )
+            if quotient < implicit_bit:
+                return 0, quotient
+            return 1, 0  # rounded up into the smallest normal
+        quotient = semantics.round_half_even(
+            significand, (exponent - mantissa_bits) - power
+        )
+        if quotient == implicit_bit << 1:
+            exponent += 1
+            quotient = implicit_bit
+        biased_exponent = exponent + bias
+        mantissa = quotient - implicit_bit
+        if self._overflows(biased_exponent, mantissa):
+            return None
+        return biased_exponent, mantissa
+
+    def encode_bits(self, value: float) -> int:
+        semantics = self.SEMANTICS
+        sign = 1 if semantics.has_sign and math.copysign(1.0, value) < 0 else 0
+        if math.isinf(value):
+            return self._encode_overflow(sign)
+        if math.isnan(value):
+            return self._encode_nan(sign)
+        if value == 0.0:
+            return self._encode_zero(sign)
+        if not semantics.has_sign and value < 0:
+            # Unsigned formats (e.g. f8E8M0FNU) reject signed finite values, as LLVM does,
+            # rather than silently dropping the sign. -0.0 is handled by the zero case above.
+            raise ValueError(f"{self.name} does not support signed values")
+        fields = self._rounded_exponent_mantissa(abs(value))
+        if fields is None:
+            return self._encode_overflow(sign)
+        biased_exponent, mantissa = fields
+        if semantics.has_zero and not biased_exponent and not mantissa:
+            return self._encode_zero(sign)
+        return (
+            (sign << semantics.sign_shift)
+            | (biased_exponent << semantics.mantissa_bits)
+            | mantissa
+        )
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        # `int` handles the odd byte widths `struct` can't (tf32's 19 bits -> 3 bytes).
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size % size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size {size}."
+            )
+        return (
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size != num * size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {size} and num {num}."
+            )
+        return tuple(
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        size = self.size
+        buffer_size = len(memoryview(buffer))
+        if buffer_size < offset + size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{size} bytes at offset {offset}, expected at least "
+                f"{offset + size}."
+            )
+        memoryview(buffer)[offset : offset + size] = self.encode_bits(value).to_bytes(
+            size, "little"
+        )
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        size = self.size
+        buffer = bytearray(size * len(values))
+        for index, value in enumerate(values):
+            self.pack_into(buffer, index * size, value)
+        return bytes(buffer)
+
+
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, _FloatType):
     name = "bf16"
@@ -1177,20 +1531,43 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return bits.to_bytes(2, "little")
 
     @staticmethod
-    def _decode(raw: bytes) -> float:
+    def _decode(raw: ReadableBuffer) -> float:
         # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
         # inverse is to zero-extend with two low bytes in little-endian.
         return struct.unpack("<f", b"\x00\x00" + raw)[0]
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
         mv = memoryview(buffer)
-        for i in range(0, len(mv), 2):
-            yield self._decode(bytes(mv[i : i + 2]))
+        buffer_size = len(mv)
+        if buffer_size % 2:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size 2."
+            )
+        return (self._decode(mv[i : i + 2]) for i in range(0, len(mv), 2))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        compile_time_size = self.compile_time_size
+        if buffer_size != num * compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {compile_time_size} and num {num}."
+            )
+
+        return tuple(self._decode(mv[i : i + 2]) for i in range(0, buffer_size, 2))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        buffer_size = len(memoryview(buffer))
+        compile_time_size = self.compile_time_size
+        if buffer_size < offset + compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{compile_time_size} bytes at offset {offset}, expected at least "
+                f"{offset + compile_time_size}."
+            )
+
         memoryview(buffer)[offset : offset + 2] = self._encode(value)
 
     def pack(self, values: Sequence[float]) -> bytes:
@@ -1262,8 +1639,160 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
         raise NotImplementedError()
 
 
+@irdl_attr_definition
+class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "tf32"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=10,
+        exponent_bias=127,
+    )
+
+
+@irdl_attr_definition
+class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E5M2"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=15,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+    )
+
+
+@irdl_attr_definition
+class Float8E5M2FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E5M2FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=16,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=8,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E4M3B11FNUZ"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=11,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
+
+
+@irdl_attr_definition
+class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E3M4"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=4,
+        exponent_bias=3,
+    )
+
+
+@irdl_attr_definition
+class Float8E8M0FNUType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f8E8M0FNU"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=0,
+        exponent_bias=127,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+        has_zero=False,
+        has_sign=False,
+    )
+
+
+@irdl_attr_definition
+class Float6E2M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f6E2M3FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=3,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
+@irdl_attr_definition
+class Float6E3M2FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f6E3M2FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=2,
+        exponent_bias=3,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
+@irdl_attr_definition
+class Float4E2M1FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
+    name = "f4E2M1FN"
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=1,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
+
+
 AnyFloat: TypeAlias = (
-    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+    BFloat16Type
+    | Float16Type
+    | Float32Type
+    | Float64Type
+    | Float80Type
+    | Float128Type
+    | FloatTF32Type
+    | Float8E5M2Type
+    | Float8E4M3Type
+    | Float8E4M3FNType
+    | Float8E5M2FNUZType
+    | Float8E4M3FNUZType
+    | Float8E4M3B11FNUZType
+    | Float8E3M4Type
+    | Float8E8M0FNUType
+    | Float6E2M3FNType
+    | Float6E3M2FNType
+    | Float4E2M1FNType
 )
 AnyFloatConstr = (
     BaseAttr(BFloat16Type)
@@ -1272,6 +1801,18 @@ AnyFloatConstr = (
     | BaseAttr(Float64Type)
     | BaseAttr(Float80Type)
     | BaseAttr(Float128Type)
+    | BaseAttr(FloatTF32Type)
+    | BaseAttr(Float8E5M2Type)
+    | BaseAttr(Float8E4M3Type)
+    | BaseAttr(Float8E4M3FNType)
+    | BaseAttr(Float8E5M2FNUZType)
+    | BaseAttr(Float8E4M3FNUZType)
+    | BaseAttr(Float8E4M3B11FNUZType)
+    | BaseAttr(Float8E3M4Type)
+    | BaseAttr(Float8E8M0FNUType)
+    | BaseAttr(Float6E2M3FNType)
+    | BaseAttr(Float6E3M2FNType)
+    | BaseAttr(Float4E2M1FNType)
 )
 
 
@@ -1338,7 +1879,14 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
+        if isinstance(
+            type,
+            Float64Type
+            | Float32Type
+            | Float16Type
+            | BFloat16Type
+            | ReducedPrecisionFloatType,
+        ):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)
@@ -2503,6 +3051,18 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float80Type()
 f128 = Float128Type()
+tf32 = FloatTF32Type()
+f8E5M2 = Float8E5M2Type()
+f8E4M3 = Float8E4M3Type()
+f8E4M3FN = Float8E4M3FNType()
+f8E5M2FNUZ = Float8E5M2FNUZType()
+f8E4M3FNUZ = Float8E4M3FNUZType()
+f8E4M3B11FNUZ = Float8E4M3B11FNUZType()
+f8E3M4 = Float8E3M4Type()
+f8E8M0FNU = Float8E8M0FNUType()
+f6E2M3FN = Float6E2M3FNType()
+f6E3M2FN = Float6E3M2FNType()
+f4E2M1FN = Float4E2M1FNType()
 
 
 _MemRefTypeElement = TypeVar(
@@ -2997,15 +3557,16 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            assert isinstance(
-                element_type := self.get_element_type(), IntegerType | IndexType
-            )
+            element_type = self.get_element_type()
+            assert isinstance(element_type, IntegerType | IndexType)
             printer.print_int(val, element_type)
         elif isinstance(val, float):
-            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, AnyFloat)
             printer.print_float(val, element_type)
         else:  # complex
-            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, ComplexType)
             printer.print_complex(val, element_type)
 
     def _print_dense_list(
@@ -3089,6 +3650,18 @@ Builtin = Dialect(
         Float64Type,
         Float80Type,
         Float128Type,
+        FloatTF32Type,
+        Float8E5M2Type,
+        Float8E4M3Type,
+        Float8E4M3FNType,
+        Float8E5M2FNUZType,
+        Float8E4M3FNUZType,
+        Float8E4M3B11FNUZType,
+        Float8E3M4Type,
+        Float8E8M0FNUType,
+        Float6E2M3FNType,
+        Float6E3M2FNType,
+        Float4E2M1FNType,
         FloatAttr,
         SignednessAttr,
         TupleType,

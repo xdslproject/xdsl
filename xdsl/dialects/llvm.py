@@ -1905,7 +1905,8 @@ class UndefOp(IRDLOperation):
 
 @dataclass(frozen=True)
 class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
-    """Infers a 1D VectorType result from the input element type and mask length.
+    """
+    Infers a 1D VectorType result from the input element type and mask length.
 
     The result shape is determined by the number of elements in the mask,
     while the element type is propagated from the input vectors.

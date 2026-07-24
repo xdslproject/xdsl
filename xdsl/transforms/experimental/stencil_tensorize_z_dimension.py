@@ -140,7 +140,8 @@ class AccessOpTensorize(RewritePattern):
         #     rewriter.replace_op(op, a)
         #     return
         assert isa(op.temp.type, TempType[Attribute])
-        assert is_tensor(element_t := op.temp.type.get_element_type())
+        element_t = op.temp.type.get_element_type()
+        assert is_tensor(element_t)
         extract = ExtractSliceOp.from_static_parameters(
             a, [z_offset], element_t.get_shape()
         )
@@ -198,7 +199,8 @@ class ArithOpTensorize(RewritePattern):
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, ConstantOp):
-            assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
+            float_attr = scalar_op.op.value
+            assert isinstance(float_attr, FloatAttr)
             scalar_value = float_attr.value.data
             tens_const = ConstantOp(
                 DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
@@ -276,7 +278,8 @@ class LoadOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         assert isa(op.res.type, TempType[Attribute])
-        assert isinstance(bounds := op.res.type.bounds, StencilBoundsAttr)
+        bounds = op.res.type.bounds
+        assert isinstance(bounds, StencilBoundsAttr)
         rewriter.replace_op(
             op,
             LoadOp(

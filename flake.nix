@@ -27,6 +27,7 @@
               XDSL_MLIR_OPT = "${llvmPackages_22.mlir}/bin/mlir-opt";
               XDSL_MLIR_TRANSLATE = "${llvmPackages_22.mlir}/bin/mlir-translate";
               XDSL_LLVM_DIFF = "${llvmPackages_22.llvm}/bin/llvm-diff";
+              XDSL_LLI = "${llvmPackages_22.llvm}/bin/lli";
             };
           }
     );

@@ -163,7 +163,8 @@ def test_parallel_num_gangs_print_without_segments_or_dt():
 
 
 def test_parallel_wait_print_without_metadata():
-    """WaitClause.print falls back when device_types / segments / has_devnum are unset.
+    """
+    WaitClause.print falls back when device_types / segments / has_devnum are unset.
 
     None of these branches are reachable via filecheck round-trip — the parser
     always sets all three properties — so they need a Python-constructed op.
@@ -188,7 +189,8 @@ def test_parallel_wait_print_without_metadata():
 
 
 def test_parallel_wait_only_keyword_only_no_operands_print():
-    """`_print_wait_body` has a printer-only branch — `wait_only` set to a
+    """
+    `_print_wait_body` has a printer-only branch — `wait_only` set to a
     non-default device-type list with no `wait_operands` — that the parser
     can never produce (`_parse_wait_body` requires a `,` after the
     `[dt-list]`). This is the Python-only state the roadmap exception
@@ -361,7 +363,8 @@ def test_serial_unit_and_default_attrs():
 
 
 def test_kernels_init_bool_shortcuts():
-    """The bool-shortcut branch in KernelsOp.__init__ (self_attr=True / combined=True
+    """
+    The bool-shortcut branch in KernelsOp.__init__ (self_attr=True / combined=True
     / default_attr=enum) cannot be reached via the parser — filecheck would have to
     pass already-constructed attributes — so this Python-only branch lives here."""
     op = acc.KernelsOp(
@@ -382,7 +385,8 @@ def test_kernels_init_bool_shortcuts():
 
 
 def test_terminator_construction():
-    """TerminatorOp's `__init__` is unreachable from the round-trip parser
+    """
+    TerminatorOp's `__init__` is unreachable from the round-trip parser
     (declarative `attr-dict` builds the op via IRDL's generic constructor),
     so its body lives or dies by a Python-side construction call."""
     term = acc.TerminatorOp()
@@ -390,7 +394,8 @@ def test_terminator_construction():
 
 
 def test_data_init_enum_shortcut():
-    """The `default_attr=ClauseDefaultValue.X` enum-shortcut branch in
+    """
+    The `default_attr=ClauseDefaultValue.X` enum-shortcut branch in
     DataOp.__init__ is not reachable via the parser (which produces a
     fully-formed ClauseDefaultValueAttr)."""
     op = acc.DataOp(
@@ -401,7 +406,8 @@ def test_data_init_enum_shortcut():
 
 
 def test_host_data_init_bool_shortcut():
-    """The `if_present=True` bool-shortcut branch in HostDataOp.__init__ is
+    """
+    The `if_present=True` bool-shortcut branch in HostDataOp.__init__ is
     not reachable via the parser (which produces a UnitAttr directly)."""
     use_dev = acc.UseDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
     op = acc.HostDataOp(
@@ -428,7 +434,8 @@ def test_kernel_environment_empty_verifies():
 
 
 def test_kernel_environment_unset_props_absent_from_dict():
-    """The optional clause properties are *absent* from `op.properties`
+    """
+    The optional clause properties are *absent* from `op.properties`
     when not provided (rather than stored as None). The MLIR-interop
     round-trip relies on this — extra all-None entries would print as
     explicit attributes in the trailing attr-dict."""
@@ -446,7 +453,8 @@ def test_kernel_environment_unset_props_absent_from_dict():
 
 
 def test_data_clause_modifier_attr_constructor():
-    """The bit-enum constructor accepts a frozenset of enum members and stores
+    """
+    The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in
     `tests/filecheck/dialects/acc/attrs.mlir`; the constructor surface is
     Python-only and lives here."""
@@ -464,7 +472,8 @@ def test_data_clause_modifier_attr_constructor():
 
 
 def test_var_name_attr_constructor():
-    """`VarNameAttr` accepts both `str` and `StringAttr` and stores the
+    """
+    `VarNameAttr` accepts both `str` and `StringAttr` and stores the
     StringAttr on `.var_name`. Pretty-form `<"..."` printing/parsing is
     covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
     from_str = acc.VarNameAttr("foo")
@@ -477,7 +486,8 @@ def test_var_name_attr_constructor():
 
 
 def test_routine_info_attr_constructor():
-    """`RoutineInfoAttr` accepts either an `ArrayAttr[SymbolRefAttr]` or
+    """
+    `RoutineInfoAttr` accepts either an `ArrayAttr[SymbolRefAttr]` or
     a plain `Sequence[SymbolRefAttr]` (Python-builder convenience) and
     stores the result on `.acc_routines`. Pretty-form `<[...]>` is
     covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
@@ -493,7 +503,8 @@ def test_routine_info_attr_constructor():
 
 
 def test_specialized_routine_attr_constructor():
-    """`SpecializedRoutineAttr` accepts plain `str` for `routine` /
+    """
+    `SpecializedRoutineAttr` accepts plain `str` for `routine` /
     `func_name` and a bare `ParLevel` enum value for `level`, normalising
     each to its attribute counterpart. Filecheck owns pretty-form
     round-tripping; the conversions here are Python-only and would not
@@ -515,7 +526,8 @@ def test_specialized_routine_attr_constructor():
 
 
 def test_declare_attr_constructor():
-    """The filecheck round-trip never reaches `DeclareAttr.__init__`
+    """
+    The filecheck round-trip never reaches `DeclareAttr.__init__`
     (the parser builds the parameter tuple directly via
     `super().__init__`), so the two `isinstance` coercion branches —
     bare `DataClause` enum -> `DataClauseAttr`, bare `bool` ->
@@ -534,7 +546,8 @@ def test_declare_attr_constructor():
 
 
 def test_declare_action_attr_constructor():
-    """The filecheck round-trip never reaches the
+    """
+    The filecheck round-trip never reaches the
     `_coerce_optional_symref` converter (the parser builds the
     parameter tuple directly via `attr_def.new`, which bypasses
     converters), so the three coercion branches — `None` ->
@@ -554,7 +567,8 @@ def test_declare_action_attr_constructor():
 
 
 def test_copyin_minimal_defaulted_props_absent_from_dict():
-    """Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
+    """
+    Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
     must be *absent* from `op.properties` when not explicitly set, even though
     the accessor reads back the default value. This is the load-bearing
     invariant that drives attr-dict elision on print — filecheck observes the
@@ -570,7 +584,8 @@ def test_copyin_minimal_defaulted_props_absent_from_dict():
 
 
 def test_copyin_builder_shortcuts():
-    """The Python `__init__` accepts bool / str / `DataClause` shortcuts and
+    """
+    The Python `__init__` accepts bool / str / `DataClause` shortcuts and
     converts them to the right attribute kinds. This is a builder-only
     code path: the parser never sees these Python types, so filecheck
     cannot exercise the conversions."""
@@ -590,7 +605,8 @@ def test_copyin_builder_shortcuts():
 
 
 def test_copyout_minimal_defaulted_props_absent_from_dict():
-    """Same load-bearing invariant as `acc.copyin` — defaulted props on the
+    """
+    Same load-bearing invariant as `acc.copyin` — defaulted props on the
     `_DataExitOperationWithVarPtr` mixin must be *absent* from the dict when
     not set, otherwise attr-dict elision on print silently fails."""
     acc_var = create_ssa_value(MemRefType(f32, [10]))
@@ -607,7 +623,8 @@ def test_copyout_minimal_defaulted_props_absent_from_dict():
 
 
 def test_copyout_builder_shortcuts():
-    """Bool / str / `DataClause` shortcuts on `_DataExitOperationWithVarPtr`'s
+    """
+    Bool / str / `DataClause` shortcuts on `_DataExitOperationWithVarPtr`'s
     `__init__`. Builder-only code path; the parser only sees attribute
     instances, so filecheck cannot exercise these conversions."""
     acc_var = create_ssa_value(MemRefType(f32, [10]))
@@ -629,7 +646,8 @@ def test_copyout_builder_shortcuts():
 
 
 def test_delete_minimal_defaulted_props_absent_from_dict():
-    """Same invariant for the `_DataExitOperationNoVarPtr` mixin (no `var`,
+    """
+    Same invariant for the `_DataExitOperationNoVarPtr` mixin (no `var`,
     no `varType`). `acc.delete` exercises the no-host-pointer branch of the
     exit-shape `__init__`; the dict-state assertion is independently
     load-bearing because this mixin's `__init__` is a separate method that
@@ -646,7 +664,8 @@ def test_delete_minimal_defaulted_props_absent_from_dict():
 
 
 def test_delete_builder_shortcuts():
-    """Bool / str / `DataClause` shortcuts on `_DataExitOperationNoVarPtr`'s
+    """
+    Bool / str / `DataClause` shortcuts on `_DataExitOperationNoVarPtr`'s
     `__init__`. Builder-only conversions; the parser only sees attribute
     instances."""
     acc_var = create_ssa_value(MemRefType(f32, [10]))
@@ -666,7 +685,8 @@ def test_delete_builder_shortcuts():
 
 
 def test_cache_op_has_no_memory_effect_trait():
-    """`acc.cache` is the only entry data-clause op that carries
+    """
+    `acc.cache` is the only entry data-clause op that carries
     `NoMemoryEffect` (per upstream's td definition). Tested in pytest because
     a trait's presence on a class isn't observable via filecheck — it shapes
     what *transformations* are allowed, not how the op is printed."""
@@ -679,7 +699,8 @@ def test_cache_op_has_no_memory_effect_trait():
 
 
 def test_private_recipe_builder_shortcuts():
-    """The Python `__init__` accepts a `str` shortcut for `sym_name` and
+    """
+    The Python `__init__` accepts a `str` shortcut for `sym_name` and
     defaults a missing `destroy_region` to an empty `Region()`. Both
     branches are unreachable from filecheck — the parser only sees an
     already-built `StringAttr` and always supplies a (possibly empty)
@@ -701,7 +722,8 @@ def test_private_recipe_builder_shortcuts():
 
 
 def test_reduction_recipe_builder_shortcuts():
-    """The Python `__init__` accepts `str` for `sym_name` and a
+    """
+    The Python `__init__` accepts `str` for `sym_name` and a
     `ReductionOpKind` value for `reduction_operator`, defaulting a missing
     `destroy_region` to an empty `Region()`. All three branches are
     builder-only — the parser only sees an already-built `StringAttr`,
@@ -729,7 +751,8 @@ def test_reduction_recipe_builder_shortcuts():
 
 
 def test_firstprivate_recipe_builder_shortcuts():
-    """Same builder-only branches as `PrivateRecipeOp`'s test, but on the
+    """
+    Same builder-only branches as `PrivateRecipeOp`'s test, but on the
     firstprivate constructor — the `__init__` is a separate method that
     must independently exercise the `str` → `StringAttr` shortcut and the
     `destroy_region=None` default."""
@@ -753,7 +776,8 @@ def test_firstprivate_recipe_builder_shortcuts():
 
 
 def test_data_bounds_op_builder():
-    """The `DataBoundsOp` Python builder isn't reached via filecheck (the
+    """
+    The `DataBoundsOp` Python builder isn't reached via filecheck (the
     parser uses IRDL `create`, which bypasses `__init__`) — pytest is the
     only place its `__init__` body runs."""
     lb = create_ssa_value(IndexType())
@@ -781,7 +805,8 @@ def test_data_bounds_op_builder():
 
 
 def test_data_bounds_accessor_builders():
-    """The shared `_DataBoundsAccessorOp.__init__` is exercised by all four
+    """
+    The shared `_DataBoundsAccessorOp.__init__` is exercised by all four
     accessor ops; constructing each from Python covers the single shared
     builder body that filecheck never invokes."""
     bounds = acc.DataBoundsOp(
@@ -801,7 +826,8 @@ def test_data_bounds_accessor_builders():
 
 
 def test_copyin_explicit_var_and_acc_var_type():
-    """Both `var_type` and `acc_var_type` defaulting branches in
+    """
+    Both `var_type` and `acc_var_type` defaulting branches in
     `_DataEntryOperation.__init__` are skipped when callers pass them
     explicitly. The parser supplies these via the assembly format
     (`type($var)`, `$varType`), so the explicit-value branches are only
@@ -821,7 +847,8 @@ def test_copyin_explicit_var_and_acc_var_type():
 
 
 def test_copyout_explicit_var_type():
-    """`var_type=` shortcut on `_DataExitOperationWithVarPtr.__init__`
+    """
+    `var_type=` shortcut on `_DataExitOperationWithVarPtr.__init__`
     bypasses the `_default_var_type` fallback. Builder-only branch — the
     parser always supplies `varType` explicitly via the assembly format."""
     explicit_var_type = f32
@@ -836,7 +863,8 @@ def test_copyout_explicit_var_type():
 
 
 def test_enter_data_init_bool_shortcuts():
-    """The `async_attr` / `wait_attr` bool-shortcut branches in
+    """
+    The `async_attr` / `wait_attr` bool-shortcut branches in
     EnterDataOp.__init__ aren't reachable via the parser (which produces
     a UnitAttr directly via the custom directive)."""
     create = acc.CreateOp(var=create_ssa_value(MemRefType(f32, [10])))
@@ -852,7 +880,8 @@ def test_enter_data_init_bool_shortcuts():
 
 
 def test_exit_data_init_bool_shortcuts():
-    """Mirrors the EnterDataOp test for `ExitDataOp` plus its `finalize`
+    """
+    Mirrors the EnterDataOp test for `ExitDataOp` plus its `finalize`
     bool shortcut. Same parser-bypass story: bare-keyword UnitAttrs come
     from the custom directive on parse, so the builder bool conversion
     is only exercised from Python."""
@@ -871,7 +900,8 @@ def test_exit_data_init_bool_shortcuts():
 
 
 def test_update_init():
-    """Smoke test for `UpdateOp` — verifies operand wiring and the
+    """
+    Smoke test for `UpdateOp` — verifies operand wiring and the
     `if_present` bool-shortcut branch (only reachable from Python; on
     parse it lands as a UnitAttr in attr-dict)."""
     update_dev = acc.UpdateDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
@@ -890,7 +920,8 @@ def test_update_init():
 
 
 def test_declare_family_init_bodies():
-    """The three declare ops' `__init__` bodies are only reachable from
+    """
+    The three declare ops' `__init__` bodies are only reachable from
     Python — the parser builds via IRDL `Operation.create()` and bypasses
     them. Smoke-test all three to keep them covered. The non-trivial
     branches: `DeclareExitOp` packing the optional `token` into a 0/1-list
@@ -915,7 +946,8 @@ def test_declare_family_init_bodies():
 
 
 def _empty_loop(*, default_independent: bool = True) -> acc.LoopOp:
-    """`acc.loop` with an empty single-block body holding just an `acc.yield`.
+    """
+    `acc.loop` with an empty single-block body holding just an `acc.yield`.
 
     Defaults `independent = [#acc.device_type<none>]` so the verifier's
     "at least one of auto/independent/seq" check is satisfied.
@@ -932,7 +964,8 @@ def _empty_loop(*, default_independent: bool = True) -> acc.LoopOp:
 
 
 def test_loop_par_mode_shortcut():
-    """The `par_mode=` keyword argument fills in the matching seq /
+    """
+    The `par_mode=` keyword argument fills in the matching seq /
     independent / auto array. This is a builder-only path: the parser only
     sees the already-built `ArrayAttr[DeviceTypeAttr]`, so the conversion
     branch is unreachable from filecheck."""
@@ -977,7 +1010,8 @@ def test_loop_par_mode_shortcut():
 
 
 def test_loop_unit_and_combined_shortcuts():
-    """`unstructured` accepts a bool shortcut; `combined` accepts a
+    """
+    `unstructured` accepts a bool shortcut; `combined` accepts a
     `CombinedConstructsType` value as well as the wrapped attribute."""
     op = acc.LoopOp(
         region=Region(Block([acc.YieldOp()])),
@@ -1011,7 +1045,8 @@ def test_loop_unit_and_combined_shortcuts():
 
 
 def test_init_op_builder_branches():
-    """Exercises the InitOp `__init__` paths that the parser bypasses
+    """
+    Exercises the InitOp `__init__` paths that the parser bypasses
     (parsing goes through `Operation.create()`, not `__init__`): empty op
     plus a fully-populated op with both operands and the `device_types`
     property."""
@@ -1052,7 +1087,8 @@ def test_shutdown_op_builder_branches():
 
 
 def test_set_op_init_smoke():
-    """Filecheck builds via `Operation.create()` and never calls `SetOp.__init__`,
+    """
+    Filecheck builds via `Operation.create()` and never calls `SetOp.__init__`,
     leaving the constructor's `super().__init__(...)` line uncovered. A single
     Python construction hits it (the body is branchless)."""
     op = acc.SetOp(
@@ -1076,7 +1112,8 @@ def test_wait_op_init_smoke():
 
 
 def test_routine_op_builder_shortcuts():
-    """The `RoutineOp.__init__` accepts `str` shortcuts for both `sym_name`
+    """
+    The `RoutineOp.__init__` accepts `str` shortcuts for both `sym_name`
     (→ StringAttr) and `func_name` (→ SymbolRefAttr), plus `bool`
     shortcuts for the `nohost` / `implicit` UnitAttrs. None of these
     branches is reachable via the filecheck parser — it always supplies
@@ -1122,7 +1159,8 @@ def test_routine_op_builder_shortcuts():
 
 
 def test_routine_op_full_population():
-    """Drive every optional property through the constructor so each
+    """
+    Drive every optional property through the constructor so each
     `properties=` slot has been written at least once. The filecheck
     parser builds these via `Operation.create()` (which bypasses
     `__init__`), so this test is the only place `RoutineOp.__init__`'s
@@ -1161,7 +1199,8 @@ def test_routine_op_full_population():
 
 
 def test_global_ctor_dtor_builder_shortcuts():
-    """`GlobalConstructorOp` / `GlobalDestructorOp` accept both a `str` and a
+    """
+    `GlobalConstructorOp` / `GlobalDestructorOp` accept both a `str` and a
     `StringAttr` for `sym_name`. The filecheck parser bypasses `__init__`
     (it goes through IRDL's generic constructor), so the str → StringAttr
     branch and the StringAttr-passthrough branch are only exercised here."""
@@ -1179,7 +1218,8 @@ def test_global_ctor_dtor_builder_shortcuts():
 
 
 def test_atomic_read_write_builders():
-    """The `AtomicReadOp` / `AtomicWriteOp` Python builders are exercised
+    """
+    The `AtomicReadOp` / `AtomicWriteOp` Python builders are exercised
     here — the filecheck round-trip path constructs via the IRDL generic
     constructor and never runs `__init__`, so the builder bodies are only
     reachable from Python."""
@@ -1194,7 +1234,8 @@ def test_atomic_read_write_builders():
 
 
 def test_atomic_update_builder():
-    """The `AtomicUpdateOp` Python builder — filecheck constructs via the
+    """
+    The `AtomicUpdateOp` Python builder — filecheck constructs via the
     IRDL generic constructor and never runs `__init__`."""
     x = create_ssa_value(MemRefType(i32, ()))
     cond = create_ssa_value(i1)
@@ -1209,7 +1250,8 @@ def test_atomic_update_builder():
 
 
 def test_atomic_capture_builder():
-    """The `AtomicCaptureOp` Python builder — filecheck constructs via the
+    """
+    The `AtomicCaptureOp` Python builder — filecheck constructs via the
     IRDL generic constructor and never runs `__init__`."""
     v = create_ssa_value(MemRefType(i32, ()))
     x = create_ssa_value(MemRefType(i32, ()))
@@ -1232,7 +1274,8 @@ def test_atomic_capture_builder():
 
 
 def test_atomic_write_skips_check_for_non_memref():
-    """`AtomicWriteOp.verify_` only checks the pointee-type match when `x`
+    """
+    `AtomicWriteOp.verify_` only checks the pointee-type match when `x`
     is a `MemRefType` — for other types the check is skipped, mirroring
     upstream's null-element-type guard. xDSL's `acc` dialect doesn't yet
     model non-memref pointer-likes, so this branch isn't reachable from

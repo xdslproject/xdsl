@@ -344,8 +344,10 @@ class BufferOpToMemRef(RewritePattern):
 
 
 def field_subview(field: SSAValue):
-    assert isa(field_type := field.type, FieldType[Attribute])
-    assert isinstance(bounds := field_type.bounds, StencilBoundsAttr)
+    field_type = field.type
+    assert isa(field_type, FieldType[Attribute])
+    bounds = field_type.bounds
+    assert isinstance(bounds, StencilBoundsAttr)
     offsets = [i for i in -bounds.lb]
     sizes = [i for i in field_type.get_shape()]
     strides = [1] * len(sizes)

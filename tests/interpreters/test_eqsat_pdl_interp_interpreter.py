@@ -600,7 +600,8 @@ def test_run_create_operation_existing_operation_in_use():
 
 
 def test_run_create_operation_existing_operation_not_in_use():
-    """Test that run_create_operation reuses an operation not currently
+    """
+    Test that run_create_operation reuses an operation not currently
     in use by wrapping it in a new eclass."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions()

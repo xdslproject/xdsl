@@ -66,7 +66,8 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
     name = "test-specialised-constant-folding"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        """Apply the pass.
+        """
+        Apply the pass.
 
         This is a full manual inlining of the call stack invoked by:
 
@@ -169,7 +170,7 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     old_result = old_op.results[0]
                     ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
                     for use in tuple(old_result.uses):
-                        ## Inline `use.operation.operands.__setitem__(...)`
+                        ## Inline `use.operation.operands.__setitem__(...)`
                         operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
                         old_use = use.operation._operand_uses[use.index]  # pyright: ignore[reportPrivateUsage]

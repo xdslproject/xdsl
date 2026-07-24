@@ -294,6 +294,23 @@ def test_memref_to_tensor(
     assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
 
 
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
 @pytest.mark.parametrize(
     "lhs, rhs",
     [
@@ -331,6 +348,31 @@ def test_memref_to_tensor(
                     ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)),
                     ParamAttrConstraint(AttrA, (BaseAttr(AttrB),)),
                 )
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrD, (BaseAttr(AttrA),))
+            | BaseAttr(AttrA)
+            | ParamAttrConstraint(AttrD, (BaseAttr(AttrC),)),
+            AnyOf(
+                (
+                    ParamAttrConstraint(AttrD, (BaseAttr(AttrA) | BaseAttr(AttrC),)),
+                    BaseAttr(AttrA),
+                )
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrC))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA), BaseAttr(AttrA) | BaseAttr(AttrC))
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrC), BaseAttr(AttrA))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA) | BaseAttr(AttrC), BaseAttr(AttrA))
             ),
         ),
     ],
@@ -444,23 +486,6 @@ def test_mapping_type_vars():
     )
 
 
-_T = TypeVar("_T")
-
-
-class AttrE(ParametrizedAttribute, Generic[_T]):
-    param: _T
-
-
-def test_param_instantiated_generic():
-    with pytest.raises(PyRDLError):
-        ParamAttrConstraint.get(AttrE[AttrB])
-
-
-class AttrF(ParametrizedAttribute):
-    param1: Attribute
-    param2: Attribute
-
-
 @pytest.mark.parametrize(
     "constr, expected",
     [
@@ -565,3 +590,59 @@ def test_constraint_inference(
     else:
         assert constr.can_infer(var_dict.keys())
         assert constr.infer(ConstraintContext(var_dict)) == inferred
+
+
+@pytest.mark.parametrize(
+    "constr1, constr2, result",
+    [
+        (AnyAttr(), AnyAttr(), AnyAttr()),
+        (
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+        ),
+        (VarConstraint("A", AnyAttr()), VarConstraint("B", AnyAttr()), None),
+        (BaseAttr(AttrB), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (BaseAttr(AttrB), BaseAttr(AttrA), None),
+        (BaseAttr(AttrB), ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB)),
+        (ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrB), None),
+        (BaseAttr(AttrB), ParamAttrConstraint.get(AttrD, AttrA), None),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD), BaseAttr(AttrD)),
+        (BaseAttr(AttrD), ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD)),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrD, AttrC),
+            ParamAttrConstraint.get(AttrD, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrC),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA | AttrC, AttrA),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            VarConstraint("A", AnyAttr()),
+            None,
+        ),
+    ],
+)
+def test_relax_constaint(
+    constr1: AttrConstraint, constr2: AttrConstraint, result: AttrConstraint | None
+):
+    assert constr1.relax_constraint(constr2) == result

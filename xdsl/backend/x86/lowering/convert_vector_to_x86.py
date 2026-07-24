@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl import ir
-from xdsl.backend.x86.lowering.helpers import Arch
+from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import asm, builtin, vector, x86
 from xdsl.dialects.builtin import FixedBitwidthType, VectorType
@@ -19,7 +19,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @dataclass
 class VectorBroadcastToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
@@ -55,7 +55,7 @@ class VectorBroadcastToX86(RewritePattern):
 
 @dataclass
 class VectorFMAToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.FMAOp, rewriter: PatternRewriter):
@@ -100,7 +100,7 @@ class ConvertVectorToX86Pass(ModulePass):
     arch: str
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        arch = Arch.arch_for_name(self.arch)
+        arch = X86Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

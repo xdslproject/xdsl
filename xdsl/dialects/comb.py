@@ -299,7 +299,8 @@ class XorOp(VariadicCombOperation):
 
 @irdl_op_definition
 class ICmpOp(TwoStateOperation, ABC):
-    """Integer comparison: A generic comparison operation, operation definitions inherit this class.
+    """
+    Integer comparison: A generic comparison operation, operation definitions inherit this class.
 
     The first argument to these comparison operations is the type of comparison
     being performed, the following comparisons are supported:

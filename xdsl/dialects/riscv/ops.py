@@ -69,7 +69,6 @@ from .abstract_ops import (
     RdRsImmFloatOperation,
     RdRsImmIntegerOperation,
     RdRsImmJumpOperation,
-    RdRsImmShiftOperation,
     RdRsIntegerOperation,
     RdRsRsFloatFloatIntegerOperationWithFastMath,
     RdRsRsFloatOperation,
@@ -220,11 +219,12 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             XoriImmediate,
+            XoriOfXori,
             XoriSelfInverse,
             XoriZero,
         )
 
-        return (XoriZero(), XoriSelfInverse(), XoriImmediate())
+        return (XoriZero(), XoriSelfInverse(), XoriOfXori(), XoriImmediate())
 
 
 @irdl_op_definition
@@ -243,59 +243,6 @@ class XoriOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation):
-    """
-    Performs logical left shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] << shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
-    """
-
-    name = "riscv.slli"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
-
-
-@irdl_op_definition
-class SrliOp(RdRsImmShiftOperation):
-    """
-    Performs logical right shift on the value in register rs1 by the shift amount held
-    in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] >>u shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
-    """
-
-    name = "riscv.srli"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(
-            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
-        )
-
-
-@irdl_op_definition
-class SraiOp(RdRsImmShiftOperation):
-    """
-    Performs arithmetic right shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] >>s shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
-    """
-
-    name = "riscv.srai"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
-
-
-@irdl_op_definition
 class AddiwOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1 and produces the proper sign-extension of a 32-bit result in rd.
@@ -308,39 +255,6 @@ class AddiwOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.addiw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation):
-    """
-    Performs logical left shift on the 32-bit of value in register rs1 by the
-    shift amount held in the lower 5 bits of the immediate.
-    ```
-    x[rd] = sext((x[rs1] << shamt)[31:0])
-    ```
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slliw).
-    """
-
-    name = "riscv.slliw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation):
-    """
-    Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
-    lower 5 bits of the immediate.
-    ```
-    x[rd] = sext(x[rs1][31:0] >>u shamt)
-    ```
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srliw).
-    """
-
-    name = "riscv.srliw"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1618,24 +1532,6 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = X(rs1) & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
-    """
-
-    name = "riscv.bclri"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -1648,24 +1544,6 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.bext"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class BextIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = (X(rs1) >> index) & 1;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
-    """
-
-    name = "riscv.bexti"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1689,24 +1567,6 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BinvIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
-    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
-    """
-
-    name = "riscv.binvi"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit set at the index specified in rs2.
@@ -1724,19 +1584,89 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BsetIOp(RdRsImmBitManipOperation):
+class ClzOp(RdRsIntegerOperation[IntRegisterType]):
     """
-    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
-    from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] | (1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
+    This instruction counts the number of 0’s before the first 1, starting at the most-significant bit
+    (i.e., XLEN-1) and progressing to bit 0. Accordingly, if the input is 0, the output is XLEN, and if
+    the most-significant bit of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-clz)
     """
 
-    name = "riscv.bseti"
+    name = "riscv.clz"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class ClzwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1 starting at bit 31 and progressing to
+    bit 0. Accordingly, if the least-significant word is 0, the output is 32, and if the most-significant
+    bit of the word (i.e., bit 31) is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-clzw)
+    """
+
+    name = "riscv.clzw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CpopOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instructions counts the number of 1’s (i.e., set bits) in the source register.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpop)
+    """
+
+    name = "riscv.cpop"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CpopwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instructions counts the number of 1’s (i.e., set bits) in the least-significant word of the
+    source register.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpopw)
+    """
+
+    name = "riscv.cpopw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CtzOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    (i.e., 0) and progressing to the most-significant bit (i.e., XLEN-1). Accordingly, if the input is 0,
+    the output is XLEN, and if the least-significant bit of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-ctz)
+    """
+
+    name = "riscv.ctz"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CtzwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    (i.e., 0) and progressing to the most-significant bit of the least-significant word (i.e., 31).
+    Accordingly, if the least-significant word is 0, the output is 32, and if the least-significant bit
+    of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-ctz)
+    """
+
+    name = "riscv.ctzw"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1777,26 +1707,6 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.rorw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class RoriOp(RdRsImmBitManipOperation):
-    """
-    This instruction performs a rotate right of rs1 by the amount in the least-significant
-    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
-    ```
-    let shamt = if   xlen == 32
-                    then shamt[4..0]
-                    else shamt[5..0];
-    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
-    X(rd) = result;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
-    """
-
-    name = "riscv.rori"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -3251,9 +3161,6 @@ RISCV = Dialect(
         AndiOp,
         OriOp,
         XoriOp,
-        SlliOp,
-        SrliOp,
-        SraiOp,
         LuiOp,
         AuipcOp,
         MVOp,
@@ -3308,7 +3215,6 @@ RISCV = Dialect(
         RolOp,
         RorOp,
         RemuwOp,
-        SrliwOp,
         SraiwOp,
         AddwOp,
         SubwOp,
@@ -3344,11 +3250,6 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        BclrIOp,
-        BextIOp,
-        BsetIOp,
-        BinvIOp,
-        RoriOp,
         RoriwOp,
         SlliUwOp,
         EcallOp,
@@ -3404,6 +3305,12 @@ RISCV = Dialect(
         VFAddSOp,
         VFMulSOp,
         ParallelMovOp,
+        ClzOp,
+        ClzwOp,
+        CpopOp,
+        CpopwOp,
+        CtzOp,
+        CtzwOp,
     ],
     [
         IntRegisterType,

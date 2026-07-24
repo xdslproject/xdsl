@@ -64,7 +64,8 @@ def test_insert_with_fold():
     # Should successfully fold
     assert folded_values is not None
     assert len(folded_values) == 1
-    assert isinstance(folded_value := folded_values[0], OpResult)
+    folded_value = folded_values[0]
+    assert isinstance(folded_value, OpResult)
     defining_op = folded_value.owner
     assert isinstance(defining_op, ConstantOp)
     assert isinstance(defining_op.value, IntegerAttr)
@@ -123,7 +124,8 @@ def test_replace_with_fold():
     # Should successfully fold
     assert folded_values is not None
     assert len(folded_values) == 1
-    assert isinstance(folded_value := folded_values[0], OpResult)
+    folded_value = folded_values[0]
+    assert isinstance(folded_value, OpResult)
     defining_op = folded_value.owner
     assert isinstance(defining_op, ConstantOp)
     assert isinstance(defining_op.value, IntegerAttr)

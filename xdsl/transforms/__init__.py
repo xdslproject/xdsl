@@ -662,10 +662,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_infer_broadcast.X86InferBroadcast
 
-    def get_x86_legalize_for_regalloc():
-        from xdsl.transforms import x86_legalize_for_regalloc
+    def get_x86_regalloc_legalize():
+        from xdsl.transforms import x86_regalloc_legalize
 
-        return x86_legalize_for_regalloc.X86LegalizeForRegallocPass
+        return x86_regalloc_legalize.X86RegallocLegalizePass
 
     def get_x86_prologue_epilogue_insertion():
         from xdsl.backend.x86 import prologue_epilogue_insertion
@@ -810,7 +810,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-infer-broadcast": get_x86_infer_broadcast,
-        "x86-legalize-for-regalloc": get_x86_legalize_for_regalloc,
+        "x86-regalloc-legalize": get_x86_regalloc_legalize,
         "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
         "x86-regalloc-verify-liveness": get_x86_regalloc_verify_liveness,
     }

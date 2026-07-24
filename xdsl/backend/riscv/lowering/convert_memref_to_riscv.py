@@ -42,7 +42,8 @@ from xdsl.utils.exceptions import DiagnosticException
 class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
@@ -165,7 +166,8 @@ def get_strided_pointer(
 class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         value, mem, *indices = cast_operands_to_regs(rewriter, op)
@@ -208,9 +210,8 @@ class ConvertMemRefStoreOp(RewritePattern):
 class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
-            f"{op.memref.type}"
-        )
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter, op)

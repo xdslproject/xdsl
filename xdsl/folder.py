@@ -47,7 +47,8 @@ class Folder:
                 interface = dialect.get_interface(ConstantMaterializationInterface)
                 if interface is None:
                     return None
-                assert isinstance(type := original_result.type, TypeAttribute)
+                type = original_result.type
+                assert isinstance(type, TypeAttribute)
                 new_op = interface.materialize_constant(val, type)
                 if new_op is None:
                     return None

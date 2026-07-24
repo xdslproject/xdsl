@@ -5,10 +5,20 @@ from xdsl.dialects import riscv, rv64
 from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
+    i64,
 )
-from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
+from xdsl.dialects.riscv.attrs import si12
+from xdsl.traits import (
+    ConstantLike,
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    Pure,
+)
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_immediate_pseudo_inst():
@@ -27,6 +37,70 @@ def test_immediate_pseudo_inst():
     rv64.LiOp(lb, rd=riscv.Registers.A0)
 
 
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+@pytest.mark.parametrize(
+    "op_type",
+    [rv64.BclrIOp, rv64.BextIOp, rv64.BsetIOp, rv64.BinvIOp, rv64.RorIOp],
+)
+def test_immediate_bit_manipulation_inst(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+):
+    # Bit manipulation instructions - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        op_type(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        op_type(a1, -1, rd=riscv.Registers.A0)
+
+    op_type(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
+@pytest.mark.parametrize(
+    ("op_type", "shamt", "rs1", "expected"),
+    [
+        (rv64.BclrIOp, 3, 0b1111, 0b0111),
+        # Clearing a bit that is already clear leaves the value unchanged
+        (rv64.BclrIOp, 2, 0b1011, 0b1011),
+        (rv64.BextIOp, 3, 0b1000, 1),
+        (rv64.BextIOp, 2, 0b1000, 0),
+        (rv64.BsetIOp, 3, 0b0001, 0b1001),
+        # Setting a bit that is already set leaves the value unchanged
+        (rv64.BsetIOp, 3, 0b1001, 0b1001),
+        (rv64.BinvIOp, 3, 0b0101, 0b1101),
+        (rv64.BinvIOp, 3, 0b1101, 0b0101),
+        # The low nibble rotates into the top nibble
+        (rv64.RorIOp, 4, 0xB3, 0x300000000000000B),
+        # Rotating by zero leaves the value unchanged
+        (rv64.RorIOp, 0, 0xB3, 0xB3),
+        (rv64.RorIOp, 1, 1, 0x8000000000000000),
+    ],
+)
+def test_bit_manipulation_py_operation(
+    op_type: type[rv64.RV64RdRsImmShiftOperation],
+    shamt: int,
+    rs1: int,
+    expected: int,
+):
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    op = op_type(a1, shamt, rd=riscv.Registers.A0)
+    assert op.py_operation(IntegerAttr(rs1, i64)) == IntegerAttr(expected, i64)
+
+
 def test_get_constant_value():
     # Test 64-bit LiOp
     li_op = rv64.LiOp(1)
@@ -43,6 +117,44 @@ def test_get_constant_value():
     assert zero_val == IntegerAttr(0, 64)
 
 
+def test_ld_op_construction():
+    lb, ub = Signedness.SIGNED.value_range(12)
+    rs1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.LdOp(rs1, ub)
+
+    with pytest.raises(VerifyException):
+        rv64.LdOp(rs1, lb - 1)
+
+    rv64.LdOp(rs1, ub - 1)
+    rv64.LdOp(rs1, lb)
+    rv64.LdOp(rs1, 0)
+
+    ld = rv64.LdOp(rs1, 8, rd=riscv.Registers.A0)
+    assert ld.rd.type == riscv.Registers.A0
+    assert ld.immediate == IntegerAttr(8, si12)
+
+
+def test_sd_op_construction():
+    lb, ub = Signedness.SIGNED.value_range(12)
+    rs1 = create_ssa_value(riscv.Registers.A1)
+    rs2 = create_ssa_value(riscv.Registers.A2)
+
+    with pytest.raises(VerifyException):
+        rv64.SdOp(rs1, rs2, ub)
+
+    with pytest.raises(VerifyException):
+        rv64.SdOp(rs1, rs2, lb - 1)
+
+    rv64.SdOp(rs1, rs2, ub - 1)
+    rv64.SdOp(rs1, rs2, lb)
+    rv64.SdOp(rs1, rs2, 0)
+
+    sd = rv64.SdOp(rs1, rs2, 8)
+    assert sd.immediate == IntegerAttr(8, si12)
+
+
 def test_effect_traits():
     """
     Check effects of operations in the rv64 dialect.
@@ -52,7 +164,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 2
+    assert len(effects_ops) == 14
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -65,12 +177,33 @@ def test_effect_traits():
     assert all_effects_trait_types == {
         Pure,
         RegisterAllocatedMemoryEffect,
+        MemoryReadEffect,
+        MemoryWriteEffect,
     }
 
     register_effects_ops = {
         op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
     }
+    read_effects_ops = {op for op in effects_ops if op.has_trait(MemoryReadEffect)}
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert register_effects_ops == {rv64.LiOp}
+    # RISCVInstruction base adds RegisterAllocatedMemoryEffect to all instructions
+    assert register_effects_ops == {
+        rv64.SlliOp,
+        rv64.SrliOp,
+        rv64.SraiOp,
+        rv64.SlliwOp,
+        rv64.SrliwOp,
+        rv64.BclrIOp,
+        rv64.BextIOp,
+        rv64.BinvIOp,
+        rv64.BsetIOp,
+        rv64.RorIOp,
+        rv64.LiOp,
+        rv64.LdOp,
+        rv64.SdOp,
+    }
+    assert read_effects_ops == {rv64.LdOp}
+    assert write_effects_ops == {rv64.SdOp}
     assert no_effects_ops == {rv64.GetRegisterOp}

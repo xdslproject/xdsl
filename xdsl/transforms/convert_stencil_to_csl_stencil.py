@@ -177,9 +177,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
             op.input_stencil.type
         )
-        assert isa(
-            t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
-        )
+        t_type = op.input_stencil.type.get_element_type()
+        assert isa(t_type, TensorType[Attribute])
         assert op.strategy.comm_layout() is not None, (
             f"topology on {type(op)} is not given"
         )

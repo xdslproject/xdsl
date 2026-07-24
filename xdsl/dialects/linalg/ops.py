@@ -362,7 +362,7 @@ class AddOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class ExpOp(NamedOperation):
+class ExpOp(ElementwiseOperation, NamedOperation):
     """
     Applies exp(x) elementwise.
 
@@ -406,7 +406,7 @@ class ExpOp(NamedOperation):
 
 
 @irdl_op_definition
-class LogOp(NamedOperation):
+class LogOp(ElementwiseOperation, NamedOperation):
     """
     Applies log(x) elementwise.
 
@@ -497,7 +497,7 @@ class SubOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class SqrtOp(NamedOperation):
+class SqrtOp(ElementwiseOperation, NamedOperation):
     """
     Applies sqrt(x) elementwise.
 
@@ -582,6 +582,15 @@ class SelectOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        raise NotImplementedError
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -909,8 +918,10 @@ class TransposeOp(LinalgStructuredOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.inputs[0].type, TensorType | MemRefType)
-        assert isinstance(init_type := self.outputs[0].type, TensorType | MemRefType)
+        input_type = self.inputs[0].type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.outputs[0].type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -1258,8 +1269,10 @@ class BroadcastOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        input_type = self.input.type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.init.type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         dimensions_shape = self.dimensions.get_values()
 
@@ -1368,8 +1381,10 @@ class ReduceOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        input_type = self.input.type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.init.type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         if input_type.get_element_type() != init_type.get_element_type():
             raise VerifyException(

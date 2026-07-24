@@ -9,19 +9,19 @@ from xdsl.rewriter import Rewriter
 
 
 @dataclass(frozen=True)
-class X86LegalizeForRegallocPass(ModulePass):
+class X86RegallocLegalizePass(ModulePass):
     """
     Legalize x86 code before register allocation:
     - remove copies when they are the last use of a register variable.
     """
 
-    name = "x86-legalize-for-regalloc"
+    name = "x86-regalloc-legalize"
 
     def _process_region(
         self,
         region: Region,
-        to_erase: list[Operation] = [],
-        alive: set[SSAValue] = set(),
+        to_erase: list[Operation],
+        alive: set[SSAValue],
     ) -> None:
         if not region.blocks:
             return
@@ -47,6 +47,6 @@ class X86LegalizeForRegallocPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         to_erase: list[Operation] = []
-        self._process_region(op.body, to_erase)
+        self._process_region(op.body, to_erase, set())
         for e in to_erase:
             Rewriter.erase_op(e)

@@ -25,7 +25,8 @@ def check_jit_execution():  # -> None:
     ...
 
 class ExecutionEngine(ffi.ObjectRef):
-    """An ExecutionEngine owns all Modules associated with it.
+    """
+    An ExecutionEngine owns all Modules associated with it.
     Deleting the engine will remove all associated modules.
     It is an error to delete the associated modules.
     """

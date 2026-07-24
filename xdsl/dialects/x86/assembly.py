@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from xdsl.backend.assembly_printer import reg
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, UnitAttr
@@ -27,6 +27,15 @@ def memory_access_str(register: SSAValue, offset: IntegerAttr) -> str:
     else:
         mem_acc_str = f"[{register_str}]"
     return mem_acc_str
+
+
+def broadcast_memory_access_str(
+    register: SSAValue,
+    offset: IntegerAttr,
+    broadcast: Literal["1to8", "1to16"],
+) -> str:
+    """e.g. ``[rsi+512]{1to8}``"""
+    return f"{memory_access_str(register, offset)}{{{broadcast}}}"
 
 
 def print_type_pair(printer: Printer, value: SSAValue) -> None:
