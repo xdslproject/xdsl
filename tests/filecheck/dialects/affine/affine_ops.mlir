@@ -48,21 +48,23 @@
 
     %memref = "test.op"() : () -> memref<2x3xf64>
     %value = "test.op"() : () -> f64
-    "affine.store"(%value, %memref) <{"map" = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
+    affine.store %value, %memref[0, 0] : memref<2x3xf64>
 
     // CHECK:      %memref = "test.op"() : () -> memref<2x3xf64>
     // CHECK-NEXT: %value = "test.op"() : () -> f64
-    // CHECK-NEXT: "affine.store"(%value, %memref) <{map = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
+    // CHECK-NEXT: affine.store %value, %memref[0, 0] : memref<2x3xf64>
 
     %zero = "test.op"() : () -> index
     %2 = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%zero)[%zero]
     %min = "affine.min"(%zero) <{"map" = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
-    %same_value = "affine.load"(%memref, %zero, %zero) <{"map" = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
+    %same_value = affine.load %memref[%zero, %zero] : memref<2x3xf64>
+    %nested = affine.load %memref[3 + %zero * 7 + %zero, %zero + 7] : memref<2x3xf64>
 
     // CHECK:      %zero = "test.op"() : () -> index
     // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
     // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
-    // CHECK-NEXT: %same_value = "affine.load"(%memref, %zero, %zero) <{map = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
+    // CHECK-NEXT: %same_value = affine.load %memref[%zero, %zero] : memref<2x3xf64>
+    // CHECK-NEXT: %nested = affine.load %memref[%zero * 7 + 3 + %zero, %zero + 7] : memref<2x3xf64>
 
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
@@ -121,8 +123,14 @@
   func.func @affine_vector_load() -> vector<8xf32> {
     %0 = "test.op"() : () -> memref<100x100xf32>
     // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
-    %1 = "affine.vector_load"(%0) <{map = affine_map<() -> (1, 2)>}> : (memref<100x100xf32>) -> vector<8xf32>
-    // CHECK-NEXT: %{{.*}} = "affine.vector_load"(%{{.*}}) <{map = affine_map<() -> (1, 2)>}> : (memref<100x100xf32>) -> vector<8xf32>
+    %vi0 = "test.op"() : () -> index
+    // CHECK-NEXT: %vi0 = "test.op"() : () -> index
+    %vi1 = "test.op"() : () -> index
+    // CHECK-NEXT: %vi1 = "test.op"() : () -> index
+    %1 = affine.vector_load %0[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
+    %vl2 = affine.vector_load %0[%vi0 + 3, %vi1 + 7] : memref<100x100xf32>, vector<8xf32>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%vi0 + 3, %vi1 + 7] : memref<100x100xf32>, vector<8xf32>
     func.return %1 : vector<8xf32>
   }
 
@@ -131,8 +139,12 @@
       // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
       %1 = "test.op"() : () -> vector<8xf32>
       // CHECK-NEXT: %{{.*}} = "test.op"() : () -> vector<8xf32>
-      "affine.vector_store"(%1, %0) <{map = affine_map<() -> (1, 2)>}> : (vector<8xf32>, memref<100x100xf32>) -> ()
-      // CHECK-NEXT: "affine.vector_store"(%{{.*}}, %{{.*}}) <{map = affine_map<() -> (1, 2)>}> : (vector<8xf32>, memref<100x100xf32>) -> ()
+      %vi0 = "test.op"() : () -> index
+      // CHECK-NEXT: %vi0 = "test.op"() : () -> index
+      %vi1 = "test.op"() : () -> index
+      // CHECK-NEXT: %vi1 = "test.op"() : () -> index
+      affine.vector_store %1, %0[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
+      // CHECK-NEXT: affine.vector_store %{{.*}}, %{{.*}}[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
       func.return %1 : vector<8xf32>
   }
 
