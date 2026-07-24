@@ -20,6 +20,7 @@ class InlineFunctions(RewritePattern):
         """
         For each generic call, find the function that it calls, and inline it.
         """
+        inliner_interface = toy.ToyInlinerInterface()
 
         callee = SymbolTable.lookup_symbol(op, op.callee)
         assert callee is not None
@@ -31,20 +32,11 @@ class InlineFunctions(RewritePattern):
         # Clone called function body
         impl_block = impl_body.clone().block
 
-        # Cast operands to unranked
-        inputs = [toy.CastOp(operand) for operand in op.operands]
-
-        # Insert casts before matched op
-        rewriter.insert_op(inputs)
-
         # Replace block args with operand casts
-        for i, arg in zip(inputs, impl_block.args):
-            arg.replace_all_uses_with(i.res)
-
-        # remove block args
-        while len(impl_block.args):
-            assert not impl_block.args[-1].uses
-            rewriter.erase_block_argument(impl_block.args[-1])
+        for operand, arg in zip(op.operands, impl_block.args):
+            cast_op = inliner_interface.materialize_call_conversion(operand, arg.type)
+            rewriter.insert(cast_op)
+            arg.replace_all_uses_with(cast_op.results[0])
 
         # Inline function definition before matched op
         rewriter.inline_block(impl_block, InsertPoint.before(op))
@@ -53,8 +45,10 @@ class InlineFunctions(RewritePattern):
         return_op = op.prev_op
         assert return_op is not None
 
-        rewriter.replace_op(op, [], return_op.operands)
+        inliner_interface.handle_terminator(return_op, op.results)
+
         rewriter.erase_op(return_op)
+        rewriter.erase_op(op)
 
 
 class RemoveUnusedPrivateFunctions(RewritePattern):
