@@ -364,7 +364,7 @@ def transform_apply_into_loop(
 ):
     dim: int = ndim
     assert dim == 3
-    body = prepare_apply_body(op)
+    body, _ = prepare_apply_body(op)
 
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)
