@@ -135,7 +135,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             ),
             InsertPoint.at_end(new_body),
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass(frozen=True)

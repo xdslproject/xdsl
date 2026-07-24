@@ -92,7 +92,7 @@ class LowerRiscvScfToLabels(RewritePattern):
             ],
             InsertPoint.after(yield_op),
         )
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         # We know that the body is not empty now.
         assert body.first_op is not None
@@ -109,7 +109,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Extract ops from the body and insert them after the loop header.
         rewriter.inline_block(body, InsertPoint.after(op))
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
         self.for_idx += 1
 

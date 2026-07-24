@@ -78,7 +78,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
 
             op.operands[0] = new_lb.rd
             op.operands[1] = new_ub.rd
-            rewriter.replace_op(user, [], [index])
+            rewriter.replace(user, [], [index])
 
 
 class RiscvScfLoopRangeFoldingPass(ModulePass):

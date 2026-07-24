@@ -205,7 +205,7 @@ class ConvertStorePattern(RewritePattern):
         memref_type = op.memref.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
+        rewriter.replace(op, ptr.StoreOp(target_ptr, op.value))
 
 
 @dataclass
@@ -215,7 +215,7 @@ class ConvertLoadPattern(RewritePattern):
         memref_type = op.memref.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
+        rewriter.replace(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
 class ConvertSubviewPattern(RewritePattern):
@@ -291,7 +291,7 @@ class ConvertSubviewPattern(RewritePattern):
             offset = build_bytes_offset(head, element_type, rewriter)
             pointer = build_offset_pointer(pointer, offset, rewriter)
 
-        rewriter.replace_op(op, ptr.FromPtrOp(pointer, result_type))
+        rewriter.replace(op, ptr.FromPtrOp(pointer, result_type))
 
 
 @dataclass
@@ -365,7 +365,7 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
             else:
                 new_arguments.append(argument)
 
-        rewriter.replace_op(op, func.ReturnOp(*new_arguments))
+        rewriter.replace(op, func.ReturnOp(*new_arguments))
 
 
 @dataclass
@@ -406,7 +406,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
                 new_ops.append(cast_op := ptr.FromPtrOp(new_result, old_result.type))
                 new_results[i] = cast_op.res
 
-        rewriter.replace_op(op, new_ops, new_results)
+        rewriter.replace(op, new_ops, new_results)
 
 
 @dataclass
@@ -414,7 +414,7 @@ class ConvertCastOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, memref.MemRefType)
-        rewriter.replace_op(op, (), (op.source,))
+        rewriter.replace(op, (), (op.source,))
 
 
 @dataclass
@@ -444,7 +444,7 @@ class ConvertReinterpretCastOp(RewritePattern):
             element_type = op.result.type.element_type
             byte_offset = build_bytes_offset(offset_val, element_type, rewriter)
             pointer = build_offset_pointer(pointer, byte_offset, rewriter)
-        rewriter.replace_op(op, ptr.FromPtrOp(pointer, op.result.type))
+        rewriter.replace(op, ptr.FromPtrOp(pointer, op.result.type))
 
 
 @dataclass(frozen=True)

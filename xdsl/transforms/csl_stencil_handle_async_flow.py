@@ -61,7 +61,7 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
             and isinstance(op.next_op.next_op, csl.ReturnOp)
         ):
             rewriter.insert(call_op.clone(), InsertPoint.before(terminator))
-            rewriter.erase_op(call_op)
+            rewriter.erase(call_op)
             return
 
         parent_func = op.parent_op()
@@ -236,13 +236,13 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         rewriter.insert(
             csl.CallOp(SymbolRefAttr(inc_func.sym_name)), InsertPoint.before(terminator)
         )
-        rewriter.replace_op(terminator, csl.ReturnOp())
+        rewriter.replace(terminator, csl.ReturnOp())
 
         # place funcs and erase now-empty for-loop
         rewriter.insert(
             [cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func)
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
     @staticmethod
     def _is_inside_wrapper_outside_apply(op: Operation):

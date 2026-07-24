@@ -40,7 +40,7 @@ class LowerLengthOp(RewritePattern):
         dim = rewriter.insert(tensor.DimOp(op.li, zero_index))
         cast = arith.IndexCastOp(dim, builtin.i32)
         cast.result.name_hint = op.result.name_hint
-        rewriter.replace_op(op, cast)
+        rewriter.replace(op, cast)
 
 
 class LowerMapOp(RewritePattern):
@@ -86,7 +86,7 @@ class LowerMapOp(RewritePattern):
         closure_yield = for_body.last_op
         assert isa(closure_yield, list_dialect.YieldOp)
         result_scalar = closure_yield.yielded
-        rewriter.erase_op(closure_yield)
+        rewriter.erase(closure_yield)
 
         result = rewriter.insert(tensor.InsertOp(result_scalar, tensor_arg, [ind_var]))
 
@@ -102,7 +102,7 @@ class LowerMapOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_op(op, for_op)
+        rewriter.replace(op, for_op)
 
 
 class LowerPrintOp(RewritePattern):
@@ -135,7 +135,7 @@ class LowerPrintOp(RewritePattern):
 
         rewriter.insertion_point = rewriter_ip
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 printf.PrintFormatOp("["),
@@ -205,7 +205,7 @@ class LowerRangeOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_op(op, for_op)
+        rewriter.replace(op, for_op)
 
 
 class LowerListToTensor(ModulePass):

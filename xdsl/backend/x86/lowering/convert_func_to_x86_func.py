@@ -134,7 +134,7 @@ class LowerFuncOp(RewritePattern):
             visibility=op.sym_visibility,
         )
 
-        rewriter.replace_op(op, new_func)
+        rewriter.replace(op, new_func)
 
 
 @dataclass
@@ -144,7 +144,7 @@ class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
         if not op.arguments:
-            rewriter.replace_op(op, [x86_func.RetOp()])
+            rewriter.replace(op, [x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
@@ -173,7 +173,7 @@ class LowerReturnOp(RewritePattern):
         )
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_op(op, [cast_op, mov_op, ret_op])
+        rewriter.replace(op, [cast_op, mov_op, ret_op])
 
 
 @dataclass(frozen=True)

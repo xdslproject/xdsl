@@ -119,7 +119,7 @@ class LowerRiscvScfForPattern(RewritePattern):
             case _:
                 add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
 
-        rewriter.replace_op(
+        rewriter.replace(
             yield_op,
             (
                 add_op,
@@ -159,7 +159,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             riscv.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],

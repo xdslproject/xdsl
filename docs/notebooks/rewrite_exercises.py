@@ -536,7 +536,7 @@ def _(
             new_op = ConstantOp(
                 FloatAttr(op.input.owner.value.value.data, Float64Type())
             )
-            rewriter.replace_op(op, new_op)
+            rewriter.replace(op, new_op)
 
     class AddTimesMinusOnePatternSolution(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -548,7 +548,7 @@ def _(
                 return
             if constant.value.value.data != -1.0:
                 return
-            rewriter.replace_op(op, SubfOp(op.lhs, mul.rhs))
+            rewriter.replace(op, SubfOp(op.lhs, mul.rhs))
 
     return
 

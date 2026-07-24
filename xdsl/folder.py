@@ -88,5 +88,5 @@ class Folder:
         if results is None:
             return None
         values, new_ops = results
-        rewriter.replace_op(op, new_ops, values, safe_erase)
+        rewriter.replace(op, new_ops, values, safe_erase)
         return values

@@ -60,7 +60,7 @@ class IfLowering(RewritePattern):
             InsertPoint.at_end(then_region.last_block),
         )
 
-        rewriter.erase_op(then_terminator)
+        rewriter.erase(then_terminator)
         rewriter.inline_region(then_region, BlockInsertPoint.before(continue_block))
 
         # Move blocks from the "else" region (if present) to the region containing
@@ -78,7 +78,7 @@ class IfLowering(RewritePattern):
                 InsertPoint.at_end(else_region.last_block),
             )
 
-            rewriter.erase_op(else_terminator)
+            rewriter.erase(else_terminator)
             rewriter.inline_region(else_region, BlockInsertPoint.before(continue_block))
         else:
             else_block = continue_block
@@ -90,7 +90,7 @@ class IfLowering(RewritePattern):
         )
 
         # Remove the original `scf.if` operation
-        rewriter.replace_op(if_op, [], continue_block.args)
+        rewriter.replace(if_op, [], continue_block.args)
 
 
 class ForLowering(RewritePattern):
@@ -130,7 +130,7 @@ class ForLowering(RewritePattern):
         stepped = AddiOp(iv, for_op.step)
         rewriter.insert(stepped, InsertPoint.before(terminator))
 
-        rewriter.replace_op(
+        rewriter.replace(
             terminator, BranchOp(condition_block, stepped, *terminator.operands)
         )
 
@@ -151,7 +151,7 @@ class ForLowering(RewritePattern):
 
         # The result of the loop operation are the values of the condition block
         # arguments except the induction variable on the last iteration.
-        rewriter.replace_op(for_op, [], condition_block.args[1:])
+        rewriter.replace(for_op, [], condition_block.args[1:])
 
 
 class SwitchLowering(RewritePattern):
@@ -167,7 +167,7 @@ class SwitchLowering(RewritePattern):
         # Convert yield op to a branch to the continue block
         yield_op = block.last_op
         assert isinstance(yield_op, YieldOp)
-        rewriter.replace_op(yield_op, BranchOp(continue_block, *yield_op.operands))
+        rewriter.replace(yield_op, BranchOp(continue_block, *yield_op.operands))
 
         # Inline the region
         rewriter.inline_region(region, BlockInsertPoint.before(continue_block))
@@ -219,7 +219,7 @@ class SwitchLowering(RewritePattern):
             InsertPoint.at_end(condition_block),
         )
 
-        rewriter.replace_op(op, (), continue_block.args)
+        rewriter.replace(op, (), continue_block.args)
 
 
 class ConvertScfToCf(ModulePass):

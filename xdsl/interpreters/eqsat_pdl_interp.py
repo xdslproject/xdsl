@@ -369,7 +369,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 self.known_ops.pop(use.operation)
 
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        rewriter.replace(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
     @impl(eqsat_pdl_interp.CreateOperationOp)
@@ -564,7 +564,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
 
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.
-                rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+                rewriter.replace(op1, new_ops=(), new_results=op2.results)
 
                 if eclass1 == eclass2:
                     eclass1.operands = OrderedSet(

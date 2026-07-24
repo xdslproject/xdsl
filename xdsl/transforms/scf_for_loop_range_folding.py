@@ -61,7 +61,7 @@ class ScfForLoopRangeFolding(RewritePattern):
             op.operands[0] = new_lb.result
             op.operands[1] = new_ub.result
 
-            rewriter.replace_op(user, [], [index])
+            rewriter.replace(user, [], [index])
 
 
 class ScfForLoopRangeFoldingPass(ModulePass):

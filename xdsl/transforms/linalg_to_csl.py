@@ -74,7 +74,7 @@ def transform_op(
         )
         rhs = const_op.result
 
-    rewriter.replace_op(op, builtin(operands=[[op.outputs[0], lhs, rhs]]))
+    rewriter.replace(op, builtin(operands=[[op.outputs[0], lhs, rhs]]))
 
 
 class ConvertLinalgGenericFMAPass(RewritePattern):
@@ -105,7 +105,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         y = op.inputs[2]
 
         # builds `r = a * x + y`
-        rewriter.replace_op(op, csl_op(operands=[[r, y, x, a]]))
+        rewriter.replace(op, csl_op(operands=[[r, y, x, a]]))
 
     @staticmethod
     def is_fma(op: linalg.ops.GenericOp) -> bool:

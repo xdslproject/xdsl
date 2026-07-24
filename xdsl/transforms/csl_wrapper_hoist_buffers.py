@@ -38,7 +38,7 @@ class HoistBuffers(RewritePattern):
         rewriter.insert(
             alloc := op.clone(), InsertPoint.at_start(wrapper.program_module.block)
         )
-        rewriter.replace_op(op, [], new_results=[alloc.memref])
+        rewriter.replace(op, [], new_results=[alloc.memref])
 
     @staticmethod
     def _set_name_hint(op: memref.AllocOp):

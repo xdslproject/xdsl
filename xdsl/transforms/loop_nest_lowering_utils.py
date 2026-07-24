@@ -257,7 +257,7 @@ def rewrite_linalg_structured_to_loops(
         assert yield_op is not None
 
         # Erase the yield op, we still have access to its operands
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         index_ops = tuple(op for op in block.ops if isa(op, linalg.ops.IndexOp))
 
@@ -267,7 +267,7 @@ def rewrite_linalg_structured_to_loops(
         rewriter.inline_block(block, insertion_point)
 
         for index_op in index_ops:
-            rewriter.replace_op(index_op, (), [ind_vars[index_op.dim.value.data]])
+            rewriter.replace(index_op, (), [ind_vars[index_op.dim.value.data]])
 
         _insert_store_ops(
             rewriter,
@@ -289,7 +289,7 @@ def rewrite_linalg_structured_to_loops(
         make_body,
     )
 
-    rewriter.erase_op(rewriter.current_operation)
+    rewriter.erase(rewriter.current_operation)
 
 
 def rewrite_generic_to_imperfect_loops(
@@ -381,7 +381,7 @@ def rewrite_generic_to_imperfect_loops(
             assert yield_op is not None
 
             # Erase the yield op, we still have access to its operands
-            rewriter.erase_op(yield_op)
+            rewriter.erase(yield_op)
 
             # Inline generic body into innermost scf loop
             # The operands have already been remapped
@@ -426,4 +426,4 @@ def rewrite_generic_to_imperfect_loops(
         outer_make_body,
     )
 
-    rewriter.erase_op(rewriter.current_operation)
+    rewriter.erase(rewriter.current_operation)

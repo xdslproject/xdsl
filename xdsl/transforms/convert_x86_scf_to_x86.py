@@ -106,7 +106,7 @@ class LowerX86ScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
-        rewriter.replace_op(
+        rewriter.replace(
             yield_op,
             (
                 mv_op := x86.ops.DS_MovOp(iv, destination=iv_reg),
@@ -156,7 +156,7 @@ class LowerX86ScfForPattern(RewritePattern):
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             x86.ops.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],

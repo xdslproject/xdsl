@@ -328,5 +328,5 @@ def tile_linalg_generic(
     for loop in reversed(loops):
         rewriter.insert(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
 
-    rewriter.erase_op(op)
+    rewriter.erase(op)
     return True

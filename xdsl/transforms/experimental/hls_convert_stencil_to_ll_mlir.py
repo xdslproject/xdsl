@@ -658,9 +658,9 @@ class ApplyOpToHLS(RewritePattern):
 
         ndims: int = op.res[0].type.get_num_dims()
 
-        rewriter.erase_op(return_op)
+        rewriter.erase(return_op)
         for new_return_component in new_return_component_lst:
-            rewriter.erase_op(new_return_component)
+            rewriter.erase(new_return_component)
 
         p_dataflow_lst: list[PragmaDataflowOp] = []
         component_idx = 0
@@ -677,7 +677,7 @@ class ApplyOpToHLS(RewritePattern):
 
         rewriter.insert(operations_to_insert)
 
-        rewriter.replace_op(op, new_apply_lst[-1])
+        rewriter.replace(op, new_apply_lst[-1])
 
 
 def collectComponentOperations(
@@ -828,7 +828,7 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
                 access_idx_array, result_hls_read, f64
             )
 
-            rewriter.replace_op(op, stencil_value)
+            rewriter.replace(op, stencil_value)
 
 
 # Copied from convert_stencil_to_ll_mlir
@@ -862,21 +862,21 @@ class StencilStoreToSubview(RewritePattern):
             else:
                 rewriter.insert(subview, InsertPoint.at_start(field.owner))
 
-            rewriter.erase_op(store)
+            rewriter.erase(store)
 
 
 @dataclass
 class TrivialStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass
 class TrivialApplyOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass
@@ -959,7 +959,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 )  # [operand for operand in op.operands[2:]]
             else:
                 parent_dataflow = typing.cast(PragmaDataflowOp, op.parent_op())
-                rewriter.erase_op(op)
+                rewriter.erase(op)
                 parent_dataflow.detach()
                 parent_dataflow.erase()
 
@@ -994,7 +994,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                     PragmaDataflowOp, self.first_load.parent_op()
                 )
 
-                rewriter.replace_op(self.first_load, call_load_all_data)
+                rewriter.replace(self.first_load, call_load_all_data)
 
                 for data_stream in self.data_streams:
                     data_stream.op.detach()
@@ -1096,7 +1096,7 @@ class PackDataInStencilField(RewritePattern):
 
             new_container_op = UndefOp(struct_new_type)
 
-            rewriter.replace_op(op, new_container_op)
+            rewriter.replace(op, new_container_op)
 
 
 # We create copies for all the coefficients. We create more than one copy where necesssary
@@ -1131,7 +1131,7 @@ class GetRepeatedCoefficients(RewritePattern):
                 elif isinstance(use.operation, stencil.ApplyOp):
                     op.results[0].remove_use(use)
 
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 @dataclass

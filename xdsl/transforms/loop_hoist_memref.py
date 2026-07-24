@@ -173,7 +173,7 @@ class LoopHoistMemRef(RewritePattern):
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
-        rewriter.replace_op(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
+        rewriter.replace(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
 
         new_for_op = scf.ForOp(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
@@ -185,7 +185,7 @@ class LoopHoistMemRef(RewritePattern):
         rewriter.insert(new_stores, InsertPoint.after(for_op))
 
         rewriter.insert(new_for_op, InsertPoint.before(for_op))
-        rewriter.erase_op(for_op)
+        rewriter.erase(for_op)
 
 
 @dataclass(frozen=True)

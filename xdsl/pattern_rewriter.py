@@ -137,7 +137,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         return super().insert(op, insertion_point)
 
-    def erase_op(self, op: Operation, safe_erase: bool = True):
+    def erase(self, op: Operation, safe_erase: bool = True):
         """
         Erase an operation.
         If safe_erase is True, check that the operation has no uses.
@@ -146,6 +146,11 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
+
+    @deprecated("Use .erase(op, safe_erase) instead")
+    def erase_op(self, op: Operation, safe_erase: bool = True):
+        """Erase an operation."""
+        self.erase(op, safe_erase=safe_erase)
 
     def replace_all_uses_with(
         self, from_value: SSAValue, to_value: SSAValue | None, safe_erase: bool = True
@@ -184,7 +189,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 
-    @deprecated("Please use `replace_op(op, new_op)`")
+    @deprecated("Use .replace(op, new_op) instead")
     def replace_matched_op(
         self,
         new_ops: Operation | Sequence[Operation],
@@ -197,11 +202,11 @@ class PatternRewriter(Builder, PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.replace_op(
+        self.replace(
             self.current_operation, new_ops, new_results, safe_erase=safe_erase
         )
 
-    def replace_op(
+    def replace(
         self,
         op: Operation,
         new_ops: Operation | Sequence[Operation],
@@ -251,7 +256,18 @@ class PatternRewriter(Builder, PatternRewriterListener):
                         res.name_hint = name_hint
 
         # Then, erase the original operation
-        self.erase_op(op, safe_erase=safe_erase)
+        self.erase(op, safe_erase=safe_erase)
+
+    @deprecated("Use .replace(op, new_ops, new_results, safe_erase) instead")
+    def replace_op(
+        self,
+        op: Operation,
+        new_ops: Operation | Sequence[Operation],
+        new_results: Sequence[SSAValue | None] | None = None,
+        safe_erase: bool = True,
+    ):
+        """Replace an operation with new operations."""
+        self.replace(op, new_ops, new_results, safe_erase=safe_erase)
 
     def replace_value_with_new_type(
         self, val: SSAValue, new_type: Attribute
@@ -493,7 +509,7 @@ class TypeConversionPattern(RewritePattern):
                 successors=op.successors,
                 regions=regions,
             )
-            rewriter.replace_op(op, new_op)
+            rewriter.replace(op, new_op)
             for new, old in zip(new_op.results, op.results):
                 new.name_hint = old.name_hint
 
@@ -576,7 +592,7 @@ class GreedyRewritePatternApplier(RewritePattern):
         from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
         if self.dce_enabled and is_trivially_dead(op):
-            rewriter.erase_op(op)
+            rewriter.erase(op)
             return
 
         # Do not fold constant ops. That would lead to an infinite folding loop,
@@ -593,7 +609,7 @@ class GreedyRewritePatternApplier(RewritePattern):
             folded = Folder(self.ctx).try_fold(op)
             if folded is not None:
                 folded_values, folded_ops = folded
-                rewriter.replace_op(op, new_ops=folded_ops, new_results=folded_values)
+                rewriter.replace(op, new_ops=folded_ops, new_results=folded_values)
                 return
 
         for pattern in self.rewrite_patterns:

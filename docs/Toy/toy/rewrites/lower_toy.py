@@ -310,7 +310,7 @@ def lower_op_to_loops(
     # Replace this operation with the generated alloc.
 
     op.res.replace_all_uses_with(alloc.memref)
-    rewriter.erase_op(op)
+    rewriter.erase(op)
 
 
 # endregion Helpers
@@ -385,7 +385,7 @@ class ConstantOpLowering(RewritePattern):
         rewriter.insert(constants, InsertPoint.before(alloc))
 
         # Replace the constant by the stores, and its result by the allocated value
-        rewriter.replace_op(op, stores, (alloc.memref,))
+        rewriter.replace(op, stores, (alloc.memref,))
 
 
 class FuncOpLowering(RewritePattern):
@@ -408,7 +408,7 @@ class FuncOpLowering(RewritePattern):
             name, op.function_type, rewriter.move_region_contents_to_new_regions(region)
         )
 
-        rewriter.replace_op(op, new_op)
+        rewriter.replace(op, new_op)
 
 
 class PrintOpLowering(RewritePattern):
@@ -435,7 +435,7 @@ class PrintOpLowering(RewritePattern):
             )
             new_vals.append(load.result)
 
-        rewriter.replace_op(op, printf.PrintFormatOp(format_str, *new_vals))
+        rewriter.replace(op, printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):
@@ -445,7 +445,7 @@ class ReturnOpLowering(RewritePattern):
             "During this lowering, we expect that all function calls have been inlined."
         )
 
-        rewriter.replace_op(op, func.ReturnOp())
+        rewriter.replace(op, func.ReturnOp())
 
 
 class TransposeOpLowering(RewritePattern):

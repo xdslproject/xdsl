@@ -108,7 +108,7 @@ class FunctionConstantPinning(RewritePattern):
             scf.YieldOp(*function_remainder.operands), InsertPoint.at_end(dest_block)
         )
         # return the results of the scf.if
-        rewriter.replace_op(function_remainder, func.ReturnOp(*scf_if.results))
+        rewriter.replace(function_remainder, func.ReturnOp(*scf_if.results))
 
         # remove pinning attribute
         if pinned_vals:
@@ -151,13 +151,13 @@ def generate_func_with_pinned_val(
         if PIN_CONSTANT_VALS in op.attributes:
             # find ops that came before, so we can erase them
             for bad_ops in ops_between_op_and_func_start(func_op, op):
-                rewriter.erase_op(bad_ops)
+                rewriter.erase(bad_ops)
             # then check that we really just have one result (sanity check)
             assert len(op.results) == 1, (
                 "Constant pinning only work on single return operations"
             )
             # replace op by constant
-            rewriter.replace_op(op, arith.ConstantOp(pin, op.results[0].type))
+            rewriter.replace(op, arith.ConstantOp(pin, op.results[0].type))
             # don't look at more operations inside the function
             break
     # return the newly created func op

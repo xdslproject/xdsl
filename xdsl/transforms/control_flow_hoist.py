@@ -34,7 +34,7 @@ def hoist_all(
             old: new for old, new in zip(o.results, new_op.results, strict=True)
         }
         rewriter.insert(new_op, at)
-        rewriter.replace_op(o, [], new_op.results)
+        rewriter.replace(o, [], new_op.results)
 
 
 class AffineIfHoistPattern(RewritePattern):

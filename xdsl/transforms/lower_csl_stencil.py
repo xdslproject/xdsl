@@ -68,7 +68,7 @@ class LowerAccessOp(RewritePattern):
             return
 
         dir_op, neighbor_op = get_dir_and_distance_ops(op)
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 neighbor_op,
@@ -196,9 +196,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_op(
-            op, [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
-        )
+        rewriter.replace(op, [num_chunks, chunk_ref, done_ref, send_buf, api_call], [])
 
 
 @dataclass(frozen=True)
@@ -240,7 +238,7 @@ class LowerYieldOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(op, csl.ReturnOp())
+        rewriter.replace(op, csl.ReturnOp())
 
 
 @dataclass(frozen=True)
@@ -422,7 +420,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         )
 
         for e in [*access_ops, *reduction_ops]:
-            rewriter.erase_op(e, safe_erase=False)
+            rewriter.erase(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
         elem_t = accumulator.type.get_element_type()
