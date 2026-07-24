@@ -120,34 +120,6 @@
 // CHECK-NEXT:    }
 
 
-  func.func @affine_vector_load() -> vector<8xf32> {
-    %0 = "test.op"() : () -> memref<100x100xf32>
-    // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
-    %vi0 = "test.op"() : () -> index
-    // CHECK-NEXT: %vi0 = "test.op"() : () -> index
-    %vi1 = "test.op"() : () -> index
-    // CHECK-NEXT: %vi1 = "test.op"() : () -> index
-    %1 = affine.vector_load %0[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
-    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
-    %vl2 = affine.vector_load %0[%vi0 + 3, %vi1 + 7] : memref<100x100xf32>, vector<8xf32>
-    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%vi0 + 3, %vi1 + 7] : memref<100x100xf32>, vector<8xf32>
-    func.return %1 : vector<8xf32>
-  }
-
-  func.func @affine_vector_store() -> vector<8xf32> {
-      %0 = "test.op"() : () -> memref<100x100xf32>
-      // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
-      %1 = "test.op"() : () -> vector<8xf32>
-      // CHECK-NEXT: %{{.*}} = "test.op"() : () -> vector<8xf32>
-      %vi0 = "test.op"() : () -> index
-      // CHECK-NEXT: %vi0 = "test.op"() : () -> index
-      %vi1 = "test.op"() : () -> index
-      // CHECK-NEXT: %vi1 = "test.op"() : () -> index
-      affine.vector_store %1, %0[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
-      // CHECK-NEXT: affine.vector_store %{{.*}}, %{{.*}}[%vi0, %vi1] : memref<100x100xf32>, vector<8xf32>
-      func.return %1 : vector<8xf32>
-  }
-
   // Check that an affine.apply with an affine map is printed correctly.
 
   %c0 = arith.constant 2 : index

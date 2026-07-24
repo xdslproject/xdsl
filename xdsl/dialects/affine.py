@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ShapedType,
     StringAttr,
-    VectorType,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
@@ -519,155 +518,6 @@ class YieldOp(IRDLOperation):
         return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
-@irdl_op_definition
-class VectorLoadOp(IRDLOperation):
-    """
-    Reads a slice from a MemRef into a vector.
-
-    See [external documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affinevector_load-affineaffinevectorloadop).
-    """
-
-    name = "affine.vector_load"
-
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
-
-    result = result_def(VectorType.constr(T))
-
-    map = opt_prop_def(AffineMapAttr)
-
-    def __init__(
-        self,
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        map: AffineMapAttr | None = None,
-        result_type: Attribute | None = None,
-    ):
-        if map is None:
-            # Create identity map for memrefs with at least one dimension or () -> ()
-            # for zero-dimensional memrefs.
-            assert isa(memref, SSAValue[MemRefType])
-            rank = memref.type.get_num_dims()
-            map = AffineMapAttr(AffineMap.identity(rank))
-
-        if result_type is None:
-            assert isa(memref, SSAValue[MemRefType])
-            result_type = VectorType(memref.type.get_element_type(), [])
-
-        super().__init__(
-            operands=(memref, indices),
-            properties={"map": map},
-            result_types=[result_type],
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> VectorLoadOp:
-        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-
-        if not isinstance(memref_type, MemRefType):
-            parser.raise_error("Expected memref type")
-
-        memref_type = cast(MemRefType, memref_type)
-        parser.parse_punctuation(",")
-        result_type = parser.parse_type()
-
-        resolved_memref = cast(
-            SSAValue[MemRefType], parser.resolve_operand(memref, memref_type)
-        )
-
-        return VectorLoadOp(
-            resolved_memref, indices, AffineMapAttr(affine_map), result_type
-        )
-
-    def print(self, printer: Printer):
-        assert self.map is not None
-        printer.print_string(" ")
-        _print_affine_memref_access(
-            printer, self.memref, self.map.data, self.indices, self.memref.type
-        )
-        printer.print_string(", ")
-        printer.print_attribute(self.result.type)
-
-
-@irdl_op_definition
-class VectorStoreOp(IRDLOperation):
-    """
-    Writes a vector into a slice within a MemRef.
-
-    See [external documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affinevector_store-affineaffinevectorstoreop).
-    """
-
-    name = "affine.vector_store"
-
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    value = operand_def(VectorType.constr(T))
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
-
-    map = opt_prop_def(AffineMapAttr)
-
-    def __init__(
-        self,
-        value: SSAValue | Operation,
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        map: AffineMapAttr | None = None,
-    ):
-        if map is None:
-            # Create identity map for memrefs with at least one dimension or () -> ()
-            # for zero-dimensional memrefs.
-            assert isa(memref, SSAValue[MemRefType])
-            rank = memref.type.get_num_dims()
-            map = AffineMapAttr(AffineMap.identity(rank))
-
-        super().__init__(
-            operands=(value, memref, indices),
-            properties={"map": map},
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> VectorStoreOp:
-        value = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-
-        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-
-        if not isinstance(memref_type, MemRefType):
-            parser.raise_error("Expected memref type")
-
-        memref_type = cast(MemRefType, memref_type)
-        parser.parse_punctuation(",")
-        value_type = parser.parse_type()
-
-        resolved_memref = cast(
-            SSAValue[MemRefType], parser.resolve_operand(memref, memref_type)
-        )
-
-        resolved_value = cast(
-            SSAValue[VectorType], parser.resolve_operand(value, value_type)
-        )
-
-        return VectorStoreOp(
-            resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
-        )
-
-    def print(self, printer: Printer):
-        assert self.map is not None
-        printer.print_string(" ")
-        printer.print_ssa_value(self.value)
-        printer.print_string(", ")
-
-        _print_affine_memref_access(
-            printer, self.memref, self.map.data, self.indices, self.memref.type
-        )
-
-        printer.print_string(", ")
-        printer.print_attribute(self.value.type)
-
-
 Affine = Dialect(
     "affine",
     [
@@ -679,8 +529,6 @@ Affine = Dialect(
         LoadOp,
         MinOp,
         YieldOp,
-        VectorLoadOp,
-        VectorStoreOp,
     ],
     [],
 )
