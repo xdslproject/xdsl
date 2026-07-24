@@ -58,7 +58,6 @@ entry-points."xdsl.universe".xdsl = "xdsl.universe:XDSL_UNIVERSE"
 [dependency-groups]
 dev = [ "my-plugin", "toy", "xdsl[dev,gui,heir,llvm]" ]
 docs = [
-  "lzstring2",
   "micropip>=0.7",
   "mkdocs>=1.6.1",
   "mkdocs-awesome-nav>=3.1.2",
@@ -89,8 +88,6 @@ zip-safe = false
 
 [tool.uv]
 sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
-# No config necessary
-sources.lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
 sources.my_plugin = { path = "tests/my_plugin", editable = true }
 sources.toy = { path = "docs/Toy", editable = true }
 

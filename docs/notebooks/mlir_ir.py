@@ -8,12 +8,23 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.context import Context
     from xdsl.dialects import builtin, arith, func, scf
-    from xdsl.utils import marimo as xmo
     from xdsl.printer import Printer
     from typing import Any
-    return Any, Context, Printer, arith, builtin, func, mo, scf, xmo
+    return Any, Context, Printer, arith, builtin, func, scf
 
 
 @app.cell(hide_code=True)

@@ -1,10 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "xdsl==0.27.0",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.23.6"
@@ -15,8 +8,18 @@ app = marimo.App()
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
     from xdsl.utils import marimo as xmo
 
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.parser import Parser
     from xdsl.context import Context
 
@@ -50,8 +53,6 @@ def _():
         PatternRewriteWalker,
         RewritePattern,
         Rewriter,
-        mo,
-        xmo,
     )
 
 

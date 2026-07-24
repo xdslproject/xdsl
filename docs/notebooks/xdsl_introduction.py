@@ -8,6 +8,18 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.irdl import (
         irdl_op_definition,
         irdl_attr_definition,
@@ -25,7 +37,6 @@ def _():
         attr_def,
         irdl_attr_definition,
         irdl_op_definition,
-        mo,
         operand_def,
         region_def,
         result_def,
