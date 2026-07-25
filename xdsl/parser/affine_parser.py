@@ -10,6 +10,7 @@ from xdsl.ir.affine import (
     AffineSet,
 )
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Span
 from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
 
 from .base_parser import BaseParser  # noqa: TID251
@@ -248,13 +249,16 @@ class AffineParser(BaseParser):
 
     def _get_parse_optional_ssa_value(
         self,
-    ) -> tuple[Callable[[], AffineExpr | None], dict[str, int]]:
+    ) -> tuple[Callable[[], AffineExpr | None], dict[str, int], list[Span]]:
         """
         Returns function to parse an affine symbol expr represented by an SSA value
-        identifier, and the dictionary mapping SSA value name to the corresponding
-        symbol index, populated by the function as it encounters new values.
+        identifier, the dictionary mapping SSA value name to the corresponding
+        symbol index, and the list of each name's first-occurence span (in
+        symbol-index order), all populated by the function as it encounters
+        new values.
         """
         symbol_by_ssa_name: dict[str, int] = {}
+        spans: list[Span] = []
 
         def parse_optional_ssa_value() -> AffineExpr | None:
             if (
@@ -266,23 +270,24 @@ class AffineParser(BaseParser):
                 except KeyError:
                     symbol = len(symbol_by_ssa_name)
                     symbol_by_ssa_name[ident] = symbol
+                    spans.append(ident_token.span)
                 return AffineExpr.symbol(symbol)
 
-        return parse_optional_ssa_value, symbol_by_ssa_name
+        return parse_optional_ssa_value, symbol_by_ssa_name, spans
 
-    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[str]]:
+    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[Span]]:
         """
         Parse an affine map where ssa values can be used inside the expressions.
         ```
         `[` affine-expr (`,` affine-expr)* `]`
         ```
         """
-        parse_optional_bare_id, symbol_by_ssa_name = (
+        parse_optional_bare_id, symbol_by_ssa_name, spans = (
             self._get_parse_optional_ssa_value()
         )
         exprs = self.parse_comma_separated_list(
             self.Delimiter.SQUARE,
             lambda: self._parse_affine_expr(parse_optional_bare_id),
         )
-        syms = tuple(symbol_by_ssa_name)
-        return AffineMap(0, len(syms), tuple(exprs)), syms
+
+        return AffineMap(0, len(symbol_by_ssa_name), tuple(exprs)), tuple(spans)
