@@ -47,7 +47,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLError, VerifyException
+from xdsl.utils.exceptions import ParseError, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
@@ -1254,6 +1254,17 @@ class UniqueBaseAttributeVariable(AttributeVariable):
             return unique_base.new(unique_base.parse_parameter(parser))
         else:
             raise ValueError("Attributes must be Data or ParametrizedAttribute.")
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        # The parsers of a known attribute base are not optional: they raise
+        # instead of returning None when the attribute is absent. Backtrack so
+        # that an optional group anchored on this variable can be skipped.
+        pos = parser.pos
+        try:
+            return self.parse(parser, state)
+        except ParseError:
+            parser._resume_from(pos)  # pyright: ignore[reportPrivateUsage]
+            return False
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         if isinstance(attr, ParametrizedAttribute):
