@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import ClassVar, Generic, cast, get_args, get_origin
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.ir import Data
 from xdsl.parser import AttrParser, Parser
@@ -82,11 +82,6 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
             raise TypeError("Only direct inheritance from BitEnumAttribute is allowed.")
 
         cls.enum_type = enum_type
-
-    @property
-    @deprecated("Please use .data instead")
-    def flags(self) -> set[EnumType]:
-        return set(self.data)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> frozenset[EnumType]:
