@@ -8,7 +8,7 @@ from math import prod
 from operator import add, lt, neg
 from typing import ClassVar, Generic, TypeAlias, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -127,15 +127,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             raise VerifyException(
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(*indices: int | IntAttr):
-        array = ArrayAttr(
-            (IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices
-        )
-
-        return IndexAttr(array)
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
@@ -635,16 +626,6 @@ class ApplyOp(IRDLOperation):
             properties={"bounds": bounds},
         )
 
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block | Region,
-        result_types: Sequence[TempType[Attribute]] = (),
-        bounds: StencilBoundsAttr | None = None,
-    ):
-        return ApplyOp(args, body, result_types, bounds)
-
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
@@ -801,15 +782,6 @@ class CastOp(IRDLOperation):
             operands=[field],
             result_types=[res_type],
         )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        bounds: StencilBoundsAttr,
-        res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
-    ) -> CastOp:
-        return CastOp(field, bounds, res_type)
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
@@ -977,14 +949,6 @@ class ExternalLoadOp(IRDLOperation):
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType,
-    ):
-        return ExternalLoadOp(arg, res_type)
 
 
 @irdl_op_definition
@@ -1179,15 +1143,6 @@ class AccessOp(IRDLOperation):
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
         )
 
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        temp: SSAValue | Operation,
-        offset: Sequence[int],
-        offset_mapping: Sequence[int] | IndexAttr | None = None,
-    ):
-        return AccessOp(temp, offset, offset_mapping)
-
     def verify_(self) -> None:
         # As promised by HasAncestor(ApplyOp)
         trait = AccessOp.get_trait(HasAncestor(ApplyOp))
@@ -1345,15 +1300,6 @@ class LoadOp(IRDLOperation):
             result_types=[res_type],
         )
 
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
-    ):
-        return LoadOp(field, lb, ub)
-
     def verify_(self) -> None:
         field = self.field.type
         temp = self.res.type
@@ -1504,15 +1450,6 @@ class StoreOp(IRDLOperation):
     ):
         super().__init__(operands=[temp, field], attributes={"bounds": bounds})
 
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        temp: SSAValue | Operation,
-        field: SSAValue | Operation,
-        bounds: StencilBoundsAttr,
-    ):
-        return StoreOp(temp, field, bounds)
-
 
 @irdl_op_definition
 class StoreResultOp(IRDLOperation):
@@ -1579,11 +1516,6 @@ class ReturnOp(IRDLOperation):
 
     def __init__(self, res: Sequence[SSAValue | Operation]):
         super().__init__(operands=[res])
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(res: Sequence[SSAValue | Operation]):
-        return ReturnOp(res)
 
     def verify_(self) -> None:
         unroll_factor = self.unroll_factor
