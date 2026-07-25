@@ -6,7 +6,6 @@ from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import (
@@ -14,7 +13,7 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.dialects.x86.ops import SI32
+from xdsl.dialects.x86.ops import SI32, X86RegisterAllocatableOperation
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
 from xdsl.ir import Dialect
 from xdsl.irdl import (
@@ -60,7 +59,7 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
     )
 
 
-class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
+class ForRofOperation(X86RegisterAllocatableOperation, IRDLOperation, ABC):
     lb = operand_def(GeneralRegisterType)
     ub_val = opt_operand_def(GeneralRegisterType)
     ub_attr = opt_prop_def(IntegerAttr[SI32])
