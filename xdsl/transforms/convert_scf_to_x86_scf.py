@@ -49,7 +49,7 @@ class ScfForLowering(RewritePattern):
         cast_block_args_to_regs(new_region.block, self.arch, rewriter)
 
         values = tuple(
-            self.arch.move_value_to_unallocated(value, value_type, rewriter)
+            self.arch.move_value_to_unallocated(value, rewriter, value_type=value_type)
             for value, value_type in zip(args, op.iter_args.types)
         )
 

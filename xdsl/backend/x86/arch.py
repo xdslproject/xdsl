@@ -113,9 +113,18 @@ class X86Arch(Arch):
         ]
 
     def move_value_to_unallocated(
-        self, value: SSAValue, value_type: Attribute, builder: Builder
+        self,
+        value: SSAValue,
+        builder: Builder,
+        *,
+        value_type: Attribute | None,
     ) -> SSAValue:
-        if isa(value_type, VectorType[FixedBitwidthType]):
+        """
+        Move the value to a new register.
+        If the value type is known, use a specialised move operation, otherwise use a
+        default move operation for the input register.
+        """
+        if value_type is not None and isa(value_type, VectorType[FixedBitwidthType]):
             if not isinstance(reg_type := value.type, X86VectorRegisterType):
                 raise ValueError(f"Invalid type for move {value_type}")
             # Choose the x86 vector instruction according to the
@@ -137,12 +146,19 @@ class X86Arch(Arch):
                     raise DiagnosticException(
                         "Float precision must be half, single or double."
                     )
-        else:
-            if not isinstance(reg_type := value.type, GeneralRegisterType):
-                raise ValueError(f"Invalid type for move {value_type}")
+        elif isinstance(reg_type := value.type, X86VectorRegisterType):
+            # In the future, we want to be more careful about register types.
+            mov_op = x86.ops.DS_VmovapdOp(
+                value, destination=type(reg_type).unallocated()
+            )
+        elif isinstance(reg_type, GeneralRegisterType):
             mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
+        else:
+            raise ValueError(f"Invalid type for move {value.type}")
 
-        return builder.insert(mov_op).results[0]
+        result = builder.insert(mov_op).results[0]
+        result.name_hint = value.name_hint
+        return result
 
 
 UNKNOWN = X86Arch()

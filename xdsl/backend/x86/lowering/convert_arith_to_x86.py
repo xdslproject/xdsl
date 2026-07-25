@@ -64,7 +64,7 @@ class ArithBinaryToX86(RewritePattern):
 
         lhs_x86, rhs_x86 = self.arch.cast_to_regs(op.operands, rewriter)
         moved_rhs = self.arch.move_value_to_unallocated(
-            rhs_x86, op.operands[1].type, rewriter
+            rhs_x86, rewriter, value_type=op.operands[1].type
         )
         add_op = new_type(source=lhs_x86, register_in=moved_rhs)
         result_cast_op = asm.FromRegOp.get(add_op.register_out, lhs.type)
