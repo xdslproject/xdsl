@@ -106,7 +106,7 @@ class LowerX86ScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
-        rewriter.replace_op(
+        rewriter.replace(
             yield_op,
             (
                 mv_op := x86.ops.DS_MovOp(iv, destination=iv_reg),
@@ -132,7 +132,7 @@ class LowerX86ScfForPattern(RewritePattern):
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
-        rewriter.insert_op(
+        rewriter.insert(
             (
                 mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
                 cmp_op := x86.ops.SS_CmpOp(mv_op.destination, op.ub, result=RFLAGS),
@@ -150,13 +150,13 @@ class LowerX86ScfForPattern(RewritePattern):
         mv_op.destination.name_hint = op.lb.name_hint
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op(
+        rewriter.insert(
             x86.ops.LabelOp(f"scf_body_{suffix}"),
             InsertPoint.at_start(first_body_block),
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             x86.ops.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],

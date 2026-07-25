@@ -25,6 +25,6 @@ def cast_to_regs(
             cast_op, new_value = UnrealizedConversionCastOp.cast_one(
                 v, register_map(v.type).unallocated()
             )
-            builder.insert_op(cast_op)
+            builder.insert(cast_op)
         registers.append(new_value)
     return registers

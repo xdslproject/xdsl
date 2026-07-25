@@ -54,7 +54,7 @@ class LowerClusterHWBarrier(RewritePattern):
             asm volatile("csrr x0, 0x7C2" ::: "memory");
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
@@ -88,7 +88,7 @@ class LowerSSRDisable(RewritePattern):
         P.S. This specific rewrite ignores the LLVM case and goes
                 straight to the generic one.
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 riscv.CsrrciOp(csr=IntegerAttr(0x7C0, 12), immediate=IntegerAttr(1, 4)),
@@ -112,7 +112,7 @@ class LowerDMAStart1D(RewritePattern):
         }
         """
         reg_t = riscv.Registers.UNALLOCATED_INT
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
@@ -201,7 +201,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
         P.S. We only implement taking the top branch for now.
         """
         reg_t = riscv.Registers.UNALLOCATED_INT
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 # "Take an ui64 and split it in two 32 bit-wide RISC-V registers"
@@ -361,7 +361,7 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
             }
         }
         """
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 dst := self.cast_i64(op.dst),
                 src := self.cast_i64(op.src),
@@ -371,7 +371,7 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
                 repeat := self.cast_i32(op.size),
             ]
         )
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             *self.generate_dma_instructions(
                 dst.results[0],
@@ -402,7 +402,7 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
                                              src_stride, repeat);
         }
         """
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 # we use zero register for the ptr_high registers
                 zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
@@ -415,7 +415,7 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
             ]
         )
         # generate the dma setup instructions with `zero` for the ptr_high values
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             *self.generate_dma_instructions(
                 dst,
@@ -438,7 +438,7 @@ class LowerGlobalCoreBaseHartid(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -456,7 +456,7 @@ class LowerGlobalCoreNum(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_runtime.GlobalCoreNumOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -475,7 +475,7 @@ class LowerClusterCoreNum(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_runtime.ClusterCoreNumOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -493,7 +493,7 @@ class LowerClusterNum(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -511,7 +511,7 @@ class LowerClusterDmCoreNum(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_runtime.ClusterDmCoreNumOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -531,7 +531,7 @@ class LowerIsComputeCore(RewritePattern):
             return snrt_cluster_core_idx() < snrt_cluster_compute_core_num();
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
@@ -555,7 +555,7 @@ class LowerIsDmCore(RewritePattern):
             return !snrt_is_compute_core();
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
@@ -575,7 +575,7 @@ class LowerClusterCoreIdx(RewritePattern):
             return snrt_global_core_idx() % snrt_cluster_core_num();
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 global_core_idx := snitch_runtime.GlobalCoreIdxOp(),
@@ -608,7 +608,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
             return SNRT_CLUSTER_DM_CORE_NUM;
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 arith.ConstantOp.from_int_and_width(
@@ -641,7 +641,7 @@ class LowerGlobalCoreIdx(RewritePattern):
             return snrt_hartid() - snrt_global_core_base_hartid();
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
@@ -669,7 +669,7 @@ class LowerClusterIdx(RewritePattern):
             return snrt_global_core_idx() / snrt_cluster_core_num();
         }
         """
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 cluster_core_num := snitch_runtime.ClusterCoreNumOp(),

@@ -109,7 +109,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
 
             # We can fuse
             user.result.replace_all_uses_with(inner_index)
-            rewriter.erase_op(user)
+            rewriter.erase(user)
             new_ub = op.ub
             new_step = inner_loop.step
         else:
@@ -125,15 +125,15 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 builtin.IntegerAttr(factor, builtin.IndexType())
             )
             new_ub_op = arith.MuliOp(op.ub, factor_op.result)
-            rewriter.insert_op((factor_op, new_ub_op))
+            rewriter.insert((factor_op, new_ub_op))
             new_ub = new_ub_op.result
             new_step = op.step
 
         moved_region = rewriter.move_region_contents_to_new_regions(inner_loop.body)
-        rewriter.erase_op(outer_yield_op)
-        rewriter.erase_op(inner_loop)
+        rewriter.erase(outer_yield_op)
+        rewriter.erase(inner_loop)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             scf.ForOp(
                 op.lb,

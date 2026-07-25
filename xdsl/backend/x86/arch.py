@@ -142,7 +142,7 @@ class X86Arch(Arch):
                 raise ValueError(f"Invalid type for move {value_type}")
             mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
 
-        return builder.insert_op(mov_op).results[0]
+        return builder.insert(mov_op).results[0]
 
 
 UNKNOWN = X86Arch()

@@ -47,7 +47,7 @@ def _insert_mv_op(
         raise PassFailedException(f"Unknown register type: {type(src.type)}")
 
     op, _ = move_ops_for_value(src, src_type, dst)
-    rewriter.insert_op(op)
+    rewriter.insert(op)
     return op
 
 
@@ -57,9 +57,9 @@ def _insert_swap_ops(
     b: SSAValue[riscv.IntRegisterType],
 ) -> tuple[SSAValue[riscv.IntRegisterType], SSAValue[riscv.IntRegisterType]]:
     """Add swap using xors. returns the new SSAValues."""
-    op1 = rewriter.insert_op(riscv.XorOp(a, b, rd=a.type))
-    op2 = rewriter.insert_op(riscv.XorOp(op1, b, rd=b.type))
-    op3 = rewriter.insert_op(riscv.XorOp(op1, op2, rd=a.type))
+    op1 = rewriter.insert(riscv.XorOp(a, b, rd=a.type))
+    op2 = rewriter.insert(riscv.XorOp(op1, b, rd=b.type))
+    op3 = rewriter.insert(riscv.XorOp(op1, op2, rd=a.type))
     return op2.rd, op3.rd
 
 
@@ -208,7 +208,7 @@ class ParallelMovPattern(RewritePattern):
                 mvop = _insert_mv_op(rewriter, temp_ssa, cur_output.type, temp_ssa_type)
                 results[idx] = mvop.results[0]
 
-        rewriter.replace_op(op, (), results)
+        rewriter.replace(op, (), results)
 
 
 @dataclass(frozen=True)
