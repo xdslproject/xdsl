@@ -20,7 +20,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
+from typing_extensions import Self, TypeForm, TypeVar, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -1094,13 +1094,6 @@ class IntegerAttr(
             if normalized_value is not None:
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
-
-    @deprecated("Please use IntegerAttr(value, width) instead")
-    @staticmethod
-    def from_int_and_width(
-        value: int, width: IntCovT
-    ) -> IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]]:
-        return IntegerAttr(value, width)
 
     @staticmethod
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
@@ -2447,20 +2440,6 @@ class DenseArrayBase(
     def get_element_type(self) -> DenseArrayT:
         return self.elt_type
 
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_int(
-        data_type: _IntegerTypeInvT, data: Sequence[int]
-    ) -> DenseArrayBase[_IntegerTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
-
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_float(
-        data_type: _FloatAttrTypeInvT, data: Sequence[float]
-    ) -> DenseArrayBase[_FloatAttrTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
-
     @overload
     @staticmethod
     def from_list(
@@ -3335,47 +3314,6 @@ class DenseIntOrFPElementsAttr(
                 f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
             )
 
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_int(
-        type: RankedStructure[_IntegerAttrType], data: int | Sequence[int]
-    ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
-        if isinstance(data, int):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_float(
-        type: RankedStructure[_FloatAttrType],
-        data: float | Sequence[float],
-    ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
-        if isinstance(data, int | float):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
-        data: Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
-        data: Sequence[tuple[float, float]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_complex(
-        type: RankedStructure[ComplexType],
-        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType]:
-        return DenseIntOrFPElementsAttr.from_list(type, data)  # pyright: ignore[reportCallIssue, reportUnknownVariableType, reportArgumentType]
-
     @overload
     @staticmethod
     def from_list(
@@ -3444,38 +3382,6 @@ class DenseIntOrFPElementsAttr(
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
         return self.get_element_type().iter_unpack(self.data.data)
-
-    @deprecated("Please use `get_values` instead")
-    def get_int_values(self) -> Sequence[int]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are integers.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, IntegerType | IndexType), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_float_values(self) -> Sequence[float]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are floats.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, AnyFloat), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_complex_values(
-        self,
-    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are complex.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, ComplexType), el_type
-        return el_type.unpack(self.data.data, len(self))
 
     @overload
     def get_values(
