@@ -2,8 +2,6 @@ import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
 
-from typing_extensions import deprecated
-
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv
@@ -142,15 +140,6 @@ def cast_operands_to_regs(
         )
         operation = rewriter.current_operation
     return cast_to_regs(operation.operands, register_type_for_type, rewriter)
-
-
-@deprecated("Please use `cast_op_results(rewriter, rewriter.current_operation)`")
-def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
-    """
-    Add cast operations just after the matched operation, to preserve the type validity of
-    arguments of uses of results.
-    """
-    return cast_op_results(rewriter, rewriter.current_operation)
 
 
 def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
