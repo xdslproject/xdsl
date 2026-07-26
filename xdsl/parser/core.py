@@ -9,7 +9,7 @@ from typing import Literal, overload
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import DictionaryAttr, LocationAttr, ModuleOp
+from xdsl.dialects.builtin import DictionaryAttr, IndexType, LocationAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -17,11 +17,13 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import IRDLOperation
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
+from .affine_parser import AffineParser  # noqa: TID251
 from .attribute_parser import AttrParser  # noqa: TID251
 from .generic_parser import ParserState, Position  # noqa: TID251
 
@@ -334,6 +336,21 @@ class Parser(AttrParser):
             )
 
         return resolved
+
+    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[SSAValue]]:
+        """
+        Parse an affine map of SSA identifiers, e.g.: `[%i0, %i1 + 7]`.
+        """
+        affine_map, spans = AffineParser(
+            self._parser_state
+        ).parse_affine_map_of_ssa_ids()
+
+        operands = [
+            self.resolve_operand(UnresolvedOperand(span, 0), IndexType())
+            for span in spans
+        ]
+
+        return affine_map, operands
 
     def parse_optional_operand(self) -> SSAValue | None:
         """
