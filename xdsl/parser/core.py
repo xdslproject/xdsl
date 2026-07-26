@@ -339,7 +339,7 @@ class Parser(AttrParser):
 
     def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[SSAValue]]:
         """
-        Parse an affine map of SSA ids, e.g.: `[%i0, %i1 + 7]`.
+        Parse an affine map of SSA identifiers, e.g.: `[%i0, %i1 + 7]`.
         """
         affine_map, spans = AffineParser(
             self._parser_state
