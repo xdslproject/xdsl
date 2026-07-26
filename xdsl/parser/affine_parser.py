@@ -281,9 +281,6 @@ class AffineParser(BaseParser):
         ```
         `[` affine-expr (`,` affine-expr)* `]`
         ```
-        Returns the map (with each distinct SSA id mapped to a symbol, in
-        first-occurrence order) and the span of each id's first occurrence, in that
-        same order.
         """
         parse_optional_bare_id, symbol_by_ssa_name, spans = (
             self._get_parse_optional_ssa_value()
