@@ -34,7 +34,7 @@ class ArithConstantToX86(RewritePattern):
             immediate=op.value.value.data, destination=reg_type.unallocated()
         )
         cast_op = asm.FromRegOp.get(mov_op.destination, op.result.type)
-        rewriter.replace_op(op, [mov_op, cast_op])
+        rewriter.replace(op, [mov_op, cast_op])
 
 
 X86_OP_BY_ARITH_BINARY_OP = {
@@ -68,7 +68,7 @@ class ArithBinaryToX86(RewritePattern):
         )
         add_op = new_type(source=lhs_x86, register_in=moved_rhs)
         result_cast_op = asm.FromRegOp.get(add_op.register_out, lhs.type)
-        rewriter.replace_op(op, [add_op, result_cast_op])
+        rewriter.replace(op, [add_op, result_cast_op])
 
 
 @dataclass(frozen=True)

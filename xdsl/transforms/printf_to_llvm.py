@@ -133,7 +133,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         globl = self._construct_global(format_str)
         self.collected_global_symbs[globl.sym_name.data] = globl
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             casts
             + [

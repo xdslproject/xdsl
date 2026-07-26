@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
@@ -110,6 +110,7 @@ class Builder(BuilderListener):
 
         return op
 
+    @deprecated("Use .insert(op, insertion_point) instead")
     def insert_op(
         self,
         op: InsertOpInvT,

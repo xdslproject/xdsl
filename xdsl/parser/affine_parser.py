@@ -253,9 +253,9 @@ class AffineParser(BaseParser):
         """
         Returns function to parse an affine symbol expr represented by an SSA value
         identifier, the dictionary mapping SSA value name to the corresponding
-        symbol index, and the list of each name's first-occurrence span (in
-        symbol-index order), all populated by the function as it encounters new
-        values.
+        symbol index, and the list of each name's first-occurence span (in
+        symbol-index order), all populated by the function as it encounters
+        new values.
         """
         symbol_by_ssa_name: dict[str, int] = {}
         spans: list[Span] = []
@@ -292,4 +292,5 @@ class AffineParser(BaseParser):
             self.Delimiter.SQUARE,
             lambda: self._parse_affine_expr(parse_optional_bare_id),
         )
+
         return AffineMap(0, len(symbol_by_ssa_name), tuple(exprs)), tuple(spans)

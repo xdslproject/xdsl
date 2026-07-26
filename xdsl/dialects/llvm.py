@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -225,11 +225,6 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             parser.parse_shape_delimiter()
             type = parse_llvm_type(parser)
         return (size, type)
-
-    @deprecated("Please use LLVMArrayType(size, type)")
-    @staticmethod
-    def from_size_and_type(size: int | IntAttr, type: Attribute):
-        return LLVMArrayType(size, type)
 
 
 @irdl_attr_definition

@@ -128,7 +128,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                         continue
                     use.operation.operands[use.index] = iv.result
         outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_reduce)
-        rewriter.replace_op(op, [zero, *tile_sizes.values(), *outter_step, outter_loop])
+        rewriter.replace(op, [zero, *tile_sizes.values(), *outter_step, outter_loop])
 
 
 @dataclass(frozen=True)

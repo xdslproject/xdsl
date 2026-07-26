@@ -209,7 +209,7 @@ def _parse_opt_expr_atom(
         then_block_expr = parse_block(ctx, then_builder)
         if then_block_expr.value.value is None:
             raise ParseError(then_block_expr.value.loc.pos, "expected block expression")
-        then_builder.insert_op(scf.YieldOp(then_block_expr.value.value.value))
+        then_builder.insert(scf.YieldOp(then_block_expr.value.value.value))
 
         parse_punct(ctx, ELSE)
 
@@ -218,7 +218,7 @@ def _parse_opt_expr_atom(
         else_block_expr = parse_block(ctx, else_builder)
         if else_block_expr.value.value is None:
             raise ParseError(else_block_expr.value.loc.pos, "expected block expression")
-        else_builder.insert_op(scf.YieldOp(else_block_expr.value.value.value))
+        else_builder.insert(scf.YieldOp(else_block_expr.value.value.value))
 
         if then_block_expr.value.value.typ != else_block_expr.value.value.typ:
             raise ParseError(
@@ -229,7 +229,7 @@ def _parse_opt_expr_atom(
                 f"got {else_block_expr.value.value.typ}",
             )
 
-        if_op = builder.insert_op(
+        if_op = builder.insert(
             scf.IfOp(
                 cond.value.value,
                 [then_block_expr.value.value.typ.xdsl()],
@@ -246,7 +246,7 @@ def _parse_opt_expr_atom(
 
     # Parse integer constant.
     if (lit := parse_opt_integer(ctx)).value is not None:
-        val = builder.insert_op(
+        val = builder.insert(
             arith.ConstantOp(builtin.IntegerAttr(lit.value, ListLangInt().xdsl()))
         )
         val.result.name_hint = f"_c{lit.value}"
@@ -254,7 +254,7 @@ def _parse_opt_expr_atom(
 
     # Parse false constant.
     if false := parse_opt_punct(ctx, FALSE):
-        val = builder.insert_op(
+        val = builder.insert(
             arith.ConstantOp(builtin.IntegerAttr(0, ListLangBool().xdsl()))
         )
         val.result.name_hint = "_false"
@@ -262,7 +262,7 @@ def _parse_opt_expr_atom(
 
     # Parse true constant.
     if true := parse_opt_punct(ctx, TRUE):
-        val = builder.insert_op(
+        val = builder.insert(
             arith.ConstantOp(builtin.IntegerAttr(1, ListLangBool().xdsl()))
         )
         val.result.name_hint = "_true"
@@ -277,11 +277,11 @@ def _parse_opt_expr_atom(
                 f"expected {ListLangBool()} type for negation, "
                 f"got {to_negate.value.typ}",
             )
-        true = builder.insert_op(
+        true = builder.insert(
             arith.ConstantOp(builtin.IntegerAttr(1, ListLangBool().xdsl()))
         )
         true.result.name_hint = "_true"
-        negated = builder.insert_op(arith.XOrIOp(to_negate.value.value, true.result))
+        negated = builder.insert(arith.XOrIOp(to_negate.value.value, true.result))
         negated.result.name_hint = compose_name_hints("not", to_negate.value.value)
         return Located(neg.loc, TypedExpression(negated.result, ListLangBool()))
 
@@ -352,7 +352,7 @@ def _parse_opt_expr_atom_with_methods(
 
             lambda_builder = Builder(InsertPoint.at_start(lambda_block))
             lambda_expr = parse_expr(ctx, lambda_builder)
-            lambda_builder.insert_op(list_dialect.YieldOp(lambda_expr.value.value))
+            lambda_builder.insert(list_dialect.YieldOp(lambda_expr.value.value))
 
             assert ctx.bindings.parent is not None
             ctx.bindings = ctx.bindings.parent
@@ -411,7 +411,7 @@ class Multiplication(BinaryOp):
                 f"in multiplication, got {rhs.value.typ}",
             )
 
-        mul_op = builder.insert_op(arith.MuliOp(lhs.value.value, rhs.value.value))
+        mul_op = builder.insert(arith.MuliOp(lhs.value.value, rhs.value.value))
         mul_op.result.name_hint = compose_name_hints(
             lhs.value.value, "times", rhs.value.value
         )
@@ -442,7 +442,7 @@ class Addition(BinaryOp):
                 f"in addition, got {rhs.value.typ}",
             )
 
-        add_op = builder.insert_op(arith.AddiOp(lhs.value.value, rhs.value.value))
+        add_op = builder.insert(arith.AddiOp(lhs.value.value, rhs.value.value))
         add_op.result.name_hint = compose_name_hints(
             lhs.value.value, "plus", rhs.value.value
         )
@@ -516,7 +516,7 @@ class Comparator(BinaryOp):
                 f"in comparison, got {rhs.value.typ}",
             )
 
-        cmpi_op = builder.insert_op(
+        cmpi_op = builder.insert(
             arith.CmpiOp(lhs.value.value, rhs.value.value, self.arith_code)
         )
         cmpi_op.result.name_hint = compose_name_hints(
@@ -549,7 +549,7 @@ class BoolAnd(BinaryOp):
                 f"in boolean and, got {rhs.value.typ}",
             )
 
-        and_op = builder.insert_op(arith.AndIOp(lhs.value.value, rhs.value.value))
+        and_op = builder.insert(arith.AndIOp(lhs.value.value, rhs.value.value))
         and_op.result.name_hint = compose_name_hints(
             lhs.value.value, "and", rhs.value.value
         )
@@ -580,7 +580,7 @@ class BoolOr(BinaryOp):
                 f"in boolean or, got {rhs.value.typ}",
             )
 
-        or_op = builder.insert_op(arith.OrIOp(lhs.value.value, rhs.value.value))
+        or_op = builder.insert(arith.OrIOp(lhs.value.value, rhs.value.value))
         or_op.result.name_hint = compose_name_hints(
             lhs.value.value, "or", rhs.value.value
         )

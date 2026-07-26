@@ -352,7 +352,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         )
 
         # Insert the new operation before the root operation
-        self.rewriter.insert_op(result_op)
+        self.rewriter.insert(result_op)
 
         return (result_op,)
 
@@ -381,10 +381,10 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
-            rewriter.replace_op(old, new_ops=[], new_results=new_op.results)
+            rewriter.replace(old, new_ops=[], new_results=new_op.results)
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
-            rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
+            rewriter.replace(old, new_ops=[], new_results=list(new_vals))
         else:
             raise ValueError(
                 "Either a replacing operatoin or values must be provided with replace op"
@@ -397,7 +397,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         (old,) = interpreter.get_values((op.op_value,))
-        self.rewriter.erase_op(old)
+        self.rewriter.erase(old)
         return ()
 
     @impl(pdl.TypeOp)

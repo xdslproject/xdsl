@@ -48,7 +48,7 @@ class ConvertMemRefAllocOp(RewritePattern):
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 size_op := rv32.LiOp(size, comment="memref alloc size"),
@@ -69,7 +69,7 @@ class ConvertMemRefDeallocOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.DeallocOp, rewriter: PatternRewriter
     ) -> None:
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 ptr := UnrealizedConversionCastOp.get(
@@ -175,7 +175,7 @@ class ConvertMemRefStoreOp(RewritePattern):
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
 
-        rewriter.insert_op(ops)
+        rewriter.insert(ops)
         match value.type:
             case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
@@ -204,7 +204,7 @@ class ConvertMemRefStoreOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {value.type}")
 
-        rewriter.replace_op(op, new_op)
+        rewriter.replace(op, new_op)
 
 
 class ConvertMemRefLoadOp(RewritePattern):
@@ -218,7 +218,7 @@ class ConvertMemRefLoadOp(RewritePattern):
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
-        rewriter.insert_op(ops)
+        rewriter.insert(ops)
 
         result_register_type = register_type_for_type(op.res.type)
 
@@ -244,7 +244,7 @@ class ConvertMemRefLoadOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {result_register_type}")
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 lw := lw_op,
@@ -280,13 +280,13 @@ class ConvertMemRefGlobalOp(RewritePattern):
             riscv.LabelOp(op.sym_name.data)
             riscv.DirectiveOp(".word", text)
 
-        rewriter.replace_op(op, section)
+        rewriter.replace(op, section)
 
 
 class ConvertMemRefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GetGlobalOp, rewriter: PatternRewriter):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 ptr := rv32.LiOp(op.name_.string_value()),
@@ -331,7 +331,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         if isinstance(result_layout_attr, NoneAttr):
             # When a subview has no layout attr, the result is a perfect subview at offset
             # 0.
-            rewriter.replace_op(
+            rewriter.replace(
                 op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
@@ -345,7 +345,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         factor = result_type.element_type.size
 
         if offset == 0:
-            rewriter.replace_op(
+            rewriter.replace(
                 op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
@@ -388,7 +388,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
             offset_ops = (factor_op,)
             offset_rd = factor_op.rd
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 src,

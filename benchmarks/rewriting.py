@@ -197,7 +197,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         Exercise inserting an operation and running any required callbacks. This
         is used to effect the results of rewriting.
         """
-        self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
+        self.pattern_rewriter.insert((self.sub_op,), self.insert_point)
 
     @safe_to_repeat
     def time_verify_variadic_size(self) -> None:

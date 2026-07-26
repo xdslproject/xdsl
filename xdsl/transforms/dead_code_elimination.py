@@ -75,7 +75,7 @@ class RemoveUnusedOperations(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         if is_trivially_dead(op) and op.parent is not None:
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 def dce(op: ModuleOp):

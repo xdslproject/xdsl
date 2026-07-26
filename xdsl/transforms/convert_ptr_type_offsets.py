@@ -23,7 +23,7 @@ class ConvertTypeOffsetOp(RewritePattern):
                 "Type offset is currently only supported for fixed size types"
             )
         elem_type = cast(FixedBitwidthType, op.elem_type)
-        rewriter.replace_op(
+        rewriter.replace(
             op, arith.ConstantOp.from_int_and_width(elem_type.size, IndexType())
         )
 

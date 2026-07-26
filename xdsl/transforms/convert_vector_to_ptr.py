@@ -21,7 +21,7 @@ class VectorStoreToPtr(RewritePattern):
         memref_type = op.base.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.base, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.StoreOp(addr=target_ptr, value=op.vector))
+        rewriter.replace(op, ptr.StoreOp(addr=target_ptr, value=op.vector))
 
 
 @dataclass
@@ -31,7 +31,7 @@ class VectorLoadToPtr(RewritePattern):
         memref_type = op.base.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.base, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.LoadOp(target_ptr, op.result.type))
+        rewriter.replace(op, ptr.LoadOp(target_ptr, op.result.type))
 
 
 @dataclass(frozen=True)

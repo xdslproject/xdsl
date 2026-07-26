@@ -2,8 +2,6 @@ import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
 
-from typing_extensions import deprecated
-
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv
@@ -144,15 +142,6 @@ def cast_operands_to_regs(
     return cast_to_regs(operation.operands, register_type_for_type, rewriter)
 
 
-@deprecated("Please use `cast_op_results(rewriter, rewriter.current_operation)`")
-def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
-    """
-    Add cast operations just after the matched operation, to preserve the type validity of
-    arguments of uses of results.
-    """
-    return cast_op_results(rewriter, rewriter.current_operation)
-
-
 def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
     """
     Add cast operations just after the provided operation, to preserve the type validity
@@ -169,7 +158,7 @@ def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
             if use.operation != result:
                 use.operation.operands[use.index] = result.results[0]
 
-    builder.insert_op(results, InsertPoint.after(op))
+    builder.insert(results, InsertPoint.after(op))
     return [result.results[0] for result in results]
 
 
@@ -200,7 +189,7 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
         rewriter.replace_value_with_new_type(arg, register_type.a_register(index))
         counter[register_type] += 1
 
-    rewriter.insert_op(new_ops, InsertPoint.at_start(block))
+    rewriter.insert(new_ops, InsertPoint.at_start(block))
 
 
 def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
@@ -210,7 +199,7 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
     """
 
     for arg in block.args:
-        rewriter.insert_op(
+        rewriter.insert(
             cast_op := builtin.UnrealizedConversionCastOp(
                 operands=[arg], result_types=[arg.type]
             ),

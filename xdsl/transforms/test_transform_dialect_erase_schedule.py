@@ -17,7 +17,7 @@ class EraseTransformNamedSequenceOps(RewritePattern):
     def match_and_rewrite(
         self, op: transform.NamedSequenceOp, rewriter: PatternRewriter
     ) -> None:
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass(frozen=True)

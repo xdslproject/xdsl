@@ -34,30 +34,30 @@ def _list_type_to_tensor(li: Attribute) -> builtin.TensorType:
 class LowerLengthOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: list_dialect.LengthOp, rewriter: PatternRewriter):
-        zero_index = rewriter.insert_op(
+        zero_index = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(0, builtin.IndexType()))
         )
-        dim = rewriter.insert_op(tensor.DimOp(op.li, zero_index))
+        dim = rewriter.insert(tensor.DimOp(op.li, zero_index))
         cast = arith.IndexCastOp(dim, builtin.i32)
         cast.result.name_hint = op.result.name_hint
-        rewriter.replace_op(op, cast)
+        rewriter.replace(op, cast)
 
 
 class LowerMapOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: list_dialect.MapOp, rewriter: PatternRewriter):
-        zero = rewriter.insert_op(
+        zero = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(0, builtin.IndexType()))
         )
-        one = rewriter.insert_op(
+        one = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(1, builtin.IndexType()))
         )
-        list_len = rewriter.insert_op(tensor.DimOp(op.li, zero))
+        list_len = rewriter.insert(tensor.DimOp(op.li, zero))
 
         tensor_type = _list_type_to_tensor(op.li.type)
         result_tensor_type = _list_type_to_tensor(op.result.type)
 
-        result_uninit = rewriter.insert_op(
+        result_uninit = rewriter.insert(
             tensor.EmptyOp([list_len.result], result_tensor_type)
         )
         result_uninit.results[0].name_hint = _name_hint_ext(
@@ -76,7 +76,7 @@ class LowerMapOp(RewritePattern):
 
         rewriter.insertion_point = InsertPoint.at_start(for_body)
 
-        x = rewriter.insert_op(
+        x = rewriter.insert(
             tensor.ExtractOp(op.li, [ind_var], tensor_type.element_type)
         )
         x.result.name_hint = op.body.block.args[0].name_hint
@@ -86,13 +86,11 @@ class LowerMapOp(RewritePattern):
         closure_yield = for_body.last_op
         assert isa(closure_yield, list_dialect.YieldOp)
         result_scalar = closure_yield.yielded
-        rewriter.erase_op(closure_yield)
+        rewriter.erase(closure_yield)
 
-        result = rewriter.insert_op(
-            tensor.InsertOp(result_scalar, tensor_arg, [ind_var])
-        )
+        result = rewriter.insert(tensor.InsertOp(result_scalar, tensor_arg, [ind_var]))
 
-        rewriter.insert_op(scf.YieldOp(result.result))
+        rewriter.insert(scf.YieldOp(result.result))
 
         rewriter.insertion_point = rewriter_ip
 
@@ -104,19 +102,19 @@ class LowerMapOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_op(op, for_op)
+        rewriter.replace(op, for_op)
 
 
 class LowerPrintOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: list_dialect.PrintOp, rewriter: PatternRewriter):
-        zero = rewriter.insert_op(
+        zero = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(0, builtin.IndexType()))
         )
-        one = rewriter.insert_op(
+        one = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(1, builtin.IndexType()))
         )
-        list_len = rewriter.insert_op(tensor.DimOp(op.li, zero))
+        list_len = rewriter.insert(tensor.DimOp(op.li, zero))
 
         tensor_type = _list_type_to_tensor(op.li.type)
 
@@ -128,16 +126,16 @@ class LowerPrintOp(RewritePattern):
 
         rewriter.insertion_point = InsertPoint.at_start(for_body)
 
-        scalar = rewriter.insert_op(
+        scalar = rewriter.insert(
             tensor.ExtractOp(op.li, [ind_var], tensor_type.element_type)
         )
         ListLangType.from_xdsl(scalar.result.type).print(rewriter, scalar.result)
-        rewriter.insert_op(printf.PrintFormatOp(","))
-        rewriter.insert_op(scf.YieldOp())
+        rewriter.insert(printf.PrintFormatOp(","))
+        rewriter.insert(scf.YieldOp())
 
         rewriter.insertion_point = rewriter_ip
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 printf.PrintFormatOp("["),
@@ -156,15 +154,15 @@ class LowerPrintOp(RewritePattern):
 class LowerRangeOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: list_dialect.RangeOp, rewriter: PatternRewriter):
-        zero = rewriter.insert_op(
+        zero = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(0, builtin.IndexType()))
         )
-        one = rewriter.insert_op(
+        one = rewriter.insert(
             arith.ConstantOp(builtin.IntegerAttr(1, builtin.IndexType()))
         )
 
-        tensor_length = rewriter.insert_op(arith.SubiOp(op.upper, op.lower))
-        tensor_length_index = rewriter.insert_op(
+        tensor_length = rewriter.insert(arith.SubiOp(op.upper, op.lower))
+        tensor_length_index = rewriter.insert(
             arith.IndexCastOp(tensor_length.result, builtin.IndexType())
         )
         tensor_length_index.result.name_hint = _name_hint_ext(
@@ -172,7 +170,7 @@ class LowerRangeOp(RewritePattern):
         )
 
         tensor_type = _list_type_to_tensor(op.result.type)
-        start_tensor = rewriter.insert_op(
+        start_tensor = rewriter.insert(
             tensor.EmptyOp((tensor_length_index.result,), tensor_type)
         )
         start_tensor.tensor.name_hint = _name_hint_ext(op.result.name_hint, "uninit")
@@ -189,13 +187,13 @@ class LowerRangeOp(RewritePattern):
 
         rewriter.insertion_point = InsertPoint.at_start(for_body)
 
-        ind_var_32 = rewriter.insert_op(arith.IndexCastOp(ind_var, builtin.i32))
-        offseted = rewriter.insert_op(arith.AddiOp(op.lower, ind_var_32))
-        modified = rewriter.insert_op(
+        ind_var_32 = rewriter.insert(arith.IndexCastOp(ind_var, builtin.i32))
+        offseted = rewriter.insert(arith.AddiOp(op.lower, ind_var_32))
+        modified = rewriter.insert(
             tensor.InsertOp(offseted.result, tensor_arg, [ind_var])
         )
         modified.result.name_hint = _name_hint_ext(op.result.name_hint, "modified")
-        rewriter.insert_op(scf.YieldOp(modified))
+        rewriter.insert(scf.YieldOp(modified))
 
         rewriter.insertion_point = rewriter_ip
 
@@ -207,7 +205,7 @@ class LowerRangeOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_op(op, for_op)
+        rewriter.replace(op, for_op)
 
 
 class LowerListToTensor(ModulePass):

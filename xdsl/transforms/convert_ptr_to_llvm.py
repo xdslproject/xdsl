@@ -18,7 +18,7 @@ from xdsl.pattern_rewriter import (
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
@@ -33,7 +33,7 @@ class ConvertStoreOp(RewritePattern):
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
@@ -48,7 +48,7 @@ class ConvertLoadOp(RewritePattern):
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 cast_addr_op := builtin.UnrealizedConversionCastOp.get(
@@ -75,13 +75,13 @@ class ConvertPtrAddOp(RewritePattern):
 class ConvertToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(op, (), op.operands)
+        rewriter.replace(op, (), op.operands)
 
 
 class ConvertFromPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.FromPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(op, (), op.operands)
+        rewriter.replace(op, (), op.operands)
 
 
 class RewritePtrTypes(TypeConversionPattern):

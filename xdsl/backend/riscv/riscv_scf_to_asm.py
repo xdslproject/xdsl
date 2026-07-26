@@ -56,7 +56,7 @@ class LowerRiscvScfToLabels(RewritePattern):
 
         # This is the loop header, responsible for comparing the loop counter to the
         # upper bound and branching to the loop body if the condition is met.
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 get_loop_var := riscv.MVOp(op.lb, rd=loop_var_reg),
                 riscv.LabelOp(scf_cond),
@@ -84,7 +84,7 @@ class LowerRiscvScfToLabels(RewritePattern):
             case _:
                 step_add_op = riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg)
 
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 step_add_op,
                 riscv.BltOp(get_loop_var, op.ub, scf_body),
@@ -92,7 +92,7 @@ class LowerRiscvScfToLabels(RewritePattern):
             ],
             InsertPoint.after(yield_op),
         )
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         # We know that the body is not empty now.
         assert body.first_op is not None
@@ -100,16 +100,16 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Replace args of the body with operations that get the registers bound
         # to them.
         for get_target_register in get_register_ops_from_values(body.args):
-            rewriter.insert_op(get_target_register, InsertPoint.at_start(body))
+            rewriter.insert(get_target_register, InsertPoint.at_start(body))
 
         # Also replace the loop results directly with the registers bound to them.
         for get_target_register in get_register_ops_from_values(op.results):
-            rewriter.insert_op(get_target_register, InsertPoint.after(op))
+            rewriter.insert(get_target_register, InsertPoint.after(op))
 
         # Extract ops from the body and insert them after the loop header.
         rewriter.inline_block(body, InsertPoint.after(op))
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
         self.for_idx += 1
 

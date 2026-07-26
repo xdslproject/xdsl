@@ -1,12 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "marimo",
-#     "sympy==1.13.3",
-#     "xdsl==0.27.0",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.23.6"
@@ -17,6 +8,18 @@ app = marimo.App()
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
 
@@ -68,7 +71,6 @@ def _():
         Sum,
         Symbol,
         YieldOp,
-        mo,
         symbols,
     )
 

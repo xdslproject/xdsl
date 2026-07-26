@@ -42,14 +42,14 @@ class ScfForLoopRangeFolding(RewritePattern):
 
             match user:
                 case arith.AddiOp():
-                    rewriter.insert_op(
+                    rewriter.insert(
                         [
                             new_lb := arith.AddiOp(op.lb, folding_const),
                             new_ub := arith.AddiOp(op.ub, folding_const),
                         ]
                     )
                 case arith.MuliOp():
-                    rewriter.insert_op(
+                    rewriter.insert(
                         [
                             new_lb := arith.MuliOp(op.lb, folding_const),
                             new_ub := arith.MuliOp(op.ub, folding_const),
@@ -61,7 +61,7 @@ class ScfForLoopRangeFolding(RewritePattern):
             op.operands[0] = new_lb.result
             op.operands[1] = new_ub.result
 
-            rewriter.replace_op(user, [], [index])
+            rewriter.replace(user, [], [index])
 
 
 class ScfForLoopRangeFoldingPass(ModulePass):

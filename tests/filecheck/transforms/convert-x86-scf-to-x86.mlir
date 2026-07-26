@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-x86-scf-to-x86 --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p convert-x86-scf-to-x86 --split-input-file --verify-diagnostics %s | filecheck %s
 
 
 // CHECK-LABEL:    @copy10
@@ -84,3 +84,53 @@ x86_func.func @nested(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
     }
     ret
 }
+
+// -----
+// Static upper bound is currently unsupported by this lowering.
+x86_func.func @static_ub_for_fails() {
+    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+    %step = x86.di.mov 1 : () -> !x86.reg64<rdx>
+    x86_scf.for %i : !x86.reg64<r9> = %zero to 10 : si32 step %step {
+        x86_scf.yield
+    }
+    ret
+}
+// CHECK: convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue
+
+// -----
+// Static upper bound remains unsupported even with iter_args.
+x86_func.func @static_ub_for_with_iter_args_fails(%init: !x86.reg64<rax>) {
+    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+    %step = x86.di.mov 1 : () -> !x86.reg64<rdx>
+    %res = x86_scf.for %i : !x86.reg64<r9> = %zero to 20 : si32 step %step iter_args(%acc = %init) -> (!x86.reg64<rax>) {
+        x86_scf.yield %acc : !x86.reg64<rax>
+    }
+    "test.op"(%res) : (!x86.reg64<rax>) -> ()
+    ret
+}
+// CHECK: convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue
+
+// -----
+// Static step is currently unsupported by this lowering.
+x86_func.func @static_step_for_fails() {
+    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+    %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
+    x86_scf.for %i : !x86.reg64<r9> = %zero to %forty step 1 : si32 {
+        x86_scf.yield
+    }
+    ret
+}
+// CHECK: convert-x86-scf-to-x86 expects x86_scf.for step to be an SSAValue
+
+// -----
+// Static step remains unsupported even with iter_args.
+x86_func.func @static_step_for_with_iter_args_fails(%init: !x86.reg64<rax>) {
+    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+    %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
+    %res = x86_scf.for %i : !x86.reg64<r9> = %zero to %forty step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<rax>) {
+        x86_scf.yield %acc : !x86.reg64<rax>
+    }
+    "test.op"(%res) : (!x86.reg64<rax>) -> ()
+    ret
+}
+// CHECK: convert-x86-scf-to-x86 expects x86_scf.for step to be an SSAValue

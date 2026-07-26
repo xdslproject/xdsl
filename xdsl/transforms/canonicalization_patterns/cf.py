@@ -38,7 +38,7 @@ class AssertTrue(RewritePattern):
         if not value.value.data:
             return
 
-        rewriter.replace_op(op, [])
+        rewriter.replace(op, [])
 
 
 class SimplifyBrToBlockWithSinglePred(RewritePattern):
@@ -59,7 +59,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
             return
 
         br_operands = op.operands
-        rewriter.erase_op(op)
+        rewriter.erase(op)
         rewriter.inline_block(succ, InsertPoint.at_end(parent), br_operands)
 
 
@@ -128,7 +128,7 @@ class SimplifyPassThroughBr(RewritePattern):
             return
         (block, args) = ret
 
-        rewriter.replace_op(op, cf.BranchOp(block, *args))
+        rewriter.replace(op, cf.BranchOp(block, *args))
 
 
 class SimplifyConstCondBranchPred(RewritePattern):
@@ -148,9 +148,9 @@ class SimplifyConstCondBranchPred(RewritePattern):
             return
 
         if cond:
-            rewriter.replace_op(op, cf.BranchOp(op.then_block, *op.then_arguments))
+            rewriter.replace(op, cf.BranchOp(op.then_block, *op.then_arguments))
         else:
-            rewriter.replace_op(op, cf.BranchOp(op.else_block, *op.else_arguments))
+            rewriter.replace(op, cf.BranchOp(op.else_block, *op.else_arguments))
 
 
 class SimplifyPassThroughCondBranch(RewritePattern):
@@ -178,7 +178,7 @@ class SimplifyPassThroughCondBranch(RewritePattern):
 
         (new_else, new_else_args) = collapsed_else or (op.else_block, op.else_arguments)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             cf.ConditionalBranchOp(
                 op.cond, new_then, new_then_args, new_else, new_else_args
@@ -206,7 +206,7 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
         if op1 == op2:
             return op1
         select = arith.SelectOp(cond_br.cond, op1, op2)
-        rewriter.insert_op(select, InsertPoint.before(cond_br))
+        rewriter.insert(select, InsertPoint.before(cond_br))
         return select.result
 
     @op_type_rewrite_pattern
@@ -220,7 +220,7 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
             for (op1, op2) in zip(op.then_arguments, op.else_arguments, strict=True)
         )
 
-        rewriter.replace_op(op, cf.BranchOp(op.then_block, *merged_operands))
+        rewriter.replace(op, cf.BranchOp(op.then_block, *merged_operands))
 
 
 class CondBranchTruthPropagation(RewritePattern):
@@ -254,7 +254,7 @@ class CondBranchTruthPropagation(RewritePattern):
                 use.operation.parent_block() is op.then_block for use in op.cond.uses
             ):
                 const_true = arith.ConstantOp(BoolAttr.from_bool(True))
-                rewriter.insert_op(const_true, InsertPoint.before(op))
+                rewriter.insert(const_true, InsertPoint.before(op))
                 rewriter.replace_uses_with_if(
                     op.cond,
                     const_true.result,
@@ -265,7 +265,7 @@ class CondBranchTruthPropagation(RewritePattern):
                 use.operation.parent_block() is op.else_block for use in op.cond.uses
             ):
                 const_false = arith.ConstantOp(BoolAttr.from_bool(False))
-                rewriter.insert_op(const_false, InsertPoint.before(op))
+                rewriter.insert(const_false, InsertPoint.before(op))
                 rewriter.replace_uses_with_if(
                     op.cond,
                     const_false.result,
@@ -284,7 +284,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         if not op.case_blocks:
-            rewriter.replace_op(op, cf.BranchOp(op.default_block, *op.default_operands))
+            rewriter.replace(op, cf.BranchOp(op.default_block, *op.default_operands))
 
 
 def drop_case_helper(
@@ -316,7 +316,7 @@ def drop_case_helper(
         new_case_operands.append(operands)
 
     if requires_change:
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             cf.SwitchOp(
                 op.flag,
@@ -381,7 +381,7 @@ def fold_switch(switch: cf.SwitchOp, rewriter: PatternRewriter, flag: int):
         (switch.default_block, switch.default_operands),
     )
 
-    rewriter.replace_op(switch, cf.BranchOp(new_block, *new_operands))
+    rewriter.replace(switch, cf.BranchOp(new_block, *new_operands))
 
 
 class SimplifyConstSwitchValue(RewritePattern):
@@ -439,7 +439,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
         )
 
         if requires_change:
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 cf.SwitchOp(
                     op.flag,

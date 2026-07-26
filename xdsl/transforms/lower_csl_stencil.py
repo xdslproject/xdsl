@@ -68,7 +68,7 @@ class LowerAccessOp(RewritePattern):
             return
 
         dir_op, neighbor_op = get_dir_and_distance_ops(op)
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 neighbor_op,
@@ -158,7 +158,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # place both func next to the enclosing parent func
-        rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
+        rewriter.insert([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType)
@@ -196,9 +196,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_op(
-            op, [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
-        )
+        rewriter.replace(op, [num_chunks, chunk_ref, done_ref, send_buf, api_call], [])
 
 
 @dataclass(frozen=True)
@@ -225,7 +223,7 @@ class GenerateCoeffAPICalls(RewritePattern):
 
         for apply in applies:
             ops = get_coeff_api_ops(apply, op)
-            rewriter.insert_op(ops, InsertPoint.before(apply))
+            rewriter.insert(ops, InsertPoint.before(apply))
             apply.coeffs = None
 
 
@@ -240,7 +238,7 @@ class LowerYieldOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(op, csl.ReturnOp())
+        rewriter.replace(op, csl.ReturnOp())
 
 
 @dataclass(frozen=True)
@@ -279,7 +277,7 @@ class InlineApplyOpArgs(RewritePattern):
                 raise ValueError(
                     "Can only promote csl.LoadVarOp or side_effect_free op"
                 )
-            rewriter.insert_op(
+            rewriter.insert(
                 new_arg := arg.op.clone(),
                 InsertPoint.at_start(region.block),
             )
@@ -416,20 +414,20 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         # rebuild compute func
         reduction_op = red_op_t.build(operands=[[new_acc, new_acc, full_stencil_dsd]])
 
-        rewriter.insert_op(
+        rewriter.insert(
             [*new_ops, full_stencil_dsd, reduction_op],
             InsertPoint.after(list(reduction_ops)[-1]),
         )
 
         for e in [*access_ops, *reduction_ops]:
-            rewriter.erase_op(e, safe_erase=False)
+            rewriter.erase(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
         elem_t = accumulator.type.get_element_type()
         assert isinstance(elem_t, Float16Type | Float32Type)
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == f32 else csl.FmovhOp
-        rewriter.insert_op(
+        rewriter.insert(
             [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)
         )
 

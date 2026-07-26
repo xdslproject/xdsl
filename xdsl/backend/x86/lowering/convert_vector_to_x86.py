@@ -50,7 +50,7 @@ class VectorBroadcastToX86(RewritePattern):
         # Get back the abstract vector
         dest_cast_op = asm.FromRegOp.get(broadcast_op.destination, op.vector.type)
 
-        rewriter.replace_op(op, [source_cast_op, broadcast_op, dest_cast_op])
+        rewriter.replace(op, [source_cast_op, broadcast_op, dest_cast_op])
 
 
 @dataclass
@@ -88,7 +88,7 @@ class VectorFMAToX86(RewritePattern):
         fma_op = fma(acc_new, lhs_new, rhs_new)
 
         res_cast_op = asm.FromRegOp.get(fma_op.register_out, vect_type)
-        rewriter.replace_op(
+        rewriter.replace(
             op, [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
         )
 

@@ -26,7 +26,7 @@ class ScfForLowering(RewritePattern):
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_regs(new_region.block, rewriter)
         mv_ops, values = move_to_unallocated_regs(args, op.iter_args.types)
-        rewriter.insert_op(mv_ops)
+        rewriter.insert(mv_ops)
         cast_op_results(rewriter, op)
         new_op = riscv_scf.ForOp(lb, ub, step, values, new_region)
 
@@ -43,13 +43,13 @@ class ScfForLowering(RewritePattern):
 
         mv_res_ops, res_values = new_ops, new_values
 
-        rewriter.replace_op(op, (new_op, *mv_res_ops), res_values)
+        rewriter.replace(op, (new_op, *mv_res_ops), res_values)
 
 
 class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv_scf.YieldOp(*cast_operands_to_regs(rewriter, op)))
+        rewriter.replace(op, riscv_scf.YieldOp(*cast_operands_to_regs(rewriter, op)))
 
 
 class ConvertScfToRiscvPass(ModulePass):
