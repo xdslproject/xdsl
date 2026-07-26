@@ -40,6 +40,7 @@ from typing_extensions import Self, TypeVar
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
+    RegisterAllocatableOperation,
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
@@ -139,9 +140,20 @@ class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
 
 
-class X86RegallocOperation(IRDLOperation, HasRegisterConstraints, ABC):
+class X86RegisterAllocatableOperation(IRDLOperation, RegisterAllocatableOperation, ABC):
     """
-    Base class for operations that can take part in register allocation.
+    Base class for x86 operations that can take part in register allocation.
+    """
+
+
+class X86HasRegisterConstraints(
+    X86RegisterAllocatableOperation, HasRegisterConstraints, ABC
+):
+    """
+    Base class for x86 operations with register constraints.
+    By default, all operands are "in", and all results are "out", subclasses must
+    override `get_register_constraints` if some of the results must be in the same
+    registers as operands.
     """
 
     def get_register_constraints(self) -> RegisterConstraints:
@@ -226,7 +238,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         printer.print_operation_type(self)
 
 
-class X86Instruction(X86AsmOperation, X86RegallocOperation):
+class X86Instruction(X86AsmOperation, X86HasRegisterConstraints):
     """
     Base class for operations that can be a part of x86 assembly printing. Must
     represent an instruction in the x86 instruction set.
@@ -2579,7 +2591,7 @@ class M_ImulOp(X86Instruction):
 
 
 @irdl_op_definition
-class LabelOp(X86AsmOperation, X86RegallocOperation):
+class LabelOp(X86AsmOperation, X86HasRegisterConstraints):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2614,7 +2626,7 @@ class LabelOp(X86AsmOperation, X86RegallocOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
+class DirectiveOp(X86AsmOperation, X86HasRegisterConstraints, X86CustomFormatOperation):
     """
     The directive operation is used to represent a directive in the assembly code. (e.g. .globl; .type etc)
     """
@@ -2765,7 +2777,9 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class FallthroughOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
+class FallthroughOp(
+    X86AsmOperation, X86HasRegisterConstraints, X86CustomFormatOperation
+):
     """
     Continue execution into the next block.
     The successor of this operation must be immediately after this operation's parent.
@@ -4042,7 +4056,7 @@ class DSSI_ShufpsOp(
 
 class GetAnyRegisterOperation(
     X86AsmOperation,
-    X86RegallocOperation,
+    X86HasRegisterConstraints,
     ABC,
     Generic[R1InvT],
 ):
@@ -4082,7 +4096,7 @@ class GetMaskRegisterOp(GetAnyRegisterOperation[AVX512MaskRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(X86RegallocOperation):
+class ParallelMovOp(X86HasRegisterConstraints):
     name = "x86.parallel_mov"
     inputs = var_operand_def(X86RegisterType)
     outputs: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
