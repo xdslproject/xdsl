@@ -41,7 +41,6 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_op_definition,
     operand_def,
-    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -369,7 +368,7 @@ class StoreOp(IRDLOperation):
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType)
-    map = opt_prop_def(AffineMapAttr)
+    map = prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -412,7 +411,6 @@ class StoreOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        assert self.map is not None
         printer.print_string(" ")
         printer.print_ssa_value(self.value)
         printer.print_string(", ")
@@ -433,7 +431,7 @@ class LoadOp(IRDLOperation):
 
     result = result_def(T)
 
-    map = opt_prop_def(AffineMapAttr)
+    map = prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -481,7 +479,6 @@ class LoadOp(IRDLOperation):
         return LoadOp(resolved_memref, indices, AffineMapAttr(affine_map), result_type)
 
     def print(self, printer: Printer):
-        assert self.map is not None
         printer.print_string(" ")
         _print_affine_memref_access(
             printer, self.memref, self.map.data, self.indices, self.memref.type
