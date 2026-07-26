@@ -19,7 +19,6 @@ from xdsl.ir import Dialect
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
-    IRDLOperation,
     Operation,
     Region,
     SSAValue,
@@ -59,7 +58,7 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
     )
 
 
-class ForRofOperation(X86RegisterAllocatableOperation, IRDLOperation, ABC):
+class ForRofOperation(X86RegisterAllocatableOperation, ABC):
     lb = operand_def(GeneralRegisterType)
     ub_val = opt_operand_def(GeneralRegisterType)
     ub_attr = opt_prop_def(IntegerAttr[SI32])

@@ -140,7 +140,7 @@ class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
 
 
-class X86RegisterAllocatableOperation(RegisterAllocatableOperation, ABC):
+class X86RegisterAllocatableOperation(IRDLOperation, RegisterAllocatableOperation, ABC):
     """
     Base class for x86 operations that can take part in register allocation.
     """
@@ -4096,7 +4096,7 @@ class GetMaskRegisterOp(GetAnyRegisterOperation[AVX512MaskRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(X86HasRegisterConstraints, IRDLOperation):
+class ParallelMovOp(X86HasRegisterConstraints):
     name = "x86.parallel_mov"
     inputs = var_operand_def(X86RegisterType)
     outputs: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
