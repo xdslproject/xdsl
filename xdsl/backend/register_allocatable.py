@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import abc
 from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from typing_extensions import deprecated
 
@@ -12,6 +14,9 @@ from xdsl.ir import Operation, OpResult, Region, SSAValue, SSAValueCovT
 from xdsl.irdl import traits_def
 from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import VerifyException
+
+if TYPE_CHECKING:
+    from xdsl.backend.liveness import LivenessContext
 
 
 class RegisterAllocatableOperation(Operation, abc.ABC):
@@ -40,6 +45,19 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         """
         Allocate registers for this operation.
         """
+
+    def update_liveness(self, ctx: LivenessContext) -> None:
+        """
+        Update `ctx.alive` from live-after to live-before this operation.
+        Operations with regions must override this to describe how liveness flows
+        through those regions.
+        """
+        if self.regions:
+            raise NotImplementedError(
+                f"{self.name} must override update_liveness to describe how liveness "
+                "flows through its regions."
+            )
+        ctx.alive.update(self.operands)
 
     @staticmethod
     def all_used_registers(
@@ -146,7 +164,7 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
     Abstract superclass for operations corresponding to assembly, with registers used
     as in, out, or inout registers.
     The use of a register value as inout must be its last use (externally verified,
-    e.g. for x86 see pass x86-regalloc-verify-liveness).
+    e.g. see pass x86-regalloc-verify-liveness).
     """
 
     traits = traits_def(HasRegisterConstraintsTrait())
@@ -158,6 +176,27 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
         allocation.
         """
         raise NotImplementedError()
+
+    def update_liveness(self, ctx: LivenessContext) -> None:
+        ins, _, inouts = self.get_register_constraints()
+        clobbered: set[SSAValue] = set()
+        for operand, _ in inouts:
+            # Each inout slot needs its own register, so a value already claimed by an
+            # earlier slot must be handled even when nothing reads it afterwards.
+            use_after_inout = operand in ctx.alive
+            duplicate_inout = operand in clobbered
+            if use_after_inout or duplicate_inout:
+                new_operand = ctx.handle_live_inout(
+                    self, operand, duplicate_inout=duplicate_inout
+                )
+                if new_operand is not None:
+                    # Replacing a position clears the value from it, so the first
+                    # position still holding it is the one for this slot.
+                    self.operands[self.operands.index(operand)] = new_operand
+            clobbered.add(operand)
+        # The constraints were read before any replacement, so a replaced operand is
+        # still counted here, as it is read by the copy inserted above this operation.
+        ctx.alive.update(ins, clobbered)
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         ins, outs, inouts = self.get_register_constraints()

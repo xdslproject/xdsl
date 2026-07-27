@@ -2,18 +2,21 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.backend.register_allocator import BlockAllocator
+from xdsl.backend.liveness import LivenessContext
+from xdsl.backend.register_allocatable import RegisterConstraints
+from xdsl.backend.register_allocator import BlockAllocator, live_ins_per_block
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.dialects.x86.ops import SI32, X86RegisterAllocatableOperation
+from xdsl.dialects.x86.ops import SI32, X86HasRegisterConstraints
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
 from xdsl.ir import Dialect
 from xdsl.irdl import (
@@ -58,7 +61,7 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
     )
 
 
-class ForRofOperation(X86RegisterAllocatableOperation, ABC):
+class ForRofOperation(X86HasRegisterConstraints, ABC):
     lb = operand_def(GeneralRegisterType)
     ub_val = opt_operand_def(GeneralRegisterType)
     ub_attr = opt_prop_def(IntegerAttr[SI32])
@@ -224,6 +227,39 @@ class ForRofOperation(X86RegisterAllocatableOperation, ABC):
         # allocating lb to it in case it's not yet allocated
         allocator.free_value(self.body.block.args[0])
         allocator.allocate_value(self.lb)
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        ins = [self.lb]
+        if self.ub_val is not None:
+            ins.append(self.ub_val)
+        if self.step_val is not None:
+            ins.append(self.step_val)
+        return RegisterConstraints(ins, (), tuple(zip(self.iter_args, self.results)))
+
+    def _body_live_outs(self, live_after: AbstractSet[SSAValue]) -> set[SSAValue]:
+        """
+        Values live at the end of the loop body.
+        """
+        block = self.body.block
+        res = set(live_after)
+        # The body runs repeatedly, so every value defined outside it and used inside
+        # must survive a whole iteration. This covers the dynamic bounds: the loop
+        # re-reads them on the back edge, and a clobber in the body is itself a use.
+        res.update(live_ins_per_block(block)[block])
+        # The induction variable is a block argument rather than a live-in, but the
+        # loop reads it on the back edge to compute the next value.
+        res.add(block.args[0])
+        return res
+
+    def update_liveness(self, ctx: LivenessContext) -> None:
+        # Create a new context to use inside the loop
+        body_ctx = ctx.copy(self._body_live_outs(ctx.alive))
+        body_ctx.process_block(self.body.block)
+        # Update the outer context with all the values that are alive coming into the
+        # body
+        ctx.alive.update(body_ctx.alive)
+        # HasRegisterConstraints default implementation
+        super().update_liveness(ctx)
 
 
 @irdl_op_definition
