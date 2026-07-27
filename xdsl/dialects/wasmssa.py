@@ -1,14 +1,18 @@
 from collections.abc import Sequence
-from typing import TypeAlias, cast
+from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
     I64,
     I128,
+    FlatSymbolRefAttrConstr,
     Float32Type,
     Float64Type,
+    FloatAttr,
     IntAttr,
+    IntegerAttr,
     NoneAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import (
     Dialect,
@@ -17,7 +21,17 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    ParamAttrConstraint,
+    VarConstraint,
+    irdl_attr_definition,
+    irdl_op_definition,
+    irdl_to_attr_constraint,
+    prop_def,
+    result_def,
+)
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -42,10 +56,12 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-ValType: TypeAlias = (
-    I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
-)
+NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
+"""Type alias for numeric types that are supported by WebAssembly"""
+ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
+
+_NumericTypeConstr = irdl_to_attr_constraint(NumericType)
 
 
 @irdl_attr_definition
@@ -128,9 +144,59 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
+@irdl_op_definition
+class ConstOp(IRDLOperation):
+    """Define a WebAssembly numeric constant."""
+
+    name = "wasmssa.const"
+
+    T: ClassVar = VarConstraint("T", _NumericTypeConstr)
+
+    value = prop_def(
+        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T))
+        | ParamAttrConstraint(FloatAttr, (AnyAttr(), T))
+    )
+    result = result_def(T)
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: IntegerAttr | FloatAttr):
+        super().__init__(
+            properties={"value": value},
+            result_types=[value.get_type()],
+        )
+
+
+@irdl_op_definition
+class GlobalGetOp(IRDLOperation):
+    """Return the value of a WebAssembly global."""
+
+    name = "wasmssa.global_get"
+
+    global_ = prop_def(FlatSymbolRefAttrConstr, prop_name="global")
+    global_val = result_def(ValType)
+
+    assembly_format = "$global attr-dict `:` type($global_val)"
+
+    def __init__(
+        self,
+        global_: str | SymbolRefAttr,
+        result_type: ValType,
+    ):
+        if isinstance(global_, str):
+            global_ = SymbolRefAttr(global_)
+        super().__init__(
+            properties={"global": global_},
+            result_types=[result_type],
+        )
+
+
 WasmSSA = Dialect(
     "wasmssa",
-    [],
+    [
+        ConstOp,
+        GlobalGetOp,
+    ],
     [
         ExternRefType,
         FuncRefType,
