@@ -848,6 +848,7 @@ BarType = Annotated[TestType, TestType("bar")]
 _Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
 _Operand = TypeVar("_Operand", bound=TestType)
 _Result = TypeVar("_Result", bound=TestType)
+_DefaultAttr = TypeVar("_DefaultAttr", bound=StringAttr | IntAttr, default=StringAttr)
 
 
 class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
@@ -869,6 +870,22 @@ class Generic2Op(GenericOp[StringAttr, _Operand, FooType], Generic[_Operand]): .
 @irdl_op_definition
 class StringFoo2Op(Generic2Op[FooType]):
     name = "test.string_specialized_2"
+
+
+class DefaultGenericOp(IRDLOperation, Generic[_DefaultAttr]):
+    name = "test.default_generic"
+
+    attr = attr_def(_DefaultAttr)
+
+
+@irdl_op_definition
+class DefaultStringOp(DefaultGenericOp):
+    name = "test.default_string"
+
+
+@irdl_op_definition
+class ExplicitIntOp(DefaultGenericOp[IntAttr]):
+    name = "test.explicit_int"
 
 
 @pytest.mark.parametrize("cls", [StringFooOp, StringFoo2Op])
@@ -909,6 +926,16 @@ def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
     )
     with pytest.raises(DiagnosticException):
         op_result_fail.verify()
+
+
+def test_generic_op_type_var_default():
+    DefaultStringOp(attributes={"attr": StringAttr("test")}).verify()
+    ExplicitIntOp(attributes={"attr": IntAttr(1)}).verify()
+
+    with pytest.raises(DiagnosticException):
+        DefaultStringOp(attributes={"attr": IntAttr(1)}).verify()
+    with pytest.raises(DiagnosticException):
+        ExplicitIntOp(attributes={"attr": StringAttr("test")}).verify()
 
 
 class OtherParentOp(IRDLOperation):

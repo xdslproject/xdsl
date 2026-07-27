@@ -9,6 +9,7 @@ from xdsl.utils.hints import get_type_var_mapping
 T0 = TypeVar("T0")
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
+TDefault = TypeVar("TDefault", default=int)
 
 
 class A(Generic[T1, T2]): ...
@@ -30,6 +31,12 @@ class E(Generic[T2]): ...
 
 
 class F(C, E[str]): ...
+
+
+class DefaultGeneric(Generic[TDefault]): ...
+
+
+class DefaultConcrete(DefaultGeneric): ...
 
 
 def test_get_type_var_mapping():
@@ -70,3 +77,5 @@ def test_get_type_var_mapping():
         ),
     ):
         assert get_type_var_mapping(F) == ()
+    assert get_type_var_mapping(DefaultGeneric) == ((TDefault,), {})
+    assert get_type_var_mapping(DefaultConcrete) == ((), {TDefault: int})

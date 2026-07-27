@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import NoDefault, TypeVar
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -157,6 +157,9 @@ def get_type_var_mapping(
     variables used in ancestor classes.
     Raises a ValueError if the specialized arguments for the same TypeVar are not
     consistent among superclasses.
+
+    TypeVar defaults are used when a concrete subclass omits the parameters of a
+    generic superclass.
     """
 
     if not issubclass(cls, Generic):
@@ -203,7 +206,14 @@ def get_type_var_mapping(
                 continue
             mapping[k] = v
 
-    return args, mapping
+    remaining_args = cast(tuple[TypeVar, ...], getattr(cls, "__parameters__", ()))
+    for type_var in args:
+        if type_var in remaining_args or type_var in mapping:
+            continue
+        if (default := getattr(type_var, "__default__", NoDefault)) is not NoDefault:
+            mapping[type_var] = default
+
+    return remaining_args, mapping
 
 
 def type_repr(obj: Any) -> str:
