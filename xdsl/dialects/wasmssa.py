@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import TypeAlias, cast
+from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
@@ -13,11 +13,21 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     OpaqueSyntaxAttribute,
+    Operation,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import (
+    IRDLOperation,
+    VarConstraint,
+    irdl_attr_definition,
+    irdl_op_definition,
+    irdl_to_attr_constraint,
+    operand_def,
+    result_def,
+)
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -42,10 +52,14 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
+NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
+"""Type alias for numeric types that are supported by WebAssembly"""
 ValType: TypeAlias = (
     I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
 )
 """Type alias for value types that are supported by WebAssembly"""
+
+_NumericTypeConstr = irdl_to_attr_constraint(NumericType)
 
 
 @irdl_attr_definition
@@ -128,9 +142,38 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
+class BinaryNumericalOp(IRDLOperation):
+    """Base class for binary WebAssembly numeric operations."""
+
+    T: ClassVar = VarConstraint("T", _NumericTypeConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs $rhs `:` type($lhs) attr-dict"
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+    ):
+        lhs = SSAValue.get(lhs)
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+
+
+@irdl_op_definition
+class AddOp(BinaryNumericalOp):
+    """Sum two WebAssembly numeric values."""
+
+    name = "wasmssa.add"
+
+
 WasmSSA = Dialect(
     "wasmssa",
-    [],
+    [
+        AddOp,
+    ],
     [
         ExternRefType,
         FuncRefType,
