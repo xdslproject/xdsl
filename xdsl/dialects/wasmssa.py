@@ -1,5 +1,6 @@
+from abc import ABC
 from collections.abc import Sequence
-from typing import TypeAlias, cast
+from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
@@ -13,13 +14,24 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     OpaqueSyntaxAttribute,
+    Operation,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import (
+    IRDLOperation,
+    VarConstraint,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+    traits_def,
+)
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import Commutative, Pure
 
 
 @irdl_attr_definition
@@ -42,9 +54,9 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-ValType: TypeAlias = (
-    I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
-)
+NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
+"""Type alias for numeric types that are supported by WebAssembly"""
+ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
 
 
@@ -128,9 +140,40 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
+class BinaryNumericalOperation(IRDLOperation, ABC):
+    """Base class for binary WebAssembly numeric operations."""
+
+    T: ClassVar = VarConstraint.get("T", NumericType)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs $rhs `:` type($lhs) attr-dict"
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+    ):
+        lhs = SSAValue.get(lhs)
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+
+
+@irdl_op_definition
+class AddOp(BinaryNumericalOperation):
+    """Sum two WebAssembly numeric values."""
+
+    name = "wasmssa.add"
+
+    traits = traits_def(Pure(), Commutative())
+
+
 WasmSSA = Dialect(
     "wasmssa",
-    [],
+    [
+        AddOp,
+    ],
     [
         ExternRefType,
         FuncRefType,
