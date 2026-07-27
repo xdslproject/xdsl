@@ -1,5 +1,3 @@
-from typing import cast
-
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
 from xdsl.dialects.x86.registers import RFLAGS, GeneralRegisterType
@@ -117,18 +115,21 @@ class LowerX86ScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
+        mv_op = x86.ops.DS_MovOp(iv, destination=iv_reg)
+        step_op = x86.ops.RS_AddOp(mv_op.destination, step)
+        new_iv = step_op.register_out
+        cmp_op = x86.ops.SS_CmpOp(new_iv, ub, result=RFLAGS)
+
         rewriter.replace(
             yield_op,
             (
-                mv_op := x86.ops.DS_MovOp(iv, destination=iv_reg),
-                inc_op := x86.ops.R_IncOp(
-                    cast(SSAValue[GeneralRegisterType], mv_op.destination)
-                ),
-                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, ub, result=RFLAGS),
+                mv_op,
+                step_op,
+                cmp_op,
                 x86.ops.C_JlOp(
                     cmp_op.result,
-                    (inc_op.register_out, *yield_op.operands),
-                    (inc_op.register_out, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
                     first_body_block,
                     end_block,
                 ),
@@ -136,7 +137,7 @@ class LowerX86ScfForPattern(RewritePattern):
         )
 
         mv_op.destination.name_hint = iv.name_hint
-        inc_op.register_out.name_hint = iv.name_hint
+        step_op.register_out.name_hint = iv.name_hint
         end_block.args[0].name_hint = iv.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
