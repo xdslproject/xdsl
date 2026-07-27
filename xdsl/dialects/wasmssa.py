@@ -27,9 +27,11 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import Commutative, Pure
 
 
 @irdl_attr_definition
@@ -163,6 +165,8 @@ class AddOp(BinaryNumericalOperation):
     """Sum two WebAssembly numeric values."""
 
     name = "wasmssa.add"
+
+    traits = traits_def(Pure(), Commutative())
 
 
 WasmSSA = Dialect(
