@@ -155,11 +155,11 @@ class BinaryNumericalOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        operand1: SSAValue | Operation,
+        operand2: SSAValue | Operation,
     ):
-        lhs = SSAValue.get(lhs)
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+        operand1 = SSAValue.get(operand1)
+        super().__init__(operands=[operand1, operand2], result_types=[operand1.type])
 
 
 @irdl_op_definition
