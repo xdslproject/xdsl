@@ -1,9 +1,7 @@
-from typing import cast
-
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
 from xdsl.dialects.x86.registers import RFLAGS, GeneralRegisterType
-from xdsl.ir import SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -12,8 +10,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
-from xdsl.utils.exceptions import PassFailedException
-from xdsl.utils.hints import isa
 
 
 class LowerX86ScfForPattern(RewritePattern):
@@ -98,80 +94,127 @@ class LowerX86ScfForPattern(RewritePattern):
         last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
-        iv = first_body_block.args[0]
-        assert isa(iv, SSAValue[GeneralRegisterType])
-        iv_reg = iv.type
+        iv_body = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
+        iv_used = iv_body.first_use is not None
+        iv_reg = iv_body.type
         ub = op.ub
-        if not isinstance(ub, SSAValue):
-            raise PassFailedException(
-                "convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue"
-            )
         step = op.step
-        if not isinstance(step, SSAValue):
-            raise PassFailedException(
-                "convert-x86-scf-to-x86 expects x86_scf.for step to be an SSAValue"
-            )
+
+        # Insert label at the start of the first body block.
+        rewriter.insert(
+            body_label_op := x86.ops.LabelOp(f"scf_body_{suffix}"),
+            InsertPoint.at_start(first_body_block),
+        )
 
         # Append the induction variable stepping logic to the last body block, add
         # comparison with upper bound, and conditionally branch back into the body.
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
+        match step:
+            case SSAValue():
+                step_op = x86.ops.RS_AddOp(iv_body, step)
+            case builtin.IntegerAttr():
+                step_op = x86.ops.RI_AddOp(
+                    iv_body,
+                    step,
+                )
+        step_op.register_out.name_hint = iv_body.name_hint
+        new_iv = step_op.register_out
+
+        match ub:
+            case SSAValue():
+                cmp_op = x86.ops.SS_CmpOp(new_iv, ub, result=RFLAGS)
+            case builtin.IntegerAttr():
+                cmp_op = x86.ops.SI_CmpOp(new_iv, ub)
+
+        # Insert comparison and jump to beginning of loop
         rewriter.replace(
             yield_op,
             (
-                mv_op := x86.ops.DS_MovOp(iv, destination=iv_reg),
-                inc_op := x86.ops.R_IncOp(
-                    cast(SSAValue[GeneralRegisterType], mv_op.destination)
-                ),
-                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, ub, result=RFLAGS),
+                cmp_op,
                 x86.ops.C_JlOp(
                     cmp_op.result,
-                    (inc_op.register_out, *yield_op.operands),
-                    (inc_op.register_out, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
                     first_body_block,
                     end_block,
                 ),
             ),
         )
 
-        mv_op.destination.name_hint = iv.name_hint
-        inc_op.register_out.name_hint = iv.name_hint
-        end_block.args[0].name_hint = iv.name_hint
+        # Insert iv increment
+        # If iv was not used prior to lowering, then put it at the start of the loop as
+        # an optimisation to avoid cycles waiting for the increment.
+        rewriter.insert(
+            step_op,
+            InsertPoint.before(cmp_op) if iv_used else InsertPoint.after(body_label_op),
+        )
+
+        end_block.args[0].name_hint = iv_body.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         # Move lb to new register to initialize the iv.
-        # Skip for loop if condition is not satisfied at start.
-        rewriter.insert(
-            (
-                mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS),
-                x86.ops.C_JgeOp(
-                    cmp_op.result,
-                    (mv_op.destination, *op.iter_args),
-                    (mv_op.destination, *op.iter_args),
-                    end_block,
-                    first_body_block,
+        if op.lb.type == iv_reg:
+            # Just use lb for iv, no need to move to self
+            iv_condition = op.lb
+        else:
+            iv_condition = rewriter.insert(
+                x86.ops.DS_MovOp(op.lb, destination=iv_reg),
+                InsertPoint.at_end(init_block),
+            ).destination
+            iv_condition.name_hint = op.lb.name_hint
+
+        if (
+            isinstance(lb_owner := op.lb.owner, Operation)
+            and isinstance(lb_owner, x86.DI_MovOp)
+            and isinstance(ub, builtin.IntegerAttr)
+            and lb_owner.immediate.value.data < ub.value.data
+        ):
+            # Loop executes at least once, fallthrough directly into it without runtime checks
+            rewriter.insert(
+                (
+                    x86.ops.FallthroughOp(
+                        (iv_condition, *op.iter_args),
+                        first_body_block,
+                    ),
                 ),
-            ),
-            InsertPoint.at_end(init_block),
-        )
+                InsertPoint.at_end(init_block),
+            )
 
-        mv_op.destination.name_hint = op.lb.name_hint
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace(
+                op,
+                (),
+                end_block.args[1:],
+            )
+        else:
+            # Skip for loop if condition is not satisfied at start.
+            rewriter.insert(
+                (
+                    cmp_op := (
+                        x86.ops.SS_CmpOp(iv_condition, ub, result=RFLAGS)
+                        if isinstance(ub, SSAValue)
+                        else x86.ops.SI_CmpOp(iv_condition, ub)
+                    ),
+                    x86.ops.C_JgeOp(
+                        cmp_op.result,
+                        (iv_condition, *op.iter_args),
+                        (iv_condition, *op.iter_args),
+                        end_block,
+                        first_body_block,
+                    ),
+                ),
+                InsertPoint.at_end(init_block),
+            )
 
-        # Insert label at the start of the first body block.
-        rewriter.insert(
-            x86.ops.LabelOp(f"scf_body_{suffix}"),
-            InsertPoint.at_start(first_body_block),
-        )
-
-        # Replace operation by arguments to the newly end block.
-        rewriter.replace(
-            op,
-            x86.ops.LabelOp(f"scf_body_end_{suffix}"),
-            end_block.args[1:],
-        )
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace(
+                op,
+                x86.ops.LabelOp(f"scf_body_end_{suffix}"),
+                end_block.args[1:],
+            )
 
 
 class ConvertX86ScfToX86Pass(ModulePass):
