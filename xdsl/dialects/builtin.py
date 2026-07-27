@@ -50,7 +50,6 @@ from xdsl.ir.affine import (
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
-    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -1042,10 +1041,6 @@ _IntegerAttrType = TypeVar(
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
-AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
-]
-"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
