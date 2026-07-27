@@ -16,8 +16,8 @@ from xdsl.dialects.wasmssa import (
     ExternRefType,
     FuncRefType,
     GlobalGetOp,
+    ValType,
 )
-from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -70,7 +70,7 @@ def test_const_op_rejects_mismatched_value_and_result_types():
 @pytest.mark.parametrize("global_", ["global", SymbolRefAttr("global")])
 def test_global_get_op(
     global_: str | SymbolRefAttr,
-    result_type: Attribute,
+    result_type: ValType,
 ):
     op = GlobalGetOp(global_, result_type)
 
