@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, TypeAlias, cast
 
@@ -17,8 +18,10 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     OpaqueSyntaxAttribute,
+    Operation,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -28,13 +31,14 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     prop_def,
     result_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import OpTrait
+from xdsl.traits import Commutative, OpTrait, Pure
 
 
 @irdl_attr_definition
@@ -198,9 +202,39 @@ class GlobalGetOp(IRDLOperation):
         )
 
 
+class BinaryNumericalOperation(IRDLOperation, ABC):
+    """Base class for binary WebAssembly numeric operations."""
+
+    T: ClassVar = VarConstraint.get("T", NumericType)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs $rhs `:` type($lhs) attr-dict"
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+    ):
+        lhs = SSAValue.get(lhs)
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+
+
+@irdl_op_definition
+class AddOp(BinaryNumericalOperation):
+    """Sum two WebAssembly numeric values."""
+
+    name = "wasmssa.add"
+
+    traits = traits_def(Pure(), Commutative())
+
+
 WasmSSA = Dialect(
     "wasmssa",
     [
+        AddOp,
         ConstOp,
         GlobalGetOp,
     ],

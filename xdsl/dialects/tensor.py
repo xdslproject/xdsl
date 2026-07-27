@@ -9,7 +9,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
-    AnySignlessIntegerOrIndexType,
+    AnySignlessIntegerType,
     ArrayAttr,
     ArrayOfConstraint,
     DenseArrayBase,
@@ -366,7 +366,7 @@ class ReshapeOp(IRDLOperation):
     name = "tensor.reshape"
 
     source = operand_def(TensorType[Attribute])
-    shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
+    shape = operand_def(TensorType[AnySignlessIntegerType | IndexType])
     result = result_def(TensorType[Attribute])
     assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 

@@ -25,6 +25,15 @@
 // CHECK-NEXT: %global_externref = wasmssa.global_get @global_externref : !wasmssa.externref
 %global_externref = wasmssa.global_get @global_externref : !wasmssa.externref
 
+// CHECK-NEXT: %i32_sum = wasmssa.add %i32 %i32 : i32
+%i32_sum = wasmssa.add %i32 %i32 : i32
+// CHECK-NEXT: %i64_sum = wasmssa.add %i64 %i64 : i64
+%i64_sum = wasmssa.add %i64 %i64 : i64
+// CHECK-NEXT: %f32_sum = wasmssa.add %f32 %f32 : f32
+%f32_sum = wasmssa.add %f32 %f32 : f32
+// CHECK-NEXT: %f64_sum = wasmssa.add %f64 %f64 : f64
+%f64_sum = wasmssa.add %f64 %f64 : f64
+
 // CHECK-GENERIC: "wasmssa.const"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC: "wasmssa.const"() <{value = 2 : i64}> : () -> i64
 // CHECK-GENERIC: "wasmssa.const"() <{value = 3.000000e+00 : f32}> : () -> f32
@@ -36,3 +45,7 @@
 // CHECK-GENERIC: "wasmssa.global_get"() <{global = @global_f64}> : () -> f64
 // CHECK-GENERIC: "wasmssa.global_get"() <{global = @global_funcref}> : () -> !wasmssa.funcref
 // CHECK-GENERIC: "wasmssa.global_get"() <{global = @global_externref}> : () -> !wasmssa.externref
+// CHECK-GENERIC: "wasmssa.add"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.add"(%i64, %i64) : (i64, i64) -> i64
+// CHECK-GENERIC: "wasmssa.add"(%f32, %f32) : (f32, f32) -> f32
+// CHECK-GENERIC: "wasmssa.add"(%f64, %f64) : (f64, f64) -> f64
