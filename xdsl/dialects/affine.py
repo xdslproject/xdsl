@@ -466,9 +466,7 @@ class LoadOp(IRDLOperation):
     def parse(cls, parser: Parser) -> LoadOp:
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
         resolved_memref = parser.resolve_operand(memref, memref_type)
-
         result_type = memref_type.get_element_type()
-
         return LoadOp(resolved_memref, indices, AffineMapAttr(affine_map), result_type)
 
     def print(self, printer: Printer):
