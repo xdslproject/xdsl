@@ -553,6 +553,24 @@ class VectorLoadOp(IRDLOperation):
             result_types=[result_type],
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> VectorLoadOp:
+        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
+        resolved_memref = parser.resolve_operand(memref, memref_type)
+        parser.parse_punctuation(",")
+        result_type = parser.parse_type()
+        return VectorLoadOp(
+            resolved_memref, indices, AffineMapAttr(affine_map), result_type
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        _print_affine_memref_access(
+            printer, self.memref, self.map.data, self.indices, self.memref.type
+        )
+        printer.print_string(", ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class VectorStoreOp(IRDLOperation):
@@ -585,6 +603,33 @@ class VectorStoreOp(IRDLOperation):
             operands=(value, memref, indices),
             properties={"map": map},
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> VectorStoreOp:
+        value = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
+        resolved_memref = parser.resolve_operand(memref, memref_type)
+
+        parser.parse_punctuation(",")
+        value_type = parser.parse_type()
+
+        resolved_value = parser.resolve_operand(value, value_type)
+        return VectorStoreOp(
+            resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.value)
+        printer.print_string(", ")
+
+        _print_affine_memref_access(
+            printer, self.memref, self.map.data, self.indices, self.memref.type
+        )
+
+        printer.print_string(", ")
+        printer.print_attribute(self.value.type)
 
 
 Affine = Dialect(
