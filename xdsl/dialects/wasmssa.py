@@ -1,6 +1,8 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias, cast
+from typing import ClassVar, Generic, TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
@@ -22,16 +24,18 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    TypeVarConstraint,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     result_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import Commutative, Pure
+from xdsl.traits import Commutative, NoMemoryEffect, Pure
 
 
 @irdl_attr_definition
@@ -54,10 +58,16 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
+IntegerType: TypeAlias = I32 | I64
+"""Type alias for integer numeric types that are supported by WebAssembly"""
+FPType: TypeAlias = Float32Type | Float64Type
+"""Type alias for floating-point numeric types that are supported by WebAssembly"""
+NumericType: TypeAlias = IntegerType | FPType
 """Type alias for numeric types that are supported by WebAssembly"""
 ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
+
+_NumericTypeT = TypeVar("_NumericTypeT", bound=NumericType, default=NumericType)
 
 
 @irdl_attr_definition
@@ -140,10 +150,16 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
-class BinaryNumericalOperation(IRDLOperation, ABC):
+class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeT]):
     """Base class for binary WebAssembly numeric operations."""
 
-    T: ClassVar = VarConstraint.get("T", NumericType)
+    T: ClassVar = VarConstraint(
+        "T",
+        TypeVarConstraint(
+            _NumericTypeT,
+            irdl_to_attr_constraint(NumericType),
+        ),
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -161,7 +177,7 @@ class BinaryNumericalOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(BinaryNumericalOperation):
+class AddOp(BinaryNumericalOperation[NumericType]):
     """Sum two WebAssembly numeric values."""
 
     name = "wasmssa.add"
@@ -169,10 +185,140 @@ class AddOp(BinaryNumericalOperation):
     traits = traits_def(Pure(), Commutative())
 
 
+@irdl_op_definition
+class AndOp(BinaryNumericalOperation[NumericType]):
+    """Compute the bitwise AND between two values."""
+
+    name = "wasmssa.and"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class DivOp(BinaryNumericalOperation[FPType]):
+    """Divide two floating-point values."""
+
+    name = "wasmssa.div"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class DivUIOp(BinaryNumericalOperation[IntegerType]):
+    """Divide two values interpreted as unsigned integers."""
+
+    name = "wasmssa.div_ui"
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class DivSIOp(BinaryNumericalOperation[IntegerType]):
+    """Divide two values interpreted as signed integers."""
+
+    name = "wasmssa.div_si"
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class MulOp(BinaryNumericalOperation[NumericType]):
+    """Multiply two values."""
+
+    name = "wasmssa.mul"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class OrOp(BinaryNumericalOperation[NumericType]):
+    """Compute the bitwise OR between two values."""
+
+    name = "wasmssa.or"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class SubOp(BinaryNumericalOperation[NumericType]):
+    """Subtract two values."""
+
+    name = "wasmssa.sub"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RemUIOp(BinaryNumericalOperation[IntegerType]):
+    """Compute the unsigned integer remainder of two values."""
+
+    name = "wasmssa.rem_ui"
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class RemSIOp(BinaryNumericalOperation[IntegerType]):
+    """Compute the signed integer remainder of two values."""
+
+    name = "wasmssa.rem_si"
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class XOrOp(BinaryNumericalOperation[NumericType]):
+    """Compute the bitwise XOR between two values."""
+
+    name = "wasmssa.xor"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class MinOp(BinaryNumericalOperation[FPType]):
+    """Compute the minimum of two floating-point values."""
+
+    name = "wasmssa.min"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class MaxOp(BinaryNumericalOperation[FPType]):
+    """Compute the maximum of two floating-point values."""
+
+    name = "wasmssa.max"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class CopySignOp(BinaryNumericalOperation[FPType]):
+    """Copy the sign of the second floating-point value to the first."""
+
+    name = "wasmssa.copysign"
+
+    traits = traits_def(Pure())
+
+
 WasmSSA = Dialect(
     "wasmssa",
     [
         AddOp,
+        AndOp,
+        CopySignOp,
+        DivOp,
+        DivSIOp,
+        DivUIOp,
+        MaxOp,
+        MinOp,
+        MulOp,
+        OrOp,
+        RemSIOp,
+        RemUIOp,
+        SubOp,
+        XOrOp,
     ],
     [
         ExternRefType,
