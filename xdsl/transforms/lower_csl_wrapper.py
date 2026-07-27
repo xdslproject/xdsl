@@ -3,8 +3,7 @@ from pathlib import Path
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, scf
-from xdsl.dialects.csl import csl, csl_wrapper
+from xdsl.dialects import arith, builtin, csl, csl_wrapper, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -32,7 +31,7 @@ class ExtractCslModules(RewritePattern):
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         program_module = self.lower_program_module(op, rewriter)
         layout_module = self.lower_layout_module(op, rewriter)
-        rewriter.replace_matched_op([layout_module, program_module])
+        rewriter.replace(op, [layout_module, program_module])
 
     def _collect_params(
         self, op: csl_wrapper.ModuleOp
@@ -125,8 +124,9 @@ class ExtractCslModules(RewritePattern):
         y = inner_loop_block.args[0]
         y.name_hint = "y"
 
-        assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
-        rewriter.erase_op(yield_op)
+        yield_op = op.layout_module.block.last_op
+        assert isa(yield_op, csl_wrapper.YieldOp)
+        rewriter.erase(yield_op)
 
         with ImplicitBuilder(module_block):
             const_0 = arith.ConstantOp.from_int_and_width(0, builtin.IntegerType(16))
@@ -187,7 +187,8 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert csl.ParamOpAttrConstr.verifies(ty := v.type)
+            ty = v.type
+            assert csl.ParamOpAttrConstr.verifies(ty)
             params.append(csl.ParamOp(s, ty))
         return params
 
@@ -212,11 +213,13 @@ class ExtractCslModules(RewritePattern):
         with ImplicitBuilder(module_block):
             param_width, param_height, params_from_block_args = self._collect_params(op)
 
-        assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
+        yield_op = op.layout_module.block.last_op
+        assert isa(yield_op, csl_wrapper.YieldOp)
         yield_args = self._collect_yield_args(yield_op)
         module_block.add_ops(yield_args)
-        assert isa(yield_op := op.program_module.block.last_op, csl_wrapper.YieldOp)
-        rewriter.erase_op(yield_op)
+        yield_op = op.program_module.block.last_op
+        assert isa(yield_op, csl_wrapper.YieldOp)
+        rewriter.erase(yield_op)
 
         rewriter.inline_block(
             op.program_module.block,
@@ -252,7 +255,8 @@ class LowerImport(RewritePattern):
 
         if isinstance(op, csl.CslModuleOp):
             return op
-        assert (parent := op.parent_op()) is not None
+        parent = op.parent_op()
+        assert parent is not None
         return self._get_csl_mod(parent)
 
     def _collect_ops(self, op: Operation, ops: list[Operation]) -> list[Operation]:
@@ -306,9 +310,9 @@ class LowerImport(RewritePattern):
         )
         import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
-        rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.insert_op(structs, InsertPoint.before(op))
-        rewriter.replace_matched_op(import_)
+        rewriter.insert(ops, InsertPoint.at_start(csl_mod.body.block))
+        rewriter.insert(structs, InsertPoint.before(op))
+        rewriter.replace(op, import_)
 
 
 @dataclass(frozen=True)

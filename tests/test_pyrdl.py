@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
 from typing_extensions import Self, TypeVar
@@ -16,14 +16,15 @@ from xdsl.dialects.builtin import (
     IntegerType,
     Signedness,
     SignednessAttr,
+    i32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyOf,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintConvertible,
@@ -158,6 +159,20 @@ def test_base_attr_verify_wrong_base_fail():
         eq_true_constraint.verify(int_zero, ConstraintContext())
 
 
+def test_base_attr_verify_wrong_abstractbase_fail():
+    """
+    Check that a BaseAttr constraint fails to verify an attribute with a
+    different base attribute.
+    """
+    any_data_constraint = BaseAttr[Data[Any]](Data)
+    parametrized_attr = DoubleParamAttr(IntData(0), IntData(1))
+    with pytest.raises(
+        VerifyException,
+        match=f"{parametrized_attr} should be of attribute subclassing `Data`",
+    ):
+        any_data_constraint.verify(parametrized_attr, ConstraintContext())
+
+
 def test_any_attr_verify():
     """Check that an AnyAttr verifies any attribute."""
     any_constraint = AnyAttr()
@@ -278,7 +293,7 @@ def test_allof_verify_multiple_failures():
 def test_param_attr_verify():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr, (EqAttrConstraint(bool_true), BaseAttr(IntData))
     )
     constraint.verify(DoubleParamAttr(bool_true, IntData(0)), ConstraintContext())
     constraint.verify(DoubleParamAttr(bool_true, IntData(42)), ConstraintContext())
@@ -287,7 +302,7 @@ def test_param_attr_verify():
 def test_param_attr_verify_base_fail():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr, (EqAttrConstraint(bool_true), BaseAttr(IntData))
     )
     with pytest.raises(
         VerifyException,
@@ -298,7 +313,7 @@ def test_param_attr_verify_base_fail():
 
 def test_param_attr_verify_params_num_params_fail():
     bool_true = BoolData(True)
-    constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true)])
+    constraint = ParamAttrConstraint(DoubleParamAttr, (EqAttrConstraint(bool_true),))
     attr = DoubleParamAttr(bool_true, IntData(0))
     with pytest.raises(VerifyException, match="1 parameters expected, but got 2"):
         constraint.verify(attr, ConstraintContext())
@@ -308,7 +323,11 @@ def test_param_attr_verify_params_fail():
     bool_true = BoolData(True)
     bool_false = BoolData(False)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr,
+        (
+            EqAttrConstraint(bool_true),
+            BaseAttr(IntData),
+        ),
     )
 
     with pytest.raises(
@@ -434,37 +453,31 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert irdl_to_attr_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(  # pyright: ignore[reportArgumentType]
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert irdl_to_attr_constraint(
+        Literal[TestEnum.A, TestEnum.B]  # pyright: ignore[reportArgumentType]
+    ) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
     assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
-    assert irdl_to_attr_constraint(IntAttr[int]) == IntAttrConstraint(
-        int_constraint=AnyInt()
-    )
-    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == IntAttrConstraint(
-        int_constraint=EqIntConstraint(value=1)
-    )
-    assert irdl_to_attr_constraint(IntAttr[2]) == IntAttrConstraint(
-        int_constraint=EqIntConstraint(value=2)
-    )
+    assert irdl_to_attr_constraint(IntAttr[int]) == BaseAttr(IntAttr)
+    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == EqAttrConstraint(IntAttr(1))
+    assert irdl_to_attr_constraint(IntAttr[2]) == EqAttrConstraint(IntAttr(2))
 
     assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
     # With one type arg, second default
     assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+        (BaseAttr(IntAttr), BaseAttr(SignednessAttr)),
     )
     # With both type args
     assert irdl_to_attr_constraint(IntegerType[int, Signedness]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+        (BaseAttr(IntAttr), BaseAttr(SignednessAttr)),
     )
     assert irdl_to_attr_constraint(IntegerType[32]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+        (EqAttrConstraint(IntAttr(32)), BaseAttr(SignednessAttr)),
     )
     assert irdl_to_attr_constraint(IntegerType[Literal[32, 64]]) == ParamAttrConstraint(
         IntegerType,
@@ -473,7 +486,7 @@ def test_irdl_to_attr_constraint():
             BaseAttr(SignednessAttr),
         ),
     )
-
+    assert irdl_to_attr_constraint(I32) == EqAttrConstraint(i32)
     assert irdl_to_attr_constraint(Signedness.SIGNED) == EqAttrConstraint(
         SignednessAttr(Signedness.SIGNED)
     )
@@ -488,13 +501,7 @@ def test_irdl_to_attr_constraint():
         IntegerAttr,
         (
             BaseAttr(IntAttr),
-            ParamAttrConstraint(
-                IntegerType,
-                (
-                    IntAttrConstraint(EqIntConstraint(32)),
-                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
-                ),
-            ),
+            EqAttrConstraint(i32),
         ),
     )
     assert irdl_to_attr_constraint(IntegerAttr[IntegerType[32]]) == ParamAttrConstraint(
@@ -503,7 +510,7 @@ def test_irdl_to_attr_constraint():
             BaseAttr(IntAttr),
             ParamAttrConstraint(
                 IntegerType,
-                (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+                (EqAttrConstraint(IntAttr(32)), BaseAttr(SignednessAttr)),
             ),
         ),
     )
@@ -532,11 +539,9 @@ def test_get_constraint():
     assert get_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
 
     with pytest.raises(

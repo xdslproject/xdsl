@@ -1,30 +1,32 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterType
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
+from xdsl.dialects.x86.ops import SI32, X86RegisterAllocatableOperation
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
 from xdsl.ir import Dialect
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     Block,
-    IRDLOperation,
     Operation,
     Region,
     SSAValue,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
+    opt_operand_def,
+    opt_prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -35,6 +37,8 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -45,13 +49,21 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[X86RegisterType]):
     name = "x86_scf.yield"
 
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ForRofOperation)))
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ForRofOperation),
+            NoMemoryEffect(),
+        )
+    )
 
 
-class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
+class ForRofOperation(X86RegisterAllocatableOperation, ABC):
     lb = operand_def(GeneralRegisterType)
-    ub = operand_def(GeneralRegisterType)
-    step = operand_def(GeneralRegisterType)
+    ub_val = opt_operand_def(GeneralRegisterType)
+    ub_attr = opt_prop_def(IntegerAttr[SI32])
+    step_val = opt_operand_def(GeneralRegisterType)
+    step_attr = opt_prop_def(IntegerAttr[SI32])
 
     iter_args = var_operand_def(X86RegisterType)
 
@@ -59,26 +71,80 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    @property
+    def ub(self) -> IntegerAttr[SI32] | SSAValue:
+        """Static upper bound (typed integer) or dynamic register SSA value."""
+        if self.ub_attr is not None:
+            return self.ub_attr
+        else:
+            assert self.ub_val is not None, (
+                "Exactly one of ub_attr or ub_val must be set"
+            )
+            return self.ub_val
+
+    @property
+    def step(self) -> IntegerAttr[SI32] | SSAValue:
+        """Static step (typed integer) or dynamic register SSA value."""
+        if self.step_attr is not None:
+            return self.step_attr
+        else:
+            assert self.step_val is not None, (
+                "Exactly one of step_attr or step_val must be set"
+            )
+            return self.step_val
 
     def __init__(
         self,
         lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
-        step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+        ub: SSAValue | Operation | IntegerAttr,
+        step: SSAValue | Operation | IntegerAttr,
+        iter_args: Sequence[SSAValue],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
+        lb = SSAValue.get(lb)
+        if body is None:
+            body = Region(
+                Block(arg_types=(lb.type, *(iter_arg.type for iter_arg in iter_args)))
+            )
+
         if isinstance(body, Block):
             body = [body]
 
+        if isinstance(ub, IntegerAttr):
+            ub_attr = ub
+            ub_val = None
+        else:
+            ub_attr = None
+            ub_val = ub
+
+        if isinstance(step, IntegerAttr):
+            step_attr = step
+            step_val = None
+        else:
+            step_attr = None
+            step_val = step
+
         super().__init__(
-            operands=[lb, ub, step, iter_args],
+            operands=[lb, ub_val, step_val, iter_args],
+            properties={"ub_attr": ub_attr, "step_attr": step_attr},
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
 
     def verify_(self):
+        if (self.ub_attr is None) == (self.ub_val is None):
+            raise VerifyException(
+                "Exactly one of ub_attr (static) or ub_val (dynamic) must be set, "
+                f"got ub_attr={self.ub_attr}, ub_val={self.ub_val}"
+            )
+        if (self.step_attr is None) == (self.step_val is None):
+            raise VerifyException(
+                "Exactly one of step_attr (static) or step_val (dynamic) must be set, "
+                f"got step_attr={self.step_attr}, step_val={self.step_val}"
+            )
         if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got "
@@ -89,7 +155,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if not isinstance(iter_var.type, GeneralRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
+                    " instead of x86 GeneralRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])
@@ -116,11 +182,6 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
                         f"variables types."
                     )
 
-    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
-        # We know that all the registers for the inputs and outputs are the same, and
-        # that these registers will have been iterated earlier in the IR.
-        yield from ()
-
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
@@ -146,9 +207,11 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         # Induction variable
         allocator.allocate_value(block_args[0])
 
-        # Step and ub are used throughout loop
-        allocator.allocate_value(self.ub)
-        allocator.allocate_value(self.step)
+        # ub and step are used throughout loop when dynamic
+        if self.ub_val is not None:
+            allocator.allocate_value(self.ub_val)
+        if self.step_val is not None:
+            allocator.allocate_value(self.step_val)
 
         # Reserve the loop carried variables for allocation within the body
         regs = self.iter_args.types
@@ -183,7 +246,9 @@ class ForOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser)
+        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
+            parser, allow_static_upper_bound=True, allow_static_step=True
+        )
         _, *iter_args = body.block.args
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)
@@ -227,9 +292,15 @@ class RofOp(ForRofOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         ub, lb, step, iter_arg_operands, body = parse_for_op_like(
-            parser, bound_words=["down", "to"]
+            parser,
+            bound_words=["down", "to"],
+            allow_static_upper_bound=True,
+            allow_static_step=True,
         )
         _, *iter_args = body.block.args
+
+        if isinstance(lb, IntegerAttr):
+            parser.raise_error("Expected an operand.")
 
         rof_op = cls(lb, ub, step, iter_arg_operands, body)
 

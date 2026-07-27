@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Sequence
 from enum import IntFlag, auto
 from typing import ClassVar
 
@@ -20,7 +21,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -133,11 +134,43 @@ class OpenMPOffloadMappingFlags(IntFlag):
         return (flag for flag in type(self) if self & flag)
 
 
+class ClauseMapFlags(StrEnum):
+    STORAGE = auto()
+    TO = auto()
+    FROM = auto()
+    ALWAYS = auto()
+    DELETE = "del"
+    RETURN_PARAM = auto()
+    PRIVATE = "priv"
+    LITERAL = auto()
+    IMPLICIT = auto()
+    CLOSE = auto()
+    PRESENT = auto()
+    OMPX_HOLD = auto()
+    ATTACH = auto()
+    ATTACH_ALWAYS = auto()
+    ATTACH_NONE = auto()
+    ATTACH_AUTO = auto()
+    REF_PTR = auto()
+    REF_PTEE = auto()
+    REF_PTR_PTEE = auto()
+    IS_DEVICE_PTR = auto()
+
+
+@irdl_attr_definition
+class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAttribute):
+    name = "omp.clause_map_flags"
+
+    none_value = "none"
+    separator_value = "|"
+    delimiter_value = AttrParser.Delimiter.NONE
+
+
 def verify_map_vars(
     vars: VarOperand,
     op_name: str,
     *,
-    disallowed_types: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
+    disallowed_types: Sequence[ClauseMapFlags] = (),
 ):
     for var in vars:
         if not isinstance(owner := var.owner, MapInfoOp):
@@ -145,7 +178,7 @@ def verify_map_vars(
                 f"All mapped operands of {op_name} must be results of a {MapInfoOp.name}"
             )
         for t in disallowed_types:
-            if owner.map_type.value.data & t:
+            if t in owner.map_type.data:
                 raise VerifyException(f"Cannot have map_type {t.name} in {op_name}")
 
 
@@ -237,7 +270,8 @@ class LoopWrapper(NoTerminator):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
             )
-        assert (inner := op.regions[0].block.first_op) is not None
+        inner = op.regions[0].block.first_op
+        assert inner is not None
         if not (inner.has_trait(LoopWrapper()) or isinstance(inner, LoopNestOp)):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: "
@@ -494,11 +528,14 @@ class LoopNestOp(IRDLOperation):
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
 
+    collapse_num_loops = opt_prop_def(IntegerAttr)
     loop_inclusive = opt_prop_def(UnitAttr)
 
     body = region_def("single_block")
 
-    irdl_options = [SameVariadicOperandSize(), RecursiveMemoryEffect()]
+    irdl_options = (SameVariadicOperandSize(),)
+
+    traits = traits_def(RecursiveMemoryEffect())
 
 
 @irdl_op_definition
@@ -532,10 +569,11 @@ class WsLoopOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
+    linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
 
@@ -577,7 +615,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -602,6 +640,7 @@ class DeclareReductionOp(IRDLOperation):
     reduction_region = region_def()
     atomic_reduction_region = region_def()
     cleanup_region = region_def()
+    data_ptr_ptr_region = region_def()
 
     traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
@@ -612,6 +651,7 @@ class DeclareReductionOp(IRDLOperation):
         `combiner` $reduction_region
         ( `atomic` $atomic_reduction_region^ )?
         ( `cleanup` $cleanup_region^ )?
+        ( `data_ptr_ptr` $data_ptr_ptr_region^ )?
     """
 
     def verify_(self) -> None:
@@ -634,7 +674,7 @@ class PrivateClauseOp(IRDLOperation):
     var_type = prop_def(TypeAttribute, prop_name="type")
     data_sharing_type = prop_def(DataSharingClauseAttr)
 
-    alloc_region = region_def()
+    init_region = region_def()
     copy_region = region_def()
     dealloc_region = region_def()
 
@@ -642,17 +682,11 @@ class PrivateClauseOp(IRDLOperation):
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
-        `alloc` $alloc_region
+        (`init` $init_region^)?
         (`copy` $copy_region^)?
         (`dealloc` $dealloc_region^)?
         attr-dict
     """
-
-    def verify_(self) -> None:
-        if len(self.alloc_region.blocks) < 1:
-            raise VerifyException(
-                f"alloc_region of {self.name} has to have at least 1 block"
-            )
 
 
 @irdl_op_definition
@@ -722,7 +756,7 @@ class TargetOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
 
     def num_block_args(self) -> int:
@@ -737,7 +771,7 @@ class TargetOp(BlockArgOpenMPOperation):
         verify_map_vars(
             self.map_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
@@ -761,7 +795,7 @@ class MapBoundsOp(IRDLOperation):
 
     res = result_def(MapBoundsType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(NoMemoryEffect())
 
 
@@ -780,7 +814,7 @@ class MapInfoOp(IRDLOperation):
     bounds = var_operand_def(MapBoundsType)
 
     var_type = prop_def(TypeAttribute)
-    map_type = prop_def(IntegerAttr[_ui64])
+    map_type = prop_def(ClauseMapFlagsAttr)
     """
     To set or test flags in `map_type` use the bits defined in `OpenMPOffloadMappingFlags`
     """
@@ -791,7 +825,7 @@ class MapInfoOp(IRDLOperation):
 
     omp_ptr = result_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def verify_(self) -> None:
         verify_map_vars(self.members, self.name)
@@ -833,10 +867,11 @@ class SimdOp(BlockArgOpenMPOperation):
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
     safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
+    linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
 
@@ -877,7 +912,7 @@ class TeamsOp(BlockArgOpenMPOperation):
 
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(RecursiveMemoryEffect())
 
     def num_block_args(self) -> int:
@@ -903,7 +938,7 @@ class DistributeOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     body = region_def("single_block")
 
@@ -942,7 +977,7 @@ class TargetTaskBasedDataOp(IRDLOperation):
     )
     nowait = opt_prop_def(UnitAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -958,8 +993,7 @@ class TargetEnterDataOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.FROM
-            | OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.FROM, ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
@@ -977,7 +1011,7 @@ class TargetExitDataOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.TO,
+            disallowed_types=[ClauseMapFlags.TO],
         )
         return super().verify_()
 
@@ -995,17 +1029,16 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
-        mapped = defaultdict[Operand, OpenMPOffloadMappingFlags](
-            lambda: OpenMPOffloadMappingFlags.NONE
-        )
-        one_of = OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM
+        mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
+        one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
         for var in self.mapped_vars:
-            assert isinstance(owner := var.owner, MapInfoOp)
+            owner = var.owner
+            assert isinstance(owner, MapInfoOp)
 
-            mapped[owner.var_ptr] |= owner.map_type.value.data
-            if (mapped[owner.var_ptr] & one_of).bit_count() != 1:
+            mapped[owner.var_ptr] |= owner.map_type.data
+            if len(mapped[owner.var_ptr] & one_of) != 1:
                 raise VerifyException(
                     f"{self.name} expected to have exactly one of TO or FROM as map_type"
                 )
@@ -1029,7 +1062,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def num_block_args(self) -> int:
         # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.
@@ -1039,7 +1072,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=(OpenMPOffloadMappingFlags.DELETE),
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
@@ -1067,6 +1100,7 @@ OMP = Dialect(
     ],
     [
         ClauseRequiresKindAttr,
+        ClauseMapFlagsAttr,
         DataSharingClauseAttr,
         DeclareTargetAttr,
         DeclareTargetCaptureClauseAttr,

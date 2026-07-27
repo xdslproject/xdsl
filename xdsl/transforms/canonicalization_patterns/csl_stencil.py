@@ -1,5 +1,4 @@
-from xdsl.dialects import tensor
-from xdsl.dialects.csl import csl_stencil
+from xdsl.dialects import csl_stencil, tensor
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -30,4 +29,4 @@ class RedundantAccumulatorInitialisation(RewritePattern):
                 and isinstance(next_apply.accumulator.op, tensor.EmptyOp)
                 and op.accumulator.type == next_apply.accumulator.type
             ):
-                rewriter.replace_op(next_apply.accumulator.op, [], [op.accumulator])
+                rewriter.replace(next_apply.accumulator.op, [], [op.accumulator])

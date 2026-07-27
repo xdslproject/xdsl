@@ -48,7 +48,7 @@ builtin.module {
       %c = "arith.cmpi"(%zero, %arg) {"predicate" = 1 : i64} : (i32, i32) -> i1
       scf.condition(%c) %zero : i32
     } do {
-    ^bb1(%arg2 : i32):
+    ^bb1(%arg2: i32):
       scf.yield %arg2 : i32
     }
     func.return
@@ -61,7 +61,7 @@ builtin.module {
   // CHECK-NEXT:     %{{.*}} = arith.cmpi ne, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:     scf.condition(%{{.*}}) %{{.*}} : i32
   // CHECK-NEXT:   } do {
-  // CHECK-NEXT:   ^bb{{.*}}(%{{.*}} : i32):
+  // CHECK-NEXT:   ^bb{{.*}}(%{{.*}}: i32):
   // CHECK-NEXT:     scf.yield %{{.*}} : i32
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
@@ -92,7 +92,7 @@ builtin.module {
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      scf.condition(%{{.*}}) %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
-  // CHECK-NEXT:    ^bb{{\d+}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:    ^bb{{\d+}}(%{{.*}}: i32, %{{.*}}: f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
@@ -125,7 +125,7 @@ builtin.module {
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      scf.condition(%{{.*}}) {hello = "world"} %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
-  // CHECK-NEXT:    ^bb{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:    ^bb{{.*}}(%{{.*}}: i32, %{{.*}}: f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
@@ -194,7 +194,7 @@ builtin.module {
     func.return %c : i32
   }
 
-  // CHECK:      func.func @index_switch(%flag : index) -> i32 {
+  // CHECK:      func.func @index_switch(%flag: index) -> i32 {
   // CHECK-NEXT:   %a = arith.constant 0 : i32
   // CHECK-NEXT:   %b = arith.constant 1 : i32
   // CHECK-NEXT:   %c, %d = scf.index_switch %flag -> i32, i32
@@ -215,11 +215,73 @@ builtin.module {
     func.return
   }
 
-  // CHECK:      func.func @switch_trivial(%flag : index) {
+  // CHECK:      func.func @switch_trivial(%flag: index) {
   // CHECK-NEXT:   scf.index_switch %flag
   // CHECK-NEXT:   default {
   // CHECK-NEXT:     scf.yield
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
+
+  func.func @execute_region() {
+    %b = scf.execute_region -> (i32) {
+      %a = "test.op"() : () -> (i32)
+      scf.yield %a : i32
+    }
+    func.return
+  }
+
+  // CHECK:      func.func @execute_region() {
+  // CHECK-NEXT:   %b = scf.execute_region -> (i32) {
+  // CHECK-NEXT:     %a = "test.op"() : () -> i32
+  // CHECK-NEXT:     scf.yield %a : i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
+  func.func @execute_region_multiple_results() {
+      %c, %d = scf.execute_region -> (i32, i64) {
+      %a, %b = "test.op"() : () -> (i32, i64)
+      scf.yield %a, %b : i32, i64
+      }
+      func.return
+  }
+
+  // CHECK:      func.func @execute_region_multiple_results() {
+  // CHECK-NEXT:   %c, %d = scf.execute_region -> (i32, i64) {
+  // CHECK-NEXT:     %a, %b = "test.op"() : () -> (i32, i64)
+  // CHECK-NEXT:     scf.yield %a, %b : i32, i64
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
+
+  func.func @execute_region_multiple_blocks() {
+    %c = scf.execute_region -> (i32) {
+      %cond = "test.op"() : () -> i1
+      cf.cond_br %cond, ^bb0, ^bb1
+    ^bb0:
+      %a = "test.op"() : () -> i32
+      scf.yield %a : i32
+    ^bb1:
+      %b = "test.op"() : () -> i32
+      scf.yield %b : i32
+    }
+    func.return
+  }
+
+  // CHECK:      func.func @execute_region_multiple_blocks() {
+  // CHECK-NEXT:   %c = scf.execute_region -> (i32) {
+  // CHECK-NEXT:     %cond = "test.op"() : () -> i1
+  // CHECK-NEXT:     cf.cond_br %cond, ^bb0, ^bb1
+  // CHECK-NEXT:   ^bb0:
+  // CHECK-NEXT:     %a = "test.op"() : () -> i32
+  // CHECK-NEXT:     scf.yield %a : i32
+  // CHECK-NEXT:   ^bb1:
+  // CHECK-NEXT:     %b = "test.op"() : () -> i32
+  // CHECK-NEXT:     scf.yield %b : i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
 }

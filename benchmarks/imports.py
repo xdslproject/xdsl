@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Benchmarks for the pipeline stages of the xDSL implementation.
+"""
+Benchmarks for the pipeline stages of the xDSL implementation.
 
 This should live in its own file to avoid clobbering other benchmarks by
 already having imported dependencies.
@@ -33,18 +34,21 @@ import xdsl.interpreters.riscv_scf
 import xdsl.interpreters.riscv_snitch
 import xdsl.interpreters.scf
 import xdsl.interpreters.tensor
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 
 
-class ImportXDSL:
+class ImportXDSL(BenchmarkClass):
     """Benchmark importing xDSL."""
 
+    @safe_to_repeat
     def time_import_xdsl(self) -> None:
         """Time importing xDSL using the default asv mechanism."""
         importlib.reload(xdsl)
 
 
-class ImportDialects:
-    """Benchmark loading dialects in xDSL.
+class ImportDialects(BenchmarkClass):
+    """
+    Benchmark loading dialects in xDSL.
 
     Note that this must be done with `importlib.reload` rather than just
     directly importing with `from xdsl.dialects.arith import Arith` to avoid
@@ -71,6 +75,7 @@ class ImportDialects:
         """Time loading the `test` dialect."""
         importlib.reload(xdsl.dialects.test)
 
+    @safe_to_repeat
     def time_all_constant_load(self) -> None:
         """Time all dialects used by the constant folding workload."""
         self.ignore_time_affine_load()
@@ -78,9 +83,10 @@ class ImportDialects:
         self.ignore_time_cf_load()
 
 
-class ImportInterpreters:
+class ImportInterpreters(BenchmarkClass):
     """Benchmark loading interpreters in xDSL."""
 
+    @safe_to_repeat
     def time_all_constant_load(self) -> None:
         """Time all interpreters used by the constant folding workload."""
         importlib.reload(xdsl.dialects.test)
@@ -107,21 +113,25 @@ class ImportInterpreters:
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmark, profile
+    from bench_utils import BenchmarkFunction, profile
 
     XDSL = ImportXDSL()
     DIALECTS = ImportDialects()
     INTERPRETERS = ImportInterpreters()
     profile(
         {
-            "xDSL": Benchmark(XDSL.time_import_xdsl),
-            "Dialects.affine_load": Benchmark(DIALECTS.ignore_time_affine_load),
-            "Dialects.arith_load": Benchmark(DIALECTS.ignore_time_arith_load),
-            "Dialects.builtin_load": Benchmark(DIALECTS.ignore_time_builtin_load),
-            "Dialects.cf_load": Benchmark(DIALECTS.ignore_time_cf_load),
-            "Dialects.test_load": Benchmark(DIALECTS.ignore_time_test_load),
-            "Dialects.all_constant_load": Benchmark(DIALECTS.time_all_constant_load),
-            "Interpreters.all_constant_load": Benchmark(
+            "xDSL": BenchmarkFunction(XDSL.time_import_xdsl),
+            "Dialects.affine_load": BenchmarkFunction(DIALECTS.ignore_time_affine_load),
+            "Dialects.arith_load": BenchmarkFunction(DIALECTS.ignore_time_arith_load),
+            "Dialects.builtin_load": BenchmarkFunction(
+                DIALECTS.ignore_time_builtin_load
+            ),
+            "Dialects.cf_load": BenchmarkFunction(DIALECTS.ignore_time_cf_load),
+            "Dialects.test_load": BenchmarkFunction(DIALECTS.ignore_time_test_load),
+            "Dialects.all_constant_load": BenchmarkFunction(
+                DIALECTS.time_all_constant_load
+            ),
+            "Interpreters.all_constant_load": BenchmarkFunction(
                 INTERPRETERS.time_all_constant_load
             ),
         }

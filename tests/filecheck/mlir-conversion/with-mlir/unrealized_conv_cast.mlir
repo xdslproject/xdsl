@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --allow-unregistered-dialect | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

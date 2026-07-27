@@ -24,8 +24,8 @@ def would_be_trivially_dead(op: Operation):
     Returns if the operation would be dead if all its results were dead.
     """
     return (
-        not op.get_trait(IsTerminator)
-        and (not op.get_trait(SymbolOpInterface))
+        not op.has_trait(IsTerminator, value_if_unregistered=False)
+        and (not op.has_trait(SymbolOpInterface, value_if_unregistered=False))
         and result_only_effects(op)
     )
 
@@ -75,7 +75,7 @@ class RemoveUnusedOperations(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         if is_trivially_dead(op) and op.parent is not None:
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 def dce(op: ModuleOp):

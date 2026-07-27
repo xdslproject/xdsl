@@ -59,7 +59,7 @@ class AddBenchTimersPattern(RewritePattern):
         ):
             return
 
-        ptr = op.body.block.insert_arg(llvm.LLVMPointerType.opaque(), len(op.args))
+        ptr = op.body.block.insert_arg(llvm.LLVMPointerType(), len(op.args))
         start_call = func.CallOp(TIMER_START, [], tuple(self.start_func_t.outputs))
         end_call = func.CallOp(
             TIMER_END, start_call.res, tuple(self.end_func_t.outputs)
@@ -71,8 +71,8 @@ class AddBenchTimersPattern(RewritePattern):
         end_call.res[0].name_hint = "timediff"
 
         assert op.body.block.last_op
-        rewriter.insert_op(start_call, InsertPoint.at_start(op.body.block))
-        rewriter.insert_op(
+        rewriter.insert(start_call, InsertPoint.at_start(op.body.block))
+        rewriter.insert(
             [end_call, store_time], InsertPoint.before(op.body.block.last_op)
         )
         op.update_function_type()
@@ -111,9 +111,9 @@ class FunctionPersistArgNamesPass(ModulePass):
     Persists func.func arg name hints to arg_attrs.
 
     Such that, for instance
-        `func.func @my_func(%arg_name : i32) -> ...`
+        `func.func @my_func(%arg_name: i32) -> ...`
     becomes
-        `func.func @my_func(%arg_name : i32 {"llvm.name" = "arg_name"}) -> ...
+        `func.func @my_func(%arg_name: i32 {"llvm.name" = "arg_name"}) -> ...
     """
 
     name = "function-persist-arg-names"

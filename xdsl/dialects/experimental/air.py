@@ -113,7 +113,7 @@ class ChannelGetOp(IRDLOperation):
 
     async_token = result_def(AsyncTokenAttr())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     def __init__(
         self,
@@ -155,7 +155,7 @@ class ChannelPutOp(IRDLOperation):
 
     async_token = result_def(AsyncTokenAttr())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     def __init__(
         self,
@@ -193,7 +193,7 @@ class CustomOp(IRDLOperation):
 
     async_token = result_def(AsyncTokenAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -243,7 +243,10 @@ class DmaMemcpyNdOp(IRDLOperation):
 
     async_token = result_def(AsyncTokenAttr())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -375,7 +378,7 @@ class HerdOp(IRDLOperation):
         IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -532,7 +535,7 @@ class LaunchOp(IRDLOperation):
         IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -767,7 +770,7 @@ class SegmentOp(IRDLOperation):
         IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,

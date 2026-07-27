@@ -186,14 +186,12 @@ class ApplyNativeConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr)
-    res = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
-    assembly_format = (
-        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
-    )
+    assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($res)^)? attr-dict"
 
     def __init__(
         self,
@@ -219,8 +217,8 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr)
-    res = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     def __init__(
         self,
@@ -370,9 +368,7 @@ class OperationOp(IRDLOperation):
     type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
     op = result_def(OperationType)
 
-    irdl_options = [
-        AttrSizedOperandSegments(as_property=True),
-    ]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -495,10 +491,12 @@ def _visit_pdl_ops(op: Operation, visited: set[Operation]):
     # Traverse the operands
     if isinstance(op, OperationOp):
         for value in op.operand_values:
-            assert isinstance(owner := value.owner, Operation)
+            owner = value.owner
+            assert isinstance(owner, Operation)
             _visit_pdl_ops(owner, visited)
     elif isinstance(op, ResultOp | ResultsOp):
-        assert isinstance(owner := op.parent_.owner, Operation)
+        owner = op.parent_.owner
+        assert isinstance(owner, Operation)
         _visit_pdl_ops(owner, visited)
 
     # Traverse the users
@@ -687,9 +685,9 @@ class ReplaceOp(IRDLOperation):
     name = "pdl.replace"
     op_value = operand_def(OperationType)
     repl_operation = opt_operand_def(OperationType)
-    repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
+    repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$op_value `with` ` ` "
@@ -809,7 +807,7 @@ class RewriteOp(IRDLOperation):
     # body of inline rewriter function
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 

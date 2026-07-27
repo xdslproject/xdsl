@@ -1,40 +1,119 @@
 from __future__ import annotations
 
 import abc
-from typing import ClassVar, cast
+import math
+from collections.abc import Sequence
+from typing import ClassVar, Generic, cast
 
+from typing_extensions import TypeVar
+
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
-    AnyAttr,
     AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
+    FixedBitwidthType,
     FloatAttr,
+    FloatData,
     IntegerAttr,
     IntegerType,
-    ParamAttrConstraint,
 )
-from xdsl.interfaces import ConstantLikeInterface
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.interfaces import HasFolderInterface
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+)
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
+    BaseAttr,
     EqIntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     RangeOf,
     VarConstraint,
     base,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    param_def,
     prop_def,
     result_def,
     traits_def,
 )
-from xdsl.traits import Pure
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.traits import Commutative, ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ComplexTypeConstr = ComplexType.constr(AnyFloat)
+
+_ComplexNumberElementType = TypeVar(
+    "_ComplexNumberElementType",
+    bound=AnyFloat,
+    covariant=True,
+    default=AnyFloat,
+)
+
+
+@irdl_attr_definition
+class ComplexNumberAttr(ParametrizedAttribute, Generic[_ComplexNumberElementType]):
+    name = "complex.number"
+
+    real: FloatData = param_def(converter=FloatData.get)
+    imag: FloatData = param_def(converter=FloatData.get)
+    type: ComplexType[_ComplexNumberElementType]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(":")
+            printer.print_attribute(self.type.element_type)
+            printer.print_string(" ")
+            printer.print_float(self.real.data, self.type.element_type)
+            printer.print_string(", ")
+            printer.print_float(self.imag.data, self.type.element_type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        """
+        Example:
+        ```
+        #complex.number<:f64 1.0, 2.0> : complex<f64>
+        ```
+        """
+        with parser.in_angle_brackets():
+            parser.parse_punctuation(":")
+            pos = parser.pos
+            element_type = parser.parse_type()
+            if not isa(element_type, AnyFloat):
+                parser.raise_error("Invalid element type", pos, parser.pos - 1)
+            real = FloatData(parser.parse_float())
+            parser.parse_punctuation(",")
+            imag = FloatData(parser.parse_float())
+        parser.parse_punctuation(":")
+        pos = parser.pos
+        complex_type = parser.parse_type()
+        if not (
+            isa(complex_type, ComplexType[AnyFloat])
+            and (complex_type.element_type == element_type)
+        ):
+            parser.raise_error("Complex number type doesn't match element type", pos)
+        return [
+            real,
+            imag,
+            ComplexType(element_type),
+        ]
 
 
 class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
@@ -101,7 +180,7 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
             )
 
 
-class ComplexBinaryOp(IRDLOperation, abc.ABC):
+class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
     """Base class for binary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
@@ -129,6 +208,36 @@ class ComplexBinaryOp(IRDLOperation, abc.ABC):
             properties={"fastmath": fastmath},
         )
 
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an tuple[float, float], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
+
+    def fold(self) -> tuple[ArrayAttr[FloatAttr[AnyFloat]]] | None:
+        lhs = ConstantLike.get_constant_value(self.lhs)
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        if (
+            lhs is not None
+            and rhs is not None
+            and isa(lhs, ArrayAttr[FloatAttr])
+            and isa(rhs, ArrayAttr[FloatAttr])
+        ):
+            assert lhs.data[0].type == rhs.data[0].type
+            assert lhs.data[1].type == rhs.data[1].type
+            re_lhs, im_lhs = lhs.data[0].value.data, lhs.data[1].value.data
+            re_rhs, im_rhs = rhs.data[0].value.data, rhs.data[1].value.data
+            res = self.py_operation((re_lhs, im_lhs), (re_rhs, im_rhs))
+            if res is not None:
+                type = lhs.data[0].type
+                return (ArrayAttr([FloatAttr(res[0], type), FloatAttr(res[1], type)]),)
+
 
 class ComplexCompareOp(IRDLOperation, abc.ABC):
     """Base class for comparison operations on complex numbers."""
@@ -155,6 +264,19 @@ class AbsOp(ComplexUnaryRealResultOperation):
 class AddOp(ComplexBinaryOp):
     name = "complex.add"
 
+    traits = traits_def(Pure(), Commutative())
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        return (lhs[0] + rhs[0], lhs[1] + rhs[1])
+
 
 @irdl_op_definition
 class AngleOp(ComplexUnaryRealResultOperation):
@@ -168,9 +290,17 @@ class Atan2Op(ComplexBinaryOp):
 
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
+    """
+    compute between complex and and equal arith types
+    """
+
     name = "complex.bitcast"
-    operand = operand_def()
-    result = result_def()
+    operand = operand_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
+    result = result_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
 
     traits = traits_def(Pure())
 
@@ -179,6 +309,29 @@ class BitcastOp(IRDLOperation):
     def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
 
+    def verify_(self) -> None:
+        in_type = self.operand.type
+        res_type = self.result.type
+
+        # We allow this to be legal as it can be folded away
+        if in_type == res_type:
+            return
+
+        if in_complex := isa(in_type, ComplexType[AnyFloat]):
+            in_bitwidth = in_type.element_type.bitwidth * 2
+        else:
+            in_bitwidth = cast(FixedBitwidthType, in_type).bitwidth
+
+        if out_complex := isa(res_type, ComplexType[AnyFloat]):
+            out_bitwidth = res_type.element_type.bitwidth * 2
+        else:
+            out_bitwidth = cast(FixedBitwidthType, res_type).bitwidth
+
+        if not ((in_bitwidth == out_bitwidth) and (in_complex != out_complex)):
+            raise VerifyException(
+                f"Expected ('{in_type}', '{res_type}') to be bitcast between complex and equal arith types"
+            )
+
 
 @irdl_op_definition
 class ConjOp(ComplexUnaryComplexResultOperation):
@@ -186,17 +339,15 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation, ConstantLikeInterface):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "complex.constant"
     T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
     value = prop_def(
         ArrayOfConstraint(
             RangeOf(
-                AnyOf(
-                    [
-                        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
-                        ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
-                    ]
+                AnyOf.get(
+                    ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
+                    ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
                 )
             ).of_length(EqIntConstraint(2))
         )
@@ -206,15 +357,29 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
     # have any complex result type, not just floating point:
     complex = result_def(ComplexType.constr(T))
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "$value attr-dict `:` type($complex)"
 
     def __init__(self, value: ArrayAttr, result_type: ComplexType):
         super().__init__(properties={"value": value}, result_types=[result_type])
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
+
+    @staticmethod
+    def from_floats(value: tuple[float, float], type: AnyFloat) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([FloatAttr(value[0], type), FloatAttr(value[1], type)]),
+            ComplexType(type),
+        )
+
+    @staticmethod
+    def from_ints(value: tuple[int, int], type: IntegerType) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([IntegerAttr(value[0], type), IntegerAttr(value[1], type)]),
+            ComplexType(type),
+        )
 
 
 @irdl_op_definition
@@ -246,6 +411,33 @@ class CreateOp(IRDLOperation):
 @irdl_op_definition
 class DivOp(ComplexBinaryOp):
     name = "complex.div"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
+        # 0.0 == -0.0 -> True
+        if re_rhs == 0.0 and im_rhs == 0.0:
+            inf = float("inf")
+            if re_lhs == 0.0:
+                real = float("nan")
+            else:
+                real = math.copysign(inf, re_lhs) / math.copysign(1.0, re_rhs)
+            if im_lhs == 0.0:
+                imag = float("nan")
+            else:
+                # Positive infinity if signs match, negative otherwise
+                imag = math.copysign(inf, im_lhs) / math.copysign(1.0, im_rhs)
+        else:
+            real = (re_lhs * re_rhs + im_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+            imag = (im_lhs * re_rhs - re_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+        return (real, imag)
 
 
 @irdl_op_definition
@@ -281,6 +473,19 @@ class Log1pOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class MulOp(ComplexBinaryOp):
     name = "complex.mul"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
+        return (re_lhs * re_rhs - im_lhs * im_rhs, re_lhs * im_rhs + im_lhs * re_rhs)
 
 
 @irdl_op_definition
@@ -327,6 +532,16 @@ class SqrtOp(ComplexUnaryComplexResultOperation):
 class SubOp(ComplexBinaryOp):
     name = "complex.sub"
 
+    traits = traits_def(
+        Pure(),
+    )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float]:
+        return (lhs[0] - rhs[0], lhs[1] - rhs[1])
+
 
 @irdl_op_definition
 class TanOp(ComplexUnaryComplexResultOperation):
@@ -336,6 +551,11 @@ class TanOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class TanhOp(ComplexUnaryComplexResultOperation):
     name = "complex.tanh"
+
+
+class ComplexConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return ConstantOp.build(properties={"value": value}, result_types=(type,))
 
 
 Complex = Dialect(
@@ -369,5 +589,11 @@ Complex = Dialect(
         SubOp,
         TanOp,
         TanhOp,
+    ],
+    [
+        ComplexNumberAttr,
+    ],
+    [
+        ComplexConstantMaterializationInterface(),
     ],
 )

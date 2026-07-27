@@ -71,3 +71,110 @@ scf.for %i = %v0 to %v1 step %v0 {
         "test.op"(%const) : (i32) -> ()
     } 
 }
+
+// CHECK:      func.func @execute_region() -> i32 {
+// CHECK-NEXT:   %a = "test.op"() : () -> i32
+// CHECK-NEXT:   %b = arith.constant 1 : i32
+// CHECK-NEXT:   %c = arith.addi %a, %b : i32
+// CHECK-NEXT:   func.return %c : i32
+// CHECK-NEXT: }
+
+func.func @execute_region() -> i32 {
+  %a = "test.op"() : () -> (i32)
+  %d = scf.execute_region -> (i32) {
+    %b = arith.constant 1 : i32
+    %c = arith.addi %a, %b : i32
+    scf.yield %c : i32
+  }
+  func.return %d : i32
+}
+
+// CHECK:      func.func @execute_region_with_multiple_blocks() -> i32 {
+// CHECK-NEXT:   %a, %b = "test.op"() : () -> (i32, i32)
+// CHECK-NEXT:   %d = scf.execute_region -> (i32) {
+// CHECK-NEXT:     %cond = "test.op"() : () -> i1
+// CHECK-NEXT:     cf.cond_br %cond, ^bb0, ^bb1
+// CHECK-NEXT:   ^bb0:
+// CHECK-NEXT:     scf.yield %a : i32
+// CHECK-NEXT:   ^bb1:
+// CHECK-NEXT:     scf.yield %b : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   func.return %d : i32
+// CHECK-NEXT: }
+
+func.func @execute_region_with_multiple_blocks() -> i32 {
+  %a, %b = "test.op"() : () -> (i32, i32)
+  %d = scf.execute_region -> (i32) {
+      %cond = "test.op"() : () -> (i1)
+      cf.cond_br %cond, ^bb0, ^bb1
+    ^bb0:
+      scf.yield %a : i32
+    ^bb1:
+      scf.yield %b : i32
+  }
+  func.return %d : i32
+}
+
+
+// CHECK-LABEL: func.func @test_if_true_no_else
+// CHECK-NOT: scf.if
+// CHECK: "test.op"() {value = 10 : i32} : () -> ()
+// CHECK-NEXT: func.return
+func.func @test_if_true_no_else() {
+  %true = arith.constant true
+  scf.if %true {
+    "test.op"() {"value" = 10 : i32} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_if_false_no_else
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+// CHECK-NOT: test.op
+func.func @test_if_false_no_else() {
+  %false = arith.constant false
+  scf.if %false {
+    "test.op"() {"value" = 99 : i32} : () -> ()
+  }
+  func.return
+}
+
+
+// CHECK-LABEL: func.func @test_true_multiple_args
+// CHECK-NOT: scf.if
+// CHECK: %[[VAL1:.*]] = arith.constant 1 : i32
+// CHECK: %[[VAL2:.*]] = arith.constant 3 : i32
+// CHECK: return %[[VAL1]], %[[VAL2]] : i32, i32
+func.func @test_true_multiple_args() -> (i32, i32) {
+  %true = arith.constant true
+  %0, %1 = scf.if %true -> (i32, i32) {
+    %val1 = arith.constant 1 : i32
+    %val2 = arith.constant 3 : i32
+    scf.yield %val1, %val2 : i32, i32
+  } else {
+    %val3 = arith.constant 2 : i32
+    %val4 = arith.constant 4 : i32
+    scf.yield %val3, %val4 : i32, i32
+  }
+  func.return %0, %1 : i32, i32
+}
+
+// CHECK-LABEL: func.func @test_false_multiple_args
+// CHECK-NOT: scf.if
+// CHECK: %[[VAL1:.*]] = arith.constant 2 : i32
+// CHECK: %[[VAL2:.*]] = arith.constant 4 : i32
+// CHECK: return %[[VAL1]], %[[VAL2]] : i32, i32
+func.func @test_false_multiple_args() -> (i32, i32) {
+  %false = arith.constant false
+  %0, %1 = scf.if %false -> (i32, i32) {
+    %val1 = arith.constant 1 : i32
+    %val2 = arith.constant 3 : i32
+    scf.yield %val1, %val2 : i32, i32
+  } else {
+    %val3 = arith.constant 2 : i32
+    %val4 = arith.constant 4 : i32
+    scf.yield %val3, %val4 : i32, i32
+  }
+  func.return %0, %1 : i32, i32
+}

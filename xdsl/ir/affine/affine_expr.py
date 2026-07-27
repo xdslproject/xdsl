@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -115,6 +116,19 @@ class AffineExpr(ABC):
             expr = expr + const_term
 
         return expr
+
+    def simplify(self, num_dims: int, num_symbols: int) -> AffineExpr:
+        """
+        Simplify the affine expression by flattening it and reconstructing it.
+        """
+        if not self.is_pure_affine():
+            # Simplify semi-affine expressions separately
+            raise NotImplementedError(
+                "Simplification of semi-affine expressions is not implemented yet."
+            )
+
+        flattener = SimpleAffineExprFlattener(num_dims, num_symbols)
+        return flattener.simplify(self)
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """
@@ -478,3 +492,342 @@ class AffineConstantExpr(AffineExpr):
 
     def __str__(self) -> str:
         return f"{self.value}"
+
+
+class SimpleAffineExprFlattener:
+    """
+    This class is used to flatten a pure affine expression (AffineExpr, which is in a
+    tree form) into a sum of products (with respect to constants) when possible, thereby
+    simplifying the expression. For modulo, floordiv, or ceildiv expressions, an
+    additional identifier, called a local identifier, is introduced to rewrite the
+    expression as a sum of product affine expression. Each local identifier is always,
+    by construction, a floordiv of a pure add/mul affine function of dimensional,
+    symbolic, and other local identifiers, in a non-mutually recursive way. Thus, every
+    local identifier can ultimately always be recovered as an affine function of
+    dimensional and symbolic identifiers (involving floordiv's); note, however, that by
+    AffineExpr construction, some floordiv combinations are converted to mod's.
+    The result of the flattening is a flattened expression and a set of
+    constraints involving just the local variables.
+
+    For example, `d2 + (d0 + d1) // 4` is flattened to `d2 + q` where `q` is
+    the local variable introduced, with `localVarCst` containing
+    `4*q <= d0 + d1 <= 4*q + 3`.
+
+    The simplification performed includes the accumulation of contributions for
+    each dimensional and symbolic identifier together, the simplification of
+    floordiv/ceildiv/mod expressions, and other simplifications that in turn
+    happen as a result. A simplification that this flattening naturally performs
+    is simplifying the numerator and denominator of floordiv/ceildiv, and
+    folding a modulo expression to zero, if possible. Three examples are below:
+
+    ```
+    (d0 + 3 * d1) + d0) - 2 * d1) - d0    simplified to     d0 + d1
+    (d0 - d0 % 4 + 4) % 4                 simplified to     0
+    (3*d0 + 2*d1 + d0) // 2 + d1          simplified to     2*d0 + 2*d1
+    ```
+
+    The way the flattening works for the second example is as follows: `d0 % 4` is
+    replaced by `d0 - 4*q` with `q` being introduced; the expression then simplifies
+    to: `(d0 - (d0 - 4q) + 4) = 4q + 4`, modulo of which with respect to 4
+    simplifies to zero. Note that an affine expression may not always be
+    expressible purely as a sum of products involving just the original
+    dimensional and symbolic identifiers due to the presence of
+    modulo/floordiv/ceildiv expressions that may not be eliminated after
+    simplification; in such cases, the final expression can be reconstructed by
+    replacing the local identifiers with their corresponding explicit form
+    stored in `localExprs` (note that each of the explicit forms itself would
+    have been simplified).
+
+    The expression walk method here performs a linear time post-order walk that
+    performs the above simplifications through visit methods, with partial
+    results being stored in `operandExprStack`. When a parent expr is visited,
+    the flattened expressions corresponding to its two operands would already be
+    on the stack—the parent expression looks at the two flattened expressions
+    and combines the two. It pops off the operand expressions and pushes the
+    combined result (although this is done in-place on its LHS operand expr).
+    When the walk is completed, the flattened form of the top-level expression
+    would be left on the stack.
+
+    A flattener can be repeatedly used for multiple affine expressions that bind
+    to the same operands, for example, for all result expressions of an
+    AffineMap or AffineValueMap. In such cases, using it for multiple
+    expressions is more efficient than creating a new flattener for each
+    expression since common identical div and mod expressions appearing across
+    different expressions are mapped to the same local identifier (same column
+    position in `localVarCst`).
+    """
+
+    # Flattend expression layout: [dims, symbols, locals, constant]
+    # Stack that holds the LHS and RHS operands while visiting a binary op expr.
+    operand_expr_stack: list[list[int]]
+    """
+    Flattend expression layout: [dims, symbols, locals, constant]
+    Stack that holds the LHS and RHS operands while visiting a binary op expr.
+    """
+    num_dims: int
+    num_symbols: int
+    local_exprs: list[AffineExpr]
+
+    def __init__(self, num_dims: int, num_symbols: int) -> None:
+        self.operand_expr_stack = []
+        self.num_dims = num_dims
+        self.num_symbols = num_symbols
+        self.local_exprs = []
+
+    def visit_mul_expr(self, expr: AffineBinaryOpExpr) -> None:
+        """
+        In pure affine t = expr * c, we multiply each coefficient of lhs with c.
+        In case of semi affine multiplication expressions, `t = expr * symbolic_expr`,
+        introduce a local variable `p (= expr * symbolic_expr)`, and the affine expression
+        `expr * symbolic_expr`` is added to `localExprs`.
+        """
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi-affine multiplication expressions by introducing a local
+            # variable in place of the product; the affine expression
+            # corresponding to the quantifier is added to `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        self.operand_expr_stack.append([l * rhs_const for l in lhs])
+
+    def visit_add_expr(self, expr: AffineBinaryOpExpr) -> None:
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+        assert len(lhs) == len(rhs)
+        self.operand_expr_stack.append([l + r for l, r in zip(lhs, rhs, strict=True)])
+
+    def visit_dim_expr(self, expr: AffineDimExpr) -> None:
+        row = [0] * self.get_num_cols()
+        assert expr.position < self.num_dims, "Inconsistent number of dims"
+        row[self.get_dim_start_index() + expr.position] = 1
+        self.operand_expr_stack.append(row)
+
+    def visit_symbol_expr(self, expr: AffineSymExpr) -> None:
+        # Equivalent to SimpleAffineExprFlattener::visitSymbolExpr
+        row = [0] * self.get_num_cols()
+        assert expr.position < self.num_symbols, "Inconsistent number of symbols"
+        row[self.get_symbol_start_index() + expr.position] = 1
+        self.operand_expr_stack.append(row)
+
+    def visit_constant_expr(self, expr: AffineConstantExpr) -> None:
+        # Equivalent to SimpleAffineExprFlattener::visitConstantExpr
+        row = [0] * self.get_num_cols()
+        row[self.get_constant_index()] = expr.value
+        self.operand_expr_stack.append(row)
+
+    def visit_div_expr(self, expr: AffineBinaryOpExpr, *, is_ceil: bool) -> None:
+        """
+        Handles floor and ceil division for affine expressions.
+
+        `t = expr floordiv c   <=> t = q, c * q <= expr <= c * q + c - 1`
+
+        A floordiv is thus flattened by introducing a new local variable q, and
+        replacing that expression with 'q' while adding the constraints
+        `c * q <= expr <= c * q + c - 1` to `local_var_cst` (done by
+        `add_local_floor_div_id`).
+
+        A ceildiv is similarly flattened:
+        `t = expr ceildiv c   <=> t = (expr + c - 1) floordiv c`
+
+        Semi-affine expressions are not yet implemented.
+        """
+        assert len(self.operand_expr_stack) >= 2
+
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        # Semi-affine division: rhs is not a constant
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi-affine division expressions by introducing a local variable
+            # in place of the quotient, and the affine expression is added to
+            # `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        if rhs_const <= 0:
+            raise ValueError(f"RHS of division must be positive, got {rhs_const}")
+
+        # Compute GCD for all of lhs and rhs_const
+        gcd = math.gcd(*(abs(l) for l in lhs), rhs_const)
+
+        # Simplify numerator and divisor by GCD
+        if gcd != 1:
+            lhs = [l // gcd for l in lhs]
+        divisor = rhs_const // gcd
+
+        # If divisor is 1, the division can be omitted
+        if divisor == 1:
+            self.operand_expr_stack.append(lhs)
+            return
+
+        # At this point, need to introduce a local variable for the division result
+        # Find or create a local id for this div expression
+
+        # Build the AffineExpr for lhs and rhs (divisor)
+        a = AffineExpr.from_flat_form(
+            lhs, self.num_dims, self.num_symbols, self.local_exprs
+        )
+        b = AffineExpr.constant(divisor)
+
+        div_expr = a.ceil_div(b) if is_ceil else a // b
+
+        loc = self.find_local_id(div_expr)
+        if loc == -1:
+            if is_ceil:
+                # lhs ceildiv c <=>  (lhs + c - 1) floordiv c
+                dividend = lhs.copy()
+                dividend[-1] += divisor - 1  # Adjust constant term in flat form
+                self.add_local_floordiv_id(dividend, divisor, div_expr)
+            else:
+                dividend = lhs.copy()
+                self.add_local_floordiv_id(dividend, divisor, div_expr)
+            loc = len(self.local_exprs) - 1  # The new local just added
+
+        # Set the expression on stack to the local var introduced to capture the
+        # result of the division (floor or ceil).
+        new_row = [0] * self.get_num_cols()
+        new_row[self.get_local_var_start_index() + loc] = 1
+        self.operand_expr_stack.append(new_row)
+
+    def visit_mod_expr(self, expr: AffineBinaryOpExpr) -> None:
+        """
+        t = expr mod c   <=>  t = expr - c*q and c*q <= expr <= c*q + c - 1
+
+        A mod expression "expr mod c" is thus flattened by introducing a new local
+        variable q (= expr floordiv c), such that expr mod c is replaced with
+        'expr - c * q' and c * q <= expr <= c * q + c - 1 are added to localVarCst.
+
+        In case of semi-affine modulo expressions, t = expr mod symbolic_expr,
+        introduce a local variable m (= expr mod symbolic_expr), and the affine
+        expression expr mod symbolic_expr is added to `localExprs`.
+        """
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi affine modulo expressions by introducing a local
+            # variable in place of the modulo value, and the affine expression
+            # corresponding to the quantifier is added to `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        assert rhs_const > 0, (
+            "Cannot simplify expression with negative modulo expression with factor "
+            f"{rhs_const}"
+        )
+
+        # Check if the LHS expression is a multiple of modulo factor.
+        if not any(l % rhs_const for l in lhs):
+            # If yes, module expression here simplifies to zero
+            self.operand_expr_stack.append([0 for _ in lhs])
+            return
+
+        # Add a local variable for the quotient, i.e., expr % c is replaced by
+        # (expr - q * c) where q = expr floordiv c. Do this while canceling out
+        # the GCD of expr and c.
+
+        gcd = math.gcd(*(abs(l) for l in lhs), rhs_const)
+
+        # Simplify the numerator and the denominator.
+        if gcd != 1:
+            floor_dividend = [fd // gcd for fd in lhs]
+        else:
+            floor_dividend = lhs.copy()
+
+        floor_divisor = rhs_const // gcd
+
+        # Construct the AffineExpr form of the floordiv to store in localExprs.
+
+        dividend_expr = AffineExpr.from_flat_form(
+            floor_dividend, self.num_dims, self.num_symbols, self.local_exprs
+        )
+        divisor_expr = AffineExpr.constant(floor_divisor)
+        floor_div_expr = dividend_expr // divisor_expr
+
+        if (loc := self.find_local_id(floor_div_expr)) == -1:
+            self.add_local_floordiv_id(floor_dividend, floor_divisor, floor_div_expr)
+            # Set result at top of stack to `lhs - rhs_const * q``
+            lhs.insert(-1, -rhs_const)
+        else:
+            # Reuse the existing local id
+            lhs[self.get_local_var_start_index() + loc] -= rhs_const
+        self.operand_expr_stack.append(lhs)
+
+    def simplify(self, expr: AffineExpr):
+        for inner in expr.post_order():
+            match inner:
+                case AffineBinaryOpExpr():
+                    match inner.kind:
+                        case AffineBinaryOpKind.Mul:
+                            self.visit_mul_expr(inner)
+                        case AffineBinaryOpKind.Add:
+                            self.visit_add_expr(inner)
+                        case AffineBinaryOpKind.Mod:
+                            self.visit_mod_expr(inner)
+                        case AffineBinaryOpKind.FloorDiv:
+                            self.visit_div_expr(inner, is_ceil=False)
+                        case AffineBinaryOpKind.CeilDiv:
+                            self.visit_div_expr(inner, is_ceil=True)
+                case AffineDimExpr():
+                    self.visit_dim_expr(inner)
+                case AffineConstantExpr():
+                    self.visit_constant_expr(inner)
+                case AffineSymExpr():
+                    self.visit_symbol_expr(inner)
+                case _:
+                    raise ValueError("Unreachable")
+
+        return AffineExpr.from_flat_form(
+            self.operand_expr_stack.pop(),
+            self.num_dims,
+            self.num_symbols,
+            self.local_exprs,
+        )
+
+    def add_local_floordiv_id(
+        self, dividend: list[int], divisor: int, local_expr: AffineExpr
+    ) -> None:
+        """
+        Add a local identifier (needed to flatten a mod, floordiv, ceildiv expr).
+        The local identifier added is always a floordiv of a pure add/mul affine
+        function of other identifiers, coefficients of which are specified in
+        dividend and with respect to a positive constant divisor. local_expr is the
+        simplified tree expression (AffineExpr) corresponding to the quantifier.
+        """
+        assert divisor > 0, "positive constant divisor expected"
+        for sub_expr in self.operand_expr_stack:
+            sub_expr.insert(
+                self.get_local_var_start_index() + len(self.local_exprs),
+                0,
+            )
+        self.local_exprs.append(local_expr)
+
+    def find_local_id(self, local_expr: AffineExpr) -> int:
+        """
+        Returns the index of the `local_expr` in `local_exprs`, or `-1` if not found.
+        """
+        try:
+            return self.local_exprs.index(local_expr)
+        except ValueError:
+            return -1
+
+    def get_num_cols(self) -> int:
+        return self.num_dims + self.num_symbols + len(self.local_exprs) + 1
+
+    def get_constant_index(self) -> int:
+        return self.get_num_cols() - 1
+
+    def get_local_var_start_index(self) -> int:
+        return self.num_dims + self.num_symbols
+
+    def get_symbol_start_index(self) -> int:
+        return self.num_dims
+
+    def get_dim_start_index(self) -> int:
+        return 0

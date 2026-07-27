@@ -41,7 +41,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import MemoryEffectKind, get_effects
 from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
-from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -104,16 +103,14 @@ class ApplyBufferizePattern(RewritePattern):
             for o in op.args
         ]
 
-        new = ApplyOp(
+        new = ApplyOp.build(
             operands=[args, op.dest],
             regions=[op.detach_region(0)],
             result_types=[op.res.types],
             properties={"bounds": bounds},
         )
 
-        rewriter.replace_matched_op(
-            [*(o for o in args if isinstance(o, Operation)), new]
-        )
+        rewriter.replace(op, [*(o for o in args if isinstance(o, Operation)), new])
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
@@ -153,12 +150,16 @@ def is_inplace(apply: ApplyOp, field: SSAValue):
     return not any(
         access
         for access in apply.walk()
-        if isinstance(access, AccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in access.offset)
-        or isinstance(access, DynAccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in chain(access.lb, access.ub))
+        if (
+            isinstance(access, AccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in access.offset)
+        )
+        or (
+            isinstance(access, DynAccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in chain(access.lb, access.ub))
+        )
     )
 
 
@@ -222,7 +223,7 @@ class LoadBufferFoldPattern(RewritePattern):
         if effecting:
             return
 
-        rewriter.replace_matched_op(new_ops=[], new_results=[underlying])
+        rewriter.replace(op, new_ops=[], new_results=[underlying])
 
 
 class ApplyStoreFoldPattern(RewritePattern):
@@ -321,19 +322,20 @@ class ApplyStoreFoldPattern(RewritePattern):
                 properties=old_return.properties.copy(),
                 attributes=old_return.attributes.copy(),
             )
-            rewriter.replace_op(old_return, new_return)
+            rewriter.replace(old_return, new_return)
 
             # Create a load of a destination, for any other user of the result
-            load = LoadOp.get(stores[0].field, bounds.lb, bounds.ub)
+            load = LoadOp(stores[0].field, bounds.lb, bounds.ub)
 
-            rewriter.replace_matched_op(
+            rewriter.replace(
+                op,
                 [new_apply, load],
                 new_apply.results[:temp_index]
                 + (load.res,)
                 + new_apply.results[temp_index:],
             )
             for store in stores:
-                rewriter.erase_op(store)
+                rewriter.erase(store)
             return
 
 
@@ -364,7 +366,7 @@ class UpdateApplyArgs(RewritePattern):
             op.region.block, InsertPoint.at_start(new_block), new_block.args
         )
 
-        rewriter.replace_matched_op(new_apply)
+        rewriter.replace(op, new_apply)
 
 
 @dataclass(frozen=True)
@@ -391,7 +393,7 @@ class BufferAlloc(RewritePattern):
     %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
     // [...]
     ```
-    """  # noqa: E501
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
@@ -405,13 +407,14 @@ class BufferAlloc(RewritePattern):
                 "Stencil shape inference must be ran before bufferization."
             )
         alloc = AllocOp(result_types=[field_from_temp(temp_t)])
-        rewriter.insert_op(alloc, InsertPoint.at_start(cast(Block, op.parent)))
+        rewriter.insert(alloc, InsertPoint.at_start(cast(Block, op.parent)))
 
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             new_ops=[
-                StoreOp.get(op.temp, alloc.field, temp_t.bounds),
-                LoadOp.get(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
-            ]
+                StoreOp(op.temp, alloc.field, temp_t.bounds),
+                LoadOp(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
+            ],
         )
 
 
@@ -454,25 +457,25 @@ class CombineStoreFold(RewritePattern):
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)
             newub = list(bounds.ub)
             newub[op.dim.value.data] = op.index.value.data
-            lower_bounds = StencilBoundsAttr.new((bounds.lb, IndexAttr.get(*newub)))
+            lower_bounds = StencilBoundsAttr(bounds.lb, IndexAttr.from_indices(*newub))
             newlb = list(bounds.lb)
             newlb[op.dim.value.data] = op.index.value.data
-            upper_bounds = StencilBoundsAttr.new((IndexAttr.get(*newlb), bounds.ub))
+            upper_bounds = StencilBoundsAttr(IndexAttr.from_indices(*newlb), bounds.ub)
 
-            rewriter.erase_op(store)
+            rewriter.erase(store)
 
             # If it corresponds to a lower/upper result
             if i < len(op.lower):
                 new_lower = op.lower[:i] + op.lower[i + 1 :]
                 new_upper = op.upper[:i] + op.upper[i + 1 :]
-                rewriter.insert_op(
+                rewriter.insert(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -486,14 +489,14 @@ class CombineStoreFold(RewritePattern):
                     op.lowerext[: i - len(op.lower)]
                     + op.lowerext[i - len(op.lower) + 1 :]
                 )
-                rewriter.insert_op(
+                rewriter.insert(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -506,14 +509,14 @@ class CombineStoreFold(RewritePattern):
                     op.upperext[: i - len(op.lower) - len(op.lowerext)]
                     + op.upperext[i - len(op.lower) - len(op.lowerext) + 1 :]
                 )
-                rewriter.insert_op(
+                rewriter.insert(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -528,7 +531,8 @@ class CombineStoreFold(RewritePattern):
                 attributes=op.attributes.copy(),
                 properties=op.properties.copy(),
             )
-            rewriter.replace_matched_op(
+            rewriter.replace(
+                op,
                 new_combine,
                 new_results=new_combine.results[:i] + (None,) + new_combine.results[i:],
             )
@@ -559,9 +563,10 @@ class SwapBufferize(RewritePattern):
         )
         new_swap = SwapOp.get(buffer.res, op.strategy)
         new_swap.swaps = op.swaps
-        load = LoadOp(operands=[buffer.res], result_types=[temp_t])
+        load = LoadOp.build(operands=[buffer.res], result_types=[temp_t])
 
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             new_ops=[buffer, new_swap, load],
         )
 
@@ -586,7 +591,6 @@ class StencilBufferize(ModulePass):
                     CombineStoreFold(),
                     LoadBufferFoldPattern(),
                     ApplyStoreFoldPattern(),
-                    RemoveUnusedOperations(),
                     ApplyUnusedResults(),
                     SwapBufferize(),
                 ]

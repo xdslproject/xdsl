@@ -26,10 +26,12 @@ class ConvertGlobalPattern(RewritePattern):
             raise NotImplementedError(
                 "Converting ml_program.global with no value not implemented"
             )
-        assert isinstance(op_type := op.type, TensorType)
+        op_type = op.type
+        assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             (
                 memref.GlobalOp.get(
                     op.sym_name,
@@ -38,7 +40,7 @@ class ConvertGlobalPattern(RewritePattern):
                     op.sym_visibility,
                     UnitAttr() if op.is_mutable is None else None,
                 ),
-            )
+            ),
         )
 
 
@@ -47,14 +49,16 @@ class ConvertGlobalLoadConst(RewritePattern):
     def match_and_rewrite(
         self, op: ml_program.GlobalLoadConstantOp, rewriter: PatternRewriter
     ) -> None:
-        assert isinstance(op_type := op.result.type, TensorType)
+        op_type = op.result.type
+        assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             (
                 mem := memref.GetGlobalOp(op.global_attr, new_type),
                 bufferization.ToTensorOp(mem.memref),
-            )
+            ),
         )
 
 

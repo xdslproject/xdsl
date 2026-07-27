@@ -1,7 +1,7 @@
 from xdsl.backend.riscv.lowering.utils import (
     a_regs,
     cast_block_args_to_regs,
-    cast_matched_op_results,
+    cast_op_results,
     cast_operands_to_regs,
     register_type_for_type,
 )
@@ -80,12 +80,12 @@ def test_op_cast_utils():
     target_op = next(filter(lambda op: len(op.results) == 2, input.walk()))
     assert target_op is not None
     rewriter = PatternRewriter(target_op)
-    (first_arg_cast, second_arg_cast) = cast_operands_to_regs(rewriter)
-    cast_matched_op_results(rewriter)
+    (first_arg_cast, second_arg_cast) = cast_operands_to_regs(rewriter, target_op)
+    cast_op_results(rewriter, target_op)
     lowered_op = riscv.CustomAssemblyInstructionOp(
         "foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE)
     )
-    rewriter.replace_op(target_op, lowered_op)
+    rewriter.replace(target_op, lowered_op)
 
     # check that the lowered region is still valid
     input.verify()

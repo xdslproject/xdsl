@@ -3,7 +3,17 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
+from xdsl.dialects import (
+    arith,
+    builtin,
+    csl,
+    csl_stencil,
+    csl_wrapper,
+    func,
+    llvm,
+    memref,
+    stencil,
+)
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
@@ -16,7 +26,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -67,7 +76,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
         if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
-            rewriter.erase_matched_op()
+            rewriter.erase(op)
             return
         # find csl_stencil.apply ops, abort if there are none
         apply_ops = self.get_csl_stencil_apply_ops(op)
@@ -171,10 +180,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         unblock_call = csl.MemberCallOp(
             struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
         )
-        rewriter.replace_op(func_return, [unblock_call, csl.ReturnOp()])
+        rewriter.replace(func_return, [unblock_call, csl.ReturnOp()])
 
         # replace (now empty) func by module wrapper
-        rewriter.replace_matched_op(module_op)
+        rewriter.replace(op, module_op)
 
     def get_csl_stencil_apply_ops(
         self, op: func.FuncOp
@@ -401,7 +410,7 @@ class LowerTimerFuncCall(RewritePattern):
             csl.PtrConstAttr(csl.PtrConst.VAR),
         )
 
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 three := arith.ConstantOp.from_int_and_width(3, IndexType()),
                 load_three := memref.LoadOp.get(op.ptr, [three]),
@@ -417,7 +426,7 @@ class LowerTimerFuncCall(RewritePattern):
             ],
             InsertPoint.before(end_call),
         )
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 addr_of := csl.AddressOfOp(
                     op.ptr,
@@ -431,9 +440,9 @@ class LowerTimerFuncCall(RewritePattern):
             ],
             InsertPoint.before(start_call),
         )
-        rewriter.erase_op(op)
-        rewriter.erase_op(end_call)
-        rewriter.erase_op(start_call)
+        rewriter.erase(op)
+        rewriter.erase(end_call)
+        rewriter.erase(start_call)
 
 
 @dataclass(frozen=True)

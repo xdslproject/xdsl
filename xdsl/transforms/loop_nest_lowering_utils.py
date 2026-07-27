@@ -2,12 +2,13 @@ from collections.abc import Callable, Sequence
 from itertools import compress
 from typing import TypeAlias
 
-from xdsl.dialects import affine, arith, scf
+from xdsl.dialects import affine, arith, linalg, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def indices_for_map(
@@ -54,7 +55,7 @@ def indices_for_map(
                 new_index_vals = tuple(compress(new_index_vals, used_dims_vector))
                 new_affine_map = new_affine_map.drop_dims(unused_dims_vector)
 
-            rewriter.insert_op(
+            rewriter.insert(
                 apply_op := affine.ApplyOp(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
@@ -130,10 +131,10 @@ def _insert_loop_nest(
         )
         iter_args = loop.body.block.args[1:]
         loops.append(loop)
-        rewriter.insert_op(loop, insertion_point)
+        rewriter.insert(loop, insertion_point)
         if i:
             # Do not insert yield outside of outermost loop
-            rewriter.insert_op(scf.YieldOp(*loop.results), InsertPoint.after(loop))
+            rewriter.insert(scf.YieldOp(*loop.results), InsertPoint.after(loop))
 
         if i + 1 == len(bounds):
             # Innermost loop iteration
@@ -148,9 +149,7 @@ def _insert_loop_nest(
                     "Unexpected number of results from `make_body` helper "
                     f"({len(results)}), expected {len(iter_args)}"
                 )
-            rewriter.insert_op(
-                scf.YieldOp(*results), InsertPoint.at_end(loop.body.block)
-            )
+            rewriter.insert(scf.YieldOp(*results), InsertPoint.at_end(loop.body.block))
 
         insertion_point = InsertPoint.at_start(loop.body.block)
 
@@ -213,10 +212,10 @@ def _insert_store_ops(
         insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
-def rewrite_generic_to_loops(
+def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    ubs: Sequence[int],
+    ubs: Sequence[SSAValue],
     load_indexing_maps: Sequence[AffineMapAttr],
     store_indexing_maps: Sequence[AffineMapAttr],
     load_operands: Sequence[SSAValue],
@@ -228,16 +227,10 @@ def rewrite_generic_to_loops(
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
 
-    bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
-    )
-    rewriter.insert_op_before_matched_op(bound_constant_ops)
-    bound_constant_values = tuple(op.result for op in bound_constant_ops)
-
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
-    if bound_constant_values:
-        rewriter.insert_op_before_matched_op((zero_op, one_op))
+    if ubs:
+        rewriter.insert((zero_op, one_op))
 
     def make_body(
         rewriter: PatternRewriter,
@@ -258,18 +251,23 @@ def rewrite_generic_to_loops(
         )
 
         for i, val in loaded_values:
-            block.args[i].replace_by(val)
+            block.args[i].replace_all_uses_with(val)
 
         yield_op = block.last_op
         assert yield_op is not None
 
         # Erase the yield op, we still have access to its operands
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
+
+        index_ops = tuple(op for op in block.ops if isa(op, linalg.ops.IndexOp))
 
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
         rewriter.inline_block(block, insertion_point)
+
+        for index_op in index_ops:
+            rewriter.replace(index_op, (), [ind_vars[index_op.dim.value.data]])
 
         _insert_store_ops(
             rewriter,
@@ -286,12 +284,12 @@ def rewrite_generic_to_loops(
         insertion_point,
         zero_op,
         one_op,
-        bound_constant_values,
+        ubs,
         (),
         make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase(rewriter.current_operation)
 
 
 def rewrite_generic_to_imperfect_loops(
@@ -320,15 +318,15 @@ def rewrite_generic_to_imperfect_loops(
     inner_bound_constant_ops = tuple(
         arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs
     )
-    rewriter.insert_op(outer_bound_constant_ops, insertion_point)
-    rewriter.insert_op(inner_bound_constant_ops, insertion_point)
+    rewriter.insert(outer_bound_constant_ops, insertion_point)
+    rewriter.insert(inner_bound_constant_ops, insertion_point)
     outer_bound_constant_values = tuple(op.result for op in outer_bound_constant_ops)
     inner_bound_constant_values = tuple(op.result for op in inner_bound_constant_ops)
 
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
     if outer_bound_constant_values or inner_bound_constant_values:
-        rewriter.insert_op_before_matched_op((zero_op, one_op))
+        rewriter.insert((zero_op, one_op))
 
     def outer_make_body(
         rewriter: PatternRewriter,
@@ -373,17 +371,17 @@ def rewrite_generic_to_imperfect_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                block.args[i].replace_by(arg)
+                block.args[i].replace_all_uses_with(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
-                block.args[i].replace_by(val)
+                block.args[i].replace_all_uses_with(val)
 
             yield_op = block.last_op
             assert yield_op is not None
 
             # Erase the yield op, we still have access to its operands
-            rewriter.erase_op(yield_op)
+            rewriter.erase(yield_op)
 
             # Inline generic body into innermost scf loop
             # The operands have already been remapped
@@ -428,4 +426,4 @@ def rewrite_generic_to_imperfect_loops(
         outer_make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase(rewriter.current_operation)

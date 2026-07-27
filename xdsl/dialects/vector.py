@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
@@ -25,7 +25,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     MemRefType,
-    SignlessIntegerConstraint,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -35,11 +34,11 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    DynamicIndexList,
     get_dynamic_index_list,
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -92,7 +91,7 @@ class LoadOp(IRDLOperation):
     result = result_def(VectorType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -120,14 +119,6 @@ class LoadOp(IRDLOperation):
         if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
-    @deprecated("Please use vector.LoadOp(ref, indices, result_type)")
-    @staticmethod
-    def get(
-        ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> LoadOp:
-        ref = SSAValue.get(ref, type=MemRefType)
-        return LoadOp(ref, indices, VectorType(ref.type.element_type, [1]))
-
 
 @irdl_op_definition
 class StoreOp(IRDLOperation):
@@ -137,7 +128,7 @@ class StoreOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )
@@ -165,15 +156,6 @@ class StoreOp(IRDLOperation):
 
         if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
-
-    @deprecated("Please use vector.StoreOp(vector, ref, indices)")
-    @staticmethod
-    def get(
-        vector: Operation | SSAValue,
-        ref: Operation | SSAValue,
-        indices: Sequence[Operation | SSAValue],
-    ) -> StoreOp:
-        return StoreOp(vector, ref, indices)
 
 
 _IntArrayConstr = irdl_to_attr_constraint(ArrayAttr[IntAttr])
@@ -294,7 +276,7 @@ class ShuffleOp(IRDLOperation):
     mask = prop_def(MASK)
     result = result_def(RES)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     traits = traits_def(NoMemoryEffect())
 
     assembly_format = "operands $mask attr-dict `:` type(operands)"
@@ -384,11 +366,6 @@ class BroadcastOp(IRDLOperation):
                 "Source operand and result vector must have the same element type."
             )
 
-    @deprecated("Please use vector.BroadcastOp(source, result_type)")
-    @staticmethod
-    def get(source: Operation | SSAValue) -> BroadcastOp:
-        return BroadcastOp(source, VectorType(SSAValue.get(source).type, [1]))
-
 
 @irdl_op_definition
 class FMAOp(IRDLOperation):
@@ -412,13 +389,6 @@ class FMAOp(IRDLOperation):
     ):
         acc = SSAValue.get(acc)
         super().__init__(operands=(lhs, rhs, acc), result_types=(acc.type,))
-
-    @deprecated("Please use vector.FMAOp(lhs, rhs, acc)")
-    @staticmethod
-    def get(
-        lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
-    ) -> FMAOp:
-        return FMAOp(lhs, rhs, acc)
 
 
 @irdl_op_definition
@@ -475,23 +445,6 @@ class MaskedLoadOp(IRDLOperation):
         if memref_type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each memref dimension.")
 
-    @deprecated(
-        "Please use vector.MaskedLoadOp(memref, indices, mask, passthrough, result_type)"
-    )
-    @staticmethod
-    def get(
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        passthrough: SSAValue | Operation,
-    ) -> MaskedLoadOp:
-        memref = SSAValue.get(memref, type=MemRefType)
-
-        return MaskedLoadOp.build(
-            operands=[memref, indices, mask, passthrough],
-            result_types=[VectorType(memref.type.element_type, [1])],
-        )
-
 
 @irdl_op_definition
 class MaskedStoreOp(IRDLOperation):
@@ -536,18 +489,6 @@ class MaskedStoreOp(IRDLOperation):
     ):
         super().__init__(operands=[memref, indices, mask, value_to_store])
 
-    @deprecated(
-        "Please use vector.MaskedStoreOp(memref, indices, mask, value_to_store)"
-    )
-    @staticmethod
-    def get(
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        value_to_store: SSAValue | Operation,
-    ) -> MaskedStoreOp:
-        return MaskedStoreOp(memref, indices, mask, value_to_store)
-
 
 @irdl_op_definition
 class PrintOp(IRDLOperation):
@@ -556,11 +497,6 @@ class PrintOp(IRDLOperation):
 
     def __init__(self, source: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(source)])
-
-    @deprecated("Please use vector.PrintOp(source)")
-    @staticmethod
-    def get(source: Operation | SSAValue) -> PrintOp:
-        return PrintOp(source)
 
 
 @irdl_op_definition
@@ -582,14 +518,6 @@ class CreateMaskOp(IRDLOperation):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
             )
-
-    @deprecated("Please use vector.CreateMaskOp(mask_operands, result_type)")
-    @staticmethod
-    def get(mask_operands: list[Operation | SSAValue]) -> CreateMaskOp:
-        return CreateMaskOp.build(
-            operands=[mask_operands],
-            result_types=[VectorType(i1, [1])],
-        )
 
 
 @irdl_op_definition
@@ -691,46 +619,6 @@ class ExtractOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ExtractElementOp(IRDLOperation):
-    name = "vector.extractelement"
-    vector = operand_def(VectorType)
-    position = opt_operand_def(IndexTypeConstr | SignlessIntegerConstraint)
-    result = result_def(Attribute)
-    traits = traits_def(Pure())
-
-    def verify_(self):
-        assert isa(self.vector.type, VectorType[Attribute])
-
-        if self.result.type != self.vector.type.element_type:
-            raise VerifyException(
-                "Expected result type to match element type of vector operand."
-            )
-
-        if self.vector.type.get_num_dims() == 0:
-            if self.position is not None:
-                raise VerifyException("Expected position to be empty with 0-D vector.")
-            return
-        if self.vector.type.get_num_dims() != 1:
-            raise VerifyException("Unexpected >1 vector rank.")
-        if self.position is None:
-            raise VerifyException("Expected position for 1-D vector.")
-
-    def __init__(
-        self,
-        vector: SSAValue | Operation,
-        position: SSAValue | Operation | None = None,
-    ):
-        vector = SSAValue.get(vector, type=VectorType)
-
-        result_type = vector.type.element_type
-
-        super().__init__(
-            operands=[vector, position],
-            result_types=[result_type],
-        )
-
-
-@irdl_op_definition
 class InsertOp(IRDLOperation):
     name = "vector.insert"
 
@@ -828,52 +716,6 @@ class InsertOp(IRDLOperation):
             properties={
                 "static_position": DenseArrayBase.from_list(i64, static_positions)
             },
-        )
-
-
-@irdl_op_definition
-class InsertElementOp(IRDLOperation):
-    name = "vector.insertelement"
-    source = operand_def(Attribute)
-    dest = operand_def(VectorType)
-    position = opt_operand_def(IndexTypeConstr | SignlessIntegerConstraint)
-    result = result_def(VectorType)
-    traits = traits_def(Pure())
-
-    def verify_(self):
-        assert isa(self.dest.type, VectorType[Attribute])
-
-        if self.result.type != self.dest.type:
-            raise VerifyException(
-                "Expected dest operand and result to have matching types."
-            )
-        if self.source.type != self.dest.type.element_type:
-            raise VerifyException(
-                "Expected source operand type to match element type of dest operand."
-            )
-
-        if self.dest.type.get_num_dims() == 0:
-            if self.position is not None:
-                raise VerifyException("Expected position to be empty with 0-D vector.")
-            return
-        if self.dest.type.get_num_dims() != 1:
-            raise VerifyException("Unexpected >1 vector rank.")
-        if self.position is None:
-            raise VerifyException("Expected position for 1-D vector.")
-
-    def __init__(
-        self,
-        source: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        position: SSAValue | Operation | None = None,
-    ):
-        dest = SSAValue.get(dest, type=VectorType)
-
-        result_type = SSAValue.get(dest).type
-
-        super().__init__(
-            operands=[source, dest, position],
-            result_types=[result_type],
         )
 
 
@@ -1134,7 +976,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
         if len(in_bounds) != len(permutation_map.results):
             raise VerifyException(
                 f'"{op.name}" expects the in_bounds attr of same rank as permutation_map results: '
-                f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
+                f"{permutation_map!s} vs in_bounds of of size {len(in_bounds)}"
             )
 
     @staticmethod
@@ -1184,7 +1026,10 @@ class TransferReadOp(VectorTransferOperation):
 
     result = result_def(VectorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1334,7 +1179,10 @@ class TransferWriteOp(VectorTransferOperation):
 
     result = opt_result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1609,10 +1457,8 @@ Vector = Dialect(
         BitcastOp,
         BroadcastOp,
         CreateMaskOp,
-        ExtractElementOp,
         ExtractOp,
         FMAOp,
-        InsertElementOp,
         InsertOp,
         LoadOp,
         MaskedLoadOp,

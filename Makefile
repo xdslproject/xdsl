@@ -14,12 +14,38 @@ export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 VENV_EXTRAS ?= --all-extras
 VENV_GROUPS ?= --all-groups
 
+# load .env for lit when present
+UV_ENV_FILE := $(if $(wildcard .env),.env,)
+UV_RUN = uv run $(if $(UV_ENV_FILE),--env-file $(UV_ENV_FILE),)
+
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
+PYTEST_OPTIONS ?= -vv
+# quiet options for tests-quiet (minimal terminal output)
+LIT_OPTIONS_QUIET ?= -q --order=smart
+PYTEST_OPTIONS_QUIET ?= -q --tb=no
 
 # make tasks run all commands in a single shell
 .ONESHELL:
+
+define print_help
+	@C="\033[$${1}32m"; R='\033[0m'; \
+	 printf "%b" "Usage: make $${C}<target>$${R}\n\n"; \
+	 printf "Available targets:\n"; \
+	 grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
+	   sort | \
+	   awk "BEGIN {FS = \":.*?## \"}; {printf \"  $${C}%-$(2)s$${R} %s\n\", \$$1, \$$2}"
+endef
+
+HELP_COLOR := 1;32 # bright green
+HELP_COLUMN_WIDTH := 25
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## show this help message
+	$(call print_help,$(HELP_COLOR),$(HELP_COLUMN_WIDTH))
 
 .PHONY: uv-installed
 uv-installed:
@@ -31,43 +57,35 @@ uv-installed:
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS} ${VENV_GROUPS}
-	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
-		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
-	fi
 
-# make sure `make venv` also works correctly
 .PHONY: venv
-venv: ${VENV_DIR}/
+venv: ${VENV_DIR}/ ## make sure `make venv` also works correctly
 
-# remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean asv-clean
+clean-caches: coverage-clean asv-clean ## remove all caches
 	rm -rf .pytest_cache *.egg-info
 
-# remove all caches and the venv
+
 .PHONY: clean
-clean: clean-caches
+clean: clean-caches ## remove all caches and the venv
 	rm -rf ${VENV_DIR}
 
-# run filecheck tests
 .PHONY: filecheck
-filecheck: uv-installed
-	uv run lit $(LIT_OPTIONS) tests/filecheck
+filecheck: uv-installed ## run filecheck tests
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck
 
-# run pytest tests
 .PHONY: pytest
-pytest: uv-installed
-	uv run pytest tests -W error -vv
+pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in pyproject.toml)
+	uv run pytest -W error $(PYTEST_OPTIONS)
 
-# run tests for Toy tutorial
 .PHONY: filecheck-toy
-filecheck-toy: uv-installed
-	uv run lit $(LIT_OPTIONS) docs/Toy/examples
+filecheck-toy: uv-installed ## run tests for Toy tutorial
+	$(UV_RUN) lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
 	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
-		uv run pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
+		uv run pytest -W error --nbval $(PYTEST_OPTIONS) docs/Toy --nbval-current-env; \
 	else \
 		echo "riscemu is not installed, skipping tests."; \
 	fi
@@ -81,8 +99,8 @@ tests-marimo: uv-installed
 	@bash -c '\
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
-		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
-		for file in docs/marimo/*.py; do \
+		files_requiring_mlir_opt=("docs/notebooks/mlir_interoperation.py"); \
+		for file in docs/notebooks/*.py; do \
 			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
 					echo "Skipping $$file (mlir-opt is not available)"; \
@@ -105,75 +123,66 @@ tests-marimo: uv-installed
 			echo -e "\n\nAll marimo tests passed successfully."; \
 		fi'
 
-
-# run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck tests-marimo
+tests-functional: pytest tests-toy filecheck tests-marimo ## run functional tests
 	@echo All functional tests done.
 
-# run all tests
+.PHONY: tests-quiet
+tests-quiet: uv-installed ## run functional tests with minimal output
+	$(MAKE) tests-functional LIT_OPTIONS="$(LIT_OPTIONS_QUIET)" PYTEST_OPTIONS="$(PYTEST_OPTIONS_QUIET)"
+
 .PHONY: tests
-tests: tests-functional pyright
+tests: tests-functional pyright ## run all tests
 	@echo All tests done.
 
-# re-generate the output from all jupyter notebooks in the docs directory
+
 .PHONY: rerun-notebooks
-rerun-notebooks: uv-installed
+rerun-notebooks: uv-installed ## re-generate the output from all jupyter notebooks in the docs directory
 	uv run jupyter nbconvert \
 		--ClearMetadataPreprocessor.enabled=True \
 		--inplace \
 		--to notebook \
 		--execute docs/*.ipynb docs/Toy/*.ipynb
 
-# set up all precommit hooks
 .PHONY: precommit-install
-precommit-install: uv-installed
-	uv run pre-commit install
+precommit-install: uv-installed ## set up all precommit hooks
+	uv run prek install
 
-# run all precommit hooks and apply them
 .PHONY: precommit
-precommit: uv-installed
-	uv run pre-commit run --all
+precommit: uv-installed ## run all precommit hooks and apply them
+	uv run prek run --all-files
 
-# run pyright on all files in the current git commit
-# make sure to generate the python typing stubs before running pyright
 .PHONY: pyright
-pyright: uv-installed
+pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright
 	uv run xdsl-stubgen
 	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
-# run coverage over all tests and combine data files
 .PHONY: coverage
-coverage: coverage-tests coverage-filecheck-tests
+coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files
 	uv run coverage combine --append
 
-# use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
-coverage-tests: uv-installed
+coverage-tests: uv-installed ## use different coverage data file per coverage run, otherwise combine complains
 	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
-# run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
-coverage-filecheck-tests: uv-installed
-	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+coverage-filecheck-tests: uv-installed ## run coverage over filecheck tests
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
-# generate html coverage report
 .PHONY: coverage-report-html
-coverage-report-html: uv-installed
+coverage-report-html: uv-installed ## generate html coverage report
 	uv run coverage html
 
-# generate coverage report
 .PHONY: coverage-report
-coverage-report: uv-installed
+coverage-report: uv-installed ## generate coverage report
 	uv run coverage report
 
 .PHONY: coverage-clean
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# generate asv benchmark regression website
 .PHONY: asv
-asv: uv-installed
+asv: uv-installed ## generate asv benchmark regression website
 	uv run asv run
 
 .PHONY: asv-html

@@ -1,7 +1,8 @@
 from collections.abc import Iterator, Sequence
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_scf
+from xdsl.dialects import builtin, riscv, riscv_scf, rv32
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -11,11 +12,13 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
+from xdsl.utils.hints import isa
 
 
 def get_register_ops_from_values(
     values: Sequence[SSAValue],
-) -> Iterator[riscv.GetRegisterOp | riscv.GetFloatRegisterOp]:
+) -> Iterator[rv32.GetRegisterOp | riscv.GetFloatRegisterOp]:
     """
     Returns an iterator of GetRegisterOp or GetFloatRegisterOp ops
     for each register backing the given values and replace them
@@ -26,12 +29,12 @@ def get_register_ops_from_values(
         assert isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType)
 
         get_target_register = (
-            riscv.GetRegisterOp(value.type)
+            rv32.GetRegisterOp(value.type)
             if isinstance(value.type, riscv.IntRegisterType)
             else riscv.GetFloatRegisterOp(value.type)
         )
 
-        value.replace_by(get_target_register.res)
+        value.replace_all_uses_with(get_target_register.res)
         yield get_target_register
 
 
@@ -53,7 +56,7 @@ class LowerRiscvScfToLabels(RewritePattern):
 
         # This is the loop header, responsible for comparing the loop counter to the
         # upper bound and branching to the loop body if the condition is met.
-        rewriter.insert_op_before_matched_op(
+        rewriter.insert(
             [
                 get_loop_var := riscv.MVOp(op.lb, rd=loop_var_reg),
                 riscv.LabelOp(scf_cond),
@@ -69,15 +72,27 @@ class LowerRiscvScfToLabels(RewritePattern):
         yield_op = body.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
-        rewriter.insert_op(
+        match op.step:
+            case IntegerAttr() as step_attr:
+                if isa(step_attr, IntegerAttr[riscv.SI12]):
+                    step_add_op = riscv.AddiOp(get_loop_var, step_attr, rd=loop_var_reg)
+                else:
+                    raise PassFailedException(
+                        "riscv_scf.for static step must use type si12 (signed 12-bit) for "
+                        f"addi lowering; got {step_attr.type}"
+                    )
+            case _:
+                step_add_op = riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg)
+
+        rewriter.insert(
             [
-                riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg),
+                step_add_op,
                 riscv.BltOp(get_loop_var, op.ub, scf_body),
                 riscv.LabelOp(scf_body_end),
             ],
             InsertPoint.after(yield_op),
         )
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         # We know that the body is not empty now.
         assert body.first_op is not None
@@ -85,16 +100,16 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Replace args of the body with operations that get the registers bound
         # to them.
         for get_target_register in get_register_ops_from_values(body.args):
-            rewriter.insert_op(get_target_register, InsertPoint.at_start(body))
+            rewriter.insert(get_target_register, InsertPoint.at_start(body))
 
         # Also replace the loop results directly with the registers bound to them.
         for get_target_register in get_register_ops_from_values(op.results):
-            rewriter.insert_op_after_matched_op(get_target_register)
+            rewriter.insert(get_target_register, InsertPoint.after(op))
 
         # Extract ops from the body and insert them after the loop header.
-        rewriter.inline_block_after_matched_op(body)
+        rewriter.inline_block(body, InsertPoint.after(op))
 
-        rewriter.erase_matched_op()
+        rewriter.erase(op)
 
         self.for_idx += 1
 

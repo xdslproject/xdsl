@@ -51,7 +51,7 @@ class UnrollLoopPattern(RewritePattern):
                 else:
                     rewriter.insert(inner_op.clone(value_mapper))
 
-        rewriter.replace_matched_op((), iter_args)
+        rewriter.replace(op, (), iter_args)
 
 
 class ScfForLoopUnrollPass(ModulePass):

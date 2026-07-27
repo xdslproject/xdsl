@@ -25,13 +25,10 @@ class X86RegisterAllocator(BlockNaiveAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        preallocated = {
-            reg
-            for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
-            if isinstance(reg, registers.X86RegisterType)
-        }
+        preallocated = RegisterAllocatableOperation.all_used_registers(func.body)
+        excluded = RegisterAllocatableOperation.all_excluded_registers(func.body)
 
-        for pa_reg in preallocated:
+        for pa_reg in preallocated | excluded:
             self.available_registers.exclude_register(pa_reg)
 
         block = func.body.block

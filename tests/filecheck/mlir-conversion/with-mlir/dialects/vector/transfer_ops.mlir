@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --print-op-generic --split-input-file %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect --split-input-file | xdsl-opt --split-input-file | filecheck %s
-// RUN: xdsl-opt --split-input-file %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect --split-input-file | xdsl-opt --split-input-file | filecheck %s
+// RUN: xdsl-opt --print-op-generic --split-input-file %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect --split-input-file | xdsl-opt --split-input-file | filecheck %s
+// RUN: xdsl-opt --split-input-file %s | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect --split-input-file | xdsl-opt --split-input-file | filecheck %s
 
 // Vector transfer ops 0d
 // See func vector_transfer_ops_0d in mlir/test/Dialect/Vector/ops.mlir

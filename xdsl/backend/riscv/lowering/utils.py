@@ -1,7 +1,9 @@
+import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
 
 from xdsl.backend.utils import cast_to_regs
+from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -52,22 +54,31 @@ def move_to_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
     reg_types: Iterable[riscv.RISCVRegisterType],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
+    # If the value type has a known bitwidth, use it. Otherwise, default to
+    # the register width: flen for float registers, xlen for int registers.
+    widths = tuple(
+        i.bitwidth
+        if isinstance(i, builtin.FixedBitwidthType)
+        else flen
+        if isinstance(value.type, riscv.FloatRegisterType)
+        else xlen
+        for i, value in zip(value_types, values)
+    )
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
+    new_op = riscv.ParallelMovOp(
+        tuple(values),
+        tuple(reg_types),
+        builtin.DenseArrayBase.from_list(builtin.i32, widths),
+    )
+    new_values = new_op.results
 
-    for value, value_type, register_type in zip(
-        values, value_types, reg_types, strict=True
-    ):
-        move_op, new_value = move_ops_for_value(value, value_type, register_type)
-        new_ops.append(move_op)
-        new_values.append(new_value)
-
-    return new_ops, new_values
+    return [new_op], list(new_values)
 
 
 def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
@@ -92,63 +103,62 @@ def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
 def move_to_a_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
-    return move_to_regs(values, value_types, a_regs(values))
+    return move_to_regs(values, value_types, a_regs(values), flen=flen, xlen=xlen)
 
 
 def move_to_unallocated_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to unallocated registers.
     """
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
-
-    for value, value_type in zip(values, value_types, strict=True):
-        register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(
-            value, value_type, register_type.unallocated()
-        )
-        new_ops.append(move_op)
-        new_values.append(new_value)
-
-    return new_ops, new_values
+    outputs = (register_type_for_type(value.type).unallocated() for value in values)
+    return move_to_regs(values, value_types, outputs, flen=flen, xlen=xlen)
 
 
-def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_operands_to_regs(
+    rewriter: PatternRewriter, operation: Operation | None = None
+) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
-    if the operands were not already int registers
+    if the operands were not already int registers.
     """
-    return cast_to_regs(
-        rewriter.current_operation.operands, register_type_for_type, rewriter
-    )
+    if operation is None:
+        warnings.warn(
+            "Please provide use `cast_operands_to_regs(rewriter, rewriter.current_operation)`",
+            DeprecationWarning,
+        )
+        operation = rewriter.current_operation
+    return cast_to_regs(operation.operands, register_type_for_type, rewriter)
 
 
-def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
     """
-    Add cast operations just after the matched operation, to preserve the type validity of
-    arguments of uses of results.
+    Add cast operations just after the provided operation, to preserve the type validity
+    of arguments of uses of results.
     """
-
     results = [
         builtin.UnrealizedConversionCastOp.get((val,), (val.type,))
-        for val in rewriter.current_operation.results
+        for val in op.results
     ]
 
-    for res, result in zip(rewriter.current_operation.results, results):
+    for res, result in zip(op.results, results):
         for use in set(res.uses):
             # avoid recursion on the casts we just inserted
             if use.operation != result:
                 use.operation.operands[use.index] = result.results[0]
 
-    rewriter.insert_op_after_matched_op(results)
+    builder.insert(results, InsertPoint.after(op))
     return [result.results[0] for result in results]
 
 
@@ -173,11 +183,13 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
         new_ops.append(cast_op)
 
         index = counter[register_type]
-        arg.replace_by_if(cast_op.results[0], lambda use: use.operation != move_op)
+        rewriter.replace_uses_with_if(
+            arg, cast_op.results[0], lambda use: use.operation != move_op
+        )
         rewriter.replace_value_with_new_type(arg, register_type.a_register(index))
         counter[register_type] += 1
 
-    rewriter.insert_op(new_ops, InsertPoint.at_start(block))
+    rewriter.insert(new_ops, InsertPoint.at_start(block))
 
 
 def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
@@ -187,7 +199,7 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
     """
 
     for arg in block.args:
-        rewriter.insert_op(
+        rewriter.insert(
             cast_op := builtin.UnrealizedConversionCastOp(
                 operands=[arg], result_types=[arg.type]
             ),
@@ -196,5 +208,7 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
         new_val = cast_op.results[0]
 
         new_type = register_type_for_type(arg.type).unallocated()
-        arg.replace_by_if(new_val, lambda use: use.operation != cast_op)
+        rewriter.replace_uses_with_if(
+            arg, new_val, lambda use: use.operation != cast_op
+        )
         rewriter.replace_value_with_new_type(arg, new_type)

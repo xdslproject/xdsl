@@ -19,7 +19,7 @@
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel", "reduction"]
 // CHECK-NEXT:  } ins(%{{\S*}}, %{{\S*}} : memref<4x2xf64>, memref<2x3xf64>) outs(%{{\S*}}, %{{\S*}} : memref<4x3xf64>, memref<4x3xf64>) inits(%{{\S*}} : f64, None) {
-// CHECK-NEXT:  ^{{\S*}}(%{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64):
+// CHECK-NEXT:  ^{{\S*}}(%{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64):
 // CHECK-NEXT:    %{{\S*}} = arith.mulf %{{\S*}}, %{{\S*}} : f64
 // CHECK-NEXT:    %{{\S*}} = arith.addf %{{\S*}}, %{{\S*}} : f64
 // CHECK-NEXT:    %{{\S*}} = arith.addf %{{\S*}}, %{{\S*}} : f64
@@ -35,7 +35,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%E, %F : memref<4x2xf64>, memref<2x3xf64>) outs(%G, %I : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
-^bb0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
+^bb0(%e: f64, %f: f64, %acc_old_0: f64, %acc_old_1: f64):
     %prod = arith.mulf %e, %f : f64
     %acc_new_0 = arith.addf %acc_old_0, %prod : f64
     %acc_new_1 = arith.addf %acc_old_1, %prod : f64
@@ -53,7 +53,7 @@ memref_stream.generic {
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel", "reduction"]
 // CHECK-NEXT:  } ins(%{{\S*}} : memref<4x2xf64>) outs(%{{\S*}}, %{{\S*}} : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
-// CHECK-NEXT:  ^{{\S*}}(%{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64):
+// CHECK-NEXT:  ^{{\S*}}(%{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64):
 // CHECK-NEXT:    linalg.yield %{{\S*}}, %{{\S*}} : f64, f64
 // CHECK-NEXT:  }
 memref_stream.generic {
@@ -66,12 +66,12 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%E, %F : memref<4x2xf64>, memref<2x3xf64>) outs(%G, %I : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
-^bb0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
+^bb0(%e: f64, %f: f64, %acc_old_0: f64, %acc_old_1: f64):
     linalg.yield %e, %acc_old_1 : f64, f64
 }
 
 // Don't remove when interleaved
-// CHECK-NEXT:  func.func @interleaved_no_init(%{{\S*}} : memref<3x5xf64>, %{{\S*}} : memref<5x8xf64>, %{{\S*}} : memref<3x8xf64>) -> memref<3x8xf64> {
+// CHECK-NEXT:  func.func @interleaved_no_init(%{{\S*}}: memref<3x5xf64>, %{{\S*}}: memref<5x8xf64>, %{{\S*}}: memref<3x8xf64>) -> memref<3x8xf64> {
 // CHECK-NEXT:    memref_stream.generic {
 // CHECK-NEXT:      bounds = [3, 2, 5, 4],
 // CHECK-NEXT:      indexing_maps = [
@@ -81,7 +81,7 @@ memref_stream.generic {
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // CHECK-NEXT:    } ins(%{{\S*}}, %{{\S*}} : memref<3x5xf64>, memref<5x8xf64>) outs(%{{\S*}} : memref<3x8xf64>) {
-// CHECK-NEXT:    ^{{\S*}}(%{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64, %{{\S*}} : f64):
+// CHECK-NEXT:    ^{{\S*}}(%{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64, %{{\S*}}: f64):
 // CHECK-NEXT:      %{{\S*}} = arith.addf %{{\S*}}, %{{\S*}} fastmath<fast> : f64
 // CHECK-NEXT:      %{{\S*}} = arith.addf %{{\S*}}, %{{\S*}} fastmath<fast> : f64
 // CHECK-NEXT:      %{{\S*}} = arith.addf %{{\S*}}, %{{\S*}} fastmath<fast> : f64
@@ -90,7 +90,7 @@ memref_stream.generic {
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.return %{{\S*}} : memref<3x8xf64>
 // CHECK-NEXT:  }
-func.func @interleaved_no_init(%A0 : memref<3x5xf64>, %B0 : memref<5x8xf64>, %C0 : memref<3x8xf64>) -> memref<3x8xf64> {
+func.func @interleaved_no_init(%A0: memref<3x5xf64>, %B0: memref<5x8xf64>, %C0: memref<3x8xf64>) -> memref<3x8xf64> {
     memref_stream.generic {
         bounds = [3, 2, 5, 4],
         indexing_maps = [

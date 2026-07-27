@@ -2,7 +2,7 @@
 
 builtin.module {
 
-  func.func @factorial(%i : i64) -> i64 {
+  func.func @factorial(%i: i64) -> i64 {
     %zero = "arith.constant"() {"value" = 0} : () -> i64
     %one = "arith.constant"() {"value" = 1} : () -> i64
     %eq0 = "arith.cmpi"(%i, %zero) {"predicate" = 0} : (i64, i64) -> i1

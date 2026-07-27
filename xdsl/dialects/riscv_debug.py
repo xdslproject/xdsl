@@ -4,9 +4,10 @@ from collections.abc import Set as AbstractSet
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Attribute, Dialect, SSAValue
-from xdsl.irdl import attr_def, irdl_op_definition, var_operand_def
+from xdsl.irdl import attr_def, irdl_op_definition, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import MemoryWriteEffect
 
 
 @irdl_op_definition
@@ -20,8 +21,8 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     During assembly emission, the results are printed before the operands:
 
     ``` python
-    s0 = riscv.GetRegisterOp(Registers.s0).res
-    s1 = riscv.GetRegisterOp(Registers.s1).res
+    s0 = rv32.GetRegisterOp(Registers.s0).res
+    s1 = rv32.GetRegisterOp(Registers.s1).res
     op = PrintfOp("s0: {}, s1: {}", (s0, s1))
 
     op.assembly_line()   # 'printf "s0: {}, s1: {}", s0, s1'
@@ -31,6 +32,7 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     name = "riscv_debug.printf"
     format_str = attr_def(StringAttr)
     inputs = var_operand_def()
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,

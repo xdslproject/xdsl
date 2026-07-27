@@ -2,14 +2,24 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.li 6 : !riscv.reg<zero>
+    %0 = rv32.li 6 : !riscv.reg<zero>
     // CHECK:      li zero, 6
-    %1 = riscv.li 5 : !riscv.reg<j_1>
+    %1 = rv32.li 5 : !riscv.reg<j_1>
     // CHECK-NEXT: li j_1, 5
     %2 = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add j_2, zero, j_1
     %mv = riscv.mv %0 : (!riscv.reg<zero>) -> !riscv.reg<j_2>
     // CHECK-NEXT: mv j_2, zero
+    %seqz = riscv.seqz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: seqz j_1, j_1
+    %snez = riscv.snez %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: snez j_1, j_1
+    %zextb = riscv.zext.b %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.b j_1, j_1
+    %zextw = riscv.zext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.w j_1, j_1
+    %sextw = riscv.sext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: sext.w j_1, j_1
 
     // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
     // Integer Register-Immediate Instructions
@@ -25,12 +35,6 @@
     // CHECK-NEXT: ori j_1, j_1, 1
     %xori = riscv.xori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: xori j_1, j_1, 1
-    %slli = riscv.slli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: slli j_1, j_1, 1
-    %srli = riscv.srli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: srli j_1, j_1, 1
-    %srai = riscv.srai %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: srai j_1, j_1, 1
     %lui = riscv.lui 1: () -> !riscv.reg<j_0>
     // CHECK-NEXT: lui j_0, 1
     %auipc = riscv.auipc 1: () -> !riscv.reg<j_0>
@@ -84,7 +88,7 @@
 
     riscv.ret
     // CHECK-NEXT: ret
-  ^bb0(%b00 : !riscv.reg, %b01 : !riscv.reg):
+  ^bb0(%b00: !riscv.reg, %b01: !riscv.reg):
 
 
     // Conditional Branch Instructions
@@ -146,9 +150,6 @@
     %csrrwi_w = riscv.csrrwi 1024, 8, "w" : () -> !riscv.reg<zero>
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
-    // Assembler pseudo-instructions
-    %li = riscv.li 1: !riscv.reg<j_0>
-    // CHECK-NEXT: li j_0, 1
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: ecall
@@ -156,12 +157,12 @@
     // CHECK-NEXT: ebreak
     riscv.ret
     // CHECK-NEXT: ret
-  ^bb1(%b10 : !riscv.reg, %b11 : !riscv.reg):
+  ^bb1(%b10: !riscv.reg, %b11: !riscv.reg):
 
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
-      %inner = riscv.li 5 : !riscv.reg<j_1>
+      %inner = rv32.li 5 : !riscv.reg<j_1>
       %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     }
     // CHECK-NEXT:  li j_1, 5
@@ -176,20 +177,22 @@
 
 
     // RISC-V Extensions
+    %fa0 = riscv.get_float_register : !riscv.freg<fa0>
+    %fa1 = riscv.get_float_register : !riscv.freg<fa1>
 
     riscv_snitch.frep_outer %0 {
-      %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
+      %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
 
     // CHECK:          frep.o zero, 1, 0, 0
-    // CHECK-NEXT:     add  j_2, zero, j_1
+    // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
 
     riscv_snitch.frep_inner %0 {
-      %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
+      %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
     // CHECK:          frep.i zero, 1, 0, 0
-    // CHECK-NEXT:     add  j_2, zero, j_1
-    
+    // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
+
     //RV32B/RV64B: "B" Extension for Bit Manipulation, Version 1.0.0
     %rol = riscv.rol %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: rol j_2, j_2, j_1
@@ -199,16 +202,8 @@
     // CHECK-NEXT: rolw j_2, j_2, j_1
     %rorw = riscv.rorw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: rorw j_2, j_2, j_1
-    %rori = riscv.rori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: rori j_1, j_1, 1
-    %roriw = riscv.roriw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: roriw j_1, j_1, 1
     %bclr = riscv.bclr %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: bclr j_2, j_2, j_1
-    %bclri = riscv.bclri %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: bclri j_1, j_1, 1
-    %bseti = riscv.bseti %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: bseti j_1, j_1, 1
     %adduw = riscv.add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add.uw j_2, j_2, j_1
     %sh1add = riscv.sh1add %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
@@ -223,8 +218,6 @@
     // CHECK-NEXT: sh2add.uw j_2, j_2, j_1
     %sh3adduw = riscv.sh3add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: sh3add.uw j_2, j_2, j_1
-    %slliuw = riscv.slli.uw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: slli.uw j_1, j_1, 1
     %andn = riscv.andn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: andn j_2, j_2, j_1
     %orn = riscv.orn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
@@ -239,7 +232,7 @@
     // CHECK-NEXT: min j_2, j_2, j_1
     %minu = riscv.minu %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: minu j_2, j_2, j_1
-    
+
     // "ZiCond" Conditional" operations extension
     %czeroeqz = riscv.czero.eqz %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: czero.eqz j_2, j_2, j_1
@@ -345,6 +338,19 @@
     // CHECK-NEXT: vfadd.s fj_3, fj_0, fj_1
     %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
     // CHECK-NEXT: vfmul.s fj_3, fj_0, fj_1
+    
+    %clz = riscv.clz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clz j_1, j_1
+    %clzw = riscv.clzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clzw j_1, j_1
+    %cpop = riscv.cpop %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpop j_1, j_1
+    %cpopw = riscv.cpopw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpopw j_1, j_1
+    %ctz = riscv.ctz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctz j_1, j_1
+    %ctzw = riscv.ctzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctzw j_1, j_1
 
     // Terminate block
     riscv_func.return

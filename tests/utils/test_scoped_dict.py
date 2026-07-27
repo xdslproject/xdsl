@@ -9,12 +9,15 @@ def test_simple():
     table[1] = 2
 
     assert table[1] == 2
+    assert table.local_scope == {1: 2}
 
     table[2] = 3
 
     assert table[2] == 3
+    assert table.local_scope == {1: 2, 2: 3}
 
     table[2] = 4
+    assert table.local_scope == {1: 2, 2: 4}
 
     with pytest.raises(KeyError):
         table[3]
@@ -25,12 +28,16 @@ def test_simple():
 
     assert inner[2] == 5
     assert table[2] == 4
+    assert table.local_scope == {1: 2, 2: 4}
+    assert inner.local_scope == {2: 5}
 
     inner[3] = 6
 
     assert 3 not in table
     assert 3 in inner
     assert 4 not in inner
+    assert table.local_scope == {1: 2, 2: 4}
+    assert inner.local_scope == {2: 5, 3: 6}
 
 
 def test_get():

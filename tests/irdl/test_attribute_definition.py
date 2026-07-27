@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias, cast
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -25,10 +25,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
+from xdsl.dialects.test import Test
+from xdsl.dialects.utils import BitEnumAttribute
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
-    BitEnumAttribute,
     BuiltinAttribute,
     Data,
     EnumAttribute,
@@ -234,14 +235,20 @@ class BitEnumData(BitEnumAttribute[TestEnum]):
         ([TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.Yes], "#test.bitenum<yes>"),
         ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
         ("all", "#test.bitenum<all>"),
         ("none", "#test.bitenum<none>"),
     ],
 )
-def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str | None, output: str):
     attr = BitEnumData(input)
     assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumData)
+    assert Parser(ctx, output).parse_attribute() == attr
 
 
 def test_bit_enum_invalid_str():
@@ -250,6 +257,157 @@ def test_bit_enum_invalid_str():
         match="expected string parameter to be one of none or all, got helloworld",
     ):
         BitEnumData("helloworld")
+
+
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize(
+    "delimiter", [d for d in Parser.Delimiter if d != Parser.Delimiter.NONE]
+)
+@pytest.mark.parametrize(
+    "input,flag_strs",
+    [
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
+    ],
+)
+def test_bit_enum_attribute_piped_separator(
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
+):
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum]):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    if delimiter == Parser.Delimiter.NONE:
+        pytest.fail("Delimiter.NONE is not supported in this test case")
+
+    left_punc, right_punc = delimiter.value
+
+    output = f"#{BitEnumWithModifiers.name}{left_punc}{separator.join(flag_strs)}{right_punc}"
+
+    attr = BitEnumWithModifiers(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize("delimiter", Parser.Delimiter)
+@pytest.mark.parametrize(
+    "input,flag_strs",
+    [
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
+    ],
+)
+def test_bit_enum_attribute_spaced_opaque_syntax(
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
+):
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    match delimiter:
+        case Parser.Delimiter.NONE:
+            left_punc, right_punc = ("", "")
+        case _:
+            left_punc, right_punc = delimiter.value
+    output = f"#{BitEnumWithModifiers.name.replace('.', '<')} {left_punc}{separator.join(flag_strs)}{right_punc}>"
+
+    attr = BitEnumWithModifiers(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+@irdl_attr_definition(init=False)
+class BitEnumNoNoneData(BitEnumAttribute[TestEnum]):
+    name = "test.bitenum"
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (None, "#test.bitenum<>"),
+        ([], "#test.bitenum<>"),
+        ([TestEnum.No], "#test.bitenum<no>"),
+        ([TestEnum.Yes], "#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
+    ],
+)
+def test_bit_enum_attribute_with_no_none_value(
+    input: Sequence[TestEnum] | str | None, output: str
+):
+    attr = BitEnumNoNoneData(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumNoNoneData)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+Ty = TypeVar("Ty", bound=StrEnum)
+
+
+def test_enum_illegal_subclass():
+    with pytest.raises(TypeError) as excinfo:
+
+        class EnumParent(EnumAttribute[Ty]):
+            name = "test.bitenum"
+
+        EnumParent(TestEnum.Yes)
+
+    assert "Only direct inheritance from EnumAttribute is allowed." in str(
+        excinfo.value
+    )
+
+
+def test_bit_enum_illegal_subclass():
+    with pytest.raises(TypeError) as excinfo:
+
+        class BitEnumParent(BitEnumAttribute[Ty]):
+            name = "test.bitenum"
+
+        BitEnumParent(TestEnum.Yes)
+
+    assert "Only direct inheritance from BitEnumAttribute is allowed." in str(
+        excinfo.value
+    )
 
 
 ################################################################################
@@ -315,6 +473,59 @@ def test_typed_attribute_parsing_printing():
     assert attr == TypedAttr(IntAttr(42), i32)
 
     assert str(attr) == "#test.typed<42> : i32"
+
+
+################################################################################
+# Parameterized Attribute
+################################################################################
+
+
+def test_parameterized_attribute_verify_called():
+    """Test that a custom verify method of a ParametrizedAttribute is called."""
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        def verify(self):
+            raise VerifyException("Always fails")
+
+    with pytest.raises(VerifyException, match="Always fails"):
+        MyAttr()
+
+
+def test_parameterized_attribute_verify_constraints():
+    """Test that a ParametrizedAttribute verifies its given child attribute constraints."""
+
+    class FailConstraint(AttrConstraint[NoneAttr]):
+        def verify(self, attr: Attribute, constraint_context: ConstraintContext):
+            raise VerifyException("Always fails")
+
+        def mapping_type_vars(
+            self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        ) -> FailConstraint:
+            return self
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        child_1: NoneAttr
+        child_2: NoneAttr = param_def(FailConstraint())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "parameter 'child_1' does not verify:\n#builtin.int<1> should be of base attribute none"
+        ),
+    ):
+        MyAttr(cast(NoneAttr, IntAttr(1)), NoneAttr())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("parameter 'child_2' does not verify:\nAlways fails"),
+    ):
+        MyAttr(NoneAttr(), NoneAttr())
 
 
 ################################################################################

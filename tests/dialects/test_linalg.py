@@ -1,9 +1,20 @@
 from typing import Any
 
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.dialects import arith, func, linalg, memref
-from xdsl.dialects.builtin import AffineMapAttr, FloatAttr, f32
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    AffineMapAttr,
+    ArrayAttr,
+    FloatAttr,
+    MemRefType,
+    TensorType,
+    f32,
+)
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_linalg_on_memrefs():
@@ -17,7 +28,7 @@ def test_linalg_on_memrefs():
 
         @Builder.implicit_region((f32, f32))
         def body(args: tuple[Any, ...]):
-            linalg.YieldOp(args[0])
+            linalg.ops.YieldOp(args[0])
 
         indexing = AffineExpr.dimension(0)
         indexing_map = AffineMap(1, 0, (indexing,))
@@ -27,9 +38,9 @@ def test_linalg_on_memrefs():
             AffineMapAttr(indexing_map),
         ]
 
-        iterators = [linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL)]
+        iterators = [linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL)]
 
-        linalg.GenericOp(inputs, outputs, body, indexing_maps, iterators)
+        linalg.ops.GenericOp(inputs, outputs, body, indexing_maps, iterators)
 
         func.ReturnOp()
 
@@ -41,7 +52,7 @@ def test_matmul_on_memrefs():
     b = memref.AllocOp.get(f32, shape=[50, 100])
     c = memref.AllocOp.get(f32, shape=[100, 100])
 
-    matmul_op = linalg.MatmulOp(inputs=(a.memref, b.memref), outputs=(c.memref,))
+    matmul_op = linalg.ops.MatmulOp(inputs=(a.memref, b.memref), outputs=(c.memref,))
 
     assert matmul_op.result_types == ()
 
@@ -54,7 +65,7 @@ def test_loop_range_methods():
     @Builder.implicit_region((f32, f32, f32))
     def body(args: tuple[Any, ...]):
         a, b, c = args
-        linalg.YieldOp(arith.AddfOp(arith.MulfOp(a, b), c))
+        linalg.ops.YieldOp(arith.AddfOp(arith.MulfOp(a, b), c))
 
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)
@@ -66,14 +77,154 @@ def test_loop_range_methods():
         AffineMapAttr(AffineMap(3, 0, (i, j))),
     ]
     iterators = [
-        linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
-        linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
-        linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
+        linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+        linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+        linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
     ]
 
-    op = linalg.GenericOp(
+    op = linalg.ops.GenericOp(
         [A.results[0], B.results[0]], [C.results[0]], body, indexing_maps, iterators
     )
 
     loops = op.get_static_loop_ranges()
     assert loops == (100, 100, 50)
+
+
+def test_get_loop_bound_sources_dynamic_memref():
+    lhs = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+    rhs = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+    out = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+
+    @Builder.implicit_region((f32, f32, f32))
+    def body(args: tuple[Any, ...]):
+        lhs_element, rhs_element, out_element = args
+        linalg.ops.YieldOp(
+            arith.AddfOp(arith.AddfOp(lhs_element, rhs_element), out_element)
+        )
+
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+
+    op = linalg.ops.GenericOp(
+        [lhs, rhs],
+        [out],
+        body,
+        [
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+        ],
+        [
+            linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+            linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+        ],
+    )
+
+    assert op.get_loop_bound_sources() == (
+        linalg.abstract_ops.LoopBoundSource(lhs, 0, DYNAMIC_INDEX),
+        linalg.abstract_ops.LoopBoundSource(lhs, 1, 4),
+    )
+
+
+def test_get_loop_bound_sources_skips_scalar_operand():
+    scalar_operand = create_ssa_value(f32)
+    tensor_operand = create_ssa_value(TensorType(f32, [7, 3]))
+    output = create_ssa_value(MemRefType(f32, [7, 3]))
+
+    @Builder.implicit_region((f32, f32, f32))
+    def body(args: tuple[Any, ...]):
+        scalar, tensor_element, output_element = args
+        linalg.ops.YieldOp(
+            arith.AddfOp(arith.AddfOp(scalar, tensor_element), output_element)
+        )
+
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+
+    op = linalg.ops.GenericOp(
+        [scalar_operand, tensor_operand],
+        [output],
+        body,
+        [
+            AffineMapAttr(AffineMap(2, 0, ())),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+        ],
+        [
+            linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+            linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
+        ],
+    )
+
+    assert op.get_loop_bound_sources() == (
+        linalg.abstract_ops.LoopBoundSource(tensor_operand, 0, 7),
+        linalg.abstract_ops.LoopBoundSource(tensor_operand, 1, 3),
+    )
+
+
+def test_deprecated_top_level_linalg_api_still_works():
+    with pytest.warns(
+        DeprecationWarning,
+        match="Importing 'GenericOp' directly from 'xdsl.dialects.linalg' is deprecated",
+    ):
+        generic_op = linalg.GenericOp
+
+    assert generic_op is linalg.ops.GenericOp
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Importing 'IteratorTypeAttr' directly from 'xdsl.dialects.linalg' is deprecated",
+    ):
+        iterator_type_attr = linalg.IteratorTypeAttr
+
+    assert iterator_type_attr is linalg.attrs.IteratorTypeAttr
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Importing 'LinalgStructuredOperation' directly from 'xdsl.dialects.linalg' is deprecated",
+    ):
+        structured_op = linalg.LinalgStructuredOperation
+
+    assert structured_op is linalg.abstract_ops.LinalgStructuredOperation
+
+
+@pytest.mark.parametrize(
+    "op_type",
+    [
+        linalg.ops.ExpOp,
+        linalg.ops.LogOp,
+        linalg.ops.SqrtOp,
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (2, 2),
+        (1,),
+        (3, 1),
+        (4, 3, 2),
+    ],
+)
+def test_unary_elementwise_op_identity_map_and_parallel_iters(
+    op_type: type[linalg.ops.ExpOp | linalg.ops.LogOp | linalg.ops.SqrtOp],
+    shape: tuple[int, ...],
+):
+    t = TensorType(f32, shape)
+
+    op = op_type(
+        [create_ssa_value(t)],
+        [create_ssa_value(t)],
+    )
+
+    # Should have exactly 2 access maps: [in, out]
+    assert op.get_indexing_maps() == ArrayAttr(
+        (
+            AffineMapAttr(AffineMap.identity(len(shape))),
+            AffineMapAttr(AffineMap.identity(len(shape))),
+        )
+    )
+
+    # Should have all parallel iterators
+    assert op.get_iterator_types() == ArrayAttr(
+        [linalg.attrs.IteratorTypeAttr.parallel() for _ in range(len(shape))]
+    )

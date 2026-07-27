@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from typing import Literal, overload
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
-from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
+from xdsl.dialects.builtin import DictionaryAttr, IndexType, LocationAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -17,11 +17,13 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import IRDLOperation
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
+from .affine_parser import AffineParser  # noqa: TID251
 from .attribute_parser import AttrParser  # noqa: TID251
 from .generic_parser import ParserState, Position  # noqa: TID251
 
@@ -207,10 +209,10 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self.parse_optional_location()
+            location = self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
-            block_arg = block.insert_arg(arg_type, len(block.args))
+            block_arg = block.insert_arg(arg_type, len(block.args), location)
             self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
@@ -335,6 +337,21 @@ class Parser(AttrParser):
 
         return resolved
 
+    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[SSAValue]]:
+        """
+        Parse an affine map of SSA identifiers, e.g.: `[%i0, %i1 + 7]`.
+        """
+        affine_map, spans = AffineParser(
+            self._parser_state
+        ).parse_affine_map_of_ssa_ids()
+
+        operands = [
+            self.resolve_operand(UnresolvedOperand(span, 0), IndexType())
+            for span in spans
+        ]
+
+        return affine_map, operands
+
     def parse_optional_operand(self) -> SSAValue | None:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
@@ -412,7 +429,7 @@ class Parser(AttrParser):
                         f"type {result.type}, but used with type {value.type}",
                         span,
                     )
-                value.replace_by(result)
+                value.replace_all_uses_with(result)
 
         if SSAValue.is_valid_name(name):
             for val in values:
@@ -443,6 +460,9 @@ class Parser(AttrParser):
 
         type: Attribute
         """The type of the argument, if any."""
+
+        location: LocationAttr | None = None
+        """The optional source location attached to the argument."""
 
     @overload
     def parse_optional_argument(
@@ -548,6 +568,8 @@ class Parser(AttrParser):
             entry_block = Block(arg_types=arg_types)
             for block_arg, arg in zip(entry_block.args, arguments):
                 self._register_ssa_definition(arg.name.text[1:], (block_arg,), arg.name)
+                if arg.location is not None:
+                    block_arg.location = arg.location
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
@@ -680,6 +702,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         if self._current_token.kind not in (
             MLIRTokenKind.PERCENT_IDENT,
@@ -704,6 +727,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse the operation results
         op_loc = self._current_token.span
@@ -718,6 +742,8 @@ class Parser(AttrParser):
             self._parser_state.dialect_stack.append(dialect_name)
             op = op_type.parse(self)
             self._parser_state.dialect_stack.pop()
+            if (location := self.parse_optional_location()) is not None:
+                op.location = location
         else:
             # Generic operation format
             op_name = self.expect(
@@ -858,6 +884,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse arguments
         args = self.parse_op_args_list()
@@ -883,7 +910,7 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self.parse_optional_location()
+        location = self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
@@ -900,6 +927,7 @@ class Parser(AttrParser):
             result_types=func_type.outputs.data,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )

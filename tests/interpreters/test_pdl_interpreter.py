@@ -297,6 +297,34 @@ def test_match_result():
         type_op.result: i32,
     }
 
+    # Index out of range for op with multiple results
+    # If the operation has multiple results, we should not match results at indices
+    # greater than the number of results
+    n_results = 3
+    invalid_index = 4
+    multi_out_of_range_xdsl_op = test.TestOp(result_types=(i64,) * n_results)
+    multi_out_of_range_type_op = pdl.TypeOp(i64)
+    multi_out_of_range_operation_op = pdl.OperationOp(
+        op_name=None, type_values=(multi_out_of_range_type_op.result,) * n_results
+    )
+    multi_out_of_range_result_op = pdl.ResultOp(
+        index=invalid_index, parent=multi_out_of_range_operation_op.op
+    )
+    for xval in multi_out_of_range_xdsl_op.res:
+        assert not matcher.match_result(
+            multi_out_of_range_result_op.val,
+            multi_out_of_range_result_op,
+            xval,
+        )
+    assert matcher.matching_context == {
+        result_op.val: xdsl_value,
+        operation_op.op: xdsl_op,
+        type_op.result: i32,
+        # Updated keys for matched op and type
+        multi_out_of_range_operation_op.op: multi_out_of_range_xdsl_op,
+        multi_out_of_range_type_op.result: i64,
+    }
+
 
 def test_match_trivial_operation():
     matcher = PDLMatcher()

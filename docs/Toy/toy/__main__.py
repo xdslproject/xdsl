@@ -13,49 +13,53 @@ from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_libc import RiscvLibcFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
+from xdsl.interpreters.rv32 import Rv32Functions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
-from .compiler import context, emulate_riscv, transform
+from .compiler import context, transform
 from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
-
-parser = argparse.ArgumentParser(description="Process Toy file")
-parser.add_argument("source", type=Path, help="toy source file")
-parser.add_argument(
-    "--emit",
-    dest="emit",
-    choices=[
-        "ast",
-        "toy",
-        "toy-opt",
-        "toy-inline",
-        "shape-inference",
-        "affine",
-        "scf",
-        "riscv",
-        "riscv-opt",
-        "riscv-regalloc",
-        "riscv-regalloc-opt",
-        "riscv-lowered",
-        "riscv-asm",
-    ],
-    default="riscv-asm",
-    help="Compilation target (default: riscv-asm)",
-)
-parser.add_argument("--ir", dest="ir", action="store_true")
-parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
+from .riscv_emulator import emulate_riscv
 
 
-def main(path: Path, emit: str, ir: bool, print_generic: bool):
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Process Toy file")
+    parser.add_argument("source", type=Path, help="toy source file")
+    parser.add_argument(
+        "--emit",
+        dest="emit",
+        choices=[
+            "ast",
+            "toy",
+            "toy-opt",
+            "toy-inline",
+            "shape-inference",
+            "affine",
+            "scf",
+            "riscv",
+            "riscv-opt",
+            "riscv-regalloc",
+            "riscv-regalloc-opt",
+            "riscv-lowered",
+            "riscv-asm",
+        ],
+        default="riscv-asm",
+        help="Compilation target (default: riscv-asm)",
+    )
+    parser.add_argument("--ir", dest="ir", action="store_true")
+    parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
+    args = parser.parse_args()
+    run(args.source, args.emit, args.ir, args.print_generic)
+
+
+def run(path: Path, emit: str, ir: bool, print_generic: bool):
     ctx = context()
-
-    path = args.source
 
     with open(path) as f:
         match path.suffix:
@@ -89,7 +93,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
             print(code)
             return
 
-        emulate_riscv(code)
+        print(emulate_riscv(code))
         return
 
     if ir:
@@ -100,7 +104,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     interpreter = Interpreter(module_op)
     if emit in ("toy", "toy-opt", "toy-inline", "shape-inference"):
         interpreter.register_implementations(ToyFunctions())
-    if emit in ("affine"):
+    if emit == "affine":
         interpreter.register_implementations(AffineFunctions())
     if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
@@ -119,6 +123,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     ):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(Rv32Functions())
         interpreter.register_implementations(RiscvDebugFunctions())
         interpreter.register_implementations(RiscvLibcFunctions())
     if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
@@ -130,5 +135,4 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.print_generic)
+    main()

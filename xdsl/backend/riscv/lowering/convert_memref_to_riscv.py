@@ -9,7 +9,7 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import memref, riscv, riscv_func
+from xdsl.dialects import memref, riscv, riscv_func, rv32
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,
@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
-    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -43,14 +42,16 @@ from xdsl.utils.exceptions import DiagnosticException
 class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             (
-                size_op := riscv.LiOp(size, comment="memref alloc size"),
+                size_op := rv32.LiOp(size, comment="memref alloc size"),
                 move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
                 call := riscv_func.CallOp(
                     SymbolRefAttr("malloc"),
@@ -59,7 +60,7 @@ class ConvertMemRefAllocOp(RewritePattern):
                 ),
                 move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
                 UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
-            )
+            ),
         )
 
 
@@ -68,7 +69,8 @@ class ConvertMemRefDeallocOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.DeallocOp, rewriter: PatternRewriter
     ) -> None:
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             (
                 ptr := UnrealizedConversionCastOp.get(
                     (op.memref,), (riscv.Registers.UNALLOCATED_INT,)
@@ -79,7 +81,7 @@ class ConvertMemRefDeallocOp(RewritePattern):
                     (move_op.rd,),
                     (),
                 ),
-            )
+            ),
         )
 
 
@@ -96,13 +98,9 @@ def get_strided_pointer(
     assert isinstance(memref_type.element_type, FixedBitwidthType)
     bytes_per_element = memref_type.element_type.size
 
-    match memref_type.layout:
-        case NoneAttr():
-            strides = ShapedType.strides_for_shape(memref_type.get_shape())
-        case StridedLayoutAttr():
-            strides = memref_type.layout.get_strides()
-        case _:
-            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
+    strides = memref_type.get_strides()
+    if strides is None:
+        raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
 
     ops: list[Operation] = []
 
@@ -125,7 +123,7 @@ def get_strided_pointer(
                 # elements required to be skipped when incrementing that dimension).
                 ops.extend(
                     (
-                        stride_op := riscv.LiOp(stride),
+                        stride_op := rv32.LiOp(stride),
                         offset_op := riscv.MulOp(increment, stride_op.rd),
                     )
                 )
@@ -148,7 +146,7 @@ def get_strided_pointer(
 
     ops.extend(
         [
-            bytes_per_element_op := riscv.LiOp(bytes_per_element),
+            bytes_per_element_op := rv32.LiOp(bytes_per_element),
             offset_bytes := riscv.MulOp(
                 head,
                 bytes_per_element_op.rd,
@@ -168,15 +166,16 @@ def get_strided_pointer(
 class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        value, mem, *indices = cast_operands_to_regs(rewriter)
+        value, mem, *indices = cast_operands_to_regs(rewriter, op)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
 
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert(ops)
         match value.type:
             case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
@@ -205,22 +204,21 @@ class ConvertMemRefStoreOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {value.type}")
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace(op, new_op)
 
 
 class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
-            f"{op.memref.type}"
-        )
+        op_memref_type = op.memref.type
+        assert isinstance(op_memref_type, memref.MemRefType), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        mem, *indices = cast_operands_to_regs(rewriter)
+        mem, *indices = cast_operands_to_regs(rewriter, op)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert(ops)
 
         result_register_type = register_type_for_type(op.res.type)
 
@@ -246,7 +244,8 @@ class ConvertMemRefLoadOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {result_register_type}")
 
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             [
                 lw := lw_op,
                 UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
@@ -281,17 +280,18 @@ class ConvertMemRefGlobalOp(RewritePattern):
             riscv.LabelOp(op.sym_name.data)
             riscv.DirectiveOp(".word", text)
 
-        rewriter.replace_matched_op(section)
+        rewriter.replace(op, section)
 
 
 class ConvertMemRefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GetGlobalOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             [
-                ptr := riscv.LiOp(op.name_.string_value()),
+                ptr := rv32.LiOp(op.name_.string_value()),
                 UnrealizedConversionCastOp.get((ptr,), (op.memref.type,)),
-            ]
+            ],
         )
 
 
@@ -331,8 +331,8 @@ class ConvertMemRefSubviewOp(RewritePattern):
         if isinstance(result_layout_attr, NoneAttr):
             # When a subview has no layout attr, the result is a perfect subview at offset
             # 0.
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
+            rewriter.replace(
+                op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
 
@@ -345,8 +345,8 @@ class ConvertMemRefSubviewOp(RewritePattern):
         factor = result_type.element_type.size
 
         if offset == 0:
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
+            rewriter.replace(
+                op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
 
@@ -373,7 +373,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     dynamic_offset_index += 1
                 else:
                     # No need to insert arithmetic ops that will be multiplied by zero
-                    index_ops.append(offset_op := riscv.LiOp(static_offset))
+                    index_ops.append(offset_op := rv32.LiOp(static_offset))
                     index_val = offset_op.rd
                 index_val.name_hint = "subview_dim_index"
                 indices.append(index_val)
@@ -388,13 +388,14 @@ class ConvertMemRefSubviewOp(RewritePattern):
             offset_ops = (factor_op,)
             offset_rd = factor_op.rd
 
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             (
                 src,
                 *index_ops,
                 *offset_ops,
                 UnrealizedConversionCastOp.get((offset_rd,), (result_type,)),
-            )
+            ),
         )
 
 
@@ -419,7 +420,7 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGlobalOp(xlen=self.xlen),
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
-                ]
+                ],
             )
         ).rewrite_module(op)
         if contains_malloc:

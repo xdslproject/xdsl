@@ -86,6 +86,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_x86_func.ConvertFuncToX86FuncPass
 
+    def get_expand_math_to_polynomials():
+        from xdsl.transforms import expand_math_to_polynomials
+
+        return expand_math_to_polynomials.ExpandMathToPolynomialsPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -122,6 +127,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import convert_ml_program_to_memref
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
+
+    def get_convert_pdl_interp_to_eqsat_pdl_interp():
+        from xdsl.transforms import convert_pdl_interp_to_eqsat_pdl_interp
+
+        return (
+            convert_pdl_interp_to_eqsat_pdl_interp.ConvertPDLInterpToEqsatPDLInterpPass
+        )
+
+    def get_convert_pdl_to_pdl_interp():
+        from xdsl.transforms.convert_pdl_to_pdl_interp import conversion
+
+        return conversion.ConvertPDLToPDLInterpPass
 
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
@@ -303,6 +320,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_extract.EqsatExtractPass
 
+    def get_approximate_math_with_bitcast():
+        from xdsl.transforms import approximate_math_with_bitcast
+
+        return approximate_math_with_bitcast.ApproximateMathWithBitcastPass
+
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
 
@@ -352,6 +374,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms.linalg_transformations import LinalgFuseMultiplyAddPass
 
         return LinalgFuseMultiplyAddPass
+
+    def get_linalg_generalize_named_ops():
+        from xdsl.transforms import linalg_generalize_named_ops
+
+        return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
+
+    def get_test_linalg_tiling():
+        from xdsl.transforms.test_linalg_tiling import TestLinalgTilingPass
+
+        return TestLinalgTilingPass
 
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
@@ -478,10 +510,20 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_riscv_allocate_infinite_registers():
+        from xdsl.transforms import riscv_allocate_infinite_registers
+
+        return riscv_allocate_infinite_registers.RISCVAllocateInfiniteRegistersPass
+
     def get_riscv_allocate_registers():
         from xdsl.transforms import riscv_allocate_registers
 
         return riscv_allocate_registers.RISCVAllocateRegistersPass
+
+    def get_riscv_lower_parallel_mov():
+        from xdsl.transforms import riscv_lower_parallel_mov
+
+        return riscv_lower_parallel_mov.RISCVLowerParallelMovPass
 
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
@@ -492,6 +534,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import riscv_scf_loop_range_folding
 
         return riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass
+
+    def get_riscv_scf_for_infer_constant_step():
+        from xdsl.transforms import riscv_scf_for_infer_constant_step
+
+        return riscv_scf_for_infer_constant_step.RiscvScfForInferConstantStepPass
 
     def get_scf_for_loop_flatten():
         from xdsl.transforms import scf_for_loop_flatten
@@ -568,6 +615,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_deprecation():
+        from xdsl.transforms import test_deprecation
+
+        return test_deprecation.TestDeprecationPass  # pyright: ignore[reportDeprecated]
+
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
 
@@ -610,6 +662,21 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_infer_broadcast.X86InferBroadcast
 
+    def get_x86_regalloc_legalize():
+        from xdsl.transforms import x86_regalloc_legalize
+
+        return x86_regalloc_legalize.X86RegallocLegalizePass
+
+    def get_x86_prologue_epilogue_insertion():
+        from xdsl.backend.x86 import prologue_epilogue_insertion
+
+        return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
+
+    def get_x86_regalloc_verify_liveness():
+        from xdsl.transforms import x86_regalloc_verify_liveness
+
+        return x86_regalloc_verify_liveness.X86RegallocVerifyLivenessPass
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
@@ -618,6 +685,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
+        "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
@@ -629,6 +697,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
+        "expand-math-to-polynomials": get_expand_math_to_polynomials,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
@@ -636,6 +705,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
+        "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
+        "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
@@ -682,6 +753,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
+        "linalg-generalize-named-ops": get_linalg_generalize_named_ops,
         "linalg-to-csl": get_linalg_to_csl,
         "loop-hoist-memref": get_loop_hoist_memref,
         "lower-affine": get_lower_affine,
@@ -707,8 +779,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
+        "riscv-allocate-infinite-registers": get_riscv_allocate_infinite_registers,
         "riscv-allocate-registers": get_riscv_allocate_registers,
+        "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
+        "riscv-scf-for-infer-constant-step": get_riscv_scf_for_infer_constant_step,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
@@ -724,6 +799,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
+        "test-deprecation": get_test_deprecation,
+        "test-linalg-tiling": get_test_linalg_tiling,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
@@ -733,4 +810,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-infer-broadcast": get_x86_infer_broadcast,
+        "x86-regalloc-legalize": get_x86_regalloc_legalize,
+        "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
+        "x86-regalloc-verify-liveness": get_x86_regalloc_verify_liveness,
     }

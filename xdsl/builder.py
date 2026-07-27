@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
@@ -14,7 +14,6 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Operation,
-    OperationInvT,
     Region,
     SSAValue,
 )
@@ -80,18 +79,14 @@ class Builder(BuilderListener):
     def name_hint(self, name: str | None):
         self._name_hint = SSAValue.extract_valid_name(name)
 
-    def insert(self, op: OperationInvT) -> OperationInvT:
-        """
-        Inserts op at the current location and returns it.
-        """
-        return self.insert_op(op)
-
-    def insert_op(
+    def insert(
         self,
         op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
-        """Inserts op(s) at the current insertion point."""
+        """
+        Inserts op(s) at the current location and returns it.
+        """
         ops = (op,) if isinstance(op, Operation) else op
         if not ops:
             return ops
@@ -114,6 +109,15 @@ class Builder(BuilderListener):
             self.handle_operation_insertion(op_)
 
         return op
+
+    @deprecated("Use .insert(op, insertion_point) instead")
+    def insert_op(
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
+        """Inserts op(s) at the current insertion point."""
+        return self.insert(op, insertion_point)
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
@@ -287,14 +291,16 @@ class Builder(BuilderListener):
 # Implicit builders
 
 
-@dataclass
 class _ThreadLocalBuilder(threading.local):
     """
     Stores the implicit builder for use in ImplicitBuilder, None by default.
     There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    builder: Builder | None = None
+    builder: Builder | None
+
+    def __init__(self) -> None:
+        self.builder = None
 
 
 _current_builder = _ThreadLocalBuilder()

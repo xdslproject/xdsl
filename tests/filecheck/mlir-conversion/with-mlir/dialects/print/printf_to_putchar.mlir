@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p printf-to-putchar %s | mlir-opt --convert-math-to-funcs --convert-scf-to-cf --convert-to-llvm | mlir-runner --entry-point-result=void | filecheck %s
+// RUN: xdsl-opt -p printf-to-putchar %s | $XDSL_MLIR_OPT --convert-math-to-funcs --convert-scf-to-cf --convert-to-llvm | mlir-runner --entry-point-result=void | filecheck %s
 
 builtin.module{
     "func.func"() ({

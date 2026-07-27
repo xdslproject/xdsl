@@ -2,7 +2,7 @@
 
 %source, %index = "test.op"() : () -> (vector<4x3xf32>, index)
 "vector.transfer_write"(%source, %source, %index, %index) <{in_bounds=[true], operandSegmentSizes = array<i32: 1, 1, 2, 0>, permutation_map = affine_map<() -> (0)>}> : (vector<4x3xf32>, vector<4x3xf32>, index, index) -> ()
-// CHECK: operand at position 1 does not verify:
+// CHECK: operand 'source' at position 1 does not verify:
 // CHECK: Unexpected attribute vector<4x3xf32>
 
 // -----

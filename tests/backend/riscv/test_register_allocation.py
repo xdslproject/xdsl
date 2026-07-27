@@ -73,7 +73,9 @@ def test_default_reserved_registers():
 
 def test_allocate_with_inout_constraints():
     @irdl_op_definition
-    class MyInstructionOp(riscv.RISCVAsmOperation, IRDLOperation):
+    class MyInstructionOp(
+        riscv.RISCVAsmOperation, riscv.RISCVRegallocOperation, IRDLOperation
+    ):
         name = "riscv.my_instruction"
 
         rs0 = operand_def()
@@ -95,6 +97,9 @@ def test_allocate_with_inout_constraints():
             return RegisterConstraints(
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
+
+        def assembly_line(self) -> str | None:
+            raise NotImplementedError
 
     available_registers = RiscvRegisterStack(allow_infinite=True)
     register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)

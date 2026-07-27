@@ -1,5 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_cf, riscv_scf
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,6 +9,8 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
+from xdsl.utils.exceptions import PassFailedException
+from xdsl.utils.hints import isa
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -104,10 +107,22 @@ class LowerRiscvScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
-        rewriter.replace_op(
+        match op.step:
+            case IntegerAttr() as step_attr:
+                if isa(step_attr, IntegerAttr[riscv.SI12]):
+                    add_op = riscv.AddiOp(iv, step_attr, rd=loop_var_reg)
+                else:
+                    raise PassFailedException(
+                        "riscv_scf.for static step must use type si12 (signed 12-bit) for "
+                        f"addi lowering; got {step_attr.type}"
+                    )
+            case _:
+                add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
+
+        rewriter.replace(
             yield_op,
             (
-                add_op := riscv.AddOp(iv, op.step, rd=iv_reg),
+                add_op,
                 riscv_cf.BltOp(
                     add_op.rd,
                     op.ub,
@@ -123,7 +138,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
-        rewriter.insert_op(
+        rewriter.insert(
             (
                 mv_op := riscv.MVOp(op.lb, rd=iv_reg),
                 riscv_cf.BgeOp(
@@ -139,12 +154,13 @@ class LowerRiscvScfForPattern(RewritePattern):
         )
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op(
+        rewriter.insert(
             riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             riscv.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],
         )

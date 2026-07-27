@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, eqsat
+from xdsl.dialects import builtin, equivalence
 from xdsl.ir import BlockArgument, Operation
 from xdsl.passes import ModulePass
 
@@ -22,12 +22,12 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
     enode_to_id: defaultdict[Operation | BlockArgument, str] = defaultdict(
         _IDGenerator("enode_")
     )
-    eclass_to_id: defaultdict[eqsat.EClassOp, str] = defaultdict(
+    eclass_to_id: defaultdict[equivalence.ClassOp, str] = defaultdict(
         _IDGenerator("eclass_")
     )
     nodes: dict[str, dict[str, str | list[str]]] = dict()
     for op in mod.walk(reverse=True):
-        if isinstance(op, eqsat.EClassOp):
+        if isinstance(op, equivalence.ClassOp):
             for operand in op.operands:
                 if isinstance(operand, BlockArgument):
                     nodes[enode_to_id[operand]] = {
@@ -40,7 +40,7 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
         eclass_id = None
         for res in op.results:
             for use in res.uses:
-                if isinstance(use.operation, eqsat.EClassOp):
+                if isinstance(use.operation, equivalence.ClassOp):
                     assert len(op.results) == 1, (
                         "Only single result operations are supported"
                     )
@@ -49,7 +49,7 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
         if eclass_id is None:
             continue
         for operand in op.operands:
-            if isinstance(operand.owner, eqsat.EClassOp):
+            if isinstance(operand.owner, equivalence.ClassOp):
                 firstoperand = operand.owner.operands[0]
                 if isinstance(firstoperand.owner, Operation):
                     canonical_enode = firstoperand.owner

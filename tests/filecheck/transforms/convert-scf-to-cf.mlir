@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p convert-scf-to-cf %s | filecheck %s
 
-func.func @triangle(%n : i32) -> (i32) {
+func.func @triangle(%n: i32) -> (i32) {
   // Initial sum set to 0.
   %sum_0 = arith.constant 0 : i32
 
@@ -18,12 +18,12 @@ func.func @triangle(%n : i32) -> (i32) {
   func.return %sum : i32
 }
 
-// CHECK:      func.func @triangle(%n : i32) -> i32 {
+// CHECK:      func.func @triangle(%n: i32) -> i32 {
 // CHECK-NEXT:   %sum = arith.constant 0 : i32
 // CHECK-NEXT:   %zero = arith.constant 0 : i32
 // CHECK-NEXT:   %one = arith.constant 1 : i32
 // CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %sum : i32, i32)
-// CHECK-NEXT: ^bb[[#b0]](%iv : i32, %sum_iter : i32):
+// CHECK-NEXT: ^bb[[#b0]](%iv: i32, %sum_iter: i32):
 // CHECK-NEXT:   %[[#v0:]] = arith.cmpi slt, %iv, %n : i32
 // CHECK-NEXT:   cf.cond_br %[[#v0]], ^bb[[#b1:]], ^bb[[#b2:]]
 // CHECK-NEXT: ^bb[[#b1]]:
@@ -34,7 +34,7 @@ func.func @triangle(%n : i32) -> (i32) {
 // CHECK-NEXT:   func.return %sum_iter : i32
 // CHECK-NEXT: }
 
-func.func @if(%b : i1) -> (i32) {
+func.func @if(%b: i1) -> (i32) {
   %ret = scf.if %b -> (i32) {
     %one = arith.constant 1 : i32
     scf.yield %one : i32
@@ -45,7 +45,7 @@ func.func @if(%b : i1) -> (i32) {
   func.return %ret : i32
 }
 
-// CHECK:      func.func @if(%b : i1) -> i32 {
+// CHECK:      func.func @if(%b: i1) -> i32 {
 // CHECK-NEXT:   cf.cond_br %b, ^bb[[#b0:]], ^bb[[#b1:]]
 // CHECK-NEXT: ^bb[[#b0]]:
 // CHECK-NEXT:   %one = arith.constant 1 : i32
@@ -53,34 +53,35 @@ func.func @if(%b : i1) -> (i32) {
 // CHECK-NEXT: ^bb[[#b1]]:
 // CHECK-NEXT:   %zero = arith.constant 0 : i32
 // CHECK-NEXT:   cf.br ^bb[[#b2]](%zero : i32)
-// CHECK-NEXT: ^bb[[#b2]](%ret : i32):
+// CHECK-NEXT: ^bb[[#b2]](%ret: i32):
 // CHECK-NEXT:   cf.br ^bb[[#b3:]]
 // CHECK-NEXT: ^bb[[#b3]]:
 // CHECK-NEXT:   func.return %ret : i32
 // CHECK-NEXT: }
 
-func.func @if_no_else(%b : i1) {
+func.func @if_no_else(%b: i1) {
   scf.if %b {
+    "test.op"() : () -> ()
     scf.yield
   }
   func.return
 }
 
-// CHECK:      func.func @if_no_else(%b : i1) {
+// CHECK:      func.func @if_no_else(%b: i1) {
 // CHECK-NEXT:   cf.cond_br %b, ^bb[[#b1:]], ^bb[[#b2:]]
 // CHECK-NEXT: ^bb[[#b1]]:
+// CHECK-NEXT:   "test.op"() : () -> ()
 // CHECK-NEXT:   cf.br ^bb{{.*}}
 // CHECK-NEXT: ^bb[[#b2]]:
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
-func.func @nested(%n : index) -> (index) {
+func.func @nested(%n: index) -> (index) {
   // Initial sum set to 0.
   %sum_0 = arith.constant 0 : index
 
   %zero = arith.constant 0 : index
   %one = arith.constant 1 : index
-  %two = arith.constant 2 : index
 
   %sum = scf.for %iv = %zero to %n step %one
     iter_args(%sum_iter = %sum_0) -> (index) : index {
@@ -98,13 +99,12 @@ func.func @nested(%n : index) -> (index) {
   func.return %sum : index
 }
 
-// CHECK:      func.func @nested(%n : index) -> index {
+// CHECK:      func.func @nested(%n: index) -> index {
 // CHECK-NEXT:   %sum = arith.constant 0 : index
 // CHECK-NEXT:   %zero = arith.constant 0 : index
 // CHECK-NEXT:   %one = arith.constant 1 : index
-// CHECK-NEXT:   %two = arith.constant 2 : index
 // CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %sum : index, index)
-// CHECK-NEXT: ^bb[[#b0]](%iv : index, %sum_iter : index):
+// CHECK-NEXT: ^bb[[#b0]](%iv: index, %sum_iter: index):
 // CHECK-NEXT:   %[[#v0:]] = arith.cmpi slt, %iv, %n : index
 // CHECK-NEXT:   cf.cond_br %[[#v0]], ^bb[[#b1:]], ^bb[[#b2:]]
 // CHECK-NEXT: ^bb[[#b1]]:
@@ -115,7 +115,7 @@ func.func @nested(%n : index) -> (index) {
 // CHECK-NEXT:   cf.br ^bb[[#b5:]](%[[#v1]] : index)
 // CHECK-NEXT: ^bb[[#b4]]:
 // CHECK-NEXT:   cf.br ^bb[[#b5]](%sum_iter : index)
-// CHECK-NEXT: ^bb[[#b5]](%sum_next : index):
+// CHECK-NEXT: ^bb[[#b5]](%sum_next: index):
 // CHECK-NEXT:   cf.br ^bb[[#b6:]]
 // CHECK-NEXT: ^bb[[#b6]]:
 // CHECK-NEXT:   %[[#v2:]] = arith.addi %iv, %one : index
@@ -142,7 +142,7 @@ func.func @index_switch(%flag: index) -> i32 {
   func.return %c : i32
 }
 
-// CHECK:      func.func @index_switch(%flag : index) -> i32 {
+// CHECK:      func.func @index_switch(%flag: index) -> i32 {
 // CHECK-NEXT:   %a = arith.constant 0 : i32
 // CHECK-NEXT:   %b = arith.constant 1 : i32
 // CHECK-NEXT:   %[[#v0:]] = arith.index_cast %flag : index to i32
@@ -159,6 +159,6 @@ func.func @index_switch(%flag: index) -> i32 {
 // CHECK-NEXT:   cf.br ^bb[[#b3]](%a, %a : i32, i32)
 // CHECK-NEXT: ^bb[[#b0]]:
 // CHECK-NEXT:   cf.br ^bb[[#b3]](%b, %b : i32, i32)
-// CHECK-NEXT: ^bb[[#b3]](%c : i32, %d : i32):
+// CHECK-NEXT: ^bb[[#b3]](%c: i32, %d: i32):
 // CHECK-NEXT:   func.return %c : i32
 // CHECK-NEXT: }

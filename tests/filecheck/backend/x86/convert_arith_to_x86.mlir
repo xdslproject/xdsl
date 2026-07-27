@@ -3,15 +3,17 @@
 %i0 = "test.op"(): () -> i32
 %i1 = "test.op"(): () -> i32
 %i2 = arith.addi %i0, %i1: i32
+"test.op"(%i2) : (i32) -> ()
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i0 = "test.op"() : () -> i32
 // CHECK-NEXT:   %i1 = "test.op"() : () -> i32
-// CHECK-NEXT:   %i0_1 = builtin.unrealized_conversion_cast %i0 : i32 to !x86.reg
-// CHECK-NEXT:   %i1_1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
-// CHECK-NEXT:   %i2 = x86.ds.mov %i1_1 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_1 = x86.rs.add %i2, %i0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2_1 : !x86.reg to i32
+// CHECK-NEXT:   %i0_1 = asm.to_reg %i0 : i32 -> !x86.reg32
+// CHECK-NEXT:   %i1_1 = asm.to_reg %i1 : i32 -> !x86.reg32
+// CHECK-NEXT:   %i1_2 = x86.ds.mov %i1_1 : (!x86.reg32) -> !x86.reg32
+// CHECK-NEXT:   %i2 = x86.rs.add %i1_2, %i0_1 : (!x86.reg32, !x86.reg32) -> !x86.reg32
+// CHECK-NEXT:   %i2_1 = asm.from_reg %i2 : !x86.reg32 -> i32
+// CHECK-NEXT:   "test.op"(%i2_1) : (i32) -> ()
 // CHECK-NEXT: }
 
 // -----
@@ -20,21 +22,24 @@
 %i0 = "test.op"(): () -> tensor<2xi32>
 %i1 = "test.op"(): () -> tensor<2xi32>
 %i2 = arith.addi %i0, %i1: tensor<2xi32>
+"test.op"(%i2) : (tensor<2xi32>) -> ()
 
 // -----
 
 %i0 = "test.op"(): () -> i32
 %i1 = "test.op"(): () -> i32
 %i2 = arith.muli %i0, %i1: i32
+"test.op"(%i2) : (i32) -> ()
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i0 = "test.op"() : () -> i32
 // CHECK-NEXT:   %i1 = "test.op"() : () -> i32
-// CHECK-NEXT:   %i0_1 = builtin.unrealized_conversion_cast %i0 : i32 to !x86.reg
-// CHECK-NEXT:   %i1_1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
-// CHECK-NEXT:   %i2 = x86.ds.mov %i1_1 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_1 = x86.rs.imul %i2, %i0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2_1 : !x86.reg to i32
+// CHECK-NEXT:   %i0_1 = asm.to_reg %i0 : i32 -> !x86.reg32
+// CHECK-NEXT:   %i1_1 = asm.to_reg %i1 : i32 -> !x86.reg32
+// CHECK-NEXT:   %i1_2 = x86.ds.mov %i1_1 : (!x86.reg32) -> !x86.reg32
+// CHECK-NEXT:   %i2 = x86.rs.imul %i1_2, %i0_1 : (!x86.reg32, !x86.reg32) -> !x86.reg32
+// CHECK-NEXT:   %i2_1 = asm.from_reg %i2 : !x86.reg32 -> i32
+// CHECK-NEXT:   "test.op"(%i2_1) : (i32) -> ()
 // CHECK-NEXT: }
 
 // -----
@@ -43,50 +48,59 @@
 %i0 = "test.op"(): () -> tensor<2xi32>
 %i1 = "test.op"(): () -> tensor<2xi32>
 %i2 = arith.muli %i0,%i1: tensor<2xi32>
+"test.op"(%i2) : (tensor<2xi32>) -> ()
 
 // -----
 
-// CHECK: Not implemented for bitwidth larger than 64
+// CHECK: Error while applying pattern: Register type for type i128 not supported.
 %i0 = "test.op"(): () -> i128
 %i1 = "test.op"(): () -> i128
 %i2 = arith.addi %i0,%i1: i128
+"test.op"(%i2) : (i128) -> ()
 
 // -----
 
 // CHECK: Lowering of arith.constant is only implemented for integers
 %c = arith.constant 1.0: f32
+"test.op"(%c) : (f32) -> ()
 
 // -----
 
 %c = arith.constant 1: i32
+"test.op"(%c) : (i32) -> ()
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
-// CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to i32
+// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg32
+// CHECK-NEXT:   %c_1 = asm.from_reg %c : !x86.reg32 -> i32
+// CHECK-NEXT:   "test.op"(%c_1) : (i32) -> ()
 // CHECK-NEXT: }
 
 // -----
 
 %c = arith.constant 1: index
+"test.op"(%c) : (index) -> ()
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
-// CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to index
+// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg64
+// CHECK-NEXT:   %c_1 = asm.from_reg %c : !x86.reg64 -> index
+// CHECK-NEXT:   "test.op"(%c_1) : (index) -> ()
 // CHECK-NEXT: }
 
 // -----
 
 // CHECK:         %f0, %f1 = "test.op"() : () -> (f32, f32)
 %f0, %f1 = "test.op"(): () -> (f32, f32)
-// CHECK-NEXT:    %f0_1 = builtin.unrealized_conversion_cast %f0 : f32 to !x86.reg
-// CHECK-NEXT:    %f1_1 = builtin.unrealized_conversion_cast %f1 : f32 to !x86.reg
-// CHECK-NEXT:    %addf = x86.ds.mov %f1_1 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:    %addf_1 = x86.rs.fadd %addf, %f0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:    %addf_2 = builtin.unrealized_conversion_cast %addf_1 : !x86.reg to f32
+// CHECK-NEXT:    %f0_1 = asm.to_reg %f0 : f32 -> !x86.reg32
+// CHECK-NEXT:    %f1_1 = asm.to_reg %f1 : f32 -> !x86.reg32
+// CHECK-NEXT:    %f1_2 = x86.ds.mov %f1_1 : (!x86.reg32) -> !x86.reg32
+// CHECK-NEXT:    %addf = x86.rs.fadd %f1_2, %f0_1 : (!x86.reg32, !x86.reg32) -> !x86.reg32
+// CHECK-NEXT:    %addf_1 = asm.from_reg %addf : !x86.reg32 -> f32
 %addf = arith.addf %f0, %f1: f32
-// CHECK-NEXT:    %f0_2 = builtin.unrealized_conversion_cast %f0 : f32 to !x86.reg
-// CHECK-NEXT:    %f1_2 = builtin.unrealized_conversion_cast %f1 : f32 to !x86.reg
-// CHECK-NEXT:    %mulf = x86.ds.mov %f1_2 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:    %mulf_1 = x86.rs.fmul %mulf, %f0_2 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:    %mulf_2 = builtin.unrealized_conversion_cast %mulf_1 : !x86.reg to f32
+// CHECK-NEXT:    %f0_2 = asm.to_reg %f0 : f32 -> !x86.reg32
+// CHECK-NEXT:    %f1_3 = asm.to_reg %f1 : f32 -> !x86.reg32
+// CHECK-NEXT:    %f1_4 = x86.ds.mov %f1_3 : (!x86.reg32) -> !x86.reg32
+// CHECK-NEXT:    %mulf = x86.rs.fmul %f1_4, %f0_2 : (!x86.reg32, !x86.reg32) -> !x86.reg32
+// CHECK-NEXT:    %mulf_1 = asm.from_reg %mulf : !x86.reg32 -> f32
 %mulf = arith.mulf %f0, %f1: f32
+"test.op"(%addf, %mulf) : (f32, f32) -> ()
+// CHECK-NEXT:    "test.op"(%addf_1, %mulf_1) : (f32, f32) -> ()

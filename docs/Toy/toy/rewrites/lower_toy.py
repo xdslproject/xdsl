@@ -61,12 +61,12 @@ def insert_alloc_and_dealloc(
 
     # Make sure to allocate at the beginning of the block.
     alloc = memref.AllocOp.get(type.element_type, None, type.shape)
-    rewriter.insert_op(alloc, InsertPoint.at_start(block))
+    rewriter.insert(alloc, InsertPoint.at_start(block))
 
     # Make sure to deallocate this alloc at the end of the block. This is fine as toy
     # functions have no control flow.
     dealloc = memref.DeallocOp.get(alloc)
-    rewriter.insert_op(dealloc, InsertPoint.before(block.last_op))
+    rewriter.insert(dealloc, InsertPoint.before(block.last_op))
 
     return alloc
 
@@ -309,8 +309,8 @@ def lower_op_to_loops(
     )
     # Replace this operation with the generated alloc.
 
-    op.res.replace_by(alloc.memref)
-    rewriter.erase_matched_op()
+    op.res.replace_all_uses_with(alloc.memref)
+    rewriter.erase(op)
 
 
 # endregion Helpers
@@ -382,10 +382,10 @@ class ConstantOpLowering(RewritePattern):
         ]
 
         # Insert constants used before the alloc, not before matched operation
-        rewriter.insert_op(constants, InsertPoint.before(alloc))
+        rewriter.insert(constants, InsertPoint.before(alloc))
 
         # Replace the constant by the stores, and its result by the allocated value
-        rewriter.replace_matched_op(stores, (alloc.memref,))
+        rewriter.replace(op, stores, (alloc.memref,))
 
 
 class FuncOpLowering(RewritePattern):
@@ -408,13 +408,14 @@ class FuncOpLowering(RewritePattern):
             name, op.function_type, rewriter.move_region_contents_to_new_regions(region)
         )
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace(op, new_op)
 
 
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        assert isinstance(shaped_type := op.input.type, ShapedType)
+        shaped_type = op.input.type
+        assert isinstance(shaped_type, ShapedType)
         shape = shaped_type.get_shape()
 
         format_str = "{}"
@@ -425,7 +426,7 @@ class PrintOpLowering(RewritePattern):
         new_vals: list[SSAValue] = []
 
         for indices in product(*(range(dim) for dim in shape)):
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert(
                 load := affine.LoadOp(
                     op.input,
                     (),
@@ -434,7 +435,7 @@ class PrintOpLowering(RewritePattern):
             )
             new_vals.append(load.result)
 
-        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
+        rewriter.replace(op, printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):
@@ -444,7 +445,7 @@ class ReturnOpLowering(RewritePattern):
             "During this lowering, we expect that all function calls have been inlined."
         )
 
-        rewriter.replace_matched_op(func.ReturnOp())
+        rewriter.replace(op, func.ReturnOp())
 
 
 class TransposeOpLowering(RewritePattern):

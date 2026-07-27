@@ -1,9 +1,8 @@
-from xdsl.dialects import arith
+from xdsl.dialects import arith, csl
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     IntegerAttr,
 )
-from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
 from xdsl.ir.affine import AffineMap
 from xdsl.pattern_rewriter import (
@@ -41,7 +40,8 @@ class GetDsdAndOffsetFolding(RewritePattern):
             )
             if op.tensor_access:
                 tensor_access = tensor_access.compose(op.tensor_access.data)
-            rewriter.replace_matched_op(
+            rewriter.replace(
+                op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
@@ -49,9 +49,9 @@ class GetDsdAndOffsetFolding(RewritePattern):
                         **op.properties,
                         "tensor_access": AffineMapAttr(tensor_access),
                     },
-                )
+                ),
             )
-            rewriter.replace_op(offset_op, [], new_results=[new_op.result])
+            rewriter.replace(offset_op, [], new_results=[new_op.result])
 
 
 class GetDsdAndLengthFolding(RewritePattern):
@@ -70,7 +70,7 @@ class GetDsdAndLengthFolding(RewritePattern):
         if len(op.sizes) > 1:
             return
 
-        rewriter.replace_op(
+        rewriter.replace(
             size_op,
             csl.GetMemDsdOp.build(
                 operands=[op.base_addr, [size_op.length]],
@@ -78,7 +78,7 @@ class GetDsdAndLengthFolding(RewritePattern):
                 properties=op.properties.copy(),
             ),
         )
-        rewriter.erase_matched_op()
+        rewriter.erase(op)
 
 
 class GetDsdAndStrideFolding(RewritePattern):
@@ -106,7 +106,8 @@ class GetDsdAndStrideFolding(RewritePattern):
             tensor_access = AffineMap.from_callable(
                 lambda x: (x * attr_val.value.data,)
             )
-            rewriter.replace_matched_op(
+            rewriter.replace(
+                op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
@@ -114,9 +115,9 @@ class GetDsdAndStrideFolding(RewritePattern):
                         **op.properties,
                         "tensor_access": AffineMapAttr(tensor_access),
                     },
-                )
+                ),
             )
-            rewriter.replace_op(stride_op, [], new_results=[new_op.result])
+            rewriter.replace(stride_op, [], new_results=[new_op.result])
 
 
 class ChainedDsdOffsetFolding(RewritePattern):
@@ -136,7 +137,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
 
         # check if we can promote arith.const to property
         if op.elem_type == next_op.elem_type:
-            rewriter.replace_op(
+            rewriter.replace(
                 next_op,
                 [
                     new_offset := arith.AddiOp(op.offset, next_op.offset),
@@ -147,7 +148,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
                     ),
                 ],
             )
-            rewriter.erase_matched_op()
+            rewriter.erase(op)
 
 
 class ChainedDsdLengthFolding(RewritePattern):
@@ -166,14 +167,15 @@ class ChainedDsdLengthFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             rebuilt := csl.SetDsdLengthOp(
                 operands=[op.op, next_op.length],
                 properties=op.properties.copy(),
                 result_types=op.result_types,
             ),
         )
-        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
+        rewriter.replace(next_op, [], new_results=[rebuilt.result])
 
 
 class ChainedDsdStrideFolding(RewritePattern):
@@ -192,11 +194,12 @@ class ChainedDsdStrideFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_matched_op(
+        rewriter.replace(
+            op,
             rebuilt := csl.SetDsdStrideOp(
                 operands=[op.op, next_op.stride],
                 properties=op.properties.copy(),
                 result_types=op.result_types,
-            )
+            ),
         )
-        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
+        rewriter.replace(next_op, [], new_results=[rebuilt.result])

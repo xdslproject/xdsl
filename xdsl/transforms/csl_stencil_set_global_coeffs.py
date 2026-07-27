@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, memref, stencil
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, memref, stencil
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, ModuleOp, f32
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -164,7 +163,7 @@ class GenerateCoeffAPICalls(RewritePattern):
         assert main_fn.sym_name == op.program_name, "Apply must be in the main function"
 
         coeffs_api_call_ops = get_coeff_api_ops(applies[0], op)
-        rewriter.insert_op(coeffs_api_call_ops, InsertPoint.before(op_in_main_fn))
+        rewriter.insert(coeffs_api_call_ops, InsertPoint.before(op_in_main_fn))
 
         # delete coefficients from apply ops
         for apply in applies:

@@ -19,10 +19,8 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.vector import (
     BroadcastOp,
     CreateMaskOp,
-    ExtractElementOp,
     ExtractOp,
     FMAOp,
-    InsertElementOp,
     InsertOp,
     LoadOp,
     MaskedLoadOp,
@@ -450,67 +448,6 @@ def test_vector_create_mask_verify_indexing_exception():
         create_mask.verify()
 
 
-def test_vector_extract_element_verify_vector_rank_0_or_1():
-    vector_type = VectorType(IndexType(), [3, 3])
-
-    vector = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-    extract_element = ExtractElementOp(vector, position)
-
-    with pytest.raises(Exception, match="Unexpected >1 vector rank."):
-        extract_element.verify()
-
-
-def test_vector_extract_element_construction_1d():
-    vector_type = VectorType(IndexType(), [3])
-
-    vector = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-
-    extract_element = ExtractElementOp(vector, position)
-
-    assert extract_element.vector is vector
-    assert extract_element.position is position
-    assert extract_element.result.type == vector_type.element_type
-
-
-def test_vector_extract_element_1d_verify_non_empty_position():
-    vector_type = VectorType(IndexType(), [3])
-
-    vector = create_ssa_value(vector_type)
-
-    extract_element = ExtractElementOp(vector)
-
-    with pytest.raises(Exception, match="Expected position for 1-D vector."):
-        extract_element.verify()
-
-
-def test_vector_extract_element_construction_0d():
-    vector_type = VectorType(IndexType(), [])
-
-    vector = create_ssa_value(vector_type)
-
-    extract_element = ExtractElementOp(vector)
-
-    assert extract_element.vector is vector
-    assert extract_element.position is None
-    assert extract_element.result.type == vector_type.element_type
-
-
-def test_vector_extract_element_0d_verify_empty_position():
-    vector_type = VectorType(IndexType(), [])
-
-    vector = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-
-    extract_element = ExtractElementOp(vector, position)
-
-    with pytest.raises(
-        Exception, match="Expected position to be empty with 0-D vector."
-    ):
-        extract_element.verify()
-
-
 def test_vector_extract():
     vector_type = VectorType(i32, [1, 2, 3, 4])
     vector = create_ssa_value(vector_type)
@@ -531,79 +468,6 @@ def test_vector_extract():
         extract.DYNAMIC_INDEX,
     )
     assert extract.result.type == i32
-
-
-def test_vector_insert_element_verify_vector_rank_0_or_1():
-    vector_type = VectorType(IndexType(), [3, 3])
-
-    source = create_ssa_value(IndexType())
-    dest = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-
-    insert_element = InsertElementOp(source, dest, position)
-
-    with pytest.raises(Exception, match="Unexpected >1 vector rank."):
-        insert_element.verify()
-
-
-def test_vector_insert_element_construction_1d():
-    vector_type = VectorType(IndexType(), [3])
-
-    source = create_ssa_value(IndexType())
-    dest = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-
-    insert_element = InsertElementOp(source, dest, position)
-
-    assert insert_element.source is source
-    assert insert_element.dest is dest
-    assert insert_element.position is position
-    assert insert_element.result.type == vector_type
-
-
-def test_vector_insert_element_1d_verify_non_empty_position():
-    vector_type = VectorType(IndexType(), [3])
-
-    source = create_ssa_value(IndexType())
-    dest = create_ssa_value(vector_type)
-
-    insert_element = InsertElementOp(source, dest)
-
-    with pytest.raises(
-        Exception,
-        match="Expected position for 1-D vector.",
-    ):
-        insert_element.verify()
-
-
-def test_vector_insert_element_construction_0d():
-    vector_type = VectorType(IndexType(), [])
-
-    source = create_ssa_value(IndexType())
-    dest = create_ssa_value(vector_type)
-
-    insert_element = InsertElementOp(source, dest)
-
-    assert insert_element.source is source
-    assert insert_element.dest is dest
-    assert insert_element.position is None
-    assert insert_element.result.type == vector_type
-
-
-def test_vector_insert_element_0d_verify_empty_position():
-    vector_type = VectorType(IndexType(), [])
-
-    source = create_ssa_value(IndexType())
-    dest = create_ssa_value(vector_type)
-    position = create_ssa_value(IndexType())
-
-    insert_element = InsertElementOp(source, dest, position)
-
-    with pytest.raises(
-        Exception,
-        match="Expected position to be empty with 0-D vector.",
-    ):
-        insert_element.verify()
 
 
 def test_vector_insert():
