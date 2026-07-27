@@ -58,16 +58,16 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-IntegerType: TypeAlias = I32 | I64
-"""Type alias for integer numeric types that are supported by WebAssembly"""
-FPType: TypeAlias = Float32Type | Float64Type
-"""Type alias for floating-point numeric types that are supported by WebAssembly"""
-NumericType: TypeAlias = IntegerType | FPType
+WasmIntegerType: TypeAlias = I32 | I64
+"""Type alias for integer types that are supported by WebAssembly"""
+WasmFPType: TypeAlias = Float32Type | Float64Type
+"""Type alias for floating-point types that are supported by WebAssembly"""
+NumericType: TypeAlias = WasmIntegerType | WasmFPType
 """Type alias for numeric types that are supported by WebAssembly"""
 ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
 
-_NumericTypeT = TypeVar("_NumericTypeT", bound=NumericType, default=NumericType)
+_NumericTypeInvT = TypeVar("_NumericTypeInvT", bound=NumericType, default=NumericType)
 
 
 @irdl_attr_definition
@@ -150,13 +150,13 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
-class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeT]):
+class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
     """Base class for binary WebAssembly numeric operations."""
 
     T: ClassVar = VarConstraint(
         "T",
         TypeVarConstraint(
-            _NumericTypeT,
+            _NumericTypeInvT,
             irdl_to_attr_constraint(NumericType),
         ),
     )
@@ -177,7 +177,7 @@ class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeT]):
 
 
 @irdl_op_definition
-class AddOp(BinaryNumericalOperation[NumericType]):
+class AddOp(BinaryNumericalOperation):
     """Sum two WebAssembly numeric values."""
 
     name = "wasmssa.add"
@@ -186,7 +186,7 @@ class AddOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class AndOp(BinaryNumericalOperation[NumericType]):
+class AndOp(BinaryNumericalOperation):
     """Compute the bitwise AND between two values."""
 
     name = "wasmssa.and"
@@ -195,7 +195,7 @@ class AndOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class DivOp(BinaryNumericalOperation[FPType]):
+class DivOp(BinaryNumericalOperation[WasmFPType]):
     """Divide two floating-point values."""
 
     name = "wasmssa.div"
@@ -204,7 +204,7 @@ class DivOp(BinaryNumericalOperation[FPType]):
 
 
 @irdl_op_definition
-class DivUIOp(BinaryNumericalOperation[IntegerType]):
+class DivUIOp(BinaryNumericalOperation[WasmIntegerType]):
     """Divide two values interpreted as unsigned integers."""
 
     name = "wasmssa.div_ui"
@@ -213,7 +213,7 @@ class DivUIOp(BinaryNumericalOperation[IntegerType]):
 
 
 @irdl_op_definition
-class DivSIOp(BinaryNumericalOperation[IntegerType]):
+class DivSIOp(BinaryNumericalOperation[WasmIntegerType]):
     """Divide two values interpreted as signed integers."""
 
     name = "wasmssa.div_si"
@@ -222,7 +222,7 @@ class DivSIOp(BinaryNumericalOperation[IntegerType]):
 
 
 @irdl_op_definition
-class MulOp(BinaryNumericalOperation[NumericType]):
+class MulOp(BinaryNumericalOperation):
     """Multiply two values."""
 
     name = "wasmssa.mul"
@@ -231,7 +231,7 @@ class MulOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class OrOp(BinaryNumericalOperation[NumericType]):
+class OrOp(BinaryNumericalOperation):
     """Compute the bitwise OR between two values."""
 
     name = "wasmssa.or"
@@ -240,7 +240,7 @@ class OrOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class SubOp(BinaryNumericalOperation[NumericType]):
+class SubOp(BinaryNumericalOperation):
     """Subtract two values."""
 
     name = "wasmssa.sub"
@@ -249,7 +249,7 @@ class SubOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class RemUIOp(BinaryNumericalOperation[IntegerType]):
+class RemUIOp(BinaryNumericalOperation[WasmIntegerType]):
     """Compute the unsigned integer remainder of two values."""
 
     name = "wasmssa.rem_ui"
@@ -258,7 +258,7 @@ class RemUIOp(BinaryNumericalOperation[IntegerType]):
 
 
 @irdl_op_definition
-class RemSIOp(BinaryNumericalOperation[IntegerType]):
+class RemSIOp(BinaryNumericalOperation[WasmIntegerType]):
     """Compute the signed integer remainder of two values."""
 
     name = "wasmssa.rem_si"
@@ -267,7 +267,7 @@ class RemSIOp(BinaryNumericalOperation[IntegerType]):
 
 
 @irdl_op_definition
-class XOrOp(BinaryNumericalOperation[NumericType]):
+class XOrOp(BinaryNumericalOperation):
     """Compute the bitwise XOR between two values."""
 
     name = "wasmssa.xor"
@@ -276,7 +276,7 @@ class XOrOp(BinaryNumericalOperation[NumericType]):
 
 
 @irdl_op_definition
-class MinOp(BinaryNumericalOperation[FPType]):
+class MinOp(BinaryNumericalOperation[WasmFPType]):
     """Compute the minimum of two floating-point values."""
 
     name = "wasmssa.min"
@@ -285,7 +285,7 @@ class MinOp(BinaryNumericalOperation[FPType]):
 
 
 @irdl_op_definition
-class MaxOp(BinaryNumericalOperation[FPType]):
+class MaxOp(BinaryNumericalOperation[WasmFPType]):
     """Compute the maximum of two floating-point values."""
 
     name = "wasmssa.max"
@@ -294,7 +294,7 @@ class MaxOp(BinaryNumericalOperation[FPType]):
 
 
 @irdl_op_definition
-class CopySignOp(BinaryNumericalOperation[FPType]):
+class CopySignOp(BinaryNumericalOperation[WasmFPType]):
     """Copy the sign of the second floating-point value to the first."""
 
     name = "wasmssa.copysign"
