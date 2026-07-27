@@ -64,6 +64,20 @@
     // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
     // CHECK-NEXT: %{{.*}} = affine.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<2x3xf64>
 
+    %vmemref = "test.op"() : () -> memref<2x3xf64>
+    %vvalue = "test.op"() : () -> vector<2xf64>
+    %one = "test.op"() : () -> index
+    affine.vector_store %vvalue, %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vloaded = affine.vector_load %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vnested = affine.vector_load %vmemref[%zero + 3, %zero * 2 + %one * 5] : memref<2x3xf64>, vector<2xf64>
+
+    // CHECK:      %{{.*}} = "test.op"() : () -> memref<2x3xf64>
+    // CHECK-NEXT: %{{.*}} = "test.op"() : () -> vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = "test.op"() : () -> index
+    // CHECK-NEXT: affine.vector_store %{{.*}}, %{{.*}}[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%{{.*}} + 3, %{{.*}} * 2 + %{{.*}} * 5] : memref<2x3xf64>, vector<2xf64>
+
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     ^bb2(%arg0: index):
