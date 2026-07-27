@@ -1,5 +1,6 @@
 import abc
-from collections.abc import Iterator, Sequence
+from collections import Counter
+from collections.abc import Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import NamedTuple
 
@@ -7,7 +8,7 @@ from typing_extensions import deprecated
 
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
-from xdsl.ir import Operation, Region, SSAValue
+from xdsl.ir import Operation, OpResult, Region, SSAValue, SSAValueCovT
 from xdsl.irdl import traits_def
 from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import VerifyException
@@ -77,16 +78,45 @@ class RegisterConstraints(NamedTuple):
     """
 
     ins: Sequence[SSAValue]
-    outs: Sequence[SSAValue]
-    inouts: Sequence[Sequence[SSAValue]]
+    outs: Sequence[OpResult]
+    inouts: Sequence[tuple[SSAValue, OpResult]]
+
+
+def _verify_declared_once(
+    op_name: str,
+    kind: str,
+    values: Sequence[SSAValueCovT],
+    declared: Mapping[SSAValueCovT, int],
+    roles: str,
+) -> None:
+    """
+    Verify that each of `values` is declared as many times as it occurs.
+    Counting occurrences rather than testing membership lets a value taking several
+    roles be declared once per role, as when an operation reads a value and also
+    clobbers it.
+    """
+    occurrences = Counter(values)
+    if declared == occurrences:
+        return
+    for index, value in enumerate(values):
+        if declared[value] != occurrences[value]:
+            raise VerifyException(
+                f"Operation {op_name} {kind} at index {index} is declared "
+                f"{declared[value]} times as {roles}, expected {occurrences[value]}."
+            )
+    raise VerifyException(
+        f"Operation {op_name} declares values as {roles} that it does not use as "
+        f"{kind}s."
+    )
 
 
 class HasRegisterConstraintsTrait(OpTrait):
     """
     Trait that verifies that the operation implements HasRegisterConstraints, and that
-    its inout operands are used only once.
-    Using an inout operand more than once breaks SSA, as the register will hold an
-    unexpected value after being mutated by this operation.
+    its constraints account for each operand and result as many times as it occurs.
+    An operand is declared by `ins` or `inouts`, a result by `outs` or `inouts`. A value
+    occupying several operands is declared once per operand, so an operation may read a
+    value as an `in` register and also clobber it as an `inout` register.
     """
 
     def verify(self, op: Operation) -> None:
@@ -94,6 +124,21 @@ class HasRegisterConstraintsTrait(OpTrait):
             raise VerifyException(
                 f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
             )
+        ins, outs, inouts = op.get_register_constraints()
+
+        declared_operands = Counter(ins)
+        declared_results = Counter(outs)
+        # A value cannot be both an operand and a result of the same operation, so
+        # membership tells which side of the constraint each inout value belongs to.
+        for operand, result in inouts:
+            declared_operands[operand] += 1
+            declared_results[result] += 1
+        _verify_declared_once(
+            op.name, "operand", op.operands, declared_operands, "`in` or `inout`"
+        )
+        _verify_declared_once(
+            op.name, "result", op.results, declared_results, "`out` or `inout`"
+        )
 
 
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
