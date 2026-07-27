@@ -50,6 +50,7 @@ from xdsl.ir.affine import (
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -2134,15 +2135,15 @@ class VectorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[AttributeCovT] | None = None,
+        element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         *,
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
-    ) -> AttrConstraint[VectorType[AttributeCovT]]:
+    ) -> AttrConstraint[VectorType[AttributeInvT]]:
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
         return cast(
-            AttrConstraint[VectorType[AttributeCovT]],
+            AttrConstraint[VectorType[AttributeInvT]],
             ParamAttrConstraint.get(
                 VectorType,
                 element_type,
@@ -2238,6 +2239,14 @@ class UnrankedTensorType(
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
+
+
+def container_of(
+    constr: IRDLAttrConstraint[AttributeInvT],
+) -> AttrConstraint[
+    AttributeInvT | VectorType[AttributeInvT] | TensorType[AttributeInvT]
+]:
+    return AnyOf.get(constr, VectorType.constr(constr), TensorType.constr(constr))
 
 
 @dataclass(frozen=True, init=False)
