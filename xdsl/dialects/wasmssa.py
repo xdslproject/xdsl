@@ -54,9 +54,7 @@ RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
 NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
 """Type alias for numeric types that are supported by WebAssembly"""
-ValType: TypeAlias = (
-    I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
-)
+ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
 
 _NumericTypeConstr = irdl_to_attr_constraint(NumericType)
