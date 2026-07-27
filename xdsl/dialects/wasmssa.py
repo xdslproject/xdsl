@@ -28,7 +28,6 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
-    irdl_to_attr_constraint,
     prop_def,
     result_def,
 )
@@ -60,8 +59,6 @@ NumericType: TypeAlias = I32 | I64 | Float32Type | Float64Type
 """Type alias for numeric types that are supported by WebAssembly"""
 ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
-
-_NumericTypeConstr = irdl_to_attr_constraint(NumericType)
 
 
 @irdl_attr_definition
@@ -150,7 +147,7 @@ class ConstOp(IRDLOperation):
 
     name = "wasmssa.const"
 
-    T: ClassVar = VarConstraint("T", _NumericTypeConstr)
+    T: ClassVar = VarConstraint.get("T", NumericType)
 
     value = prop_def(
         ParamAttrConstraint(IntegerAttr, (AnyAttr(), T))
