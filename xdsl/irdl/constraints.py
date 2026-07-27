@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Generic,
-    TypeAlias,
     TypeGuard,
     cast,
     get_origin,
@@ -20,7 +19,6 @@ from xdsl.ir import (
     AttributeCovT,
     AttributeInvT,
     ParametrizedAttribute,
-    TypedAttribute,
 )
 from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
@@ -82,11 +80,6 @@ class ConstraintContext:
 _AttributeCovT = TypeVar(
     "_AttributeCovT", bound=Attribute, default=Attribute, covariant=True
 )
-
-ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute] | int
-"""
-Possible types that a constraint variable can have.
-"""
 
 
 @dataclass(frozen=True)
@@ -179,15 +172,6 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         raise NotImplementedError(
             "Custom constraints must map type vars in nested constraints, if any."
         )
-
-
-ConstraintVariableTypeT = TypeVar(
-    "ConstraintVariableTypeT", bound=ConstraintVariableType
-)
-
-
-TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covariant=True)
-TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
 
 @dataclass(frozen=True)
