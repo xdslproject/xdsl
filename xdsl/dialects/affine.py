@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
-    RankedStructure,
     StringAttr,
     VectorType,
 )
@@ -369,7 +368,7 @@ def _map_or_identity_attr(
 ) -> AffineMapAttr:
     """
     Creates an `AffineMapAttr` from a provided `AffineMap`, or the identity
-    inferred from the rank of the type of the SSAValue being accessed.
+    inferred from the rank of the memref being accessed.
     """
     if isinstance(map, AffineMapAttr):
         return map
@@ -377,13 +376,13 @@ def _map_or_identity_attr(
     if isinstance(map, AffineMap):
         return AffineMapAttr(map)
 
-    if not isa(accessing, SSAValue[RankedStructure]):
+    if not isa(accessing, MemRefType):
         raise ValueError(
             "Cannot create a default affine map from a "
-            + f" non-ranked type: {accessing.name}"
+            + f" non-memref type: {accessing.name}"
         )
 
-    rank = accessing.type.get_num_dims()
+    rank = accessing.get_num_dims()
     return AffineMapAttr(AffineMap.identity(rank))
 
 
