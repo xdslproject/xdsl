@@ -335,7 +335,7 @@ def _print_affine_map_of_ssa_ids(
 
 def _parse_affine_memref_access(
     parser: Parser,
-) -> tuple[UnresolvedOperand, AffineMap, Sequence[SSAValue], Attribute]:
+) -> tuple[UnresolvedOperand, AffineMap, Sequence[SSAValue], MemRefType]:
     """
     Parses `%memref[<affine-map-of-ssa-ids>] : <type>`.
     """
@@ -343,6 +343,10 @@ def _parse_affine_memref_access(
     affine_map, indices = parser.parse_affine_map_of_ssa_ids()
     parser.parse_punctuation(":")
     memref_type = parser.parse_type()
+
+    if not isa(memref_type, MemRefType):
+        parser.raise_error("Expected memref type")
+
     return memref, affine_map, indices, memref_type
 
 
@@ -398,13 +402,8 @@ class StoreOp(IRDLOperation):
 
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
 
-        if not isinstance(memref_type, MemRefType):
-            parser.raise_error("Expected memref type")
-
-        memref_type = cast(MemRefType, memref_type)
-
         resolved_memref = parser.resolve_operand(memref, memref_type)
-        resolved_value = parser.resolve_operand(value, memref_type.element_type)
+        resolved_value = parser.resolve_operand(value, memref_type.get_element_type())
 
         return StoreOp(
             resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
@@ -471,10 +470,7 @@ class LoadOp(IRDLOperation):
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
         resolved_memref = parser.resolve_operand(memref, memref_type)
 
-        if not isinstance(memref_type, MemRefType):
-            parser.raise_error("Expected memref type")
-
-        result_type = cast(MemRefType, memref_type).element_type
+        result_type = memref_type.get_element_type()
 
         return LoadOp(resolved_memref, indices, AffineMapAttr(affine_map), result_type)
 
