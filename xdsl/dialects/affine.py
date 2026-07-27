@@ -399,12 +399,9 @@ class StoreOp(IRDLOperation):
     def parse(cls, parser: Parser) -> StoreOp:
         value = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
-
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-
         resolved_memref = parser.resolve_operand(memref, memref_type)
         resolved_value = parser.resolve_operand(value, memref_type.get_element_type())
-
         return StoreOp(
             resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
         )
