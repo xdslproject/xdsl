@@ -9,11 +9,11 @@ builtin.module {
 
   // CHECK: %i32_sum = wasmssa.add %i32 %i32 : i32
   %i32_sum = wasmssa.add %i32 %i32 : i32
-  // CHECK: %i64_sum = wasmssa.add %i64 %i64 : i64
+  // CHECK-NEXT: %i64_sum = wasmssa.add %i64 %i64 : i64
   %i64_sum = wasmssa.add %i64 %i64 : i64
-  // CHECK: %f32_sum = wasmssa.add %f32 %f32 : f32
+  // CHECK-NEXT: %f32_sum = wasmssa.add %f32 %f32 : f32
   %f32_sum = wasmssa.add %f32 %f32 : f32
-  // CHECK: %f64_sum = wasmssa.add %f64 %f64 : f64
+  // CHECK-NEXT: %f64_sum = wasmssa.add %f64 %f64 : f64
   %f64_sum = wasmssa.add %f64 %f64 : f64
 }
 
