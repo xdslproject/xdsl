@@ -30,9 +30,11 @@ from xdsl.irdl import (
     irdl_op_definition,
     prop_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import OpTrait
 
 
 @irdl_attr_definition
@@ -141,6 +143,10 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
+class ConstantExprOpTrait(OpTrait):
+    """Operations implementing this trait are considered valid constant expressions in any context."""
+
+
 @irdl_op_definition
 class ConstOp(IRDLOperation):
     """Define a WebAssembly numeric constant."""
@@ -154,6 +160,8 @@ class ConstOp(IRDLOperation):
         | ParamAttrConstraint(FloatAttr, (AnyAttr(), T))
     )
     result = result_def(T)
+
+    traits = traits_def(ConstantExprOpTrait())
 
     assembly_format = "$value attr-dict"
 
@@ -172,6 +180,8 @@ class GlobalGetOp(IRDLOperation):
 
     global_ = prop_def(FlatSymbolRefAttrConstr, prop_name="global")
     global_val = result_def(ValType)
+
+    traits = traits_def(ConstantExprOpTrait())
 
     assembly_format = "$global attr-dict `:` type($global_val)"
 

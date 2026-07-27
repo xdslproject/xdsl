@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     i128,
 )
 from xdsl.dialects.wasmssa import (
+    ConstantExprOpTrait,
     ConstOp,
     ExternRefType,
     FuncRefType,
@@ -18,6 +19,11 @@ from xdsl.dialects.wasmssa import (
 )
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
+
+
+def test_constant_expression_ops_have_trait():
+    assert ConstOp(IntegerAttr(1, i32)).has_trait(ConstantExprOpTrait)
+    assert GlobalGetOp("global", i32).has_trait(ConstantExprOpTrait)
 
 
 @pytest.mark.parametrize(
