@@ -15,11 +15,9 @@ from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.builder import Builder
-from xdsl.dialects.test import TestOp, TestRegisterType
+from xdsl.dialects.test import TestAllocatableOp, TestOp, TestRegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    AttrSizedResultSegments,
     IRDLOperation,
     VarConstraint,
     base,
@@ -69,37 +67,6 @@ class TestAliasRegisterB(RegisterType):
         return "test.alias_pool"
 
 
-@irdl_op_definition
-class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
-    name = "test.allocatable"
-
-    in_operands = var_operand_def()
-    inout_operands = var_operand_def()
-    out_results = var_result_def()
-    inout_results = var_result_def()
-
-    traits = traits_def(RegisterAllocatedMemoryEffect())
-
-    irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
-
-    def __init__(
-        self,
-        in_operands: Sequence[SSAValue],
-        inout_operands: Sequence[SSAValue],
-        out_result_types: Sequence[Attribute],
-        inout_result_types: Sequence[Attribute],
-    ):
-        super().__init__(
-            operands=(in_operands, inout_operands),
-            result_types=(out_result_types, inout_result_types),
-        )
-
-    def get_register_constraints(self) -> RegisterConstraints:
-        return RegisterConstraints(
-            self.in_operands,
-            self.out_results,
-            tuple(zip(self.inout_operands, self.inout_results)),
-        )
 
 
 def op(
