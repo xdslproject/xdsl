@@ -89,8 +89,11 @@ class VerifyLivenessContext(LivenessContext):
         the case of duplicate inout or use after using as inout operand.
         """
         if duplicate_inout:
+            name_string = (
+                f"Value %{value.name_hint}" if value.name_hint is not None else "Value"
+            )
             op.emit_error(
-                f"{value.name_hint} is used by more than one in/out operand",
+                name_string + " is used by more than one in/out operand",
                 VerifyException(),
             )
         op.emit_error(
