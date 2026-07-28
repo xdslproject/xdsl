@@ -24,6 +24,7 @@ from xdsl.irdl import (
     Block,
     Operand,
     Operation,
+    OptOperand,
     Region,
     SSAValue,
     irdl_op_definition,
@@ -64,9 +65,9 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
 
 class ForRofOperation(X86HasRegisterConstraints, ABC):
     lb: Operand = operand_def(GeneralRegisterType)
-    ub_val = opt_operand_def(GeneralRegisterType)
+    ub_val: OptOperand = opt_operand_def(GeneralRegisterType)
     ub_attr = opt_prop_def(IntegerAttr[SI32])
-    step_val = opt_operand_def(GeneralRegisterType)
+    step_val: OptOperand = opt_operand_def(GeneralRegisterType)
     step_attr = opt_prop_def(IntegerAttr[SI32])
 
     iter_args = var_operand_def(X86RegisterType)

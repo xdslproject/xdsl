@@ -27,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    OptOperand,
     attr_def,
     base,
     irdl_attr_definition,
@@ -220,7 +221,7 @@ class AllreduceOp(MPIBaseOp):
 
     name = "mpi.allreduce"
 
-    send_buffer = opt_operand_def(Attribute)
+    send_buffer: OptOperand = opt_operand_def(Attribute)
     recv_buffer: Operand = operand_def(Attribute)
     count: Operand = operand_def(i32)
     datatype: Operand = operand_def(DataType)

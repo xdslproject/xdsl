@@ -32,6 +32,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    OptOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -355,7 +356,7 @@ class ReturnOp(IRDLOperation):
 
     name = "fsm.return"
 
-    operand = opt_operand_def(signlessIntegerLike)
+    operand: OptOperand = opt_operand_def(signlessIntegerLike)
 
     traits = traits_def(IsTerminator(), HasParent(TransitionOp))
 

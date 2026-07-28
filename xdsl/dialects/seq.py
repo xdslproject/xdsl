@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParametrizedAttribute,
     VarConstraint,
     attr_def,
@@ -99,9 +100,9 @@ class CompRegOp(IRDLOperation):
     inner_sym = opt_attr_def(InnerSymAttr)
     input: Operand = operand_def(DATA_TYPE)
     clk: Operand = operand_def(clock)
-    reset = opt_operand_def(i1)
-    reset_value = opt_operand_def(DATA_TYPE)
-    power_on_value = opt_operand_def(DATA_TYPE)
+    reset: OptOperand = opt_operand_def(i1)
+    reset_value: OptOperand = opt_operand_def(DATA_TYPE)
+    power_on_value: OptOperand = opt_operand_def(DATA_TYPE)
     data = result_def(DATA_TYPE)
 
     irdl_options = (AttrSizedOperandSegments(),)

@@ -35,6 +35,7 @@ from xdsl.irdl import (
     OpDef,
     Operand,
     OperandDef,
+    OptOperand,
     PropertyDef,
     RangeOf,
     RangeVarConstraint,
@@ -467,7 +468,7 @@ class OperandOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(),)
 
     operand: Operand = operand_def()
-    opt_operand = opt_operand_def()
+    opt_operand: OptOperand = opt_operand_def()
     var_operand = var_operand_def()
 
 
@@ -1030,7 +1031,7 @@ def test_multiple_entry_args_op():
 class OptionlessMultipleVarOp(IRDLOperation):
     name = "test.multiple_var_op"
 
-    optional = opt_operand_def()
+    optional: OptOperand = opt_operand_def()
     variadic = var_operand_def()
 
 

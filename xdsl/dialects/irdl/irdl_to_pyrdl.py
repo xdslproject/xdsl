@@ -58,7 +58,7 @@ class {op.get_py_class_name()}(IRDLOperation):
                     case VariadicityAttr.SINGLE:
                         res += f"    {py_name}: Operand = operand_def()\n"
                     case VariadicityAttr.OPTIONAL:
-                        res += f"    {py_name} = opt_operand_def()\n"
+                        res += f"    {py_name}: OptOperand = opt_operand_def()\n"
                     case VariadicityAttr.VARIADIC:
                         res += f"    {py_name} = var_operand_def()\n"
                     case _:

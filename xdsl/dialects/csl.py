@@ -55,6 +55,7 @@ from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParametrizedAttribute,
     VarConstraint,
     attr_def,
@@ -573,7 +574,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLikeConstr)
+    params: OptOperand = opt_operand_def(StructLikeConstr)
 
     result = result_def(ImportedModuleType)
 
@@ -641,7 +642,7 @@ class ZerosOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
-    size = opt_operand_def(T)
+    size: OptOperand = opt_operand_def(T)
 
     result = result_def(MemRefType.constr(T))
 
@@ -983,7 +984,7 @@ class ReturnOp(IRDLOperation):
 
     name = "csl.return"
 
-    ret_val = opt_operand_def(Attribute)
+    ret_val: OptOperand = opt_operand_def(Attribute)
 
     assembly_format = "attr-dict ($ret_val^ `:` type($ret_val))?"
 
@@ -1073,7 +1074,7 @@ class SetTileCodeOp(IRDLOperation):
 
     x_coord: Operand = operand_def(IntegerType)
     y_coord: Operand = operand_def(IntegerType)
-    params = opt_operand_def(ComptimeStructType)
+    params: OptOperand = opt_operand_def(ComptimeStructType)
 
     def __init__(
         self,
@@ -1784,7 +1785,7 @@ class SymbolExportOp(IRDLOperation):
 
     traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
-    value = opt_operand_def(PtrType)
+    value: OptOperand = opt_operand_def(PtrType)
 
     var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
 
@@ -1999,7 +2000,7 @@ class ParamOp(IRDLOperation):
     traits = traits_def(HasParent(CslModuleOp))  # has to be at top level
 
     param_name = prop_def(StringAttr)
-    init_value = opt_operand_def(T)
+    init_value: OptOperand = opt_operand_def(T)
 
     res = result_def(T)
 

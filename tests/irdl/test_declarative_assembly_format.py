@@ -50,6 +50,7 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
@@ -1117,7 +1118,7 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class OptionalOperandOp(IRDLOperation):
         name = "test.optional_operand"
-        args = opt_operand_def()
+        args: OptOperand = opt_operand_def()
 
         assembly_format = format
 
@@ -1205,8 +1206,8 @@ def test_multiple_optional_operands(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalOperandsOp(IRDLOperation):
         name = "test.optional_operands"
-        arg1 = opt_operand_def()
-        arg2 = opt_operand_def()
+        arg1: OptOperand = opt_operand_def()
+        arg2: OptOperand = opt_operand_def()
 
         irdl_options = (AttrSizedOperandSegments(),)
 
@@ -1291,7 +1292,7 @@ def test_operands_directive_with_optional(program: str):
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = opt_operand_def()
+        op1: OptOperand = opt_operand_def()
         op2: Operand = operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
@@ -1516,7 +1517,7 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
         name = "test.three_operands"
 
         op1: Operand = operand_def()
-        op2 = opt_operand_def()
+        op2: OptOperand = opt_operand_def()
         op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
@@ -3097,7 +3098,7 @@ def test_optional_group_optional_operand_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        args = opt_operand_def()
+        args: OptOperand = opt_operand_def()
 
         assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
 
@@ -3130,7 +3131,7 @@ def test_optional_else_group(
     class OptionalElseGroupOp(IRDLOperation):
         name = "test.optional_else_group"
 
-        v = opt_operand_def(i32)
+        v: OptOperand = opt_operand_def(i32)
         a = opt_prop_def(IntegerAttr[I32])
 
         assembly_format = """($v^):($a)? attr-dict"""
@@ -3185,7 +3186,7 @@ def test_optional_optional_group_optional_operand_anchor(
         name = "test.optional_optional_group"
 
         prop = opt_prop_def(StringAttr)
-        arg = opt_operand_def(I32)
+        arg: OptOperand = opt_operand_def(I32)
 
         assembly_format = "(`with` $prop^ ($arg^)?)? attr-dict"
 

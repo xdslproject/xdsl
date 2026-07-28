@@ -35,6 +35,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -493,10 +494,10 @@ class LaunchOp(IRDLOperation):
     blockSizeX: Operand = operand_def(IndexType)
     blockSizeY: Operand = operand_def(IndexType)
     blockSizeZ: Operand = operand_def(IndexType)
-    clusterSizeX = opt_operand_def(IndexType)
-    clusterSizeY = opt_operand_def(IndexType)
-    clusterSizeZ = opt_operand_def(IndexType)
-    dynamicSharedMemorySize = opt_operand_def(i32)
+    clusterSizeX: OptOperand = opt_operand_def(IndexType)
+    clusterSizeY: OptOperand = opt_operand_def(IndexType)
+    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     asyncToken = opt_result_def(AsyncTokenType)
     body = region_def()
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -597,12 +598,12 @@ class LaunchFuncOp(IRDLOperation):
     blockSizeX: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
     blockSizeY: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
     blockSizeZ: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
-    clusterSizeX = opt_operand_def(AnyOf.get(IndexType, i32, i64))
-    clusterSizeY = opt_operand_def(AnyOf.get(IndexType, i32, i64))
-    clusterSizeZ = opt_operand_def(AnyOf.get(IndexType, i32, i64))
-    dynamicSharedMemorySize = opt_operand_def(i32)
+    clusterSizeX: OptOperand = opt_operand_def(AnyOf.get(IndexType, i32, i64))
+    clusterSizeY: OptOperand = opt_operand_def(AnyOf.get(IndexType, i32, i64))
+    clusterSizeZ: OptOperand = opt_operand_def(AnyOf.get(IndexType, i32, i64))
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands = var_operand_def()
-    asyncObject = opt_operand_def()
+    asyncObject: OptOperand = opt_operand_def()
 
     asyncToken = opt_result_def(AsyncTokenType)
 

@@ -39,6 +39,7 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     Operand,
+    OptOperand,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
@@ -1464,7 +1465,7 @@ class StoreResultOp(IRDLOperation):
 
     name = "stencil.store_result"
 
-    arg = opt_operand_def(
+    arg: OptOperand = opt_operand_def(
         MessageConstraint(
             VarConstraint("T", AnyAttr()),
             "Expected return type to carry the operand type.",

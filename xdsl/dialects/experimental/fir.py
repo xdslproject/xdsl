@@ -41,6 +41,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1459,8 +1460,8 @@ class ArrayCoorOp(IRDLOperation):
 
     name = "fir.array_coor"
     memref: Operand = operand_def()
-    shape = opt_operand_def()
-    slice = opt_operand_def()
+    shape: OptOperand = opt_operand_def()
+    slice: OptOperand = opt_operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     result_0 = result_def()
@@ -1534,8 +1535,8 @@ class ArrayLoadOp(IRDLOperation):
 
     name = "fir.array_load"
     memref: Operand = operand_def()
-    shape = opt_operand_def()
-    slice = opt_operand_def()
+    shape: OptOperand = opt_operand_def()
+    slice: OptOperand = opt_operand_def()
     typeparams = var_operand_def()
     result_0 = result_def()
 
@@ -1566,7 +1567,7 @@ class ArrayMergeStoreOp(IRDLOperation):
     original: Operand = operand_def()
     sequence: Operand = operand_def()
     memref: Operand = operand_def()
-    slice = opt_operand_def()
+    slice: OptOperand = opt_operand_def()
     typeparams = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -2001,10 +2002,10 @@ class DeclareOp(IRDLOperation):
 
     name = "fir.declare"
     memref: Operand = operand_def()
-    shape = opt_operand_def()
+    shape: OptOperand = opt_operand_def()
     typeparams = var_operand_def()
-    dummy_scope = opt_operand_def()
-    storage = opt_operand_def()
+    dummy_scope: OptOperand = opt_operand_def()
+    storage: OptOperand = opt_operand_def()
     storage_offset = opt_prop_def(IntegerAttr)
     uniq_name = prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
@@ -2263,7 +2264,7 @@ class EmboxprocOp(IRDLOperation):
 
     name = "fir.emboxproc"
     func: Operand = operand_def()
-    host = opt_operand_def()
+    host: OptOperand = opt_operand_def()
     result_0 = result_def()
 
 
@@ -2657,8 +2658,8 @@ class ReboxOp(IRDLOperation):
 
     name = "fir.rebox"
     box: Operand = operand_def()
-    shape = opt_operand_def()
-    slice = opt_operand_def()
+    shape: OptOperand = opt_operand_def()
+    slice: OptOperand = opt_operand_def()
     result_0 = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -2726,7 +2727,7 @@ class SaveResultOp(IRDLOperation):
     name = "fir.save_result"
     value: Operand = operand_def()
     memref: Operand = operand_def()
-    shape = opt_operand_def()
+    shape: OptOperand = opt_operand_def()
     typeparams = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)

@@ -801,7 +801,7 @@ def _(
     class AddVariadic2Op2(IRDLOperation):
         name = "test.add_optional"
         ops1: Operand = operand_def(i32)
-        ops2 = opt_operand_def(i32)
+        ops2: OptOperand = opt_operand_def(i32)
         res = result_def(i32)
 
 

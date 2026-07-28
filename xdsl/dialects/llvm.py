@@ -71,6 +71,7 @@ from xdsl.irdl import (
     IntConstraint,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
@@ -2559,7 +2560,7 @@ class ReturnOp(IRDLOperation):
 
     assembly_format = "($arg^ `:` type($arg))? attr-dict"
 
-    arg = opt_operand_def(Attribute)
+    arg: OptOperand = opt_operand_def(Attribute)
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 

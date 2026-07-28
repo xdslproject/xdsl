@@ -26,6 +26,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -211,7 +212,7 @@ class SetupOp(IRDLOperation):
     The actual values used to set up the CSRs
     """
 
-    in_state = opt_operand_def(StateType)
+    in_state: OptOperand = opt_operand_def(StateType)
     """
     The state produced by a previous accfg.setup
     """

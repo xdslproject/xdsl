@@ -27,6 +27,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     Operation,
+    OptOperand,
     Region,
     SSAValue,
     irdl_op_definition,
@@ -68,7 +69,7 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     lb: Operand = operand_def(IntRegisterType)
     ub: Operand = operand_def(IntRegisterType)
-    step_val = opt_operand_def(IntRegisterType)
+    step_val: OptOperand = opt_operand_def(IntRegisterType)
     step_attr = opt_prop_def(IntegerAttr[IntegerType])
 
     iter_args = var_operand_def(RISCVRegisterType)

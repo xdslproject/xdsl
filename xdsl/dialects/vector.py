@@ -57,6 +57,7 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     Operand,
+    OptOperand,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
@@ -1021,7 +1022,7 @@ class TransferReadOp(VectorTransferOperation):
     source: Operand = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     padding: Operand = operand_def()
-    mask = opt_operand_def(VectorType[I1])
+    mask: OptOperand = opt_operand_def(VectorType[I1])
 
     permutation_map = prop_def(AffineMapAttr)
 
@@ -1174,7 +1175,7 @@ class TransferWriteOp(VectorTransferOperation):
     vector: Operand = operand_def(VectorType)
     source: Operand = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
-    mask = opt_operand_def(VectorType[I1])
+    mask: OptOperand = opt_operand_def(VectorType[I1])
 
     permutation_map = prop_def(AffineMapAttr)
 
@@ -1361,7 +1362,7 @@ class ReductionOp(IRDLOperation):
     _T: ClassVar = VarConstraint("T", AnyAttr())
 
     vector: Operand = operand_def(VectorType.constr(_T))
-    acc = opt_operand_def(_T)
+    acc: OptOperand = opt_operand_def(_T)
     dest = result_def(_T)
     kind = prop_def(CombiningKindAttr)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))

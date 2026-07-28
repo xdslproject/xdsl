@@ -30,6 +30,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    OptOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -348,7 +349,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "toy.return"
-    input = opt_operand_def(AnyTensorTypeF64)
+    input: OptOperand = opt_operand_def(AnyTensorTypeF64)
 
     traits = traits_def(IsTerminator(), HasParent(FuncOp))
 

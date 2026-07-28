@@ -49,6 +49,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -2459,8 +2460,8 @@ class ParallelOp(IRDLOperation):
     num_gangs = var_operand_def(IntegerType | IndexType)
     num_workers = var_operand_def(IntegerType | IndexType)
     vector_length = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
     reduction_operands = var_operand_def()
     private_operands = var_operand_def()
     firstprivate_operands = var_operand_def()
@@ -2629,8 +2630,8 @@ class SerialOp(IRDLOperation):
 
     async_operands = var_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
     reduction_operands = var_operand_def()
     private_operands = var_operand_def()
     firstprivate_operands = var_operand_def()
@@ -2768,8 +2769,8 @@ class KernelsOp(IRDLOperation):
     num_gangs = var_operand_def(IntegerType | IndexType)
     num_workers = var_operand_def(IntegerType | IndexType)
     vector_length = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
     reduction_operands = var_operand_def()
     private_operands = var_operand_def()
     firstprivate_operands = var_operand_def()
@@ -3451,7 +3452,7 @@ class DataOp(IRDLOperation):
 
     name = "acc.data"
 
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
     async_operands = var_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
     data_clause_operands = var_operand_def()
@@ -3588,7 +3589,7 @@ class HostDataOp(IRDLOperation):
 
     name = "acc.host_data"
 
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
     data_clause_operands = var_operand_def()
 
     if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
@@ -3676,7 +3677,7 @@ class _DataEntryOperation(IRDLOperation, ABC):
     """
 
     var: Operand = operand_def()
-    var_ptr_ptr = opt_operand_def()
+    var_ptr_ptr: OptOperand = opt_operand_def()
     bounds = var_operand_def(DataBoundsType)
     async_operands = var_operand_def(IntegerType | IndexType)
 
@@ -4316,9 +4317,9 @@ class EnterDataOp(IRDLOperation):
 
     name = "acc.enter_data"
 
-    if_cond = opt_operand_def(I1)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
     data_clause_operands = var_operand_def()
 
@@ -4409,9 +4410,9 @@ class ExitDataOp(IRDLOperation):
 
     name = "acc.exit_data"
 
-    if_cond = opt_operand_def(I1)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
     data_clause_operands = var_operand_def()
 
@@ -4519,7 +4520,7 @@ class UpdateOp(IRDLOperation):
 
     name = "acc.update"
 
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
     async_operands = var_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
     data_clause_operands = var_operand_def()
@@ -4636,7 +4637,7 @@ class AtomicReadOp(IRDLOperation):
 
     x: Operand = operand_def()
     v: Operand = operand_def()
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     element_type = prop_def(TypeAttribute)
 
@@ -4684,7 +4685,7 @@ class AtomicWriteOp(IRDLOperation):
 
     x: Operand = operand_def()
     expr: Operand = operand_def()
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     custom_directives = (AtomicIfClause,)
 
@@ -4728,7 +4729,7 @@ class AtomicUpdateOp(IRDLOperation):
     name = "acc.atomic.update"
 
     x: Operand = operand_def()
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     region = region_def("single_block")
 
@@ -4796,7 +4797,7 @@ class AtomicCaptureOp(IRDLOperation):
 
     name = "acc.atomic.capture"
 
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     region = region_def("single_block")
 
@@ -4975,7 +4976,7 @@ class DeclareExitOp(IRDLOperation):
 
     name = "acc.declare_exit"
 
-    token = opt_operand_def(DeclareTokenType)
+    token: OptOperand = opt_operand_def(DeclareTokenType)
     data_clause_operands = var_operand_def()
 
     irdl_options = (
@@ -5063,11 +5064,11 @@ class DataBoundsOp(IRDLOperation):
 
     name = "acc.bounds"
 
-    lowerbound = opt_operand_def(IntegerType | IndexType)
-    upperbound = opt_operand_def(IntegerType | IndexType)
-    extent = opt_operand_def(IntegerType | IndexType)
-    stride = opt_operand_def(IntegerType | IndexType)
-    start_idx = opt_operand_def(IntegerType | IndexType)
+    lowerbound: OptOperand = opt_operand_def(IntegerType | IndexType)
+    upperbound: OptOperand = opt_operand_def(IntegerType | IndexType)
+    extent: OptOperand = opt_operand_def(IntegerType | IndexType)
+    stride: OptOperand = opt_operand_def(IntegerType | IndexType)
+    start_idx: OptOperand = opt_operand_def(IntegerType | IndexType)
 
     stride_in_bytes = opt_prop_def(BoolAttr, prop_name="strideInBytes")
 
@@ -5481,8 +5482,8 @@ class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
     `__init__`, and `verify_` — they only override `name`.
     """
 
-    device_num = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    device_num: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     device_types = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="device_types")
 
@@ -5543,9 +5544,9 @@ class SetOp(IRDLOperation):
 
     name = "acc.set"
 
-    default_async = opt_operand_def(IntegerType | IndexType)
-    device_num = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    default_async: OptOperand = opt_operand_def(IntegerType | IndexType)
+    device_num: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     device_type = opt_prop_def(DeviceTypeAttr, prop_name="device_type")
 
@@ -5597,9 +5598,9 @@ class WaitOp(IRDLOperation):
     name = "acc.wait"
 
     wait_operands = var_operand_def(IntegerType | IndexType)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
     async_attr = opt_prop_def(UnitAttr, prop_name="async")
 

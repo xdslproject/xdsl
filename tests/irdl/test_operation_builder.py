@@ -15,6 +15,7 @@ from xdsl.irdl import (
     AttrSizedSuccessorSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     SameVariadicOperandSize,
     attr_def,
     irdl_op_definition,
@@ -222,7 +223,7 @@ def test_operand_builder_exception():
 class OptOperandOp(IRDLOperation):
     name = "test.opt_operand_op"
 
-    res = opt_operand_def(StringAttr)
+    res: OptOperand = opt_operand_def(StringAttr)
 
 
 def test_opt_operand_builder():

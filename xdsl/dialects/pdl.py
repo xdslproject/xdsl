@@ -28,6 +28,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     ParsePropInAttrDict,
     base,
     irdl_attr_definition,
@@ -267,7 +268,7 @@ class AttributeOp(IRDLOperation):
 
     name = "pdl.attribute"
     value = opt_prop_def()
-    value_type = opt_operand_def(TypeType)
+    value_type: OptOperand = opt_operand_def(TypeType)
     output = result_def(AttributeType)
 
     assembly_format = "(`:` $value_type^)? (`=` $value^)? attr-dict-with-keyword"
@@ -323,7 +324,7 @@ class OperandOp(IRDLOperation):
     """
 
     name = "pdl.operand"
-    value_type = opt_operand_def(TypeType)
+    value_type: OptOperand = opt_operand_def(TypeType)
     value = result_def(ValueType)
 
     assembly_format = "(`:` $value_type^)? attr-dict"
@@ -342,7 +343,7 @@ class OperandsOp(IRDLOperation):
     """
 
     name = "pdl.operands"
-    value_type = opt_operand_def(RangeType[TypeType])
+    value_type: OptOperand = opt_operand_def(RangeType[TypeType])
     value = result_def(RangeType[ValueType])
 
     assembly_format = "(`:` $value_type^)? attr-dict"
@@ -685,7 +686,7 @@ class ReplaceOp(IRDLOperation):
 
     name = "pdl.replace"
     op_value: Operand = operand_def(OperationType)
-    repl_operation = opt_operand_def(OperationType)
+    repl_operation: OptOperand = opt_operand_def(OperationType)
     repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -800,7 +801,7 @@ class RewriteOp(IRDLOperation):
     """
 
     name = "pdl.rewrite"
-    root = opt_operand_def(OperationType)
+    root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
     name_ = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function

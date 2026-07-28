@@ -36,6 +36,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OptOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -658,8 +659,8 @@ class TileToForallOp(IRDLOperation):
     target: Operand = operand_def(TransformHandleType)
     num_threads = var_operand_def(DenseArrayBase)
     tile_sizes = var_operand_def(DenseArrayBase)
-    packed_num_threads = opt_operand_def(DenseArrayBase)
-    packed_tile_sizes = opt_operand_def(DenseArrayBase)
+    packed_num_threads: OptOperand = opt_operand_def(DenseArrayBase)
+    packed_tile_sizes: OptOperand = opt_operand_def(DenseArrayBase)
     static_num_threads = opt_prop_def(DenseArrayBase)
     static_tile_sizes = opt_prop_def(DenseArrayBase)
     mapping = opt_attr_def(DenseArrayBase)
