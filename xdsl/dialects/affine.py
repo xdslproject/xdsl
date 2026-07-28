@@ -8,10 +8,12 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     ArrayAttr,
+    ContainerType,
     DenseIntElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
+    ShapedType,
     StringAttr,
     VectorType,
 )
@@ -367,7 +369,7 @@ def _print_affine_memref_access(
 
 
 def _map_or_identity_attr(
-    map: AffineMap | AffineMapAttr | None, accessing: MemRefType
+    map: AffineMap | AffineMapAttr | None, accessing: ShapedType
 ) -> AffineMapAttr:
     """
     Creates an `AffineMapAttr` from a provided `AffineMap`, or the identity
@@ -397,11 +399,17 @@ class StoreOp(IRDLOperation):
     def __init__(
         self,
         value: SSAValue,
-        memref: SSAValue[MemRefType],
-        indices: Sequence[SSAValue[IndexType]],
-        map: AffineMapAttr | AffineMap | None = None,
+        memref: SSAValue,
+        indices: Sequence[SSAValue],
+        map: AffineMapAttr | None = None,
     ):
-        map = _map_or_identity_attr(map, memref.type)
+        if map is None:
+            if not isa(memref_type := memref.type, MemRefType):
+                raise ValueError(
+                    "affine.store memref operand must be of type MemRefType"
+                )
+
+            map = _map_or_identity_attr(map, memref_type)
 
         super().__init__(
             operands=(value, memref, indices),
@@ -441,15 +449,28 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue[MemRefType],
-        indices: Sequence[SSAValue[IndexType]],
-        map: AffineMap | AffineMapAttr | None = None,
+        memref: SSAValue,
+        indices: Sequence[SSAValue],
+        map: AffineMapAttr | None = None,
         result_type: Attribute | None = None,
     ):
-        # Create identity map for memrefs with at least one dimension or () -> ()
-        # for zero-dimensional memrefs.
-        map = _map_or_identity_attr(map, memref.type)
-        result_type = result_type or memref.type.get_element_type()
+        if map is None:
+            # Create identity map for memrefs with at least one dimension or () -> ()
+            # for zero-dimensional memrefs.
+            if not isinstance(memref.type, ShapedType):
+                raise ValueError(
+                    "affine.load memref operand must be of type ShapedType"
+                )
+
+            map = _map_or_identity_attr(map, memref.type)
+
+        if result_type is None:
+            if not isa(memref.type, ContainerType):
+                raise ValueError(
+                    "affine.load memref operand must be of type ContainerType"
+                )
+
+            result_type = memref.type.get_element_type()
 
         super().__init__(
             operands=(memref, indices),
