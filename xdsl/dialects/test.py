@@ -333,6 +333,7 @@ class TestSymbolOp(IRDLOperation):
             regions=(regions,),
         )
 
+
 @irdl_op_definition
 class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
@@ -364,6 +365,7 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
             self.out_results,
             tuple(zip(self.inout_operands, self.inout_results)),
         )
+
 
 @irdl_attr_definition
 class TestRegisterType(RegisterType):
