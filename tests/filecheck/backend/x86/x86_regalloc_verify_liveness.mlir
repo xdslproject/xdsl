@@ -149,9 +149,20 @@ x86_func.func @iter_arg_live_after(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86
 
 // -----
 
-// CHECK: v is used by more than one in/out operand
+// CHECK: Value %v is used by more than one in/out operand
 x86_func.func @duplicate_iter_args(%v: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
   %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %v, %b = %v) -> (!x86.reg64, !x86.reg64) {
+    x86_scf.yield %a, %b : !x86.reg64, !x86.reg64
+  }
+  x86_func.ret
+}
+
+// -----
+
+// CHECK: Value is used by more than one in/out operand
+x86_func.func @duplicate_iter_args(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
+  %0 = x86.get_register : !x86.reg64
+  %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %0, %b = %0) -> (!x86.reg64, !x86.reg64) {
     x86_scf.yield %a, %b : !x86.reg64, !x86.reg64
   }
   x86_func.ret

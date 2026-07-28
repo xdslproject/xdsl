@@ -20,6 +20,4 @@ class X86RegallocVerifyLivenessPass(ModulePass):
         for func in op.body.block.ops:
             if not isinstance(func, x86_func.FuncOp):
                 continue
-            if not func.body.blocks:
-                continue
             VerifyLivenessContext(set()).process_region(func.body)
