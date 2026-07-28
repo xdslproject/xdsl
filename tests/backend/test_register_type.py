@@ -1,5 +1,5 @@
 from xdsl.backend.register_type import RegisterResource
-from xdsl.dialects.test import TestHasRegisterConstraintsOp, TestRegisterType
+from xdsl.dialects.test import TestAllocatableOp, TestRegisterType
 from xdsl.traits import (
     EffectInstance,
     MemoryEffectKind,
@@ -17,7 +17,7 @@ def test_register_resource_name():
 
 def test_no_effects_for_unallocated_registers():
     """Test that unallocated registers produce no memory effects."""
-    op = TestHasRegisterConstraintsOp([], [], [TestRegisterType.unallocated()], [])
+    op = TestAllocatableOp([], [], [TestRegisterType.unallocated()], [])
     effects = get_effects(op)
     assert effects == set()
     assert is_side_effect_free(op)
@@ -26,7 +26,7 @@ def test_no_effects_for_unallocated_registers():
 def test_write_effect_for_allocated_result():
     """Test that allocated register results produce WRITE effects."""
     allocated_reg = TestRegisterType.from_name("x0")
-    op = TestHasRegisterConstraintsOp([], [], [allocated_reg], [])
+    op = TestAllocatableOp([], [], [allocated_reg], [])
     effects = get_effects(op)
 
     assert effects == {
@@ -38,10 +38,10 @@ def test_read_effect_for_allocated_operand():
     """Test that allocated register operands produce READ effects."""
     # Create an op that produces an allocated register to use as operand
     allocated_reg = TestRegisterType.from_name("x1")
-    producer = TestHasRegisterConstraintsOp([], [], [allocated_reg], [])
+    producer = TestAllocatableOp([], [], [allocated_reg], [])
 
     # Use the result as an operand
-    op = TestHasRegisterConstraintsOp([producer.results[0]], [], [], [])
+    op = TestAllocatableOp([producer.results[0]], [], [], [])
     effects = get_effects(op)
 
     assert effects == {
@@ -55,10 +55,10 @@ def test_mixed_read_write_effects():
     reg_x1 = TestRegisterType.from_name("x1")
 
     # Producer for operand
-    producer = TestHasRegisterConstraintsOp([], [], [reg_x0], [])
+    producer = TestAllocatableOp([], [], [reg_x0], [])
 
     # Op that reads x0 and writes x1
-    op = TestHasRegisterConstraintsOp([producer.results[0]], [], [reg_x1], [])
+    op = TestAllocatableOp([producer.results[0]], [], [reg_x1], [])
     effects = get_effects(op)
 
     assert effects == {

@@ -335,8 +335,8 @@ class TestSymbolOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TestHasRegisterConstraintsOp(IRDLOperation, HasRegisterConstraints):
-    name = "test.has_register_constraints"
+class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
+    name = "test.allocatable"
 
     in_operands = var_operand_def()
     inout_operands = var_operand_def()
@@ -389,7 +389,7 @@ Test = Dialect(
         TestTermOp,
         TestWriteOp,
         TestSymbolOp,
-        TestHasRegisterConstraintsOp,
+        TestAllocatableOp,
     ],
     [
         TestType,
