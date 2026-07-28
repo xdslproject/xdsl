@@ -17,6 +17,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     SameVariadicOperandSize,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -252,7 +253,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(IRDLOperation):
     name = "test.var_operand_op"
 
-    res = var_operand_def(StringAttr)
+    res: VarOperand = var_operand_def(StringAttr)
 
 
 def test_var_operand_builder():
@@ -266,8 +267,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(IRDLOperation):
     name = "test.two_var_operand_op"
 
-    res1 = var_operand_def(StringAttr)
-    res2 = var_operand_def(StringAttr)
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
     irdl_options = (AttrSizedOperandSegments(),)
 
 
@@ -276,8 +277,8 @@ class TwoVarOperandOp(IRDLOperation):
 class TwoVarOperandPropOp(IRDLOperation):
     name = "test.two_var_operand_op"
 
-    res1 = var_operand_def(StringAttr)
-    res2 = var_operand_def(StringAttr)
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
@@ -325,9 +326,9 @@ def test_two_var_operand_prop_builder2():
 class SameSizeVarOperandOp(IRDLOperation):
     name = "test.same_size_var_operand_op"
 
-    var1 = var_operand_def()
+    var1: VarOperand = var_operand_def()
     op1: Operand = operand_def()
-    var2 = var_operand_def()
+    var2: VarOperand = var_operand_def()
     irdl_options = (SameVariadicOperandSize(),)
 
 

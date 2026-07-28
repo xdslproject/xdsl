@@ -36,6 +36,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -185,7 +186,7 @@ class BroadcastOp(CollectiveCommunicationOp):
 
     input: Operand = operand_def(TensorType)
     root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
     result = result_def(TensorType)
 
@@ -213,7 +214,7 @@ class GatherOp(CollectiveCommunicationOp):
     input: Operand = operand_def(TensorType)
     gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
     root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
     result = result_def(TensorType)
 
@@ -246,7 +247,7 @@ class ScatterOp(CollectiveCommunicationOp):
     scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
 
     root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
     result = result_def(TensorType)
 
@@ -274,7 +275,7 @@ class RecvOp(CollectiveCommunicationOp):
 
     input: Operand = operand_def(TensorType)
     source = opt_prop_def(DenseArrayBase[I64])
-    source_dynamic = var_operand_def(IndexType)
+    source_dynamic: VarOperand = var_operand_def(IndexType)
 
     result = result_def(TensorType)
 
@@ -298,7 +299,7 @@ class SendOp(CollectiveCommunicationOp):
     input: Operand = operand_def(TensorType)
 
     destination = prop_def(DenseArrayBase[I64])
-    destination_dynamic = var_operand_def(IndexType)
+    destination_dynamic: VarOperand = var_operand_def(IndexType)
 
     result = result_def(TensorType)
 
@@ -392,11 +393,11 @@ class ShardingOp(IRDLOperation):
     static_sharded_dims_offsets = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
     )
-    dynamic_sharded_dims_offsets = var_operand_def(I64)
+    dynamic_sharded_dims_offsets: VarOperand = var_operand_def(I64)
     static_halo_sizes = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
     )
-    dynamic_halo_sizes = var_operand_def(I64)
+    dynamic_halo_sizes: VarOperand = var_operand_def(I64)
 
     result = result_def(ShardingType)
 

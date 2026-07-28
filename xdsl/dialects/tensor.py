@@ -44,6 +44,7 @@ from xdsl.irdl import (
     Operand,
     RangeOf,
     VarConstraint,
+    VarOperand,
     base,
     irdl_op_definition,
     operand_def,
@@ -128,7 +129,7 @@ class ConcatOp(IRDLOperation):
         "Tensor Element", AnyAttr()
     )
     _RANK: ClassVar[IntConstraint] = IntVarConstraint("Rank", AtLeast(1))
-    inputs = var_operand_def(
+    inputs: VarOperand = var_operand_def(
         RangeOf(
             TensorType.constr(
                 _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
@@ -281,7 +282,7 @@ class EmptyOp(IRDLOperation):
 
     name = "tensor.empty"
 
-    dynamic_sizes = var_operand_def(IndexType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType)
 
     tensor = result_def(TensorType[Attribute])
 
@@ -436,7 +437,7 @@ class ExpandShapeOp(IRDLOperation):
     name = "tensor.expand_shape"
 
     src: Operand = operand_def(TensorType)
-    dynamic_output_shape = var_operand_def(IndexType)
+    dynamic_output_shape: VarOperand = var_operand_def(IndexType)
 
     reassociation = prop_def(ContiguousArrayOfIntArray())
 
@@ -552,9 +553,9 @@ class ExtractSliceOp(IRDLOperation):
     name = "tensor.extract_slice"
 
     source: Operand = operand_def(TensorType)
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
     static_strides = prop_def(DenseArrayBase.constr(i64))
@@ -611,9 +612,9 @@ class InsertSliceOp(IRDLOperation):
 
     source: Operand = operand_def(TensorType)
     dest: Operand = operand_def(TensorType)
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
     static_strides = prop_def(DenseArrayBase.constr(i64))
@@ -713,7 +714,7 @@ class ExtractOp(IRDLOperation):
     name = "tensor.extract"
 
     tensor: Operand = operand_def(TensorType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     result = result_def(Attribute)
     # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
     traits = traits_def(Pure())
@@ -765,7 +766,7 @@ class InsertOp(IRDLOperation):
 
     scalar: Operand = operand_def(Attribute)
     dest: Operand = operand_def(TensorType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     result = result_def(TensorType)
     # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
     traits = traits_def(Pure())
@@ -820,7 +821,7 @@ class FromElementsOp(IRDLOperation):
 
     ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
 
-    elements = var_operand_def(ELEMENT_TYPE)
+    elements: VarOperand = var_operand_def(ELEMENT_TYPE)
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
     traits = traits_def(Pure())
@@ -856,7 +857,7 @@ class SplatOp(IRDLOperation):
     SPLAT_TYPE: ClassVar = VarConstraint("SPLAT_TYPE", AnyAttr())
 
     input: Operand = operand_def(SPLAT_TYPE)
-    dynamicSizes = var_operand_def(IndexType)
+    dynamicSizes: VarOperand = var_operand_def(IndexType)
     result = result_def(TensorType.constr(SPLAT_TYPE))
     assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
 
@@ -897,8 +898,8 @@ class PadOp(IRDLOperation):
     name = "tensor.pad"
 
     source: Operand = operand_def(base(TensorType[Attribute]))
-    low = var_operand_def(IndexType)
-    high = var_operand_def(IndexType)
+    low: VarOperand = var_operand_def(IndexType)
+    high: VarOperand = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase.constr(i64))
     static_high = prop_def(DenseArrayBase.constr(i64))
     nofold = opt_prop_def(UnitAttr)

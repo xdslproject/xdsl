@@ -47,6 +47,7 @@ from xdsl.irdl import (
     BaseAttr,
     Operand,
     VarConstraint,
+    VarOperand,
     attr_def,
     base,
     irdl_op_definition,
@@ -297,7 +298,7 @@ class FRepOperation(RISCVInstruction):
     """
     Instructions to repeat, containing maximum 15 instructions, with no side effects.
     """
-    iter_args = var_operand_def(riscv.RISCVRegisterType)
+    iter_args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     """
     Loop-carried variable initial values.
     """

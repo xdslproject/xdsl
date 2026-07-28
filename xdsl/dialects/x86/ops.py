@@ -70,6 +70,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     Successor,
     VarConstraint,
+    VarOperand,
     VarOpResult,
     attr_def,
     base,
@@ -1075,8 +1076,8 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
     rflags: Operand = operand_def(RFLAGS)
 
-    then_values = var_operand_def(X86RegisterType)
-    else_values = var_operand_def(X86RegisterType)
+    then_values: VarOperand = var_operand_def(X86RegisterType)
+    else_values: VarOperand = var_operand_def(X86RegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -2702,7 +2703,7 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.c.jmp"
 
-    block_values = var_operand_def(X86RegisterType)
+    block_values: VarOperand = var_operand_def(X86RegisterType)
 
     successor = successor_def()
 
@@ -2788,7 +2789,7 @@ class FallthroughOp(
 
     name = "x86.fallthrough"
 
-    block_values = var_operand_def(X86RegisterType)
+    block_values: VarOperand = var_operand_def(X86RegisterType)
 
     successor = successor_def()
 
@@ -4099,7 +4100,7 @@ class GetMaskRegisterOp(GetAnyRegisterOperation[AVX512MaskRegisterType]):
 @irdl_op_definition
 class ParallelMovOp(X86HasRegisterConstraints):
     name = "x86.parallel_mov"
-    inputs = var_operand_def(X86RegisterType)
+    inputs: VarOperand = var_operand_def(X86RegisterType)
     outputs: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
     free_registers = opt_prop_def(ArrayAttr[X86RegisterType])
 

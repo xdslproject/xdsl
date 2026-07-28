@@ -96,7 +96,7 @@ class BranchOp(IRDLOperation):
 
     name = "cf.br"
 
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
     successor = successor_def()
 
     traits = traits_def(IsTerminator(), BranchOpHasCanonicalizationPatterns())
@@ -132,8 +132,8 @@ class ConditionalBranchOp(IRDLOperation):
     name = "cf.cond_br"
 
     cond: Operand = operand_def(IntegerType(1))
-    then_arguments = var_operand_def()
-    else_arguments = var_operand_def()
+    then_arguments: VarOperand = var_operand_def()
+    else_arguments: VarOperand = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -331,9 +331,9 @@ class SwitchOp(IRDLOperation):
 
     flag: Operand = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
-    default_operands = var_operand_def()
+    default_operands: VarOperand = var_operand_def()
 
-    case_operands = var_operand_def()
+    case_operands: VarOperand = var_operand_def()
 
     # Copied from AttrSizedSegments
     case_operand_segments = prop_def(DenseArrayBase.constr(i32))

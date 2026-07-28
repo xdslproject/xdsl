@@ -14,6 +14,7 @@ from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     result_def,
@@ -53,7 +54,7 @@ class AndOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyOf.get(Sequence, Property, i1))
 
-    input = var_operand_def(T)
+    input: VarOperand = var_operand_def(T)
 
     result = result_def(T)
 

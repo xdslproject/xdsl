@@ -17,6 +17,7 @@ from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
@@ -58,7 +59,7 @@ class ConstantClassOp(IRDLOperation, HasFolderInterface):
     )
     traits = traits_def(Pure(), ConstantLike())
 
-    arguments = var_operand_def(T)
+    arguments: VarOperand = var_operand_def(T)
     result = result_def(T)
     value = prop_def()
     min_cost_index = opt_attr_def(IntAttr)
@@ -90,7 +91,7 @@ class ClassOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "equivalence.class"
-    arguments = var_operand_def(T)
+    arguments: VarOperand = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
     traits = traits_def(Pure())
@@ -169,7 +170,7 @@ class GraphOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "equivalence.yield"
-    values = var_operand_def()
+    values: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(GraphOp), IsTerminator())
 

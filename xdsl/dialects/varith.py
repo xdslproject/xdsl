@@ -23,6 +23,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -54,7 +55,7 @@ class VarithOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", integerOrFloatLike)
 
-    args = var_operand_def(T)
+    args: VarOperand = var_operand_def(T)
     res = result_def(T)
 
     traits = traits_def(Pure())
@@ -93,7 +94,7 @@ class VarithSwitchOp(IRDLOperation):
     case_values = prop_def(DenseIntElementsAttr)
 
     default_arg: Operand = operand_def(T)
-    args = var_operand_def(T)
+    args: VarOperand = var_operand_def(T)
 
     result = result_def(T)
 

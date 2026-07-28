@@ -44,6 +44,7 @@ from xdsl.irdl import (
     Operand,
     ParamAttrConstraint,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -290,12 +291,12 @@ class StreamingRegionOp(IRDLOperation):
 
     name = "memref_stream.streaming_region"
 
-    inputs = var_operand_def(memref.MemRefType)
+    inputs: VarOperand = var_operand_def(memref.MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(memref.MemRefType)
+    outputs: VarOperand = var_operand_def(memref.MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
@@ -449,18 +450,20 @@ class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(MemRefType.constr() | WritableStreamType.constr())
+    outputs: VarOperand = var_operand_def(
+        MemRefType.constr() | WritableStreamType.constr()
+    )
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
-    inits = var_operand_def()
+    inits: VarOperand = var_operand_def()
     """
     Initial values for outputs. The outputs are at corresponding `init_indices`. The
     inits may be set only for the imperfectly nested form.

@@ -51,6 +51,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     ParsePropInAttrDict,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -2455,17 +2456,17 @@ class ParallelOp(IRDLOperation):
 
     name = "acc.parallel"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    num_gangs = var_operand_def(IntegerType | IndexType)
-    num_workers = var_operand_def(IntegerType | IndexType)
-    vector_length = var_operand_def(IntegerType | IndexType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_gangs: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_workers: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_length: VarOperand = var_operand_def(IntegerType | IndexType)
     if_cond: OptOperand = opt_operand_def(I1)
     self_cond: OptOperand = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -2628,14 +2629,14 @@ class SerialOp(IRDLOperation):
 
     name = "acc.serial"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
     if_cond: OptOperand = opt_operand_def(I1)
     self_cond: OptOperand = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -2764,17 +2765,17 @@ class KernelsOp(IRDLOperation):
 
     name = "acc.kernels"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    num_gangs = var_operand_def(IntegerType | IndexType)
-    num_workers = var_operand_def(IntegerType | IndexType)
-    vector_length = var_operand_def(IntegerType | IndexType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_gangs: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_workers: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_length: VarOperand = var_operand_def(IntegerType | IndexType)
     if_cond: OptOperand = opt_operand_def(I1)
     self_cond: OptOperand = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -2942,9 +2943,9 @@ class KernelEnvironmentOp(IRDLOperation):
 
     name = "acc.kernel_environment"
 
-    data_clause_operands = var_operand_def()
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -3037,17 +3038,17 @@ class LoopOp(IRDLOperation):
 
     name = "acc.loop"
 
-    lowerbound = var_operand_def(IntegerType | IndexType)
-    upperbound = var_operand_def(IntegerType | IndexType)
-    step = var_operand_def(IntegerType | IndexType)
-    gang_operands = var_operand_def(IntegerType | IndexType)
-    worker_num_operands = var_operand_def(IntegerType | IndexType)
-    vector_operands = var_operand_def(IntegerType | IndexType)
-    tile_operands = var_operand_def(IntegerType | IndexType)
-    cache_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    reduction_operands = var_operand_def()
+    lowerbound: VarOperand = var_operand_def(IntegerType | IndexType)
+    upperbound: VarOperand = var_operand_def(IntegerType | IndexType)
+    step: VarOperand = var_operand_def(IntegerType | IndexType)
+    gang_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    worker_num_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    tile_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    cache_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    reduction_operands: VarOperand = var_operand_def()
 
     inclusive_upperbound = opt_prop_def(
         DenseArrayBase.constr(IntegerType(1)), prop_name="inclusiveUpperbound"
@@ -3453,9 +3454,9 @@ class DataOp(IRDLOperation):
     name = "acc.data"
 
     if_cond: OptOperand = opt_operand_def(I1)
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -3590,7 +3591,7 @@ class HostDataOp(IRDLOperation):
     name = "acc.host_data"
 
     if_cond: OptOperand = opt_operand_def(I1)
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
 
@@ -3678,8 +3679,8 @@ class _DataEntryOperation(IRDLOperation, ABC):
 
     var: Operand = operand_def()
     var_ptr_ptr: OptOperand = opt_operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
     var_type = prop_def(TypeAttribute, prop_name="varType")
     async_operands_device_type = opt_prop_def(
@@ -4046,8 +4047,8 @@ class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
 
     acc_var: Operand = operand_def()
     var: Operand = operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
     var_type = prop_def(TypeAttribute, prop_name="varType")
     async_operands_device_type = opt_prop_def(
@@ -4180,8 +4181,8 @@ class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
     """
 
     acc_var: Operand = operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -4320,8 +4321,8 @@ class EnterDataOp(IRDLOperation):
     if_cond: OptOperand = opt_operand_def(I1)
     async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
     wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_attr = opt_prop_def(UnitAttr, prop_name="async")
     wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
@@ -4413,8 +4414,8 @@ class ExitDataOp(IRDLOperation):
     if_cond: OptOperand = opt_operand_def(I1)
     async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
     wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_attr = opt_prop_def(UnitAttr, prop_name="async")
     wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
@@ -4521,9 +4522,9 @@ class UpdateOp(IRDLOperation):
     name = "acc.update"
 
     if_cond: OptOperand = opt_operand_def(I1)
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
     async_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
@@ -4941,7 +4942,7 @@ class DeclareEnterOp(IRDLOperation):
 
     name = "acc.declare_enter"
 
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     token = result_def(DeclareTokenType)
 
@@ -4977,7 +4978,7 @@ class DeclareExitOp(IRDLOperation):
     name = "acc.declare_exit"
 
     token: OptOperand = opt_operand_def(DeclareTokenType)
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5024,7 +5025,7 @@ class DeclareOp(IRDLOperation):
 
     name = "acc.declare"
 
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
     region = region_def()
 
@@ -5597,7 +5598,7 @@ class WaitOp(IRDLOperation):
 
     name = "acc.wait"
 
-    wait_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
     async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
     wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
     if_cond: OptOperand = opt_operand_def(I1)

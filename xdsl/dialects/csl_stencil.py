@@ -29,6 +29,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -220,9 +221,9 @@ class ApplyOp(IRDLOperation):
 
     accumulator: Operand = operand_def(TensorType | MemRefType)
 
-    args_rchunk = var_operand_def(Attribute)
-    args_dexchng = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldTypeConstr | MemRefType.constr())
+    args_rchunk: VarOperand = var_operand_def(Attribute)
+    args_dexchng: VarOperand = var_operand_def(Attribute)
+    dest: VarOperand = var_operand_def(stencil.FieldTypeConstr | MemRefType.constr())
 
     receive_chunk = region_def()
     done_exchange = region_def()

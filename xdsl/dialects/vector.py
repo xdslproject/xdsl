@@ -61,6 +61,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -89,7 +90,7 @@ DYNAMIC_INDEX: int = -(2**63)
 class LoadOp(IRDLOperation):
     name = "vector.load"
     base: Operand = operand_def(MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     result = result_def(VectorType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
@@ -127,7 +128,7 @@ class StoreOp(IRDLOperation):
     name = "vector.store"
     vector: Operand = operand_def(VectorType)
     base: Operand = operand_def(MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     irdl_options = (ParsePropInAttrDict(),)
@@ -397,7 +398,7 @@ class FMAOp(IRDLOperation):
 class MaskedLoadOp(IRDLOperation):
     name = "vector.maskedload"
     base: Operand = operand_def(MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
     pass_thru: Operand = operand_def(VectorType)
     result = result_def(VectorRankConstraint(1))
@@ -452,7 +453,7 @@ class MaskedLoadOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "vector.maskedstore"
     base: Operand = operand_def(MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
     value_to_store: Operand = operand_def(VectorRankConstraint(1))
 
@@ -504,7 +505,7 @@ class PrintOp(IRDLOperation):
 @irdl_op_definition
 class CreateMaskOp(IRDLOperation):
     name = "vector.create_mask"
-    mask_dim_sizes = var_operand_def(IndexType)
+    mask_dim_sizes: VarOperand = var_operand_def(IndexType)
     mask_vector = result_def(VectorBaseTypeConstraint(i1))
 
     assembly_format = "$mask_dim_sizes attr-dict `:` type(results)"
@@ -534,7 +535,7 @@ class ExtractOp(IRDLOperation):
     static_position = prop_def(DenseArrayBase.constr(i64))
 
     vector: Operand = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position: VarOperand = var_operand_def(IndexTypeConstr)
 
     result = result_def(
         VectorType.constr(
@@ -642,7 +643,7 @@ class InsertOp(IRDLOperation):
         | _T
     )
     dest: Operand = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position: VarOperand = var_operand_def(IndexTypeConstr)
 
     result = result_def(_V)
 
@@ -1020,7 +1021,7 @@ class TransferReadOp(VectorTransferOperation):
     name = "vector.transfer_read"
 
     source: Operand = operand_def(TensorType | MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     padding: Operand = operand_def()
     mask: OptOperand = opt_operand_def(VectorType[I1])
 
@@ -1174,7 +1175,7 @@ class TransferWriteOp(VectorTransferOperation):
 
     vector: Operand = operand_def(VectorType)
     source: Operand = operand_def(TensorType | MemRefType)
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     mask: OptOperand = opt_operand_def(VectorType[I1])
 
     permutation_map = prop_def(AffineMapAttr)

@@ -31,6 +31,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -144,7 +145,7 @@ class ReplaceOp(IRDLOperation):
 
     name = "eqsat_pdl_interp.replace"
     input_op: Operand = operand_def(OperationType)
-    repl_values = var_operand_def(ValueType | RangeType[ValueType])
+    repl_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = (
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
@@ -167,9 +168,11 @@ class CreateOperationOp(IRDLOperation):
     )
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
-    input_operands = var_operand_def(ValueType | RangeType[ValueType])
-    input_attributes = var_operand_def(AttributeType | RangeType[AttributeType])
-    input_result_types = var_operand_def(TypeType | RangeType[TypeType])
+    input_operands: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
+    input_attributes: VarOperand = var_operand_def(
+        AttributeType | RangeType[AttributeType]
+    )
+    input_result_types: VarOperand = var_operand_def(TypeType | RangeType[TypeType])
 
     result_op = result_def(OperationType)
 
@@ -340,8 +343,8 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr)
-    matched_ops = var_operand_def(OperationType)
+    inputs: VarOperand = var_operand_def(AnyPDLTypeConstr)
+    matched_ops: VarOperand = var_operand_def(OperationType)
 
     dest = successor_def()
 

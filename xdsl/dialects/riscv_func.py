@@ -24,6 +24,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
@@ -74,7 +75,7 @@ class RiscvFunctionCallMemoryEffect(MemoryEffect):
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args = var_operand_def(riscv.IntRegisterType)
+    args: VarOperand = var_operand_def(riscv.IntRegisterType)
     syscall_num = attr_def(IntegerAttr[I32])
     result = opt_result_def(riscv.IntRegisterType)
 
@@ -118,7 +119,7 @@ class CallOp(riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args = var_operand_def(riscv.RISCVRegisterType)
+    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
@@ -289,7 +290,7 @@ class ReturnOp(riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values = var_operand_def(riscv.RISCVRegisterType)
+    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
     traits = traits_def(

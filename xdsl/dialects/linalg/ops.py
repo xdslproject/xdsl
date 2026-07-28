@@ -38,6 +38,7 @@ from xdsl.irdl import (
     Operand,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
+    VarOperand,
     attr_def,
     base,
     irdl_op_definition,
@@ -855,8 +856,8 @@ class TransposeOp(LinalgStructuredOperation):
 
     name = "linalg.transpose"
 
-    inputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
-    outputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    inputs: VarOperand = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    outputs: VarOperand = var_operand_def(base(MemRefType) | base(AnyTensorType))
     res = var_result_def(AnyTensorType)
 
     body = region_def("single_block")

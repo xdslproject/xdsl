@@ -46,6 +46,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParsePropInAttrDict,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -442,7 +443,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     args = opt_prop_def(ArrayAttr)
     template_args = opt_prop_def(ArrayAttr)
     # The SSA-value operands of the call
-    call_args = var_operand_def()
+    call_args: VarOperand = var_operand_def()
     res = var_result_def()
 
     irdl_options = (ParsePropInAttrDict(),)

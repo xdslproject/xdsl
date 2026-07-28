@@ -53,6 +53,7 @@ def _(xmo):
     from xdsl.traits import Pure
     from xdsl.irdl import (
         irdl_op_definition,
+    VarOperand,
         traits_def,
         IRDLOperation,
         irdl_attr_definition,

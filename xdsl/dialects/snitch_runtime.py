@@ -19,6 +19,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -437,8 +438,8 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     """
 
     data_mover: Operand = operand_def(i32)
-    bounds = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    bounds: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
     irdl_options = (AttrSizedOperandSegments(),)
 
     def verify_(self) -> None:

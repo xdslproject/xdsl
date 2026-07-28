@@ -31,6 +31,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     base,
     irdl_op_definition,
     lazy_traits_def,
@@ -61,7 +62,7 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "scf.while"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     res = var_result_def()
     before_region = region_def("single_block")
@@ -390,7 +391,7 @@ class ForOp(IRDLOperation):
     ub: Operand = operand_def(T)
     step: Operand = operand_def(T)
 
-    iter_args = var_operand_def()
+    iter_args: VarOperand = var_operand_def()
 
     res = var_result_def()
 
@@ -491,10 +492,10 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     name = "scf.parallel"
-    lowerBound = var_operand_def(IndexType)
-    upperBound = var_operand_def(IndexType)
-    step = var_operand_def(IndexType)
-    initVals = var_operand_def()
+    lowerBound: VarOperand = var_operand_def(IndexType)
+    upperBound: VarOperand = var_operand_def(IndexType)
+    step: VarOperand = var_operand_def(IndexType)
+    initVals: VarOperand = var_operand_def()
     res = var_result_def()
 
     body = region_def("single_block")
@@ -599,7 +600,7 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    args = var_operand_def()
+    args: VarOperand = var_operand_def()
 
     reductions = var_region_def("single_block")
 
@@ -676,7 +677,7 @@ class ReduceReturnOp(IRDLOperation):
 class ConditionOp(IRDLOperation):
     name = "scf.condition"
     condition: Operand = operand_def(IntegerType(1))
-    args = var_operand_def()
+    args: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), Pure())
 

@@ -42,6 +42,7 @@ from xdsl.irdl import (
     RegionDef,
     ResultDef,
     VarConstraint,
+    VarOperand,
     attr_def,
     base,
     irdl_op_definition,
@@ -286,7 +287,7 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
 class ConstraintRangeVarOp(IRDLOperation):
     name = "test.constraint_range_var"
 
-    operand = var_operand_def(
+    operand: VarOperand = var_operand_def(
         RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType)))
     )
     result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType))))
@@ -372,7 +373,7 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    operand: VarOperand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
     result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
@@ -469,7 +470,7 @@ class OperandOp(IRDLOperation):
 
     operand: Operand = operand_def()
     opt_operand: OptOperand = opt_operand_def()
-    var_operand = var_operand_def()
+    var_operand: VarOperand = var_operand_def()
 
 
 def test_operand_accessors():
@@ -666,8 +667,8 @@ def test_op_segmented_accessor_assignment():
     @irdl_op_definition
     class TestSegmentedOp(IRDLOperation):
         name = "test.segmentedop"
-        operands1 = var_operand_def()
-        operands2 = var_operand_def()
+        operands1: VarOperand = var_operand_def()
+        operands2: VarOperand = var_operand_def()
 
         results1 = var_result_def()
         results2 = var_result_def()
@@ -1032,7 +1033,7 @@ class OptionlessMultipleVarOp(IRDLOperation):
     name = "test.multiple_var_op"
 
     optional: OptOperand = opt_operand_def()
-    variadic = var_operand_def()
+    variadic: VarOperand = var_operand_def()
 
 
 def test_no_multiple_var_option():

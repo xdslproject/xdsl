@@ -27,6 +27,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -116,7 +117,7 @@ class LaunchOp(IRDLOperation):
 
     name = "accfg.launch"
 
-    values = var_operand_def(Attribute)  # TODO: make more precise?
+    values: VarOperand = var_operand_def(Attribute)  # TODO: make more precise?
     """
     The actual values used to set up registers linked to launch
     """
@@ -207,7 +208,7 @@ class SetupOp(IRDLOperation):
 
     name = "accfg.setup"
 
-    values = var_operand_def(Attribute)  # TODO: make more precise?
+    values: VarOperand = var_operand_def(Attribute)  # TODO: make more precise?
     """
     The actual values used to set up the CSRs
     """

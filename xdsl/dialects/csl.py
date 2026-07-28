@@ -58,6 +58,7 @@ from xdsl.irdl import (
     OptOperand,
     ParametrizedAttribute,
     VarConstraint,
+    VarOperand,
     attr_def,
     base,
     eq,
@@ -598,7 +599,7 @@ class ConstStructOp(IRDLOperation):
 
     items = opt_prop_def(DictionaryAttr)
     ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
-    ssa_values = var_operand_def()
+    ssa_values: VarOperand = var_operand_def()
     res = result_def(ComptimeStructType)
 
     def __init__(self, *args: tuple[str, Operation | SSAValue]):
@@ -734,7 +735,7 @@ class MemberCallOp(IRDLOperation):
 
     field = prop_def(StringAttr)
 
-    args = var_operand_def(Attribute)
+    args: VarOperand = var_operand_def(Attribute)
 
     result = opt_result_def(Attribute)
 
@@ -1036,7 +1037,7 @@ class CallOp(IRDLOperation):
     name = "csl.call"
 
     callee = prop_def(SymbolRefAttr)
-    args = var_operand_def(Attribute)
+    args: VarOperand = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
 
     def __init__(
@@ -1140,7 +1141,7 @@ class _GetDsdOp(IRDLOperation, ABC):
     Abstract base class for CSL @get_dsd()
     """
 
-    sizes = var_operand_def(IntegerType)
+    sizes: VarOperand = var_operand_def(IntegerType)
     result = result_def(DsdType)
 
 
@@ -1341,7 +1342,7 @@ FunctionSignatures = list[tuple[Attribute | type[Attribute], ...]]
 
 
 class BuiltinDsdOp(IRDLOperation, ABC):
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     SIGNATURES: ClassVar[FunctionSignatures]
 

@@ -3,6 +3,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
     irdl_op_definition,
     var_operand_def,
     var_result_def,
@@ -14,7 +15,7 @@ from xdsl.utils.exceptions import ParseError
 @irdl_op_definition
 class UnknownOp(IRDLOperation):
     name = "test.unknown"
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     res = var_result_def()
 
 

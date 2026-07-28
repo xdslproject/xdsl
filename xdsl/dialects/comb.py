@@ -27,6 +27,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     base,
     irdl_op_definition,
     operand_def,
@@ -154,7 +155,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    inputs = var_operand_def(T)
+    inputs: VarOperand = var_operand_def(T)
     result = result_def(T)
 
     def __init__(
@@ -540,7 +541,7 @@ class ConcatOp(IRDLOperation):
 
     name = "comb.concat"
 
-    inputs = var_operand_def(IntegerType)
+    inputs: VarOperand = var_operand_def(IntegerType)
     result = result_def(IntegerType)
 
     def __init__(

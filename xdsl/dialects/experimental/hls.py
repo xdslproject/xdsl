@@ -12,6 +12,7 @@ from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -28,7 +29,7 @@ from xdsl.traits import IsTerminator
 @irdl_op_definition
 class HLSYieldOp(IRDLOperation):
     name = "hls.yield"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator())
 

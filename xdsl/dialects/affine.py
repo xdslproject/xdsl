@@ -40,6 +40,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -65,7 +66,7 @@ from xdsl.utils.hints import isa
 class ApplyOp(IRDLOperation):
     name = "affine.apply"
 
-    mapOperands = var_operand_def(IndexType)
+    mapOperands: VarOperand = var_operand_def(IndexType)
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
@@ -132,9 +133,9 @@ class ApplyOp(IRDLOperation):
 class ForOp(IRDLOperation):
     name = "affine.for"
 
-    lowerBoundOperands = var_operand_def(IndexType)
-    upperBoundOperands = var_operand_def(IndexType)
-    inits = var_operand_def()
+    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
+    upperBoundOperands: VarOperand = var_operand_def(IndexType)
+    inits: VarOperand = var_operand_def()
     res = var_result_def()
 
     lowerBoundMap = prop_def(AffineMapAttr)
@@ -219,7 +220,7 @@ class IfOp(IRDLOperation):
 
     name = "affine.if"
 
-    args = var_operand_def(IndexType)
+    args: VarOperand = var_operand_def(IndexType)
     res = var_result_def()
 
     condition = prop_def(AffineSetAttr)
@@ -238,7 +239,7 @@ class ParallelOp(IRDLOperation):
 
     name = "affine.parallel"
 
-    map_operands = var_operand_def(IndexType)
+    map_operands: VarOperand = var_operand_def(IndexType)
 
     reductions = prop_def(ArrayAttr[StringAttr])
     lowerBoundsMap = prop_def(AffineMapAttr)
@@ -372,7 +373,7 @@ class StoreOp(IRDLOperation):
 
     value: Operand = operand_def(T)
     memref: Operand = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
     map = prop_def(AffineMapAttr)
 
     def __init__(
@@ -424,7 +425,7 @@ class LoadOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     memref: Operand = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
 
     result = result_def(T)
 
@@ -480,7 +481,7 @@ class LoadOp(IRDLOperation):
 @irdl_op_definition
 class MinOp(IRDLOperation):
     name = "affine.min"
-    arguments = var_operand_def(IndexType())
+    arguments: VarOperand = var_operand_def(IndexType())
     result = result_def(IndexType())
 
     map = prop_def(AffineMapAttr)
@@ -498,7 +499,7 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "affine.yield"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), Pure())
 

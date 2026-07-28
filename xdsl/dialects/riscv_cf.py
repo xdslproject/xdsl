@@ -17,6 +17,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     Operand,
     Successor,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -55,8 +56,8 @@ class ConditionalBranchOperation(
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    else_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -306,7 +307,7 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     name = "riscv_cf.branch"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
     successor = successor_def()
     comment = opt_attr_def(StringAttr)
     """
@@ -396,7 +397,7 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 
@@ -477,8 +478,8 @@ class BnezOp(RISCVInstruction):
 
     rs: Operand = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    else_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 

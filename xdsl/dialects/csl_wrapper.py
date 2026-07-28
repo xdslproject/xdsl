@@ -24,6 +24,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -103,7 +104,7 @@ class ImportOp(IRDLOperation):
 
     name = "csl_wrapper.import"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     module = prop_def(StringAttr)
     fields = prop_def(ArrayAttr[StringAttr])
     result = result_def(csl.ImportedModuleType)
@@ -374,7 +375,7 @@ class YieldOp(IRDLOperation):
 
     name = "csl_wrapper.yield"
 
-    values = var_operand_def(Attribute)
+    values: VarOperand = var_operand_def(Attribute)
     fields = prop_def(ArrayAttr[StringAttr])
 
     traits = lazy_traits_def(

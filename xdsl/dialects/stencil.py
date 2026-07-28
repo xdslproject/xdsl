@@ -43,6 +43,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
+    VarOperand,
     attr_def,
     base,
     irdl_attr_definition,
@@ -500,8 +501,8 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
 
-    args = var_operand_def(Attribute)
-    dest = var_operand_def(FieldType)
+    args: VarOperand = var_operand_def(Attribute)
+    dest: VarOperand = var_operand_def(FieldType)
     region = region_def()
     res = var_result_def(TempType)
 
@@ -843,10 +844,10 @@ class CombineOp(IRDLOperation):
 
     dim = attr_def(IntegerAttr[IndexType])
     index = attr_def(IntegerAttr[IndexType])
-    lower = var_operand_def(TempType)
-    upper = var_operand_def(TempType)
-    lowerext = var_operand_def(TempType)
-    upperext = var_operand_def(TempType)
+    lower: VarOperand = var_operand_def(TempType)
+    upper: VarOperand = var_operand_def(TempType)
+    lowerext: VarOperand = var_operand_def(TempType)
+    upperext: VarOperand = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
     traits = traits_def(
@@ -892,7 +893,7 @@ class DynAccessOp(IRDLOperation):
         )
     )
 
-    offset = var_operand_def(builtin.IndexType())
+    offset: VarOperand = var_operand_def(builtin.IndexType())
     lb = attr_def(IndexAttr)
     ub = attr_def(IndexAttr)
 
@@ -1503,7 +1504,7 @@ class ReturnOp(IRDLOperation):
 
     name = "stencil.return"
 
-    arg = var_operand_def(Attribute)
+    arg: VarOperand = var_operand_def(Attribute)
     unroll = opt_prop_def(IndexAttr)
 
     assembly_format = "$arg (`unroll` $unroll^)? attr-dict-with-keyword `:` type($arg)"

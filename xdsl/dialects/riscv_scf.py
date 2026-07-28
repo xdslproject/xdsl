@@ -30,6 +30,7 @@ from xdsl.irdl import (
     OptOperand,
     Region,
     SSAValue,
+    VarOperand,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -72,7 +73,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     step_val: OptOperand = opt_operand_def(IntRegisterType)
     step_attr = opt_prop_def(IntegerAttr[IntegerType])
 
-    iter_args = var_operand_def(RISCVRegisterType)
+    iter_args: VarOperand = var_operand_def(RISCVRegisterType)
 
     res = var_result_def(RISCVRegisterType)
 
@@ -296,7 +297,7 @@ class RofOp(ForRofOperation):
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "riscv_scf.while"
-    arguments = var_operand_def(RISCVRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     res = var_result_def(RISCVRegisterType)
     before_region = region_def()
@@ -423,7 +424,7 @@ class WhileOp(IRDLOperation):
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
     cond: Operand = operand_def(IntRegisterType)
-    arguments = var_operand_def(RISCVRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 

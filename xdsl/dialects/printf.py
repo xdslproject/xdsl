@@ -5,6 +5,7 @@ from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -31,7 +32,7 @@ class PrintFormatOp(IRDLOperation):
     name = "printf.print_format"
 
     format_str = attr_def(builtin.StringAttr)
-    format_vals = var_operand_def()
+    format_vals: VarOperand = var_operand_def()
 
     def __init__(self, format_str: str, *vals: SSAValue | Operation):
         super().__init__(

@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -161,7 +162,7 @@ class ApplyRegisteredPassOp(IRDLOperation):
     pass_name = prop_def(StringAttr)
     target: Operand = operand_def(TransformHandleType)
     # TODO implement dynamic options and custom directive
-    # dynamic_options = var_operand_def(TransformHandleType)
+    # dynamic_options: VarOperand = var_operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
     assembly_format = "$pass_name (`with` `options` `=` $options^)? `to` $target attr-dict `:` functional-type(operands, results)"
 
@@ -358,7 +359,7 @@ class IncludeOp(IRDLOperation):
 
     target = prop_def(SymbolRefAttr)
     failure_propagation_mode = prop_def()
-    operands_input = var_operand_def(TransformHandleType)
+    operands_input: VarOperand = var_operand_def(TransformHandleType)
     result = var_result_def(TransformHandleType)
 
     def __init__(
@@ -458,7 +459,7 @@ class MergeHandlesOp(IRDLOperation):
     name = "transform.merge_handles"
 
     deduplicate = opt_prop_def(UnitAttr)
-    handles = var_operand_def(TransformHandleType)
+    handles: VarOperand = var_operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
 
     def __init__(self, handles: Sequence[SSAValue], deduplicate: bool = False):
@@ -558,8 +559,8 @@ class SequenceOp(IRDLOperation):
 
     body = region_def("single_block")
     failure_propagation_mode = prop_def()
-    root = var_operand_def(AnyOpType)
-    extra_bindings = var_operand_def(TransformHandleType)
+    root: VarOperand = var_operand_def(AnyOpType)
+    extra_bindings: VarOperand = var_operand_def(TransformHandleType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
@@ -602,7 +603,7 @@ class TileOp(IRDLOperation):
     name = "transform.structured.tile_using_for"
 
     target: Operand = operand_def(TransformHandleType)
-    dynamic_sizes = var_operand_def(TransformHandleType)
+    dynamic_sizes: VarOperand = var_operand_def(TransformHandleType)
     static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
     interchange = opt_prop_def(DenseArrayBase.constr(i64))
     scalable_sizes = opt_prop_def(DenseArrayBase.constr(i1))
@@ -657,8 +658,8 @@ class TileToForallOp(IRDLOperation):
     name = "transform.structured.tile_using_forall"
 
     target: Operand = operand_def(TransformHandleType)
-    num_threads = var_operand_def(DenseArrayBase)
-    tile_sizes = var_operand_def(DenseArrayBase)
+    num_threads: VarOperand = var_operand_def(DenseArrayBase)
+    tile_sizes: VarOperand = var_operand_def(DenseArrayBase)
     packed_num_threads: OptOperand = opt_operand_def(DenseArrayBase)
     packed_tile_sizes: OptOperand = opt_operand_def(DenseArrayBase)
     static_num_threads = opt_prop_def(DenseArrayBase)

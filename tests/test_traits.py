@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     Region,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     lazy_traits_def,
@@ -612,7 +613,7 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
     class SameOperandsAndResultTypeOp(IRDLOperation):
         name = "test.same_operand_and_result_type"
 
-        ops = var_operand_def(test.TestType("foo"))
+        ops: VarOperand = var_operand_def(test.TestType("foo"))
         res = var_result_def(test.TestType("foo"))
 
         traits = traits_def(SameOperandsAndResultType())
@@ -629,7 +630,7 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
 class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
-    ops = var_operand_def(
+    ops: VarOperand = var_operand_def(
         MemRefType.constr()
         | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr

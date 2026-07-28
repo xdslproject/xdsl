@@ -45,6 +45,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -728,7 +729,7 @@ def test_custom_format_II():
 class NoCustomFormatOp(IRDLOperation):
     name = "test.no_custom_format"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     res = var_result_def()
 
 

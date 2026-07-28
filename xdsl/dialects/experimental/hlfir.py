@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -185,7 +186,7 @@ class DeclareOp(IRDLOperation):
     name = "hlfir.declare"
     memref: Operand = operand_def()
     shape: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     dummy_scope: OptOperand = opt_operand_def()
     storage: OptOperand = opt_operand_def()
     storage_offset = opt_prop_def(IntegerAttr)
@@ -238,10 +239,10 @@ class DesignateOp(IRDLOperation):
     name = "hlfir.designate"
     memref: Operand = operand_def()
     component_shape: OptOperand = opt_operand_def()
-    indices = var_operand_def()
-    substring = var_operand_def()
+    indices: VarOperand = var_operand_def()
+    substring: VarOperand = var_operand_def()
     shape: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     component = opt_prop_def(StringAttr)
     complex_part = opt_prop_def(BoolAttr)
     is_triplet = prop_def(DenseArrayBase)
@@ -325,7 +326,7 @@ class ParentComponentOp(IRDLOperation):
     name = "hlfir.parent_comp"
     memref: Operand = operand_def()
     shape: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     result = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -340,7 +341,7 @@ class ConcatOp(IRDLOperation):
     """
 
     name = "hlfir.concat"
-    strings = var_operand_def()
+    strings: VarOperand = var_operand_def()
     length: Operand = operand_def()
     result = result_def()
 
@@ -568,7 +569,7 @@ class AssociateOp(IRDLOperation):
     name = "hlfir.associate"
     source: Operand = operand_def()
     shape: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = result_def()
@@ -671,7 +672,7 @@ class ElementalOp(IRDLOperation):
     name = "hlfir.elemental"
     shape: Operand = operand_def()
     mold: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
     result = result_def()
     region = region_def("single_block")
@@ -717,8 +718,8 @@ class ApplyOp(IRDLOperation):
 
     name = "hlfir.apply"
     expr: Operand = operand_def()
-    indices = var_operand_def()
-    typeparams = var_operand_def()
+    indices: VarOperand = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     result = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -964,7 +965,7 @@ class ElementalAddrOp(IRDLOperation):
     name = "hlfir.elemental_addr"
     shape: Operand = operand_def()
     mold: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
     body = region_def("single_block")
     cleanup = opt_region_def()
@@ -1161,7 +1162,7 @@ class CharExtremumOp(IRDLOperation):
 
     name = "hlfir.char_extremum"
     predicate = prop_def(CharExtremumPredicateAttr)
-    strings = var_operand_def()
+    strings: VarOperand = var_operand_def()
     result = result_def()
 
 
@@ -1216,7 +1217,7 @@ class EvaluateInMemoryOp(IRDLOperation):
 
     name = "hlfir.eval_in_mem"
     shape: OptOperand = opt_operand_def()
-    typeparams = var_operand_def()
+    typeparams: VarOperand = var_operand_def()
     result = result_def()
     body = region_def("single_block")
 

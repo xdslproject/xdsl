@@ -68,6 +68,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    VarOperand,
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -2719,7 +2720,7 @@ class AffineSetAttr(_BuiltinData[AffineSet]):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     outputs = var_result_def()
 
     traits = traits_def(NoMemoryEffect())

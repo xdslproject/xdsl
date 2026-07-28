@@ -36,6 +36,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -148,9 +149,9 @@ class LoopDimMapAttr(ParametrizedAttribute):
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
     hostShared = opt_attr_def(UnitAttr)
-    asyncDependencies = var_operand_def(AsyncTokenType)
-    dynamicSizes = var_operand_def(IndexType)
-    symbolOperands = var_operand_def(IndexType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    dynamicSizes: VarOperand = var_operand_def(IndexType)
+    symbolOperands: VarOperand = var_operand_def(IndexType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -292,7 +293,7 @@ class BlockIdOp(IRDLOperation):
 class DeallocOp(IRDLOperation):
     name = "gpu.dealloc"
 
-    asyncDependencies = var_operand_def(AsyncTokenType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     buffer: Operand = operand_def(memref.MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(),)
@@ -315,7 +316,7 @@ class DeallocOp(IRDLOperation):
 class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
-    asyncDependencies = var_operand_def(AsyncTokenType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     dst: Operand = operand_def(memref.MemRefType)
     src: Operand = operand_def(memref.MemRefType)
 
@@ -487,7 +488,7 @@ class LaneIdOp(IRDLOperation):
 @irdl_op_definition
 class LaunchOp(IRDLOperation):
     name = "gpu.launch"
-    asyncDependencies = var_operand_def(AsyncTokenType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     gridSizeX: Operand = operand_def(IndexType)
     gridSizeY: Operand = operand_def(IndexType)
     gridSizeZ: Operand = operand_def(IndexType)
@@ -591,7 +592,7 @@ class LaunchFuncOp(IRDLOperation):
     """
 
     name = "gpu.launch_func"
-    asyncDependencies = var_operand_def(AsyncTokenType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     gridSizeX: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
     gridSizeY: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
     gridSizeZ: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
@@ -602,7 +603,7 @@ class LaunchFuncOp(IRDLOperation):
     clusterSizeY: OptOperand = opt_operand_def(AnyOf.get(IndexType, i32, i64))
     clusterSizeZ: OptOperand = opt_operand_def(AnyOf.get(IndexType, i32, i64))
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
-    kernelOperands = var_operand_def()
+    kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
 
     asyncToken = opt_result_def(AsyncTokenType)
@@ -666,7 +667,7 @@ class NumSubgroupsOp(IRDLOperation):
 class ReturnOp(IRDLOperation):
     name = "gpu.return"
 
-    args = var_operand_def()
+    args: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
@@ -724,7 +725,7 @@ class ThreadIdOp(IRDLOperation):
 @irdl_op_definition
 class WaitOp(IRDLOperation):
     name = "gpu.wait"
-    asyncDependencies = var_operand_def(AsyncTokenType)
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     asyncToken = opt_result_def(AsyncTokenType)
 
     def __init__(
@@ -740,7 +741,7 @@ class WaitOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "gpu.yield"
-    values = var_operand_def(Attribute)
+    values: VarOperand = var_operand_def(Attribute)
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         super().__init__(operands=[operands])

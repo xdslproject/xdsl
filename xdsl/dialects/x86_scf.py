@@ -27,6 +27,7 @@ from xdsl.irdl import (
     OptOperand,
     Region,
     SSAValue,
+    VarOperand,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -70,7 +71,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     step_val: OptOperand = opt_operand_def(GeneralRegisterType)
     step_attr = opt_prop_def(IntegerAttr[SI32])
 
-    iter_args = var_operand_def(X86RegisterType)
+    iter_args: VarOperand = var_operand_def(X86RegisterType)
 
     res = var_result_def(X86RegisterType)
 

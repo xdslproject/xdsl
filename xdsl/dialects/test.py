@@ -24,6 +24,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedResultSegments,
     IRDLOperation,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -59,7 +60,7 @@ class TestOp(IRDLOperation):
     name = "test.op"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
 
     prop1 = opt_prop_def()
@@ -97,7 +98,7 @@ class TestTermOp(IRDLOperation):
     name = "test.termop"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
     successor = var_successor_def()
 
@@ -140,7 +141,7 @@ class TestPureOp(IRDLOperation):
     name = "test.pureop"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
     successor = var_successor_def()
 
@@ -183,7 +184,7 @@ class TestReadOp(IRDLOperation):
     name = "test.op_with_memread"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
     successor = var_successor_def()
 
@@ -226,7 +227,7 @@ class TestWriteOp(IRDLOperation):
     name = "test.op_with_memwrite"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
     successor = var_successor_def()
 
@@ -311,7 +312,7 @@ class TestSymbolOp(IRDLOperation):
     name = "test.op_with_symbol"
 
     res = var_result_def()
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
     regs = var_region_def()
 
     sym_name = prop_def(SymbolNameConstraint())
@@ -338,8 +339,8 @@ class TestSymbolOp(IRDLOperation):
 class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
 
-    in_operands = var_operand_def()
-    inout_operands = var_operand_def()
+    in_operands: VarOperand = var_operand_def()
+    inout_operands: VarOperand = var_operand_def()
     out_results = var_result_def()
     inout_results = var_result_def()
 

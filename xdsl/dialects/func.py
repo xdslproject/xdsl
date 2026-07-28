@@ -26,6 +26,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
     irdl_op_definition,
     opt_prop_def,
     prop_def,
@@ -320,7 +321,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "func.call"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
     callee = prop_def(FlatSymbolRefAttrConstr)
     res = var_result_def()
 
@@ -350,7 +351,7 @@ class CallOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     name = "func.return"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(FuncOp), IsTerminator(), ReturnLike())
 

@@ -60,6 +60,7 @@ def _(xmo):
     from xdsl.traits import Pure
     from xdsl.irdl import (
         irdl_op_definition,
+    VarOperand,
         IRDLOperation,
         irdl_attr_definition,
         Operand,
@@ -141,6 +142,7 @@ def _(xmo):
         dce,
         irdl_attr_definition,
         irdl_op_definition,
+    VarOperand,
         operand_def,
         result_def,
         symbols,
@@ -197,6 +199,7 @@ def _(
     TypeAttribute,
     irdl_attr_definition,
     irdl_op_definition,
+    VarOperand,
     Operand,
     operand_def,
     result_def,
@@ -291,6 +294,7 @@ def _(
     TypeAttribute,
     irdl_attr_definition,
     irdl_op_definition,
+    VarOperand,
     operand_def,
     result_def,
     traits_def,

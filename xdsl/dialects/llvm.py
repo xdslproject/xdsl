@@ -75,6 +75,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1122,7 +1123,7 @@ class GEPOp(IRDLOperation):
     name = "llvm.getelementptr"
 
     ptr: Operand = operand_def(LLVMPointerType)
-    ssa_indices = var_operand_def(IntegerType)
+    ssa_indices: VarOperand = var_operand_def(IntegerType)
     elem_type = prop_def()
     noWrapFlags = prop_def(IntegerAttr[I32])
 
@@ -1390,7 +1391,7 @@ class InlineAsmOp(IRDLOperation):
 
     name = "llvm.inline_asm"
 
-    operands_ = var_operand_def()
+    operands_: VarOperand = var_operand_def()
 
     res = opt_result_def()
 
@@ -2627,8 +2628,8 @@ class CallIntrinsicOp(IRDLOperation):
         DenseArrayBase.constr(i32),
         default_value=DenseArrayBase.from_list(i32, ()),
     )
-    args = var_operand_def()
-    op_bundle_operands = var_operand_def()
+    args: VarOperand = var_operand_def()
+    op_bundle_operands: VarOperand = var_operand_def()
     ress = opt_result_def()
 
     assembly_format = (
@@ -2699,8 +2700,8 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
 class CallOp(IRDLOperation):
     name = "llvm.call"
 
-    args = var_operand_def()
-    op_bundle_operands = var_operand_def()
+    args: VarOperand = var_operand_def()
+    op_bundle_operands: VarOperand = var_operand_def()
 
     callee = opt_prop_def(SymbolRefAttr)
     var_callee_type = opt_prop_def(LLVMFunctionType)
@@ -3485,7 +3486,7 @@ class SelectOp(IRDLOperation):
 class BrOp(IRDLOperation):
     name = "llvm.br"
 
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     successor = successor_def()
 
@@ -3502,8 +3503,8 @@ class CondBrOp(IRDLOperation):
     name = "llvm.cond_br"
 
     cond: Operand = operand_def(IntegerType(1))
-    then_arguments = var_operand_def()
-    else_arguments = var_operand_def()
+    then_arguments: VarOperand = var_operand_def()
+    else_arguments: VarOperand = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 

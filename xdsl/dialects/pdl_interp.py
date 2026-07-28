@@ -59,6 +59,7 @@ from xdsl.irdl import (
     Operand,
     ParsePropInAttrDict,
     VarConstraint,
+    VarOperand,
     base,
     irdl_op_definition,
     operand_def,
@@ -550,7 +551,7 @@ class ApplyConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
@@ -592,7 +593,7 @@ class ApplyRewriteOp(IRDLOperation):
 
     name = "pdl_interp.apply_rewrite"
     rewrite_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -632,8 +633,8 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    matched_ops = var_operand_def(OperationType)
+    inputs: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    matched_ops: VarOperand = var_operand_def(OperationType)
 
     dest = successor_def()
 
@@ -737,7 +738,7 @@ class ReplaceOp(IRDLOperation):
 
     name = "pdl_interp.replace"
     input_op: Operand = operand_def(OperationType)
-    repl_values = var_operand_def(ValueType | RangeType[ValueType])
+    repl_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = (
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
@@ -791,9 +792,11 @@ class CreateOperationOp(IRDLOperation):
     )
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
-    input_operands = var_operand_def(ValueType | RangeType[ValueType])
-    input_attributes = var_operand_def(AttributeType | RangeType[AttributeType])
-    input_result_types = var_operand_def(TypeType | RangeType[TypeType])
+    input_operands: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
+    input_attributes: VarOperand = var_operand_def(
+        AttributeType | RangeType[AttributeType]
+    )
+    input_result_types: VarOperand = var_operand_def(TypeType | RangeType[TypeType])
 
     result_op = result_def(OperationType)
 
@@ -1000,7 +1003,9 @@ class CreateRangeOp(IRDLOperation):
     """
 
     name = "pdl_interp.create_range"
-    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    arguments: VarOperand = var_operand_def(
+        AnyPDLTypeConstr | base(RangeType[AnyPDLType])
+    )
     result = result_def(RangeType[AnyPDLType])
 
     custom_directives = (RangeTypeDirective,)

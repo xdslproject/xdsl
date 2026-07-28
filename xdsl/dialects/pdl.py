@@ -30,6 +30,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     ParsePropInAttrDict,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -188,7 +189,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     irdl_options = (ParsePropInAttrDict(),)
@@ -219,7 +220,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     def __init__(
@@ -365,9 +366,13 @@ class OperationOp(IRDLOperation):
     opName = opt_prop_def(StringAttr)
     attributeValueNames = prop_def(ArrayAttr[StringAttr])
 
-    operand_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
-    attribute_values = var_operand_def(AttributeType)
-    type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
+    operand_values: VarOperand = var_operand_def(
+        base(ValueType) | base(RangeType[ValueType])
+    )
+    attribute_values: VarOperand = var_operand_def(AttributeType)
+    type_values: VarOperand = var_operand_def(
+        base(TypeType) | base(RangeType[TypeType])
+    )
     op = result_def(OperationType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -609,7 +614,9 @@ class RangeOp(IRDLOperation):
     """
 
     name = "pdl.range"
-    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    arguments: VarOperand = var_operand_def(
+        AnyPDLTypeConstr | base(RangeType[AnyPDLType])
+    )
     result = result_def(RangeType[AnyPDLType])
 
     traits = lazy_traits_def(lambda: (HasParent(RewriteOp),))
@@ -687,7 +694,9 @@ class ReplaceOp(IRDLOperation):
     name = "pdl.replace"
     op_value: Operand = operand_def(OperationType)
     repl_operation: OptOperand = opt_operand_def(OperationType)
-    repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
+    repl_values: VarOperand = var_operand_def(
+        base(ValueType) | base(RangeType[ValueType])
+    )
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -805,7 +814,7 @@ class RewriteOp(IRDLOperation):
     # name of external rewriter function
     name_ = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function
-    external_args = var_operand_def(AnyPDLTypeConstr)
+    external_args: VarOperand = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
     body = region_def()
 

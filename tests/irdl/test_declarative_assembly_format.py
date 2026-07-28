@@ -1085,7 +1085,7 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class VariadicOperandOp(IRDLOperation):
         name = "test.variadic_operand"
-        args = var_operand_def()
+        args: VarOperand = var_operand_def()
 
         assembly_format = format
 
@@ -1169,8 +1169,8 @@ def test_multiple_variadic_operands(
     @irdl_op_definition
     class VariadicOperandsOp(IRDLOperation):
         name = "test.variadic_operands"
-        args1 = var_operand_def()
-        args2 = var_operand_def()
+        args1: VarOperand = var_operand_def()
+        args2: VarOperand = var_operand_def()
 
         irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
@@ -1267,7 +1267,7 @@ def test_operands_directive_with_variadic(program: str):
         name = "test.operands_directive"
 
         op1: Operand = operand_def()
-        op2 = var_operand_def()
+        op2: VarOperand = var_operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1335,8 +1335,8 @@ def test_operands_directive_fails_with_two_var():
         class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_var_op"
 
-            op1 = var_operand_def()
-            op2 = var_operand_def()
+            op1: VarOperand = var_operand_def()
+            op2: VarOperand = var_operand_def()
 
             irdl_options = (AttrSizedOperandSegments(),)
 
@@ -1361,8 +1361,8 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_operand_def()
-        res2 = var_operand_def()
+        res1: VarOperand = var_operand_def()
+        res2: VarOperand = var_operand_def()
 
         irdl_options = (SameVariadicOperandSize(),)
 
@@ -1392,8 +1392,8 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_operand_def()
-        res2 = var_operand_def()
+        res1: VarOperand = var_operand_def()
+        res2: VarOperand = var_operand_def()
 
         irdl_options = (SameVariadicOperandSize(),)
 
@@ -1549,7 +1549,7 @@ def test_operands_directive_bound_with_var(program: str, error: str):
         name = "test.three_operands"
 
         op1: Operand = operand_def()
-        op2 = var_operand_def()
+        op2: VarOperand = var_operand_def()
         op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
@@ -1616,7 +1616,7 @@ def test_operands_directive_with_variadic_type_directive():
         name = "test.two_operand"
 
         op1: Operand = operand_def()
-        op2 = var_operand_def()
+        op2: VarOperand = var_operand_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> TwoOperandOp:
@@ -2156,7 +2156,7 @@ def test_functional_type(program: str):
     class FunctionalTypeOp(IRDLOperation):
         name = "test.functional_type"
 
-        ops = var_operand_def()
+        ops: VarOperand = var_operand_def()
         res = var_result_def()
 
         assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
@@ -2186,7 +2186,7 @@ def test_functional_type_with_operands_and_results(program: str):
         name = "test.functional_type"
 
         op1: Operand = operand_def()
-        ops2 = var_operand_def()
+        ops2: VarOperand = var_operand_def()
         res1 = var_result_def()
         res2 = result_def()
 
@@ -2927,7 +2927,7 @@ def test_variadic_length_inference():
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
         T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
-        ins = var_operand_def(T)
+        ins: VarOperand = var_operand_def(T)
         outs = var_result_def(T)
 
         assembly_format = "$ins attr-dict `:` type($ins)"
@@ -2954,7 +2954,7 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
+        ins: VarOperand = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
         outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
 
         assembly_format = "$ins attr-dict"
@@ -3225,7 +3225,7 @@ def test_optional_group_variadic_operand_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        args = var_operand_def()
+        args: VarOperand = var_operand_def()
 
         assembly_format = "($args^ `:` type($args))? attr-dict"
 
@@ -3340,7 +3340,7 @@ def test_optional_group_checkers(format: str, error: str):
         class WrongOptionalGroupOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.wrong_optional_group"
 
-            args = var_operand_def()
+            args: VarOperand = var_operand_def()
             rets = var_result_def()
             mandatory_arg: Operand = operand_def()
             optional_unit_arg = opt_prop_def(UnitAttr())
@@ -3372,7 +3372,7 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
     @irdl_op_definition
     class MixedOp(IRDLOperation):
         name = "test.mixed"
-        var = var_operand_def(TestType("index"))
+        var: VarOperand = var_operand_def(TestType("index"))
         sin: Operand = operand_def(TestType("index"))
 
         assembly_format = "$sin `(` $var `)` attr-dict"
@@ -3739,7 +3739,7 @@ class IntAttrVerifyOp(IRDLOperation):
 
     prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
+    ins: VarOperand = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
@@ -3906,7 +3906,7 @@ class Bars(CustomDirective):
 class CustomDirectiveWithParamOp(IRDLOperation):
     name = "test.custom_param"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     assembly_format = "custom<Bars>($ops) (`:` type($ops)^)? attr-dict"
 
@@ -4051,7 +4051,7 @@ def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
     class DynIndexListOp(IRDLOperation):
         name = "test.dyn_index_list"
 
-        dynamic_indices = var_operand_def(I64)
+        dynamic_indices: VarOperand = var_operand_def(I64)
         static_indices = prop_def(DenseArrayBase[I64])
 
         assembly_format = "(`keyword` custom<DynamicIndexList>($dynamic_indices, $static_indices)^)? attr-dict"

@@ -28,6 +28,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -255,7 +256,7 @@ class ParametersOp(IRDLOperation):
 
     name = "irdl.parameters"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
     names = prop_def(ArrayAttr[StringAttr])
 
@@ -362,7 +363,7 @@ class OperandsOp(IRDLOperation):
 
     name = "irdl.operands"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
     variadicity = prop_def(VariadicityArrayAttr)
 
@@ -408,7 +409,7 @@ class ResultsOp(IRDLOperation):
 
     name = "irdl.results"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
     variadicity = prop_def(VariadicityArrayAttr)
 
@@ -468,7 +469,7 @@ class AttributesOp(IRDLOperation):
 
     name = "irdl.attributes"
 
-    attribute_values = var_operand_def(AttributeType())
+    attribute_values: VarOperand = var_operand_def(AttributeType())
 
     attribute_value_names = prop_def(ArrayAttr[StringAttr])
 
@@ -525,7 +526,7 @@ class RegionsOp(IRDLOperation):
 
     name = "irdl.regions"
 
-    args = var_operand_def(RegionType())
+    args: VarOperand = var_operand_def(RegionType())
 
     names = prop_def(ArrayAttr[StringAttr])
 
@@ -638,7 +639,7 @@ class ParametricOp(IRDLOperation):
     name = "irdl.parametric"
 
     base_type = prop_def(SymbolRefAttr)
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
     output = result_def(AttributeType)
 
     def __init__(
@@ -675,7 +676,7 @@ class RegionOp(IRDLOperation):
 
     name = "irdl.region"
 
-    entry_block_args = var_operand_def(AttributeType())
+    entry_block_args: VarOperand = var_operand_def(AttributeType())
 
     constrained_arguments = opt_prop_def(UnitAttr)
 
@@ -733,7 +734,7 @@ class AnyOfOp(IRDLOperation):
 
     name = "irdl.any_of"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
     output = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
@@ -757,7 +758,7 @@ class AllOfOp(IRDLOperation):
 
     name = "irdl.all_of"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
     output = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):

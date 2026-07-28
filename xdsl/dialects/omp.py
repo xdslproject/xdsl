@@ -525,9 +525,9 @@ class MapBoundsType(ParametrizedAttribute, TypeAttribute):
 class LoopNestOp(IRDLOperation):
     name = "omp.loop_nest"
 
-    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
-    upperBound = var_operand_def(base(IntegerType) | base(IndexType))
-    step = var_operand_def(base(IntegerType) | base(IndexType))
+    lowerBound: VarOperand = var_operand_def(base(IntegerType) | base(IndexType))
+    upperBound: VarOperand = var_operand_def(base(IntegerType) | base(IndexType))
+    step: VarOperand = var_operand_def(base(IntegerType) | base(IndexType))
 
     collapse_num_loops = opt_prop_def(IntegerAttr)
     loop_inclusive = opt_prop_def(UnitAttr)
@@ -546,14 +546,20 @@ class WsLoopOp(BlockArgOpenMPOperation):
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
     REDUCTION_COUNT: ClassVar = IntVarConstraint("REDUCTION_COUNT", AnyInt())
 
-    allocate_vars = var_operand_def()
-    allocator_vars = var_operand_def()
-    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
-    private_vars = var_operand_def()
+    allocate_vars: VarOperand = var_operand_def()
+    allocator_vars: VarOperand = var_operand_def()
+    linear_vars: VarOperand = var_operand_def(
+        RangeOf(AnyAttr()).of_length(LINEAR_COUNT)
+    )
+    linear_step_vars: VarOperand = var_operand_def(
+        RangeOf(eq(i32)).of_length(LINEAR_COUNT)
+    )
+    private_vars: VarOperand = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
-    reduction_vars = var_operand_def(RangeOf(AnyAttr()).of_length(REDUCTION_COUNT))
+    reduction_vars: VarOperand = var_operand_def(
+        RangeOf(AnyAttr()).of_length(REDUCTION_COUNT)
+    )
     schedule_chunk: OptOperand = opt_operand_def()
 
     reduction_syms = opt_prop_def(
@@ -597,14 +603,14 @@ class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttrib
 class ParallelOp(BlockArgOpenMPOperation):
     name = "omp.parallel"
 
-    allocate_vars = var_operand_def()
-    allocators_vars = var_operand_def()
+    allocate_vars: VarOperand = var_operand_def()
+    allocators_vars: VarOperand = var_operand_def()
     if_expr: OptOperand = opt_operand_def(i1)
     num_threads: OptOperand = opt_operand_def(base(IntegerType) | base(IndexType))
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
-    private_vars = var_operand_def()
-    reduction_vars = var_operand_def()
+    private_vars: VarOperand = var_operand_def()
+    reduction_vars: VarOperand = var_operand_def()
 
     region = region_def()
 
@@ -727,21 +733,27 @@ class TargetOp(BlockArgOpenMPOperation):
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
 
-    allocate_vars = var_operand_def()
-    allocator_vars = var_operand_def()
-    depend_vars = var_operand_def(
+    allocate_vars: VarOperand = var_operand_def()
+    allocator_vars: VarOperand = var_operand_def()
+    depend_vars: VarOperand = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
         ).of_length(DEP_COUNT)
     )
     device: OptOperand = opt_operand_def(IntegerType)
-    has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    host_eval_vars = var_operand_def()
+    has_device_addr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
+    host_eval_vars: VarOperand = var_operand_def()
     if_expr: OptOperand = opt_operand_def(i1)
-    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    is_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    private_vars = var_operand_def()
+    in_reduction_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
+    is_device_ptr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
+    map_vars: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars: VarOperand = var_operand_def()
     thread_limit: OptOperand = opt_operand_def(IntegerType | IndexType)
 
     bare = opt_prop_def(UnitAttr)
@@ -811,8 +823,8 @@ class MapInfoOp(IRDLOperation):
 
     var_ptr: Operand = operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     var_ptr_ptr: OptOperand = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    members = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    bounds = var_operand_def(MapBoundsType)
+    members: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    bounds: VarOperand = var_operand_def(MapBoundsType)
 
     var_type = prop_def(TypeAttribute)
     map_type = prop_def(ClauseMapFlagsAttr)
@@ -845,19 +857,25 @@ class SimdOp(BlockArgOpenMPOperation):
     ALIGN_COUNT: ClassVar = IntVarConstraint("ALIGN_COUNT", AnyInt())
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
 
-    aligned_vars = var_operand_def(
+    aligned_vars: VarOperand = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
         ).of_length(ALIGN_COUNT)
     )
     if_expr: OptOperand = opt_operand_def(i1)
-    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
+    linear_vars: VarOperand = var_operand_def(
+        RangeOf(AnyAttr()).of_length(LINEAR_COUNT)
+    )
+    linear_step_vars: VarOperand = var_operand_def(
+        RangeOf(eq(i32)).of_length(LINEAR_COUNT)
+    )
     nontemporal_vars: OptOperand = (
         opt_operand_def()
     )  # TODO: OpenMP_PointerLikeTypeInterface
-    private_vars = var_operand_def()
-    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars: VarOperand = var_operand_def()
+    reduction_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
 
     alignments = opt_prop_def(
         ArrayAttr.constr(RangeOf(base(IntegerAttr[i64])).of_length(ALIGN_COUNT))
@@ -899,13 +917,15 @@ class TeamsOp(BlockArgOpenMPOperation):
 
     name = "omp.teams"
 
-    allocate_vars = var_operand_def()
-    allocator_vars = var_operand_def()
+    allocate_vars: VarOperand = var_operand_def()
+    allocator_vars: VarOperand = var_operand_def()
     if_expr: OptOperand = opt_operand_def(i1)
     num_teams_lower: OptOperand = opt_operand_def(IntegerType)
     num_teams_upper: OptOperand = opt_operand_def(IntegerType)
-    private_vars = var_operand_def()
-    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars: VarOperand = var_operand_def()
+    reduction_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
     thread_limit: OptOperand = opt_operand_def(IntegerType)
 
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
@@ -931,10 +951,10 @@ class DistributeOp(BlockArgOpenMPOperation):
 
     name = "omp.distribute"
 
-    allocate_vars = var_operand_def()
-    allocator_vars = var_operand_def()
+    allocate_vars: VarOperand = var_operand_def()
+    allocator_vars: VarOperand = var_operand_def()
     dist_schedule_chunk_size: OptOperand = opt_operand_def(IntegerType | IndexType)
-    private_vars = var_operand_def()
+    private_vars: VarOperand = var_operand_def()
 
     dist_schedule_static = opt_prop_def(UnitAttr)
     order = opt_prop_def(OrderKindAttr)
@@ -966,14 +986,14 @@ class TargetTaskBasedDataOp(IRDLOperation):
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
 
-    depend_vars = var_operand_def(
+    depend_vars: VarOperand = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
         ).of_length(DEP_COUNT)
     )
     device: OptOperand = opt_operand_def(IntegerType | IndexType)
     if_expr: OptOperand = opt_operand_def(i1)
-    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    mapped_vars: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
@@ -1059,9 +1079,13 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     device: OptOperand = opt_operand_def(IntegerType)
     if_expr: OptOperand = opt_operand_def(i1)
-    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    use_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    use_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    mapped_vars: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    use_device_addr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
+    use_device_ptr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
 
     region = region_def()
 

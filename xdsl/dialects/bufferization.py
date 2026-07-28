@@ -28,6 +28,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -139,7 +140,7 @@ class AllocTensorOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
 
-    dynamic_sizes = var_operand_def(IndexType())
+    dynamic_sizes: VarOperand = var_operand_def(IndexType())
     copy: OptOperand = opt_operand_def(T)
     size_hint: OptOperand = opt_operand_def(IndexType())
 

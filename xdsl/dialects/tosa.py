@@ -34,6 +34,7 @@ from xdsl.irdl import (
     Operand,
     ParsePropInAttrDict,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -569,7 +570,7 @@ class ConcatOp(IRDLOperation):
 
     name = "tosa.concat"
 
-    tensors = var_operand_def(TensorType)
+    tensors: VarOperand = var_operand_def(TensorType)
     axis = prop_def(IntegerAttr[I32])
     output = result_def(TensorType)
 
@@ -597,7 +598,7 @@ class YieldOp(IRDLOperation):
 
     name = "tosa.yield"
 
-    inputs = var_operand_def(TensorType)
+    inputs: VarOperand = var_operand_def(TensorType)
 
     traits = lazy_traits_def(
         lambda: (

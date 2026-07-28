@@ -21,6 +21,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -145,7 +146,7 @@ def test_deprecated_iter_used_registers():
     class TestDepracatedAllocatableOp(IRDLOperation, HasRegisterConstraints):
         name = "test.allocatable"
 
-        o = var_operand_def()
+        o: VarOperand = var_operand_def()
         r = var_result_def()
 
         traits = traits_def(RegisterAllocatedMemoryEffect())

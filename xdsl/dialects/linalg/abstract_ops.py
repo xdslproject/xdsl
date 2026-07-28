@@ -22,6 +22,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    VarOperand,
     prop_def,
     region_def,
     var_operand_def,
@@ -53,11 +54,11 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     via a unified interface.
     """
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     """
     The operands that won't be mutated.
     """
-    outputs = var_operand_def(ShapedType)
+    outputs: VarOperand = var_operand_def(ShapedType)
     """
     The operands that will be accumulated into.
     These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.

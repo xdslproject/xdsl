@@ -27,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     Operand,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -487,7 +488,7 @@ class DVarSSt1Op(ARMInstruction):
 
     name = "arm_neon.dvars.st1"
     d: Operand = operand_def(IntRegisterType)
-    src_regs = var_operand_def(NEONRegisterType)
+    src_regs: VarOperand = var_operand_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"

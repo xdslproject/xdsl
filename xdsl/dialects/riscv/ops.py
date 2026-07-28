@@ -29,6 +29,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
@@ -2251,7 +2252,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     outputs = var_result_def()
     instruction_name = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
@@ -2344,7 +2345,7 @@ class ParallelMovOp(RISCVRegallocOperation):
     _L: ClassVar = IntVarConstraint("L", AnyInt())
 
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    inputs: VarOperand = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
         RangeOf(RISCVRegisterType).of_length(_L)
     )

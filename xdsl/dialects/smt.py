@@ -28,6 +28,7 @@ from xdsl.irdl import (
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -253,7 +254,7 @@ class ApplyFuncOp(IRDLOperation):
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
     func: Operand = operand_def(FuncType.constr(DOMAIN, RANGE))
-    args = var_operand_def(DOMAIN)
+    args: VarOperand = var_operand_def(DOMAIN)
 
     result = result_def(RANGE)
 
@@ -320,7 +321,7 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
+    inputs: VarOperand = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())
@@ -433,7 +434,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    inputs = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
+    inputs: VarOperand = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())
@@ -582,7 +583,7 @@ class ForallOp(QuantifierOp):
 class YieldOp(IRDLOperation):
     name = "smt.yield"
 
-    values = var_operand_def(NonFuncSMTType)
+    values: VarOperand = var_operand_def(NonFuncSMTType)
 
     assembly_format = "($values^ `:` type($values))? attr-dict"
 

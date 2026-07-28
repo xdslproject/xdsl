@@ -33,6 +33,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -191,7 +192,7 @@ class OutputOp(IRDLOperation):
 
     name = "fsm.output"
 
-    operand = var_operand_def()
+    operand: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(StateOp))
 
@@ -417,7 +418,7 @@ class TriggerOp(IRDLOperation):
 
     name = "fsm.trigger"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
 
     instance: Operand = operand_def(InstanceType)
 
@@ -469,7 +470,7 @@ class HWInstanceOp(IRDLOperation):
 
     sym_name = attr_def(SymbolNameConstraint())
     machine = attr_def(FlatSymbolRefAttrConstr)
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     clock: Operand = operand_def(signlessIntegerLike)
     reset: Operand = operand_def(signlessIntegerLike)
 

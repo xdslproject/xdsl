@@ -51,6 +51,7 @@ from xdsl.irdl import (
     Operand,
     RangeOf,
     VarConstraint,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1111,7 +1112,7 @@ class InstanceOp(IRDLOperation):
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
     module_name = attr_def(FlatSymbolRefAttrConstr, attr_name="moduleName")
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     outputs = var_result_def()
     arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
     result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
@@ -1330,7 +1331,7 @@ class InstanceOp(IRDLOperation):
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
@@ -1393,7 +1394,7 @@ class ArrayCreateOp(IRDLOperation):
     I: ClassVar = VarConstraint("I", AnyAttr())  # Constrain all types to be equal
 
     name = "hw.array_create"
-    inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
+    inputs: VarOperand = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
     def __init__(

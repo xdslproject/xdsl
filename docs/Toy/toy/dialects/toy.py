@@ -31,6 +31,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -240,7 +241,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
     callee = attr_def(SymbolRefAttr)
 
     res = var_result_def(AnyTensorTypeF64)

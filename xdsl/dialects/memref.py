@@ -48,6 +48,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     SameVariadicResultSize,
     VarConstraint,
+    VarOperand,
     base,
     irdl_op_definition,
     lazy_traits_def,
@@ -98,7 +99,7 @@ class LoadOp(IRDLOperation):
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     memref: Operand = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType())
+    indices: VarOperand = var_operand_def(IndexType())
     res = result_def(T)
 
     traits = traits_def(MemoryReadEffect())
@@ -138,7 +139,7 @@ class StoreOp(IRDLOperation):
 
     value: Operand = operand_def(T)
     memref: Operand = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType())
+    indices: VarOperand = var_operand_def(IndexType())
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -176,8 +177,8 @@ class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 class AllocOp(IRDLOperation):
     name = "memref.alloc"
 
-    dynamic_sizes = var_operand_def(IndexType)
-    symbol_operands = var_operand_def(IndexType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType)
+    symbol_operands: VarOperand = var_operand_def(IndexType)
 
     memref = result_def(MemRefType)
 
@@ -312,7 +313,7 @@ class AllocaScopeOp(IRDLOperation):
 class AllocaScopeReturnOp(IRDLOperation):
     name = "memref.alloca_scope.return"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
 
@@ -328,8 +329,8 @@ class AllocaScopeReturnOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "memref.alloca"
 
-    dynamic_sizes = var_operand_def(IndexType)
-    symbol_operands = var_operand_def(IndexType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType)
+    symbol_operands: VarOperand = var_operand_def(IndexType)
 
     memref = result_def(MemRefType)
 
@@ -389,7 +390,7 @@ class AtomicRMWOp(IRDLOperation):
 
     value: Operand = operand_def(T)
     memref: Operand = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
 
@@ -543,7 +544,7 @@ class ExpandShapeOp(AlterShapeOperation):
     name = "memref.expand_shape"
 
     src: Operand = operand_def(MemRefType)
-    output_shape = var_operand_def(IndexType)
+    output_shape: VarOperand = var_operand_def(IndexType)
 
     static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
@@ -631,9 +632,9 @@ class SubviewOp(IRDLOperation):
     name = "memref.subview"
 
     source: Operand = operand_def(MemRefType)
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
     static_strides = prop_def(DenseArrayBase.constr(i64))
@@ -916,9 +917,9 @@ class ReinterpretCastOp(IRDLOperation):
 
     source: Operand = operand_def(MemRefType)
 
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
 
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
@@ -1054,7 +1055,7 @@ class ViewOp(IRDLOperation):
 
     source: Operand = operand_def(MemRefType[i8])
     byte_shift: Operand = operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
 
     result = result_def(MemRefType)
 
@@ -1116,15 +1117,15 @@ class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
     src: Operand = operand_def(MemRefType)
-    src_indices = var_operand_def(IndexType)
+    src_indices: VarOperand = var_operand_def(IndexType)
 
     dest: Operand = operand_def(MemRefType)
-    dest_indices = var_operand_def(IndexType)
+    dest_indices: VarOperand = var_operand_def(IndexType)
 
     num_elements: Operand = operand_def(IndexType)
 
     tag: Operand = operand_def(MemRefType[IntegerType])
-    tag_indices = var_operand_def(IndexType)
+    tag_indices: VarOperand = var_operand_def(IndexType)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
@@ -1184,7 +1185,7 @@ class DmaWaitOp(IRDLOperation):
     name = "memref.dma_wait"
 
     tag: Operand = operand_def(MemRefType)
-    tag_indices = var_operand_def(IndexType)
+    tag_indices: VarOperand = var_operand_def(IndexType)
 
     num_elements: Operand = operand_def(IndexType)
 
