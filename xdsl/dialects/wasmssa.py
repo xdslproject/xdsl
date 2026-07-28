@@ -190,10 +190,8 @@ class GlobalGetOp(IRDLOperation):
         global_: str | SymbolRefAttr,
         result_type: ValType,
     ):
-        if isinstance(global_, str):
-            global_ = SymbolRefAttr(global_)
         super().__init__(
-            properties={"global": global_},
+            properties={"global": SymbolRefAttr.get(global_)},
             result_types=[result_type],
         )
 
