@@ -182,7 +182,9 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
                 new_operand = ctx.handle_live_inout(
                     self, operand, duplicate_inout=duplicate_inout
                 )
-                assert new_operand is None, "Added in next PR"
+                # Replacing a position clears the value from it, so the first
+                # position still holding it is the one for this slot.
+                self.operands[self.operands.index(operand)] = new_operand
             clobbered.add(operand)
         # The constraints were read before any replacement, so a replaced operand is
         # still counted here, as it is read by the copy inserted above this operation.
