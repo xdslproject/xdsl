@@ -15,7 +15,7 @@ from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.builder import Builder
-from xdsl.dialects.test import TestAllocatableOp, TestOp, TestRegisterType
+from xdsl.dialects.test import TestHasRegisterConstraintsOp, TestOp, TestRegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -72,7 +72,7 @@ def op(
     *out_result_types: Attribute,
     inouts: Sequence[SSAValue] = (),
 ):
-    return TestAllocatableOp(
+    return TestHasRegisterConstraintsOp(
         ins, inouts, out_result_types, tuple(val.type for val in inouts)
     )
 
