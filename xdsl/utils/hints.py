@@ -206,6 +206,22 @@ def get_type_var_mapping(
     return args, mapping
 
 
+def get_type_var_mapping_with_defaults(cls: type[Any]) -> dict[TypeVar, Any]:
+    """
+    Given a Generic class, returns the mapping from the generic class type variables
+    to the specialized arguments for all type variables used in ancestor classes.
+    Maps unspecialized type variables to their defaults, if they exist.
+    """
+
+    args, mapping = get_type_var_mapping(cls)
+
+    for a in args:
+        if a.has_default():
+            mapping[a] = a.__default__
+
+    return mapping
+
+
 def type_repr(obj: Any) -> str:
     """Return the repr() of an object, special-casing types."""
     if isinstance(obj, types.GenericAlias):
