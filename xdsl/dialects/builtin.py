@@ -18,10 +18,9 @@ from typing import (
     cast,
     overload,
 )
-from warnings import deprecated
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeForm, TypeVar, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
