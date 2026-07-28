@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     ArrayAttr,
-    ContainerType,
     DenseIntElementsAttr,
     IndexType,
     IntegerAttr,
@@ -48,7 +47,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     IsTerminator,
@@ -335,7 +334,7 @@ def _print_affine_map_of_ssa_ids(
 
 def _parse_affine_memref_access(
     parser: Parser,
-) -> tuple[UnresolvedOperand, AffineMap, Sequence[SSAValue], MemRefType]:
+) -> tuple[SSAValue[MemRefType], AffineMap, Sequence[SSAValue[IndexType]], MemRefType]:
     """
     Parses `%memref[<affine-map-of-ssa-ids>] : <type>`.
     """
@@ -346,6 +345,10 @@ def _parse_affine_memref_access(
 
     if not isa(memref_type, MemRefType):
         parser.raise_error("Expected memref type")
+
+    memref = parser.resolve_operand(memref, memref_type)
+    # parser errors above if not
+    memref = cast(SSAValue[MemRefType], memref)
 
     return memref, affine_map, indices, memref_type
 
@@ -364,7 +367,7 @@ def _print_affine_memref_access(
 
 
 def _map_or_identity_attr(
-    map: AffineMap | AffineMapAttr | None, accessing: Attribute
+    map: AffineMap | AffineMapAttr | None, accessing: MemRefType
 ) -> AffineMapAttr:
     """
     Creates an `AffineMapAttr` from a provided `AffineMap`, or the identity
@@ -375,12 +378,6 @@ def _map_or_identity_attr(
 
     if isinstance(map, AffineMap):
         return AffineMapAttr(map)
-
-    if not isa(accessing, MemRefType):
-        raise ValueError(
-            "Cannot create a default affine map from a "
-            + f" non-memref type: {accessing.name}"
-        )
 
     rank = accessing.get_num_dims()
     return AffineMapAttr(AffineMap.identity(rank))
@@ -400,8 +397,8 @@ class StoreOp(IRDLOperation):
     def __init__(
         self,
         value: SSAValue,
-        memref: SSAValue,
-        indices: Sequence[SSAValue],
+        memref: SSAValue[MemRefType],
+        indices: Sequence[SSAValue[IndexType]],
         map: AffineMapAttr | AffineMap | None = None,
     ):
         map = _map_or_identity_attr(map, memref.type)
@@ -416,11 +413,8 @@ class StoreOp(IRDLOperation):
         value = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-        resolved_memref = parser.resolve_operand(memref, memref_type)
         resolved_value = parser.resolve_operand(value, memref_type.get_element_type())
-        return StoreOp(
-            resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
-        )
+        return StoreOp(resolved_value, memref, indices, AffineMapAttr(affine_map))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -447,22 +441,15 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue,
-        indices: Sequence[SSAValue],
+        memref: SSAValue[MemRefType],
+        indices: Sequence[SSAValue[IndexType]],
         map: AffineMap | AffineMapAttr | None = None,
         result_type: Attribute | None = None,
     ):
+        # Create identity map for memrefs with at least one dimension or () -> ()
+        # for zero-dimensional memrefs.
         map = _map_or_identity_attr(map, memref.type)
-
-        if result_type is None:
-            # Create identity map for memrefs with at least one dimension or () -> ()
-            # for zero-dimensional memrefs.
-            if not isa(memref.type, ContainerType):
-                raise ValueError(
-                    "affine.store memref operand must be of type ContainerType"
-                )
-
-            result_type = memref.type.get_element_type()
+        result_type = result_type or memref.type.get_element_type()
 
         super().__init__(
             operands=(memref, indices),
@@ -473,9 +460,9 @@ class LoadOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> LoadOp:
         memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-        resolved_memref = parser.resolve_operand(memref, memref_type)
         result_type = memref_type.get_element_type()
-        return LoadOp(resolved_memref, indices, AffineMapAttr(affine_map), result_type)
+
+        return LoadOp(memref, indices, AffineMapAttr(affine_map), result_type)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -535,16 +522,13 @@ class VectorLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue,
-        indices: Sequence[SSAValue],
+        memref: SSAValue[MemRefType],
+        indices: Sequence[SSAValue[IndexType]],
         map: AffineMap | AffineMapAttr | None = None,
-        result_type: Attribute | None = None,
+        result_type: VectorType | None = None,
     ):
         map = _map_or_identity_attr(map, memref.type)
-
-        if result_type is None:
-            assert isa(memref, SSAValue[MemRefType])
-            result_type = VectorType(memref.type.get_element_type(), [])
+        result_type = result_type or VectorType(memref.type.get_element_type(), [])
 
         super().__init__(
             operands=(memref, indices),
@@ -554,13 +538,17 @@ class VectorLoadOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> VectorLoadOp:
-        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-        resolved_memref = parser.resolve_operand(memref, memref_type)
+        memref, affine_map, indices, _ = _parse_affine_memref_access(parser)
         parser.parse_punctuation(",")
         result_type = parser.parse_type()
-        return VectorLoadOp(
-            resolved_memref, indices, AffineMapAttr(affine_map), result_type
-        )
+
+        if not isa(result_type, VectorType):
+            parser.raise_error(
+                f"Expected {cls.name} to return a {VectorType.name}, "
+                + f"but found: {result_type}"
+            )
+
+        return VectorLoadOp(memref, indices, AffineMapAttr(affine_map), result_type)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -592,8 +580,8 @@ class VectorStoreOp(IRDLOperation):
     def __init__(
         self,
         value: SSAValue,
-        memref: SSAValue,
-        indices: Sequence[SSAValue],
+        memref: SSAValue[MemRefType],
+        indices: Sequence[SSAValue[IndexType]],
         map: AffineMap | AffineMapAttr | None = None,
     ):
         map = _map_or_identity_attr(map, memref.type)
@@ -607,16 +595,13 @@ class VectorStoreOp(IRDLOperation):
     def parse(cls, parser: Parser) -> VectorStoreOp:
         value = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
-        memref, affine_map, indices, memref_type = _parse_affine_memref_access(parser)
-        resolved_memref = parser.resolve_operand(memref, memref_type)
+        memref, affine_map, indices, _ = _parse_affine_memref_access(parser)
 
         parser.parse_punctuation(",")
         value_type = parser.parse_type()
 
         resolved_value = parser.resolve_operand(value, value_type)
-        return VectorStoreOp(
-            resolved_value, resolved_memref, indices, AffineMapAttr(affine_map)
-        )
+        return VectorStoreOp(resolved_value, memref, indices, AffineMapAttr(affine_map))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
