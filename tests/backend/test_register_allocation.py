@@ -67,8 +67,6 @@ class TestAliasRegisterB(RegisterType):
         return "test.alias_pool"
 
 
-
-
 def op(
     ins: Sequence[SSAValue],
     *out_result_types: Attribute,
