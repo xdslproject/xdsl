@@ -12,14 +12,13 @@ from typing import ClassVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
-    AnyFloatConstr,
-    ContainerOf,
+    AnyFloat,
+    AnySignlessIntegerType,
     IndexType,
-    SignlessIntegerConstraint,
+    container_of,
 )
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyOf,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -30,8 +29,8 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure, SameOperandsAndResultType
 
-signlessIntegerLike = ContainerOf(AnyOf.get(SignlessIntegerConstraint, IndexType))
-floatingPointLike = ContainerOf(AnyFloatConstr)
+signlessIntegerLike = container_of(AnySignlessIntegerType | IndexType)
+floatingPointLike = container_of(AnyFloat)
 
 
 class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):

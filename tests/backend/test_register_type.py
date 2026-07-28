@@ -1,43 +1,11 @@
-from collections.abc import Sequence
-
-from xdsl import ir, irdl
-from xdsl.backend.register_type import (
-    RegisterAllocatedMemoryEffect,
-    RegisterResource,
-)
-from xdsl.dialects.test import TestRegisterType
+from xdsl.backend.register_type import RegisterResource
+from xdsl.dialects.test import TestAllocatableOp, TestRegisterType
 from xdsl.traits import (
     EffectInstance,
     MemoryEffectKind,
     get_effects,
     is_side_effect_free,
 )
-
-
-@irdl.irdl_op_definition
-class TestAllocatableOp(irdl.IRDLOperation):
-    name = "test.allocatable"
-
-    in_operands = irdl.var_operand_def()
-    inout_operands = irdl.var_operand_def()
-    out_results = irdl.var_result_def()
-    inout_results = irdl.var_result_def()
-
-    traits = irdl.traits_def(RegisterAllocatedMemoryEffect())
-
-    irdl_options = (irdl.AttrSizedOperandSegments(), irdl.AttrSizedResultSegments())
-
-    def __init__(
-        self,
-        in_operands: Sequence[ir.SSAValue],
-        inout_operands: Sequence[ir.SSAValue],
-        out_result_types: Sequence[ir.Attribute],
-        inout_result_types: Sequence[ir.Attribute],
-    ):
-        super().__init__(
-            operands=(in_operands, inout_operands),
-            result_types=(out_result_types, inout_result_types),
-        )
 
 
 def test_register_resource_name():

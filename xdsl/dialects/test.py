@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
 from xdsl.interfaces import HasFolderInterface
@@ -17,6 +21,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
@@ -328,6 +334,39 @@ class TestSymbolOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
+    name = "test.allocatable"
+
+    in_operands = var_operand_def()
+    inout_operands = var_operand_def()
+    out_results = var_result_def()
+    inout_results = var_result_def()
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
+    irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
+
+    def __init__(
+        self,
+        in_operands: Sequence[SSAValue],
+        inout_operands: Sequence[SSAValue],
+        out_result_types: Sequence[Attribute],
+        inout_result_types: Sequence[Attribute],
+    ):
+        super().__init__(
+            operands=(in_operands, inout_operands),
+            result_types=(out_result_types, inout_result_types),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            self.in_operands,
+            self.out_results,
+            tuple(zip(self.inout_operands, self.inout_results)),
+        )
+
+
 @irdl_attr_definition
 class TestRegisterType(RegisterType):
     name = "test.reg"
@@ -350,6 +389,7 @@ Test = Dialect(
         TestTermOp,
         TestWriteOp,
         TestSymbolOp,
+        TestAllocatableOp,
     ],
     [
         TestType,

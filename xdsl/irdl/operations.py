@@ -39,7 +39,11 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType, get_type_var_mapping, isa
+from xdsl.utils.hints import (
+    PropertyType,
+    get_type_var_mapping_with_defaults,
+    isa,
+)
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -919,7 +923,7 @@ class OpDef:
         if issubclass(pyrdl_def, Generic):
             type_var_mapping = {
                 k: irdl_to_attr_constraint(v)
-                for k, v in get_type_var_mapping(pyrdl_def)[1].items()
+                for k, v in get_type_var_mapping_with_defaults(pyrdl_def).items()
             }
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
