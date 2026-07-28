@@ -39,11 +39,11 @@ class LivenessContext(abc.ABC):
     @abc.abstractmethod
     def handle_live_inout(
         self, op: Operation, value: SSAValue, *, duplicate_inout: bool = False
-    ) -> SSAValue | None:
+    ) -> SSAValue:
         """
         `op` is about to clobber `value`, which is still live, or `value` is used by
         more than one in/out operand when `duplicate_inout` is True.
-        Subclasses may override this to either raise an error or insert a copy to avoid
+        Subclasses must override this to either raise an error or insert a copy to avoid
         the clobber.
         """
 
@@ -83,7 +83,7 @@ class VerifyLivenessContext(LivenessContext):
 
     def handle_live_inout(
         self, op: Operation, value: SSAValue, *, duplicate_inout: bool = False
-    ) -> SSAValue | None:
+    ) -> SSAValue:
         """
         Handles live inout by raising a `VerifyException`, with distinct messages for
         the case of duplicate inout or use after using as inout operand.

@@ -21,7 +21,7 @@ class LegalizationContext(LivenessContext):
 
     def handle_live_inout(
         self, op: Operation, value: SSAValue, *, duplicate_inout: bool = False
-    ) -> SSAValue | None:
+    ) -> SSAValue:
         return self.arch.move_value_to_unallocated(
             value,
             self.builder,
