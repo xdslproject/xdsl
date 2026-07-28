@@ -20,7 +20,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeForm, TypeVar, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -50,6 +50,7 @@ from xdsl.ir.affine import (
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -2134,15 +2135,15 @@ class VectorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[AttributeCovT] | None = None,
+        element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         *,
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
-    ) -> AttrConstraint[VectorType[AttributeCovT]]:
+    ) -> AttrConstraint[VectorType[AttributeInvT]]:
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
         return cast(
-            AttrConstraint[VectorType[AttributeCovT]],
+            AttrConstraint[VectorType[AttributeInvT]],
             ParamAttrConstraint.get(
                 VectorType,
                 element_type,
@@ -2240,40 +2241,19 @@ AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
-@dataclass(frozen=True, init=False)
-class ContainerOf(
-    AttrConstraint[
-        AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
-    ],
-    Generic[AttributeCovT],
+def container_of(
+    constr: IRDLAttrConstraint[AttributeInvT],
+) -> AttrConstraint[
+    AttributeInvT | VectorType[AttributeInvT] | TensorType[AttributeInvT]
+]:
+    return AnyOf.get(constr, VectorType.constr(constr), TensorType.constr(constr))
+
+
+@deprecated("Please use `container_of` instead")
+def ContainerOf(
+    constr: IRDLAttrConstraint[AttributeInvT],
 ):
-    """A type constraint that can be nested once in a vector or a tensor."""
-
-    elem_constr: AttrConstraint[AttributeCovT]
-
-    def __init__(
-        self,
-        elem_constr: (
-            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
-        ),
-    ) -> None:
-        object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isa(attr, VectorType) or isa(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_context)
-        else:
-            self.elem_constr.verify(attr, constraint_context)
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        bases = self.elem_constr.get_bases()
-        if bases is not None:
-            return {*bases, TensorType, VectorType}
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> ContainerOf[AttributeCovT]:
-        return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
+    container_of(constr)
 
 
 VectorOrTensorOf: TypeAlias = (
