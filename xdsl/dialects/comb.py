@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -101,8 +102,8 @@ class BinCombOperation(TwoStateOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     def __init__(
@@ -322,8 +323,8 @@ class ICmpOp(TwoStateOperation, ABC):
     T: ClassVar = VarConstraint("T", base(IntegerType))
 
     predicate = prop_def(IntegerAttr[I64])
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(IntegerType(1))
 
     @staticmethod
@@ -405,7 +406,7 @@ class ParityOp(TwoStateOperation):
 
     name = "comb.parity"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(IntegerType(1))
 
     def __init__(
@@ -455,7 +456,7 @@ class ExtractOp(IRDLOperation):
 
     name = "comb.extract"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     low_bit = prop_def(IntegerAttr[I32], prop_name="lowBit")
     result = result_def(IntegerType)
 
@@ -610,7 +611,7 @@ class ReplicateOp(IRDLOperation):
 
     name = "comb.replicate"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
     def __init__(
@@ -652,9 +653,9 @@ class MuxOp(TwoStateOperation):
 
     T: ClassVar = VarConstraint("T", base(TypeAttribute))
 
-    cond = operand_def(IntegerType(1))
-    true_value = operand_def(T)
-    false_value = operand_def(T)
+    cond: Operand = operand_def(IntegerType(1))
+    true_value: Operand = operand_def(T)
+    false_value: Operand = operand_def(T)
     result = result_def(T)
 
     def __init__(

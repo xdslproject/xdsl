@@ -25,6 +25,7 @@ def _(xmo):
         irdl_attr_definition,
         ParametrizedAttribute,
         IRDLOperation,
+        Operand,
         attr_def,
         result_def,
         operand_def,
@@ -37,6 +38,7 @@ def _(xmo):
         attr_def,
         irdl_attr_definition,
         irdl_op_definition,
+        Operand,
         operand_def,
         region_def,
         result_def,
@@ -574,6 +576,7 @@ def _(
     Bag,
     IRDLOperation,
     irdl_op_definition,
+    Operand,
     operand_def,
     region_def,
     result_def,
@@ -585,7 +588,7 @@ def _(
     @irdl_op_definition
     class FilterOp(IRDLOperation):
         name = "sql.filter"
-        input_bag = operand_def(Bag)
+        input_bag: Operand = operand_def(Bag)
         filter = region_def()
         result_bag = result_def(Bag)
         traits = traits_def(NoTerminator())

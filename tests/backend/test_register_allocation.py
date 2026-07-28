@@ -19,6 +19,7 @@ from xdsl.dialects.test import TestAllocatableOp, TestOp, TestRegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -398,7 +399,7 @@ def test_verify_register_constraints():
     class MisconstrainedOp(HasRegisterConstraints, IRDLOperation):
         T: ClassVar = VarConstraint("T", base(TestRegisterType))
 
-        a = operand_def(T)
+        a: Operand = operand_def(T)
         b = result_def(T)
 
     @irdl_op_definition
@@ -471,7 +472,7 @@ def test_fail_error_message():
 
         T: ClassVar = VarConstraint("T", base(TestRegisterType))
 
-        a = operand_def(T)
+        a: Operand = operand_def(T)
         b = result_def(T)
 
         def get_register_constraints(self) -> RegisterConstraints:

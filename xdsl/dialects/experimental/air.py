@@ -32,6 +32,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     attr_def,
     irdl_attr_definition,
@@ -106,7 +107,7 @@ class ChannelGetOp(IRDLOperation):
     chan_name = attr_def(SymbolRefAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType)
+    dst: Operand = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
@@ -148,7 +149,7 @@ class ChannelPutOp(IRDLOperation):
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(IndexType())
-    src = operand_def(MemRefType)
+    src: Operand = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
@@ -213,7 +214,7 @@ class DeallocOp(IRDLOperation):
     name = "air.dealloc"
 
     async_dependencies = var_operand_def(AsyncTokenAttr)
-    memref = operand_def(MemRefType)
+    memref: Operand = operand_def(MemRefType)
 
     async_token = result_def(AsyncTokenAttr)
 
@@ -232,11 +233,11 @@ class DmaMemcpyNdOp(IRDLOperation):
     name = "air.dma_memcpy_nd"
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType)
+    dst: Operand = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
-    src = operand_def(MemRefType)
+    src: Operand = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
@@ -649,8 +650,8 @@ class HerdPipelineOp(IRDLOperation):
 class PipelineGetOp(IRDLOperation):
     name = "air.pipeline.get"
 
-    src0 = operand_def(Attribute)
-    src1 = operand_def(Attribute)
+    src0: Operand = operand_def(Attribute)
+    src1: Operand = operand_def(Attribute)
     results = var_result_def(Attribute)
 
     def __init__(
@@ -666,8 +667,8 @@ class PipelineGetOp(IRDLOperation):
 class PipelinePutOp(IRDLOperation):
     name = "air.pipeline.put"
 
-    dst0 = operand_def(Attribute)
-    dst1 = operand_def(Attribute)
+    dst0: Operand = operand_def(Attribute)
+    dst1: Operand = operand_def(Attribute)
     opers = var_operand_def(Attribute)
 
     def __init__(

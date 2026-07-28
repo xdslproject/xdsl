@@ -29,6 +29,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -271,7 +272,7 @@ class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class IfOp(IRDLOperation):
     name = "scf.if"
     output = var_result_def()
-    cond = operand_def(IntegerType(1))
+    cond: Operand = operand_def(IntegerType(1))
 
     true_region = region_def("single_block")
     # TODO this should be optional under certain conditions
@@ -385,9 +386,9 @@ class ForOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
 
-    lb = operand_def(T)
-    ub = operand_def(T)
-    step = operand_def(T)
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
     iter_args = var_operand_def()
 
@@ -661,7 +662,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result = operand_def()
+    result: Operand = operand_def()
 
     traits = traits_def(HasParent(ReduceOp), IsTerminator(), Pure())
 
@@ -674,7 +675,7 @@ class ReduceReturnOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "scf.condition"
-    condition = operand_def(IntegerType(1))
+    condition: Operand = operand_def(IntegerType(1))
     args = var_operand_def()
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), Pure())
@@ -693,7 +694,7 @@ class ConditionOp(IRDLOperation):
 class IndexSwitchOp(IRDLOperation):
     name = "scf.index_switch"
 
-    arg = operand_def(IndexType)
+    arg: Operand = operand_def(IndexType)
     cases = prop_def(DenseArrayBase.constr(i64))
 
     output = var_result_def()

@@ -38,6 +38,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -369,8 +370,8 @@ class StoreOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    value = operand_def(T)
-    memref = operand_def(MemRefType.constr(T))
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType)
     map = prop_def(AffineMapAttr)
 
@@ -422,7 +423,7 @@ class LoadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType.constr(T))
+    memref: Operand = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)

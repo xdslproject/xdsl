@@ -25,6 +25,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
     IRDLOperation,
+    Operand,
     Operation,
     Region,
     SSAValue,
@@ -65,8 +66,8 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
-    lb = operand_def(IntRegisterType)
-    ub = operand_def(IntRegisterType)
+    lb: Operand = operand_def(IntRegisterType)
+    ub: Operand = operand_def(IntRegisterType)
     step_val = opt_operand_def(IntRegisterType)
     step_attr = opt_prop_def(IntegerAttr[IntegerType])
 
@@ -420,7 +421,7 @@ class WhileOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
-    cond = operand_def(IntRegisterType)
+    cond: Operand = operand_def(IntRegisterType)
     arguments = var_operand_def(RISCVRegisterType)
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())

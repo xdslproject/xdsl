@@ -33,6 +33,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarConstraint,
     attr_def,
     irdl_attr_definition,
@@ -233,7 +234,7 @@ class EvalOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", container_of(AnyFloat))
 
-    value = operand_def(T)
+    value: Operand = operand_def(T)
     result = result_def(T)
 
     polynomial = prop_def(TypedChebyshevPolynomialAttr)

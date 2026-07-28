@@ -808,7 +808,7 @@ class MapInfoOp(IRDLOperation):
 
     name = "omp.map.info"
 
-    var_ptr = operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    var_ptr: Operand = operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     var_ptr_ptr = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     members = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     bounds = var_operand_def(MapBoundsType)

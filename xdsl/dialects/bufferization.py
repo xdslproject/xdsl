@@ -25,6 +25,7 @@ from xdsl.irdl import (
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -166,7 +167,7 @@ class CloneOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
-    input = operand_def(T)
+    input: Operand = operand_def(T)
     output = result_def(T)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
@@ -182,7 +183,7 @@ class ToTensorOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
-    memref = operand_def(T)
+    memref: Operand = operand_def(T)
     tensor = result_def(TensorFromMemRefConstraint(T))
 
     writable = opt_prop_def(UnitAttr)
@@ -214,7 +215,7 @@ class ToBufferOp(IRDLOperation):
     name = "bufferization.to_buffer"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    tensor = operand_def(TensorFromMemRefConstraint(T))
+    tensor: Operand = operand_def(TensorFromMemRefConstraint(T))
     memref = result_def(T)
 
     read_only = opt_prop_def(UnitAttr)
@@ -227,8 +228,8 @@ class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    source = operand_def(TensorFromMemRefConstraint(T))
-    dest = operand_def(T | TensorFromMemRefConstraint(T))
+    source: Operand = operand_def(TensorFromMemRefConstraint(T))
+    dest: Operand = operand_def(T | TensorFromMemRefConstraint(T))
     result = opt_result_def(TensorFromMemRefConstraint(T))
 
     restrict = opt_prop_def(UnitAttr)

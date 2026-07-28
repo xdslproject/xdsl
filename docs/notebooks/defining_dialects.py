@@ -62,6 +62,7 @@ def _(xmo):
         irdl_op_definition,
         IRDLOperation,
         irdl_attr_definition,
+        Operand,
         operand_def,
         result_def,
         traits_def,
@@ -118,6 +119,7 @@ def _(xmo):
         Mul,
         MulfOp,
         MuliOp,
+        Operand,
         Operation,
         ParametrizedAttribute,
         PatternRewriteWalker,
@@ -195,6 +197,7 @@ def _(
     TypeAttribute,
     irdl_attr_definition,
     irdl_op_definition,
+    Operand,
     operand_def,
     result_def,
     traits_def,
@@ -208,7 +211,7 @@ def _(
         name = "complex.re"
         traits = traits_def(Pure())
 
-        arg = operand_def(ComplexType())
+        arg: Operand = operand_def(ComplexType())
 
         result = result_def(Float64Type())
 
@@ -303,8 +306,8 @@ def _(
 
             traits = traits_def(Pure())
 
-            re = operand_def(Float64Type())
-            im = operand_def(Float64Type())
+            re: Operand = operand_def(Float64Type())
+            im: Operand = operand_def(Float64Type())
 
             result = result_def(ComplexType())
 
@@ -317,7 +320,7 @@ def _(
 
             traits = traits_def(Pure())
 
-            arg = operand_def(ComplexType())
+            arg: Operand = operand_def(ComplexType())
 
             result = result_def(Float64Type())
 
@@ -330,7 +333,7 @@ def _(
 
             traits = traits_def(Pure())
 
-            arg = operand_def(ComplexType())
+            arg: Operand = operand_def(ComplexType())
 
             result = result_def(Float64Type())
 
@@ -343,8 +346,8 @@ def _(
 
             traits = traits_def(Pure())
 
-            lhs = operand_def(ComplexType())
-            rhs = operand_def(ComplexType())
+            lhs: Operand = operand_def(ComplexType())
+            rhs: Operand = operand_def(ComplexType())
 
             result = result_def(ComplexType())
 
@@ -357,8 +360,8 @@ def _(
 
             traits = traits_def(Pure())
 
-            lhs = operand_def(ComplexType())
-            rhs = operand_def(ComplexType())
+            lhs: Operand = operand_def(ComplexType())
+            rhs: Operand = operand_def(ComplexType())
 
             result = result_def(ComplexType())
 
@@ -371,7 +374,7 @@ def _(
 
             traits = traits_def(Pure())
 
-            arg = operand_def(ComplexType())
+            arg: Operand = operand_def(ComplexType())
 
             result = result_def(Float64Type())
 

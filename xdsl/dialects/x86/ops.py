@@ -66,6 +66,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     Successor,
     VarConstraint,
@@ -287,10 +288,10 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     and one source register.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
 
-    source = operand_def(R2InvT)
+    source: Operand = operand_def(R2InvT)
 
     assembly_format = (
         "$register_in `,` $source attr-dict `:` "
@@ -335,7 +336,7 @@ class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    source = operand_def(R2InvT)
+    source: Operand = operand_def(R2InvT)
 
     assembly_format = (
         "$source attr-dict `:` `(` type($source) `)` `->` type($destination)"
@@ -370,8 +371,8 @@ class DSK_Operation(X86Instruction, ABC):
     """
 
     destination: OpResult[AVX512RegisterType] = result_def(AVX512RegisterType)
-    source = operand_def(AVX512RegisterType)
-    mask_reg = operand_def(AVX512MaskRegisterType)
+    source: Operand = operand_def(AVX512RegisterType)
+    mask_reg: Operand = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
     assembly_format = (
@@ -414,7 +415,7 @@ class DK_Operation(
     """
 
     destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
-    source = operand_def(AVX512MaskRegisterType)
+    source: Operand = operand_def(AVX512MaskRegisterType)
 
     def __init__(
         self,
@@ -450,7 +451,7 @@ class KS_Operation(
     """
 
     destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
-    source = operand_def(GeneralRegisterType)
+    source: Operand = operand_def(GeneralRegisterType)
 
     def __init__(
         self,
@@ -482,7 +483,7 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     A base class for x86 operations that have one register that is read and written to.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     assembly_format = (
@@ -521,10 +522,10 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     memory access with an optional offset.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
 
-    memory = operand_def(R2InvT)
+    memory: Operand = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryReadEffect())
@@ -587,7 +588,7 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    memory = operand_def(R2InvT)
+    memory: Operand = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(
@@ -636,9 +637,9 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
 
     destination = result_def(AVX512RegisterType)
-    memory = operand_def(R1InvT)
+    memory: Operand = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
-    mask_reg = operand_def(AVX512MaskRegisterType)
+    mask_reg: Operand = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryReadEffect())
@@ -722,7 +723,7 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     and an immediate value.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     # In the future, we should look into the legal bitwidths in the binary
@@ -782,9 +783,9 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     register.
     """
 
-    memory = operand_def(R1InvT)
+    memory: Operand = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
-    source = operand_def(R2InvT)
+    source: Operand = operand_def(R2InvT)
 
     traits = traits_def(
         MS_OperationHasCanonicalizationPatterns(),
@@ -836,10 +837,10 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     addressed by the base register and offset, s is the source register, and k is the mask.
     """
 
-    memory = operand_def(R1InvT)
+    memory: Operand = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
-    source = operand_def(R2InvT)
-    mask_reg = operand_def(AVX512MaskRegisterType)
+    source: Operand = operand_def(R2InvT)
+    mask_reg: Operand = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryWriteEffect())
@@ -886,7 +887,7 @@ class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     value.
     """
 
-    memory = operand_def(R1InvT)
+    memory: Operand = operand_def(R1InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
@@ -937,7 +938,7 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    source = operand_def(R2InvT)
+    source: Operand = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     immediate = attr_def(IntegerAttr[SI32])
@@ -980,7 +981,7 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    memory = operand_def(R2InvT)
+    memory: Operand = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
@@ -1030,7 +1031,7 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
     A base class for x86 operations with a memory reference.
     """
 
-    memory = operand_def(R1InvT)
+    memory: Operand = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
@@ -1072,7 +1073,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    rflags = operand_def(RFLAGS)
+    rflags: Operand = operand_def(RFLAGS)
 
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
@@ -1199,10 +1200,10 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     and two source registers.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
-    source1 = operand_def(R2InvT)
-    source2 = operand_def(R3InvT)
+    source1: Operand = operand_def(R2InvT)
+    source2: Operand = operand_def(R3InvT)
 
     assembly_format = (
         "$register_in `,` $source1 `,` $source2 attr-dict `:` "
@@ -1255,11 +1256,11 @@ class RSSK_Operation(X86Instruction, ABC):
 
     T: ClassVar[VarConstraint] = VarConstraint("T", base(AVX512RegisterType))
 
-    register_in = operand_def(T)
+    register_in: Operand = operand_def(T)
     register_out = result_def(T)
-    source1 = operand_def(AVX512RegisterType)
-    source2 = operand_def(AVX512RegisterType)
-    mask_reg = operand_def(AVX512MaskRegisterType)
+    source1: Operand = operand_def(AVX512RegisterType)
+    source2: Operand = operand_def(AVX512RegisterType)
+    mask_reg: Operand = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
     assembly_format = (
@@ -1312,8 +1313,8 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    source1 = operand_def(R2InvT)
-    source2 = operand_def(R3InvT)
+    source1: Operand = operand_def(R2InvT)
+    source2: Operand = operand_def(R3InvT)
 
     assembly_format = (
         "$source1 `,` $source2 attr-dict `:` "
@@ -1354,10 +1355,10 @@ class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     one source register and one memory source operand.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
-    source1 = operand_def(R2InvT)
-    memory = operand_def(R4InvT)
+    source1: Operand = operand_def(R2InvT)
+    memory: Operand = operand_def(R4InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
 
     traits = traits_def(MemoryReadEffect())
@@ -1414,10 +1415,10 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     set, the memory operand uses EVEX broadcast encoding.
     """
 
-    register_in = operand_def(R1InvT)
+    register_in: Operand = operand_def(R1InvT)
     register_out: OpResult[R1InvT] = result_def(R1InvT)
-    source1 = operand_def(R2InvT)
-    memory = operand_def(R4InvT)
+    source1: Operand = operand_def(R2InvT)
+    memory: Operand = operand_def(R4InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     broadcast = opt_attr_def(UnitAttr)
 
@@ -1492,8 +1493,8 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
-    source0 = operand_def(R2InvT)
-    source1 = operand_def(R3InvT)
+    source0: Operand = operand_def(R2InvT)
+    source1: Operand = operand_def(R3InvT)
     immediate = attr_def(IntegerAttr[UI8])
 
     assembly_format = (
@@ -1721,9 +1722,9 @@ class S_PushOp(X86Instruction):
 
     name = "x86.s.push"
 
-    rsp_in = operand_def(RSP)
+    rsp_in: Operand = operand_def(RSP)
     rsp_out = result_def(RSP)
-    source = operand_def(GeneralRegisterType)
+    source: Operand = operand_def(GeneralRegisterType)
 
     assembly_format = (
         "$rsp_in `,` $source attr-dict `:` "
@@ -1762,7 +1763,7 @@ class D_PopOp(X86Instruction):
 
     name = "x86.d.pop"
 
-    rsp_in = operand_def(RSP)
+    rsp_in: Operand = operand_def(RSP)
     rsp_out = result_def(RSP)
     destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
 
@@ -1860,9 +1861,9 @@ class S_IDivOp(X86Instruction):
 
     name = "x86.s.idiv"
 
-    source = operand_def(X86RegisterType)
-    rdx_input = operand_def(RDX)
-    rax_input = operand_def(RAX)
+    source: Operand = operand_def(X86RegisterType)
+    rdx_input: Operand = operand_def(RDX)
+    rax_input: Operand = operand_def(RAX)
 
     rdx_output = result_def(RDX)
     rax_output = result_def(RAX)
@@ -1912,8 +1913,8 @@ class S_ImulOp(X86Instruction):
 
     name = "x86.s.imul"
 
-    source = operand_def(GeneralRegisterType)
-    rax_input = operand_def(RAX)
+    source: Operand = operand_def(GeneralRegisterType)
+    rax_input: Operand = operand_def(RAX)
 
     rdx_output = result_def(RDX)
     rax_output = result_def(RAX)
@@ -2335,10 +2336,10 @@ class M_PushOp(X86Instruction):
 
     name = "x86.m.push"
 
-    rsp_in = operand_def(RSP)
+    rsp_in: Operand = operand_def(RSP)
     rsp_out = result_def(RSP)
 
-    memory = operand_def(X86RegisterType)
+    memory: Operand = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryWriteEffect())
@@ -2388,8 +2389,8 @@ class M_PopOp(X86Instruction):
 
     name = "x86.m.pop"
 
-    rsp_in = operand_def(RSP)
-    memory = operand_def(GeneralRegisterType)
+    rsp_in: Operand = operand_def(RSP)
+    memory: Operand = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     rsp_out = result_def(RSP)
 
@@ -2490,11 +2491,11 @@ class M_IDivOp(X86Instruction):
 
     name = "x86.m.idiv"
 
-    memory = operand_def(X86RegisterType)
+    memory: Operand = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
-    rdx_in = operand_def(RDX)
+    rdx_in: Operand = operand_def(RDX)
     rdx_out = result_def(RDX)
-    rax_in = operand_def(RAX)
+    rax_in: Operand = operand_def(RAX)
     rax_out = result_def(RAX)
 
     traits = traits_def(MemoryReadEffect())
@@ -2546,11 +2547,11 @@ class M_ImulOp(X86Instruction):
 
     name = "x86.m.imul"
 
-    memory = operand_def(GeneralRegisterType)
+    memory: Operand = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     rdx_out = result_def(RDX)
-    rax_in = operand_def(RAX)
+    rax_in: Operand = operand_def(RAX)
     rax_out = result_def(RAX)
 
     traits = traits_def(MemoryReadEffect())
@@ -2863,8 +2864,8 @@ class SS_CmpOp(X86Instruction):
 
     name = "x86.ss.cmp"
 
-    source1 = operand_def(X86RegisterType)
-    source2 = operand_def(X86RegisterType)
+    source1: Operand = operand_def(X86RegisterType)
+    source2: Operand = operand_def(X86RegisterType)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -2907,8 +2908,8 @@ class SM_CmpOp(X86Instruction):
 
     name = "x86.sm.cmp"
 
-    source = operand_def(GeneralRegisterType)
-    memory = operand_def(GeneralRegisterType)
+    source: Operand = operand_def(GeneralRegisterType)
+    memory: Operand = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     result = result_def(RFLAGSRegisterType)
@@ -2959,7 +2960,7 @@ class SI_CmpOp(X86Instruction):
 
     name = "x86.si.cmp"
 
-    source = operand_def(GeneralRegisterType)
+    source: Operand = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGS)
@@ -3004,9 +3005,9 @@ class MS_CmpOp(X86Instruction):
 
     name = "x86.ms.cmp"
 
-    memory = operand_def(GeneralRegisterType)
+    memory: Operand = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
-    source = operand_def(GeneralRegisterType)
+    source: Operand = operand_def(GeneralRegisterType)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -3056,7 +3057,7 @@ class MI_CmpOp(X86Instruction):
 
     name = "x86.mi.cmp"
 
-    memory = operand_def(GeneralRegisterType)
+    memory: Operand = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     immediate = attr_def(IntegerAttr[SI32])
 

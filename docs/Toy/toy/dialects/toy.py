@@ -29,6 +29,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -132,8 +133,8 @@ class AddOp(IRDLOperation):
     """
 
     name = "toy.add"
-    lhs = operand_def(AnyTensorTypeF64)
-    rhs = operand_def(AnyTensorTypeF64)
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
     res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), InferAddOpHasShapeInferencePatternsTrait())
@@ -291,8 +292,8 @@ class MulOp(IRDLOperation):
     """
 
     name = "toy.mul"
-    lhs = operand_def(AnyTensorTypeF64)
-    rhs = operand_def(AnyTensorTypeF64)
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
     res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), InferMulOpHasShapeInferencePatternsTrait())
@@ -324,7 +325,7 @@ class PrintOp(IRDLOperation):
     """
 
     name = "toy.print"
-    input = operand_def()
+    input: Operand = operand_def()
 
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])
@@ -377,7 +378,7 @@ class ReshapeOp(HasCanonicalizationPatternsInterface, IRDLOperation):
     """
 
     name = "toy.reshape"
-    arg = operand_def(AnyTensorTypeF64)
+    arg: Operand = operand_def(AnyTensorTypeF64)
     res = result_def(TensorTypeF64)
 
     traits = traits_def(Pure())
@@ -445,7 +446,7 @@ class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
 @irdl_op_definition
 class TransposeOp(HasCanonicalizationPatternsInterface, IRDLOperation):
     name = "toy.transpose"
-    arg = operand_def(AnyTensorTypeF64)
+    arg: Operand = operand_def(AnyTensorTypeF64)
     res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), TransposeOpHasShapeInferencePatternsTrait())
@@ -501,7 +502,7 @@ class CastOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "toy.cast"
-    arg = operand_def(AnyTensorTypeF64)
+    arg: Operand = operand_def(AnyTensorTypeF64)
     res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), CastOpHasShapeInferencePatternsTrait())

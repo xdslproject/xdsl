@@ -35,6 +35,7 @@ from xdsl.ir import Data, Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -181,7 +182,7 @@ class DeclareOp(IRDLOperation):
     """  # noqa: E501
 
     name = "hlfir.declare"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
     dummy_scope = opt_operand_def()
@@ -234,7 +235,7 @@ class DesignateOp(IRDLOperation):
     """
 
     name = "hlfir.designate"
-    memref = operand_def()
+    memref: Operand = operand_def()
     component_shape = opt_operand_def()
     indices = var_operand_def()
     substring = var_operand_def()
@@ -291,8 +292,8 @@ class AssignOp(IRDLOperation):
     """
 
     name = "hlfir.assign"
-    rhs = operand_def()
-    lhs = operand_def()
+    rhs: Operand = operand_def()
+    lhs: Operand = operand_def()
     realloc = opt_prop_def(UnitAttr)
     keep_lhs_length_if_realloc = opt_prop_def(UnitAttr)
     temporary_lhs = opt_prop_def(UnitAttr)
@@ -321,7 +322,7 @@ class ParentComponentOp(IRDLOperation):
     """
 
     name = "hlfir.parent_comp"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
     result = result_def()
@@ -339,7 +340,7 @@ class ConcatOp(IRDLOperation):
 
     name = "hlfir.concat"
     strings = var_operand_def()
-    length = operand_def()
+    length: Operand = operand_def()
     result = result_def()
 
 
@@ -353,7 +354,7 @@ class AllOp(IRDLOperation):
     """
 
     name = "hlfir.all"
-    mask = operand_def()
+    mask: Operand = operand_def()
     dim = opt_operand_def()
     result = result_def()
 
@@ -368,7 +369,7 @@ class AnyOp(IRDLOperation):
     """
 
     name = "hlfir.any"
-    mask = operand_def()
+    mask: Operand = operand_def()
     dim = opt_operand_def()
     result = result_def()
 
@@ -382,7 +383,7 @@ class CountOp(IRDLOperation):
     """
 
     name = "hlfir.count"
-    mask = operand_def()
+    mask: Operand = operand_def()
     dim = opt_operand_def()
     result = result_def()
 
@@ -398,7 +399,7 @@ class MaxvalOp(IRDLOperation):
     """
 
     name = "hlfir.maxval"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
@@ -418,7 +419,7 @@ class MinvalOp(IRDLOperation):
     """
 
     name = "hlfir.minval"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
@@ -437,7 +438,7 @@ class ProductOp(IRDLOperation):
     """
 
     name = "hlfir.product"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
@@ -456,8 +457,8 @@ class SetLengthOp(IRDLOperation):
     """
 
     name = "hlfir.set_length"
-    string = operand_def()
-    length = operand_def()
+    string: Operand = operand_def()
+    length: Operand = operand_def()
     result = result_def()
 
 
@@ -470,7 +471,7 @@ class GetLengthOp(IRDLOperation):
     """
 
     name = "hlfir.get_length"
-    expr = operand_def()
+    expr: Operand = operand_def()
     result = result_def()
 
     traits = traits_def(Pure())
@@ -486,7 +487,7 @@ class SumOp(IRDLOperation):
     """
 
     name = "hlfir.sum"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
@@ -504,8 +505,8 @@ class DotProductOp(IRDLOperation):
     """
 
     name = "hlfir.dot_product"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -519,8 +520,8 @@ class MatmulOp(IRDLOperation):
     """
 
     name = "hlfir.matmul"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -534,7 +535,7 @@ class TransposeOp(IRDLOperation):
     """
 
     name = "hlfir.transpose"
-    array = operand_def()
+    array: Operand = operand_def()
     result = result_def()
 
 
@@ -547,8 +548,8 @@ class MatmulTransposeOp(IRDLOperation):
     """
 
     name = "hlfir.matmul_transpose"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -564,7 +565,7 @@ class AssociateOp(IRDLOperation):
     """
 
     name = "hlfir.associate"
-    source = operand_def()
+    source: Operand = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
     uniq_name = opt_prop_def(StringAttr)
@@ -586,8 +587,8 @@ class EndAssociateOp(IRDLOperation):
     """
 
     name = "hlfir.end_associate"
-    var = operand_def()
-    must_free = operand_def()
+    var: Operand = operand_def()
+    must_free: Operand = operand_def()
 
 
 @irdl_op_definition
@@ -608,7 +609,7 @@ class AsExprOp(IRDLOperation):
     """
 
     name = "hlfir.as_expr"
-    var = operand_def()
+    var: Operand = operand_def()
     must_free = opt_operand_def()
     result = result_def()
 
@@ -622,7 +623,7 @@ class NoReassocOp(IRDLOperation):
     """
 
     name = "hlfir.no_reassoc"
-    val = operand_def()
+    val: Operand = operand_def()
     result = result_def()
 
 
@@ -667,7 +668,7 @@ class ElementalOp(IRDLOperation):
     """
 
     name = "hlfir.elemental"
-    shape = operand_def()
+    shape: Operand = operand_def()
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
@@ -688,7 +689,7 @@ class YieldElementOp(IRDLOperation):
     """
 
     name = "hlfir.yield_element"
-    element_value = operand_def()
+    element_value: Operand = operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(ElementalOp), Pure())
 
@@ -714,7 +715,7 @@ class ApplyOp(IRDLOperation):
     """
 
     name = "hlfir.apply"
-    expr = operand_def()
+    expr: Operand = operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     result = result_def()
@@ -762,7 +763,7 @@ class DestroyOp(IRDLOperation):
     """
 
     name = "hlfir.destroy"
-    expr = operand_def()
+    expr: Operand = operand_def()
     finalize = opt_prop_def(UnitAttr)
 
 
@@ -789,8 +790,8 @@ class CopyInOp(IRDLOperation):
     """
 
     name = "hlfir.copy_in"
-    var = operand_def()
-    tempBox = operand_def()
+    var: Operand = operand_def()
+    tempBox: Operand = operand_def()
     var_is_present = opt_operand_def()
     copied_in = result_def()
     was_copied = result_def()
@@ -810,8 +811,8 @@ class CopyOutOp(IRDLOperation):
     """
 
     name = "hlfir.copy_out"
-    temp = operand_def()
-    was_copied = operand_def()
+    temp: Operand = operand_def()
+    was_copied: Operand = operand_def()
     var = opt_operand_def()
 
 
@@ -826,7 +827,7 @@ class ShapeOfOp(IRDLOperation):
     """
 
     name = "hlfir.shape_of"
-    expr = operand_def()
+    expr: Operand = operand_def()
     result = result_def()
 
     traits = traits_def(Pure())
@@ -842,7 +843,7 @@ class GetExtentOp(IRDLOperation):
     """
 
     name = "hlfir.get_extent"
-    shape = operand_def()
+    shape: Operand = operand_def()
     dim = prop_def(IntegerAttr)
     result = result_def()
 
@@ -915,7 +916,7 @@ class YieldOp(IRDLOperation):
     """
 
     name = "hlfir.yield"
-    entity = operand_def()
+    entity: Operand = operand_def()
     cleanup = opt_region_def()
 
     traits = traits_def(IsTerminator())
@@ -960,7 +961,7 @@ class ElementalAddrOp(IRDLOperation):
     """
 
     name = "hlfir.elemental_addr"
-    shape = operand_def()
+    shape: Operand = operand_def()
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
@@ -1138,7 +1139,7 @@ class ForallIndexOp(IRDLOperation):
     """
 
     name = "hlfir.forall_index"
-    index = operand_def()
+    index: Operand = operand_def()
     index_name = prop_def(StringAttr, prop_name="name")
     result = result_def()
 
@@ -1168,7 +1169,7 @@ class CharTrimOp(IRDLOperation):
     """TRIM intrinsic on a character string."""
 
     name = "hlfir.char_trim"
-    chr = operand_def()
+    chr: Operand = operand_def()
     result = result_def()
 
 
@@ -1178,8 +1179,8 @@ class CmpCharOp(IRDLOperation):
 
     name = "hlfir.cmpchar"
     predicate = prop_def(IntegerAttr)
-    lchr = operand_def()
-    rchr = operand_def()
+    lchr: Operand = operand_def()
+    rchr: Operand = operand_def()
     result = result_def()
 
 
@@ -1188,8 +1189,8 @@ class CShiftOp(IRDLOperation):
     """CSHIFT intrinsic — circular shift along an array dimension."""
 
     name = "hlfir.cshift"
-    array = operand_def()
-    shift = operand_def()
+    array: Operand = operand_def()
+    shift: Operand = operand_def()
     dim = opt_operand_def()
     result = result_def()
 
@@ -1199,8 +1200,8 @@ class EOShiftOp(IRDLOperation):
     """EOSHIFT intrinsic — end-off shift with optional boundary value."""
 
     name = "hlfir.eoshift"
-    array = operand_def()
-    shift = operand_def()
+    array: Operand = operand_def()
+    shift: Operand = operand_def()
     boundary = opt_operand_def()
     dim = opt_operand_def()
     result = result_def()
@@ -1235,8 +1236,8 @@ class IndexOp(IRDLOperation):
     """INDEX intrinsic — find substring position."""
 
     name = "hlfir.index"
-    substr = operand_def()
-    str = operand_def()
+    substr: Operand = operand_def()
+    str: Operand = operand_def()
     back = opt_operand_def()
     result = result_def()
 
@@ -1246,7 +1247,7 @@ class MaxlocOp(IRDLOperation):
     """MAXLOC reduction."""
 
     name = "hlfir.maxloc"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     back = opt_operand_def()
@@ -1261,7 +1262,7 @@ class MinlocOp(IRDLOperation):
     """MINLOC reduction."""
 
     name = "hlfir.minloc"
-    array = operand_def()
+    array: Operand = operand_def()
     dim = opt_operand_def()
     mask = opt_operand_def()
     back = opt_operand_def()
@@ -1276,8 +1277,8 @@ class ReshapeOp(IRDLOperation):
     """RESHAPE intrinsic."""
 
     name = "hlfir.reshape"
-    array = operand_def()
-    shape = operand_def()
+    array: Operand = operand_def()
+    shape: Operand = operand_def()
     pad = opt_operand_def()
     order = opt_operand_def()
     result = result_def()

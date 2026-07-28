@@ -70,6 +70,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntConstraint,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
@@ -419,8 +420,8 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     traits = traits_def(NoMemoryEffect())
@@ -515,8 +516,8 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
     overflowFlags = opt_prop_def(IntegerAttr[I32])
 
@@ -571,8 +572,8 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
     is_exact = opt_prop_def(UnitAttr, prop_name="isExact")
 
@@ -633,8 +634,8 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
     is_disjoint = opt_prop_def(UnitAttr, prop_name="isDisjoint")
 
@@ -662,7 +663,7 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
@@ -702,7 +703,7 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
     res = result_def(
@@ -731,7 +732,7 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
     res = result_def(
@@ -940,8 +941,8 @@ class ICmpOp(IRDLOperation):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(I1 | VectorType[I1])
     predicate = prop_def(IntegerAttr[i64])
 
@@ -1119,7 +1120,7 @@ class GEPOp(IRDLOperation):
 
     name = "llvm.getelementptr"
 
-    ptr = operand_def(LLVMPointerType)
+    ptr: Operand = operand_def(LLVMPointerType)
     ssa_indices = var_operand_def(IntegerType)
     elem_type = prop_def()
     noWrapFlags = prop_def(IntegerAttr[I32])
@@ -1274,7 +1275,7 @@ class GEPOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
-    size = operand_def(IntegerType)
+    size: Operand = operand_def(IntegerType)
 
     alignment = opt_prop_def(IntegerAttr)
     elem_type = prop_def()
@@ -1330,7 +1331,7 @@ class IntToPtrOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
 
     output = result_def(LLVMPointerType)
 
@@ -1520,7 +1521,7 @@ class PtrToIntOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(LLVMPointerType)
+    input: Operand = operand_def(LLVMPointerType)
 
     output = result_def(IntegerType)
 
@@ -1551,7 +1552,7 @@ for the corresponding MLIR enum values.
 class LoadOp(IRDLOperation):
     name = "llvm.load"
 
-    ptr = operand_def(LLVMPointerType)
+    ptr: Operand = operand_def(LLVMPointerType)
 
     alignment = opt_prop_def(IntegerAttr[IntegerType])
     ordering = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64))
@@ -1623,8 +1624,8 @@ class LoadOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "llvm.store"
 
-    value = operand_def()
-    ptr = operand_def(LLVMPointerType)
+    value: Operand = operand_def()
+    ptr: Operand = operand_def(LLVMPointerType)
 
     alignment = opt_prop_def(IntegerAttr[IntegerType])
     ordering = opt_prop_def(IntegerAttr[IntegerType])
@@ -1710,7 +1711,7 @@ class ExtractValueOp(IRDLOperation):
     name = "llvm.extractvalue"
 
     position = prop_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
+    container: Operand = operand_def(Attribute)
 
     res = result_def(Attribute)
 
@@ -1777,8 +1778,8 @@ class InsertValueOp(IRDLOperation):
     name = "llvm.insertvalue"
 
     position = prop_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
-    value = operand_def(Attribute)
+    container: Operand = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
     res = result_def(Attribute)
 
@@ -1857,9 +1858,9 @@ class InsertElementOp(IRDLOperation):
         ),
     )
 
-    vector = operand_def(VECTOR)
-    value = operand_def(ELEMENT)
-    index = operand_def(SignlessIntegerConstraint)
+    vector: Operand = operand_def(VECTOR)
+    value: Operand = operand_def(ELEMENT)
+    index: Operand = operand_def(SignlessIntegerConstraint)
     res = result_def(VECTOR)
 
     assembly_format = (
@@ -1961,8 +1962,8 @@ class ShuffleVectorOp(IRDLOperation):
     )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
 
-    v1 = operand_def(VEC_TYPE)
-    v2 = operand_def(VEC_TYPE)
+    v1: Operand = operand_def(VEC_TYPE)
+    v2: Operand = operand_def(VEC_TYPE)
     mask = prop_def(MASK)
     res = result_def(ShuffleVectorResultConstraint(T, MASK))
 
@@ -2873,7 +2874,7 @@ class ZeroOp(IRDLOperation):
 
 
 class GenericCastOp(IRDLOperation, ABC):
-    arg = operand_def(Attribute)
+    arg: Operand = operand_def(Attribute)
     """
     LLVM-compatible non-aggregate type
     """
@@ -2897,8 +2898,8 @@ class GenericCastOp(IRDLOperation, ABC):
 class AbstractFloatArithOp(IRDLOperation, ABC):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -2988,8 +2989,8 @@ class FCmpOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(I1)
     predicate = prop_def(IntegerAttr[i64])
 
@@ -3062,7 +3063,7 @@ class FAbsOp(IRDLOperation):
 
     name = "llvm.intr.fabs"
 
-    input = operand_def(T)
+    input: Operand = operand_def(T)
     result = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3094,7 +3095,7 @@ class FCeilOp(IRDLOperation):
 
     name = "llvm.intr.ceil"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3127,7 +3128,7 @@ class FSqrtOp(IRDLOperation):
 
     name = "llvm.intr.sqrt"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3160,7 +3161,7 @@ class FFloorOp(IRDLOperation):
 
     name = "llvm.intr.floor"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3193,7 +3194,7 @@ class FExp2Op(IRDLOperation):
 
     name = "llvm.intr.exp2"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3226,7 +3227,7 @@ class FLogOp(IRDLOperation):
 
     name = "llvm.intr.log"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3259,7 +3260,7 @@ class FExpOp(IRDLOperation):
 
     name = "llvm.intr.exp"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3292,7 +3293,7 @@ class FSinOp(IRDLOperation):
 
     name = "llvm.intr.sin"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3325,7 +3326,7 @@ class FCosOp(IRDLOperation):
 
     name = "llvm.intr.cos"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3358,7 +3359,7 @@ class FLog2Op(IRDLOperation):
 
     name = "llvm.intr.log2"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3391,7 +3392,7 @@ class FNegOp(IRDLOperation):
 
     name = "llvm.fneg"
 
-    arg = operand_def(T)
+    arg: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3420,9 +3421,9 @@ class FNegOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(VectorType.constr(AnyFloatConstr))
-    data = operand_def(LLVMPointerType)
-    mask = operand_def(VectorType[I1])
+    value: Operand = operand_def(VectorType.constr(AnyFloatConstr))
+    data: Operand = operand_def(LLVMPointerType)
+    mask: Operand = operand_def(VectorType[I1])
     alignment = prop_def(IntegerAttr[i32])
 
     assembly_format = (
@@ -3454,9 +3455,9 @@ class SelectOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    cond = operand_def(I1)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    cond: Operand = operand_def(I1)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3499,7 +3500,7 @@ class BrOp(IRDLOperation):
 class CondBrOp(IRDLOperation):
     name = "llvm.cond_br"
 
-    cond = operand_def(IntegerType(1))
+    cond: Operand = operand_def(IntegerType(1))
     then_arguments = var_operand_def()
     else_arguments = var_operand_def()
 
@@ -3537,8 +3538,8 @@ class VectorFMaxOp(IRDLOperation):
 
     name = "llvm.intr.maxnum"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3572,8 +3573,8 @@ class FCopySignOp(IRDLOperation):
 
     name = "llvm.intr.copysign"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3607,9 +3608,9 @@ class FMAOp(IRDLOperation):
 
     name = "llvm.intr.fma"
 
-    a = operand_def(T)
-    b = operand_def(T)
-    c = operand_def(T)
+    a: Operand = operand_def(T)
+    b: Operand = operand_def(T)
+    c: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3644,8 +3645,8 @@ class VectorFMinOp(IRDLOperation):
 
     name = "llvm.intr.minnum"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3679,8 +3680,8 @@ class FPowOp(IRDLOperation):
 
     name = "llvm.intr.pow"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3723,8 +3724,8 @@ class StackSaveOp(IRDLOperation):
 class VectorReduceOperation(IRDLOperation, ABC):
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    start_value = operand_def(T)
-    vector = operand_def(VectorType.constr(T))
+    start_value: Operand = operand_def(T)
+    vector: Operand = operand_def(VectorType.constr(T))
     res = result_def(T)
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
@@ -3762,7 +3763,7 @@ class VectorReduceFMulOp(VectorReduceOperation):
 class StackRestoreOp(IRDLOperation):
     name = "llvm.intr.stackrestore"
 
-    ptr = operand_def(LLVMPointerType)
+    ptr: Operand = operand_def(LLVMPointerType)
 
     assembly_format = "$ptr attr-dict `:` type($ptr)"
 

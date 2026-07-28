@@ -15,6 +15,7 @@ from xdsl.interfaces import HasCanonicalizationPatternsInterface
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    Operand,
     Successor,
     irdl_op_definition,
     operand_def,
@@ -51,8 +52,8 @@ class ConditionalBranchOperation(
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
 
     then_arguments = var_operand_def(RISCVRegisterType)
     else_arguments = var_operand_def(RISCVRegisterType)
@@ -474,7 +475,7 @@ class BnezOp(RISCVInstruction):
 
     name = "riscv_cf.bnez"
 
-    rs = operand_def(IntRegisterType)
+    rs: Operand = operand_def(IntRegisterType)
 
     then_arguments = var_operand_def(RISCVRegisterType)
     else_arguments = var_operand_def(RISCVRegisterType)

@@ -80,7 +80,7 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(
+    source: Operand = operand_def(
         base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
     )
     dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
@@ -240,10 +240,10 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(
+    source: Operand = operand_def(
         base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
     )
-    index = operand_def(IndexType)
+    index: Operand = operand_def(IndexType)
     result = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
@@ -341,7 +341,7 @@ class CollapseShapeOp(IRDLOperation):
 
     name = "tensor.collapse_shape"
 
-    src = operand_def(TensorType[Attribute])
+    src: Operand = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
     reassociation = prop_def(ContiguousArrayOfIntArray())
     assembly_format = (
@@ -365,8 +365,8 @@ class ReshapeOp(IRDLOperation):
 
     name = "tensor.reshape"
 
-    source = operand_def(TensorType[Attribute])
-    shape = operand_def(TensorType[AnySignlessIntegerType | IndexType])
+    source: Operand = operand_def(TensorType[Attribute])
+    shape: Operand = operand_def(TensorType[AnySignlessIntegerType | IndexType])
     result = result_def(TensorType[Attribute])
     assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
@@ -435,7 +435,7 @@ class ExpandShapeOp(IRDLOperation):
 
     name = "tensor.expand_shape"
 
-    src = operand_def(TensorType)
+    src: Operand = operand_def(TensorType)
     dynamic_output_shape = var_operand_def(IndexType)
 
     reassociation = prop_def(ContiguousArrayOfIntArray())
@@ -551,7 +551,7 @@ class ExtractSliceOp(IRDLOperation):
 
     name = "tensor.extract_slice"
 
-    source = operand_def(TensorType)
+    source: Operand = operand_def(TensorType)
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
@@ -609,8 +609,8 @@ class InsertSliceOp(IRDLOperation):
 
     name = "tensor.insert_slice"
 
-    source = operand_def(TensorType)
-    dest = operand_def(TensorType)
+    source: Operand = operand_def(TensorType)
+    dest: Operand = operand_def(TensorType)
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
@@ -712,7 +712,7 @@ class ExtractOp(IRDLOperation):
 
     name = "tensor.extract"
 
-    tensor = operand_def(TensorType)
+    tensor: Operand = operand_def(TensorType)
     indices = var_operand_def(IndexType)
     result = result_def(Attribute)
     # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
@@ -763,8 +763,8 @@ class InsertOp(IRDLOperation):
 
     name = "tensor.insert"
 
-    scalar = operand_def(Attribute)
-    dest = operand_def(TensorType)
+    scalar: Operand = operand_def(Attribute)
+    dest: Operand = operand_def(TensorType)
     indices = var_operand_def(IndexType)
     result = result_def(TensorType)
     # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
@@ -855,7 +855,7 @@ class SplatOp(IRDLOperation):
 
     SPLAT_TYPE: ClassVar = VarConstraint("SPLAT_TYPE", AnyAttr())
 
-    input = operand_def(SPLAT_TYPE)
+    input: Operand = operand_def(SPLAT_TYPE)
     dynamicSizes = var_operand_def(IndexType)
     result = result_def(TensorType.constr(SPLAT_TYPE))
     assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
@@ -896,7 +896,7 @@ class PadOp(IRDLOperation):
 
     name = "tensor.pad"
 
-    source = operand_def(base(TensorType[Attribute]))
+    source: Operand = operand_def(base(TensorType[Attribute]))
     low = var_operand_def(IndexType)
     high = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase.constr(i64))

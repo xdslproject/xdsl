@@ -40,6 +40,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1242,8 +1243,8 @@ class AbsentOp(IRDLOperation):
 @irdl_op_definition
 class AddcOp(IRDLOperation):
     name = "fir.addc"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -1403,7 +1404,7 @@ class ArrayAccessOp(IRDLOperation):
     """
 
     name = "fir.array_access"
-    sequence = operand_def()
+    sequence: Operand = operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     element = result_def()
@@ -1431,8 +1432,8 @@ class ArrayAmendOp(IRDLOperation):
     """
 
     name = "fir.array_amend"
-    sequence = operand_def()
-    memref = operand_def()
+    sequence: Operand = operand_def()
+    memref: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1457,7 +1458,7 @@ class ArrayCoorOp(IRDLOperation):
     """
 
     name = "fir.array_coor"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     slice = opt_operand_def()
     indices = var_operand_def()
@@ -1491,7 +1492,7 @@ class ArrayFetchOp(IRDLOperation):
     """
 
     name = "fir.array_fetch"
-    sequence = operand_def()
+    sequence: Operand = operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     element = result_def()
@@ -1532,7 +1533,7 @@ class ArrayLoadOp(IRDLOperation):
     """
 
     name = "fir.array_load"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     slice = opt_operand_def()
     typeparams = var_operand_def()
@@ -1562,9 +1563,9 @@ class ArrayMergeStoreOp(IRDLOperation):
     """
 
     name = "fir.array_merge_store"
-    original = operand_def()
-    sequence = operand_def()
-    memref = operand_def()
+    original: Operand = operand_def()
+    sequence: Operand = operand_def()
+    memref: Operand = operand_def()
     slice = opt_operand_def()
     typeparams = var_operand_def()
 
@@ -1603,7 +1604,7 @@ class ArrayModifyOp(IRDLOperation):
     """
 
     name = "fir.array_modify"
-    sequence = operand_def()
+    sequence: Operand = operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     result_0 = result_def()
@@ -1641,8 +1642,8 @@ class ArrayUpdateOp(IRDLOperation):
     """
 
     name = "fir.array_update"
-    sequence = operand_def()
-    merge = operand_def()
+    sequence: Operand = operand_def()
+    merge: Operand = operand_def()
     indices = var_operand_def()
     typeparams = var_operand_def()
     result_0 = result_def()
@@ -1664,7 +1665,7 @@ class BoxAddrOp(IRDLOperation):
     """
 
     name = "fir.box_addr"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1678,7 +1679,7 @@ class BoxcharLenOp(IRDLOperation):
     """
 
     name = "fir.boxchar_len"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1699,8 +1700,8 @@ class BoxDimsOp(IRDLOperation):
     """
 
     name = "fir.box_dims"
-    val = operand_def()
-    dim = operand_def()
+    val: Operand = operand_def()
+    dim: Operand = operand_def()
     result_0 = result_def()
     result_1 = result_def()
     result_2 = result_def()
@@ -1720,7 +1721,7 @@ class BoxElesizeOp(IRDLOperation):
     """
 
     name = "fir.box_elesize"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1740,7 +1741,7 @@ class BoxIsallocOp(IRDLOperation):
     """
 
     name = "fir.box_isalloc"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1759,7 +1760,7 @@ class BoxIsarrayOp(IRDLOperation):
     """
 
     name = "fir.box_isarray"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1774,7 +1775,7 @@ class BoxIsptrOp(IRDLOperation):
     """
 
     name = "fir.box_isptr"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1796,7 +1797,7 @@ class BoxOffsetOp(IRDLOperation):
     """
 
     name = "fir.box_offset"
-    box_ref = operand_def()
+    box_ref: Operand = operand_def()
     field = prop_def()
     result_0 = result_def()
 
@@ -1816,7 +1817,7 @@ class BoxprocHostOp(IRDLOperation):
     """
 
     name = "fir.boxproc_host"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1835,7 +1836,7 @@ class BoxRankOp(IRDLOperation):
     """
 
     name = "fir.box_rank"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1850,7 +1851,7 @@ class BoxTdescOp(IRDLOperation):
     """
 
     name = "fir.box_tdesc"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1894,9 +1895,9 @@ class CharConvertOp(IRDLOperation):
     """
 
     name = "fir.char_convert"
-    _from = operand_def()
-    count = operand_def()
-    to = operand_def()
+    _from: Operand = operand_def()
+    count: Operand = operand_def()
+    to: Operand = operand_def()
 
 
 @irdl_op_definition
@@ -1908,8 +1909,8 @@ class CmpcOp(IRDLOperation):
     name = "fir.cmpc"
     predicate = prop_def(IntegerAttr)
     fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -1928,7 +1929,7 @@ class ConvertOp(IRDLOperation):
     """
 
     name = "fir.convert"
-    value = operand_def()
+    value: Operand = operand_def()
     res = result_def()
 
 
@@ -1956,7 +1957,7 @@ class CoordinateOfOp(IRDLOperation):
     name = "fir.coordinate_of"
     baseType = prop_def()
     field_indices = opt_prop_def()
-    ref = operand_def()
+    ref: Operand = operand_def()
     coor = var_operand_def()
     result_0 = result_def()
 
@@ -1999,7 +2000,7 @@ class DeclareOp(IRDLOperation):
     """
 
     name = "fir.declare"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
     dummy_scope = opt_operand_def()
@@ -2050,7 +2051,7 @@ class DispatchOp(IRDLOperation):
     name = "fir.dispatch"
     method = prop_def(StringAttr)
     pass_arg_pos = opt_prop_def(IntegerAttr)
-    object = operand_def()
+    object: Operand = operand_def()
     args = var_operand_def()
     result_0 = var_result_def()
 
@@ -2058,8 +2059,8 @@ class DispatchOp(IRDLOperation):
 @irdl_op_definition
 class DivcOp(IRDLOperation):
     name = "fir.divc"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -2085,9 +2086,9 @@ class DoLoopOp(IRDLOperation):
     """
 
     name = "fir.do_loop"
-    lowerBound = operand_def()
-    upperBound = operand_def()
-    step = operand_def()
+    lowerBound: Operand = operand_def()
+    upperBound: Operand = operand_def()
+    step: Operand = operand_def()
     reduceOperands = var_operand_def()
     initArgs = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
@@ -2197,8 +2198,8 @@ class EmboxcharOp(IRDLOperation):
     """
 
     name = "fir.emboxchar"
-    memref = operand_def()
-    len = operand_def()
+    memref: Operand = operand_def()
+    len: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -2226,7 +2227,7 @@ class EmboxOp(IRDLOperation):
     """
 
     name = "fir.embox"
-    memref = operand_def()
+    memref: Operand = operand_def()
     shape = var_operand_def()
     slice = var_operand_def()
     typeparams = var_operand_def()
@@ -2261,7 +2262,7 @@ class EmboxprocOp(IRDLOperation):
     """
 
     name = "fir.emboxproc"
-    func = operand_def()
+    func: Operand = operand_def()
     host = opt_operand_def()
     result_0 = result_def()
 
@@ -2284,7 +2285,7 @@ class ExtractValueOp(IRDLOperation):
     """
 
     name = "fir.extract_value"
-    adt = operand_def()
+    adt: Operand = operand_def()
     coor = prop_def(ArrayAttr)
     res = result_def()
 
@@ -2338,7 +2339,7 @@ class FreememOp(IRDLOperation):
     """
 
     name = "fir.freemem"
-    heapref = operand_def()
+    heapref: Operand = operand_def()
 
 
 @irdl_op_definition
@@ -2414,7 +2415,7 @@ class HasValueOp(IRDLOperation):
     """
 
     name = "fir.has_value"
-    resval = operand_def()
+    resval: Operand = operand_def()
 
     traits = traits_def(IsTerminator())
 
@@ -2435,7 +2436,7 @@ class IfOp(IRDLOperation):
     """
 
     name = "fir.if"
-    condition = operand_def()
+    condition: Operand = operand_def()
     output = var_result_def()
     then_region = region_def()
     else_region = opt_region_def()
@@ -2461,8 +2462,8 @@ class InsertOnRangeOp(IRDLOperation):
 
     name = "fir.insert_on_range"
     coor = prop_def()
-    seq = operand_def()
-    val = operand_def()
+    seq: Operand = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -2486,8 +2487,8 @@ class InsertValueOp(IRDLOperation):
     """
 
     name = "fir.insert_value"
-    adt = operand_def()
-    val = operand_def()
+    adt: Operand = operand_def()
+    val: Operand = operand_def()
     coor = prop_def(ArrayAttr)
     result_0 = result_def()
 
@@ -2504,7 +2505,7 @@ class IsPresentOp(IRDLOperation):
     """
 
     name = "fir.is_present"
-    val = operand_def()
+    val: Operand = operand_def()
     result_0 = result_def()
 
 
@@ -2537,10 +2538,10 @@ class IterateWhileOp(IRDLOperation):
 
     name = "fir.iterate_while"
     finalValue = opt_prop_def(UnitAttr)
-    lowerBound = operand_def()
-    upperBound = operand_def()
-    step = operand_def()
-    iterateIn = operand_def()
+    lowerBound: Operand = operand_def()
+    upperBound: Operand = operand_def()
+    step: Operand = operand_def()
+    iterateIn: Operand = operand_def()
     initArgs = var_operand_def()
     _results = var_result_def()
     region = region_def("single_block")
@@ -2581,15 +2582,15 @@ class LoadOp(IRDLOperation):
     """
 
     name = "fir.load"
-    memref = operand_def()
+    memref: Operand = operand_def()
     res = result_def()
 
 
 @irdl_op_definition
 class MulcOp(IRDLOperation):
     name = "fir.mulc"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -2597,7 +2598,7 @@ class MulcOp(IRDLOperation):
 @irdl_op_definition
 class NegcOp(IRDLOperation):
     name = "fir.negc"
-    operand = operand_def()
+    operand: Operand = operand_def()
     result = result_def()
 
 
@@ -2618,7 +2619,7 @@ class NoReassocOp(IRDLOperation):
     """
 
     name = "fir.no_reassoc"
-    val = operand_def()
+    val: Operand = operand_def()
     res = result_def()
 
 
@@ -2655,7 +2656,7 @@ class ReboxOp(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box = operand_def()
+    box: Operand = operand_def()
     shape = opt_operand_def()
     slice = opt_operand_def()
     result_0 = result_def()
@@ -2723,8 +2724,8 @@ class SaveResultOp(IRDLOperation):
     """
 
     name = "fir.save_result"
-    value = operand_def()
-    memref = operand_def()
+    value: Operand = operand_def()
+    memref: Operand = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
 
@@ -2749,7 +2750,7 @@ class SelectCaseOp(IRDLOperation):
     """
 
     name = "fir.select_case"
-    selector = operand_def()
+    selector: Operand = operand_def()
     compareArgs = var_operand_def()
     targetArgs = var_operand_def()
     case_tags = prop_def(ArrayAttr)
@@ -2777,7 +2778,7 @@ class SelectOp(IRDLOperation):
     """
 
     name = "fir.select"
-    selector = operand_def()
+    selector: Operand = operand_def()
     compareArgs = var_operand_def()
     targetArgs = var_operand_def()
     case_tags = prop_def(ArrayAttr)
@@ -2804,7 +2805,7 @@ class SelectRankOp(IRDLOperation):
     """
 
     name = "fir.select_rank"
-    selector = operand_def()
+    selector: Operand = operand_def()
     compareArgs = var_operand_def()
     targetArgs = var_operand_def()
     case_tags = prop_def(ArrayAttr)
@@ -2832,7 +2833,7 @@ class SelectTypeOp(IRDLOperation):
     """
 
     name = "fir.select_type"
-    selector = operand_def()
+    selector: Operand = operand_def()
     compareArgs = var_operand_def()
     targetArgs = var_operand_def()
     case_tags = prop_def(ArrayAttr)
@@ -2948,8 +2949,8 @@ class StoreOp(IRDLOperation):
     """
 
     name = "fir.store"
-    value = operand_def()
-    memref = operand_def()
+    value: Operand = operand_def()
+    memref: Operand = operand_def()
 
 
 @irdl_op_definition
@@ -2975,8 +2976,8 @@ class StringLitOp(IRDLOperation):
 @irdl_op_definition
 class SubcOp(IRDLOperation):
     name = "fir.subc"
-    lhs = operand_def()
-    rhs = operand_def()
+    lhs: Operand = operand_def()
+    rhs: Operand = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -2992,7 +2993,7 @@ class UnboxcharOp(IRDLOperation):
     """
 
     name = "fir.unboxchar"
-    boxchar = operand_def()
+    boxchar: Operand = operand_def()
     result_0 = result_def()
     result_1 = result_def()
 
@@ -3008,7 +3009,7 @@ class UnboxprocOp(IRDLOperation):
     """
 
     name = "fir.unboxproc"
-    boxproc = operand_def()
+    boxproc: Operand = operand_def()
     result_0 = result_def()
     refTuple = result_def()
 
@@ -3075,7 +3076,7 @@ class BoxTotalElementsOp(IRDLOperation):
     """Returns the total number of elements described by a Fortran descriptor."""
 
     name = "fir.box_total_elements"
-    box = operand_def()
+    box: Operand = operand_def()
     result = result_def()
 
 
@@ -3084,7 +3085,7 @@ class BoxTypeCodeOp(IRDLOperation):
     """Returns the CFI type code stored in a descriptor."""
 
     name = "fir.box_typecode"
-    box = operand_def()
+    box: Operand = operand_def()
     result = result_def()
 
 
@@ -3093,8 +3094,8 @@ class CopyOp(IRDLOperation):
     """Copy a Fortran entity from source to destination, with optional no-overlap promise."""
 
     name = "fir.copy"
-    source = operand_def()
-    destination = operand_def()
+    source: Operand = operand_def()
+    destination: Operand = operand_def()
     no_overlap = opt_prop_def(UnitAttr)
 
 
@@ -3159,7 +3160,7 @@ class IsAssumedSizeOp(IRDLOperation):
     """True iff the box describes a Fortran assumed-size array."""
 
     name = "fir.is_assumed_size"
-    val = operand_def()
+    val: Operand = operand_def()
     result = result_def()
 
 
@@ -3168,7 +3169,7 @@ class IsAssumedSizeExtentOp(IRDLOperation):
     """True iff the integer is the magic assumed-size extent value."""
 
     name = "fir.is_assumed_size_extent"
-    val = operand_def()
+    val: Operand = operand_def()
     result = result_def()
 
 
@@ -3177,7 +3178,7 @@ class IsContiguousBoxOp(IRDLOperation):
     """Runtime predicate: is the box contiguous (optionally only innermost)?"""
 
     name = "fir.is_contiguous_box"
-    box = operand_def()
+    box: Operand = operand_def()
     innermost = opt_prop_def(UnitAttr)
     result = result_def()
 
@@ -3202,7 +3203,7 @@ class PackArrayOp(IRDLOperation):
     """Repack an array into a contiguous temporary."""
 
     name = "fir.pack_array"
-    array = operand_def()
+    array: Operand = operand_def()
     typeparams = var_operand_def()
     stack = opt_prop_def(UnitAttr)
     innermost = opt_prop_def(UnitAttr)
@@ -3220,8 +3221,8 @@ class UnpackArrayOp(IRDLOperation):
     """Inverse of fir.pack_array."""
 
     name = "fir.unpack_array"
-    temp = operand_def()
-    original = operand_def()
+    temp: Operand = operand_def()
+    original: Operand = operand_def()
     stack = opt_prop_def(UnitAttr)
     no_copy = opt_prop_def(UnitAttr)
     is_safe = opt_prop_def(ArrayAttr)
@@ -3232,7 +3233,7 @@ class PrefetchOp(IRDLOperation):
     """Cache prefetch hint for a memory reference."""
 
     name = "fir.prefetch"
-    memref = operand_def()
+    memref: Operand = operand_def()
     rw = opt_prop_def(UnitAttr)
     localityHint = prop_def(IntegerAttr)
     cacheType = opt_prop_def(UnitAttr)
@@ -3243,7 +3244,7 @@ class ReboxAssumedRankOp(IRDLOperation):
     """Rebox an assumed-rank descriptor with a different lower-bound modifier."""
 
     name = "fir.rebox_assumed_rank"
-    box = operand_def()
+    box: Operand = operand_def()
     lbs_modifier = prop_def(Attribute)
     result = result_def()
 
@@ -3290,7 +3291,7 @@ class VolatileCastOp(IRDLOperation):
     """Cast that adds or drops the descriptor 'volatile' flag."""
 
     name = "fir.volatile_cast"
-    value = operand_def()
+    value: Operand = operand_def()
     res = result_def()
 
 

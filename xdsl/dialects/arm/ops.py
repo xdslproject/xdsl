@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -66,7 +67,7 @@ class DSMovOp(ARMInstruction):
     name = "arm.ds.mov"
 
     d = result_def(IntRegisterType)
-    s = operand_def(IntRegisterType)
+    s: Operand = operand_def(IntRegisterType)
     assembly_format = "$s attr-dict `:` `(` type($s) `)` `->` type($d)"
 
     def __init__(
@@ -120,8 +121,8 @@ class DSSMulOp(ARMInstruction):
     name = "arm.dss.mul"
 
     d = result_def(IntRegisterType)
-    s1 = operand_def(IntRegisterType)
-    s2 = operand_def(IntRegisterType)
+    s1: Operand = operand_def(IntRegisterType)
+    s2: Operand = operand_def(IntRegisterType)
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
     )
@@ -196,8 +197,8 @@ class CmpRegOp(ARMInstruction):
     """
 
     name = "arm.cmp"
-    s1 = operand_def(IntRegisterType)
-    s2 = operand_def(IntRegisterType)
+    s1: Operand = operand_def(IntRegisterType)
+    s2: Operand = operand_def(IntRegisterType)
 
     assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
 

@@ -34,6 +34,7 @@ from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -196,7 +197,7 @@ class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
     op = opt_prop_def(AllReduceOpAttr)
     uniform = opt_prop_def(UnitAttr)
-    operand = operand_def(Attribute)
+    operand: Operand = operand_def(Attribute)
     result = result_def(Attribute)
     body = region_def()
 
@@ -291,7 +292,7 @@ class DeallocOp(IRDLOperation):
     name = "gpu.dealloc"
 
     asyncDependencies = var_operand_def(AsyncTokenType)
-    buffer = operand_def(memref.MemRefType)
+    buffer: Operand = operand_def(memref.MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -314,8 +315,8 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies = var_operand_def(AsyncTokenType)
-    dst = operand_def(memref.MemRefType)
-    src = operand_def(memref.MemRefType)
+    dst: Operand = operand_def(memref.MemRefType)
+    src: Operand = operand_def(memref.MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -453,7 +454,7 @@ class HostRegisterOp(IRDLOperation):
 
     name = "gpu.host_register"
 
-    value = operand_def(memref.UnrankedMemRefType)
+    value: Operand = operand_def(memref.UnrankedMemRefType)
 
     def __init__(self, memref: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(memref)])
@@ -467,7 +468,7 @@ class HostUnregisterOp(IRDLOperation):
 
     name = "gpu.host_unregister"
 
-    value = operand_def(memref.UnrankedMemRefType)
+    value: Operand = operand_def(memref.UnrankedMemRefType)
 
     def __init__(self, memref: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(memref)])
@@ -486,12 +487,12 @@ class LaneIdOp(IRDLOperation):
 class LaunchOp(IRDLOperation):
     name = "gpu.launch"
     asyncDependencies = var_operand_def(AsyncTokenType)
-    gridSizeX = operand_def(IndexType)
-    gridSizeY = operand_def(IndexType)
-    gridSizeZ = operand_def(IndexType)
-    blockSizeX = operand_def(IndexType)
-    blockSizeY = operand_def(IndexType)
-    blockSizeZ = operand_def(IndexType)
+    gridSizeX: Operand = operand_def(IndexType)
+    gridSizeY: Operand = operand_def(IndexType)
+    gridSizeZ: Operand = operand_def(IndexType)
+    blockSizeX: Operand = operand_def(IndexType)
+    blockSizeY: Operand = operand_def(IndexType)
+    blockSizeZ: Operand = operand_def(IndexType)
     clusterSizeX = opt_operand_def(IndexType)
     clusterSizeY = opt_operand_def(IndexType)
     clusterSizeZ = opt_operand_def(IndexType)
@@ -590,12 +591,12 @@ class LaunchFuncOp(IRDLOperation):
 
     name = "gpu.launch_func"
     asyncDependencies = var_operand_def(AsyncTokenType)
-    gridSizeX = operand_def(AnyOf.get(IndexType, i32, i64))
-    gridSizeY = operand_def(AnyOf.get(IndexType, i32, i64))
-    gridSizeZ = operand_def(AnyOf.get(IndexType, i32, i64))
-    blockSizeX = operand_def(AnyOf.get(IndexType, i32, i64))
-    blockSizeY = operand_def(AnyOf.get(IndexType, i32, i64))
-    blockSizeZ = operand_def(AnyOf.get(IndexType, i32, i64))
+    gridSizeX: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
+    gridSizeY: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
+    gridSizeZ: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeX: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeY: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
+    blockSizeZ: Operand = operand_def(AnyOf.get(IndexType, i32, i64))
     clusterSizeX = opt_operand_def(AnyOf.get(IndexType, i32, i64))
     clusterSizeY = opt_operand_def(AnyOf.get(IndexType, i32, i64))
     clusterSizeZ = opt_operand_def(AnyOf.get(IndexType, i32, i64))
@@ -675,7 +676,7 @@ class ReturnOp(IRDLOperation):
 @irdl_op_definition
 class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
-    devIndex = operand_def(i32)
+    devIndex: Operand = operand_def(i32)
 
     def __init__(self, devIndex: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(devIndex)])

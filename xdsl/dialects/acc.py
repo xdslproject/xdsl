@@ -48,6 +48,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -3674,7 +3675,7 @@ class _DataEntryOperation(IRDLOperation, ABC):
     here.
     """
 
-    var = operand_def()
+    var: Operand = operand_def()
     var_ptr_ptr = opt_operand_def()
     bounds = var_operand_def(DataBoundsType)
     async_operands = var_operand_def(IntegerType | IndexType)
@@ -4042,8 +4043,8 @@ class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
     format, and the keyword-only `__init__` live here.
     """
 
-    acc_var = operand_def()
-    var = operand_def()
+    acc_var: Operand = operand_def()
+    var: Operand = operand_def()
     bounds = var_operand_def(DataBoundsType)
     async_operands = var_operand_def(IntegerType | IndexType)
 
@@ -4177,7 +4178,7 @@ class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
     need to know the host-side mapping.
     """
 
-    acc_var = operand_def()
+    acc_var: Operand = operand_def()
     bounds = var_operand_def(DataBoundsType)
     async_operands = var_operand_def(IntegerType | IndexType)
 
@@ -4633,8 +4634,8 @@ class AtomicReadOp(IRDLOperation):
 
     name = "acc.atomic.read"
 
-    x = operand_def()
-    v = operand_def()
+    x: Operand = operand_def()
+    v: Operand = operand_def()
     if_cond = opt_operand_def(I1)
 
     element_type = prop_def(TypeAttribute)
@@ -4681,8 +4682,8 @@ class AtomicWriteOp(IRDLOperation):
 
     name = "acc.atomic.write"
 
-    x = operand_def()
-    expr = operand_def()
+    x: Operand = operand_def()
+    expr: Operand = operand_def()
     if_cond = opt_operand_def(I1)
 
     custom_directives = (AtomicIfClause,)
@@ -4726,7 +4727,7 @@ class AtomicUpdateOp(IRDLOperation):
 
     name = "acc.atomic.update"
 
-    x = operand_def()
+    x: Operand = operand_def()
     if_cond = opt_operand_def(I1)
 
     region = region_def("single_block")
@@ -5127,7 +5128,7 @@ class _DataBoundsAccessorOp(IRDLOperation, ABC):
     `!acc.data_bounds_ty` operand and yields an `index`.
     """
 
-    bounds = operand_def(DataBoundsType)
+    bounds: Operand = operand_def(DataBoundsType)
     result = result_def(IndexType)
 
     assembly_format = "$bounds attr-dict `:` `(` type($bounds) `)` `->` type($result)"

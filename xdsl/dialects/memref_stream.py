@@ -41,6 +41,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     VarConstraint,
     irdl_attr_definition,
@@ -242,7 +243,7 @@ class ReadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType.constr(T))
+    stream: Operand = operand_def(ReadableStreamType.constr(T))
     res = result_def(T)
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
@@ -265,8 +266,8 @@ class WriteOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    value = operand_def(T)
-    stream = operand_def(WritableStreamType.constr(T))
+    value: Operand = operand_def(T)
+    stream: Operand = operand_def(WritableStreamType.constr(T))
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
@@ -935,8 +936,8 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType.constr(T))
-    value = operand_def(T)
+    memref: Operand = operand_def(memref.MemRefType.constr(T))
+    value: Operand = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"
 

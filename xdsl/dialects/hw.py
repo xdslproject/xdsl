@@ -48,6 +48,7 @@ from xdsl.irdl import (
     AnyAttr,
     AtLeast,
     IRDLOperation,
+    Operand,
     RangeOf,
     VarConstraint,
     attr_def,
@@ -1432,8 +1433,8 @@ class ArrayGetOp(IRDLOperation):
     """
 
     name = "hw.array_get"
-    input = operand_def(ArrayType)
-    index = operand_def(IntegerType)
+    input: Operand = operand_def(ArrayType)
+    index: Operand = operand_def(IntegerType)
     result = result_def(IntegerType | ArrayType)
 
     def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
@@ -1482,7 +1483,7 @@ class ArrayGetOp(IRDLOperation):
 class BitcastOp(IRDLOperation):
     name = "hw.bitcast"
 
-    input = operand_def()
+    input: Operand = operand_def()
     result = result_def()
 
     assembly_format = "$input attr-dict `:` functional-type($input, $result)"

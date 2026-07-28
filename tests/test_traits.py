@@ -35,6 +35,7 @@ from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
+    Operand,
     Region,
     attr_def,
     irdl_op_definition,
@@ -132,7 +133,7 @@ class TestOp(IRDLOperation):
     name = "test.test"
     traits = traits_def(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
 
-    ops = operand_def(IntegerType)
+    ops: Operand = operand_def(IntegerType)
     res = result_def(IntegerType)
 
 

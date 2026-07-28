@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -52,8 +53,8 @@ class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 class PtrAddOp(IRDLOperation):
     name = "ptr_xdsl.ptradd"
 
-    addr = operand_def(PtrType)
-    offset = operand_def(IntegerAttrTypeConstr)
+    addr: Operand = operand_def(PtrType)
+    offset: Operand = operand_def(IntegerAttrTypeConstr)
     result = result_def(PtrType)
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
@@ -82,8 +83,8 @@ class TypeOffsetOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "ptr_xdsl.store"
 
-    addr = operand_def(PtrType)
-    value = operand_def()
+    addr: Operand = operand_def(PtrType)
+    value: Operand = operand_def()
 
     volatile = opt_prop_def(UnitAttr)
     syncscope = opt_prop_def(UnitAttr)
@@ -114,7 +115,7 @@ class StoreOp(IRDLOperation):
 class LoadOp(IRDLOperation):
     name = "ptr_xdsl.load"
 
-    addr = operand_def(PtrType)
+    addr: Operand = operand_def(PtrType)
     res = result_def()
 
     volatile = opt_prop_def(UnitAttr)
@@ -158,7 +159,7 @@ class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ToPtrOp(IRDLOperation):
     name = "ptr_xdsl.to_ptr"
 
-    source = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
     res = result_def(PtrType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
@@ -181,7 +182,7 @@ class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 class FromPtrOp(IRDLOperation):
     name = "ptr_xdsl.from_ptr"
 
-    source = operand_def(PtrType)
+    source: Operand = operand_def(PtrType)
     res = result_def(MemRefType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"

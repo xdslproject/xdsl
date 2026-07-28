@@ -30,6 +30,7 @@ from xdsl.ir import Attribute, Block, Dialect, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -53,7 +54,7 @@ class GetResultOp(IRDLOperation):
 
     name = "eqsat_pdl_interp.get_result"
     index = prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
@@ -74,7 +75,7 @@ class GetResultsOp(IRDLOperation):
 
     name = "eqsat_pdl_interp.get_results"
     index = opt_prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
@@ -126,7 +127,7 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.get_defining_op"
-    value = operand_def(ValueType | RangeType[ValueType])
+    value: Operand = operand_def(ValueType | RangeType[ValueType])
     input_op = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
@@ -142,7 +143,7 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.replace"
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     repl_values = var_operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = (

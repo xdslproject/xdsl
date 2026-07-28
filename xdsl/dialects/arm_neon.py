@@ -25,6 +25,7 @@ from xdsl.ir import (
     StrEnum,
 )
 from xdsl.irdl import (
+    Operand,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -207,8 +208,8 @@ class DSSFMulOp(ARMInstruction):
 
     name = "arm_neon.dss.fmul"
     d = result_def(NEONRegisterType)
-    s1 = operand_def(NEONRegisterType)
-    s2 = operand_def(NEONRegisterType)
+    s1: Operand = operand_def(NEONRegisterType)
+    s2: Operand = operand_def(NEONRegisterType)
     scalar_idx = opt_prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
@@ -278,9 +279,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
     name = "arm_neon.dss.fmla"
     res = result_def(SAME_NEON_REGISTER_TYPE)
-    d = operand_def(SAME_NEON_REGISTER_TYPE)
-    s1 = operand_def(NEONRegisterType)
-    s2 = operand_def(NEONRegisterType)
+    d: Operand = operand_def(SAME_NEON_REGISTER_TYPE)
+    s1: Operand = operand_def(NEONRegisterType)
+    s2: Operand = operand_def(NEONRegisterType)
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
@@ -336,7 +337,7 @@ class DSDupOp(ARMInstruction):
     """
 
     name = "arm_neon.ds.dup"
-    s = operand_def(IntRegisterType)
+    s: Operand = operand_def(IntRegisterType)
     d = result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
@@ -381,7 +382,7 @@ class DSVecMovOp(ARMInstruction):
     """
 
     name = "arm_neon.dsvec.mov"
-    s = operand_def(NEONRegisterType)
+    s: Operand = operand_def(NEONRegisterType)
     d = result_def(IntRegisterType)
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
@@ -431,7 +432,7 @@ class DVarSLd1Op(ARMInstruction):
     """
 
     name = "arm_neon.dvars.ld1"
-    s = operand_def(IntRegisterType)
+    s: Operand = operand_def(IntRegisterType)
     dest_regs = var_result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
@@ -485,7 +486,7 @@ class DVarSSt1Op(ARMInstruction):
     """
 
     name = "arm_neon.dvars.st1"
-    d = operand_def(IntRegisterType)
+    d: Operand = operand_def(IntRegisterType)
     src_regs = var_operand_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 

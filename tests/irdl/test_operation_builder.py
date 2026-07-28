@@ -14,6 +14,7 @@ from xdsl.irdl import (
     AttrSizedResultSegments,
     AttrSizedSuccessorSegments,
     IRDLOperation,
+    Operand,
     SameVariadicOperandSize,
     attr_def,
     irdl_op_definition,
@@ -195,7 +196,7 @@ def test_var_mixed_builder():
 class OperandOp(IRDLOperation):
     name = "test.operand_op"
 
-    res = operand_def(StringAttr)
+    res: Operand = operand_def(StringAttr)
 
 
 def test_operand_builder_operation():
@@ -324,7 +325,7 @@ class SameSizeVarOperandOp(IRDLOperation):
     name = "test.same_size_var_operand_op"
 
     var1 = var_operand_def()
-    op1 = operand_def()
+    op1: Operand = operand_def()
     var2 = var_operand_def()
     irdl_options = (SameVariadicOperandSize(),)
 

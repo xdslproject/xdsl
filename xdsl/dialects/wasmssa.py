@@ -22,6 +22,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -145,8 +146,8 @@ class BinaryNumericalOperation(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint.get("T", NumericType)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$lhs $rhs `:` type($lhs) attr-dict"

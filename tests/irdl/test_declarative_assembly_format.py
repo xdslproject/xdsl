@@ -49,6 +49,7 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
@@ -954,7 +955,7 @@ def test_missing_operand():
         @irdl_op_definition
         class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "attr-dict"
 
@@ -968,7 +969,7 @@ def test_operands_missing_type():
         @irdl_op_definition
         class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand attr-dict"
 
@@ -984,7 +985,7 @@ def test_operands_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_operand_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand $operand type($operand) attr-dict"
 
@@ -1000,7 +1001,7 @@ def test_operands_duplicated_type():
             IRDLOperation
         ):
             name = "test.duplicated_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand type($operand) type($operand) attr-dict"
 
@@ -1035,8 +1036,8 @@ def test_operands(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
-        lhs = operand_def()
-        rhs = operand_def()
+        lhs: Operand = operand_def()
+        rhs: Operand = operand_def()
 
         assembly_format = format
 
@@ -1237,8 +1238,8 @@ def test_operands_graph_region(format: str, program: str):
     @irdl_op_definition
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
-        lhs = operand_def()
-        rhs = operand_def()
+        lhs: Operand = operand_def()
+        rhs: Operand = operand_def()
 
         assembly_format = format
 
@@ -1264,7 +1265,7 @@ def test_operands_directive_with_variadic(program: str):
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
         op2 = var_operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
@@ -1291,7 +1292,7 @@ def test_operands_directive_with_optional(program: str):
         name = "test.operands_directive"
 
         op1 = opt_operand_def()
-        op2 = operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1309,8 +1310,8 @@ def test_operands_directive_with_no_variadic():
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = operand_def()
-        op2 = operand_def()
+        op1: Operand = operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1431,8 +1432,8 @@ def test_operands_directive_fails_with_other_directive():
         class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_operands_op"
 
-            op1 = operand_def()
-            op2 = operand_def()
+            op1: Operand = operand_def()
+            op2: Operand = operand_def()
 
             assembly_format = "$op1 `,` operands attr-dict `:` type(operands)"
 
@@ -1449,8 +1450,8 @@ def test_operands_directive_fails_with_other_type_directive():
         class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_operands_op"
 
-            op1 = operand_def()
-            op2 = operand_def()
+            op1: Operand = operand_def()
+            op2: Operand = operand_def()
 
             assembly_format = "operands attr-dict `:` type($op1) `,` type(operands)"
 
@@ -1475,8 +1476,8 @@ def test_operands_directive_bounds(program: str, error: str):
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
 
-        op1 = operand_def()
-        op2 = operand_def()
+        op1: Operand = operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1514,9 +1515,9 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
         op2 = opt_operand_def()
-        op3 = operand_def()
+        op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1546,9 +1547,9 @@ def test_operands_directive_bound_with_var(program: str, error: str):
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
         op2 = var_operand_def()
-        op3 = operand_def()
+        op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1578,7 +1579,7 @@ def test_operands_directive_with_non_variadic_type_directive():
     class OneOperandOp(IRDLOperation):
         name = "test.one_operand"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> OneOperandOp:
@@ -1613,7 +1614,7 @@ def test_operands_directive_with_variadic_type_directive():
     class TwoOperandOp(IRDLOperation):
         name = "test.two_operand"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
         op2 = var_operand_def()
 
         @classmethod
@@ -2183,7 +2184,7 @@ def test_functional_type_with_operands_and_results(program: str):
     class FunctionalTypeOp(IRDLOperation):
         name = "test.functional_type"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
         ops2 = var_operand_def()
         res1 = var_result_def()
         res2 = result_def()
@@ -2716,8 +2717,8 @@ def test_basic_inference(format: str):
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
-        lhs = operand_def(T)
-        rhs = operand_def(T)
+        lhs: Operand = operand_def(T)
+        rhs: Operand = operand_def(T)
 
         assembly_format = format
 
@@ -2743,7 +2744,7 @@ def test_eq_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeOp(IRDLOperation):
         name = "test.one_operand_eq_type"
-        index = operand_def(UnitType())
+        index: Operand = operand_def(UnitType())
         res = result_def(UnitType())
 
         assembly_format = "attr-dict $index"
@@ -2771,7 +2772,7 @@ def test_all_of_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeAllOfNestedOp(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
-        index = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
+        index: Operand = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
 
         assembly_format = "attr-dict $index"
 
@@ -2817,8 +2818,8 @@ def test_nested_inference():
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
-        lhs = operand_def(ParamOne.constr(p=T))
-        rhs = operand_def(T)
+        lhs: Operand = operand_def(ParamOne.constr(p=T))
+        rhs: Operand = operand_def(T)
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
 
@@ -2856,7 +2857,7 @@ def test_nested_inference_variable():
 
         name = "test.result_type_is_operand_param"
         res = result_def(T)
-        arg = operand_def(U)
+        arg: Operand = operand_def(U)
 
         assembly_format = "$arg attr-dict `:` type($arg)"
 
@@ -2898,7 +2899,7 @@ def test_non_verifying_inference():
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
-        lhs = operand_def(ParamOne.constr(p=T))
+        lhs: Operand = operand_def(ParamOne.constr(p=T))
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
@@ -3340,7 +3341,7 @@ def test_optional_group_checkers(format: str, error: str):
 
             args = var_operand_def()
             rets = var_result_def()
-            mandatory_arg = operand_def()
+            mandatory_arg: Operand = operand_def()
             optional_unit_arg = opt_prop_def(UnitAttr())
 
             assembly_format = format
@@ -3371,7 +3372,7 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
     class MixedOp(IRDLOperation):
         name = "test.mixed"
         var = var_operand_def(TestType("index"))
-        sin = operand_def(TestType("index"))
+        sin: Operand = operand_def(TestType("index"))
 
         assembly_format = "$sin `(` $var `)` attr-dict"
 
@@ -3590,8 +3591,8 @@ class AllOfExtractorOp(IRDLOperation):
     name = "test.all_of_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T & MemRefType.constr(T))
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T & MemRefType.constr(T))
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
@@ -3627,8 +3628,8 @@ class ParamExtractorOp(IRDLOperation):
     name = "test.param_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
@@ -3655,8 +3656,8 @@ class MultipleOperandExtractorOp(IRDLOperation):
     name = "test.multiple_operand_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)"
 
@@ -3988,7 +3989,7 @@ class EmptyDirectiveWithParams(CustomDirective):
 class RefDirectivesOp(IRDLOperation):
     name = "test.ref_directives"
 
-    op = operand_def()
+    op: Operand = operand_def()
     res = result_def()
     attr = attr_def()
     prop = prop_def()

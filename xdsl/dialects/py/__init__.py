@@ -97,8 +97,8 @@ class PyBinOp(PyOperation):
     """
 
     name = "py.binop"
-    lhs = operand_def(PyObjectType())
-    rhs = operand_def(PyObjectType())
+    lhs: Operand = operand_def(PyObjectType())
+    rhs: Operand = operand_def(PyObjectType())
     res = result_def(PyObjectType())
     op = prop_def(StringAttr)
     assembly_format = "$op $lhs $rhs attr-dict"

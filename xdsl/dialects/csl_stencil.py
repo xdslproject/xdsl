@@ -123,7 +123,7 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil = operand_def(
+    input_stencil: Operand = operand_def(
         stencil.StencilTypeConstr | MemRefType.constr() | AnyTensorTypeConstr
     )
 
@@ -216,9 +216,9 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    field = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
+    field: Operand = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
 
-    accumulator = operand_def(TensorType | MemRefType)
+    accumulator: Operand = operand_def(TensorType | MemRefType)
 
     args_rchunk = var_operand_def(Attribute)
     args_dexchng = var_operand_def(Attribute)
@@ -447,7 +447,7 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(
+    op: Operand = operand_def(
         MemRefType.constr() | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
     offset = prop_def(stencil.IndexAttr)

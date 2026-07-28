@@ -25,6 +25,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -119,7 +120,7 @@ class LaunchOp(IRDLOperation):
     The actual values used to set up registers linked to launch
     """
 
-    state = operand_def(StateType)
+    state: Operand = operand_def(StateType)
 
     param_names = prop_def(ArrayAttr[StringAttr])
     """
@@ -187,7 +188,7 @@ class AwaitOp(IRDLOperation):
 
     name = "accfg.await"
 
-    token = operand_def(TokenType)
+    token: Operand = operand_def(TokenType)
 
     def __init__(self, token: SSAValue | Operation):
         super().__init__(operands=[token])
@@ -436,7 +437,7 @@ class AcceleratorOp(IRDLOperation):
 class ResetOp(IRDLOperation):
     name = "accfg.reset"
 
-    in_state = operand_def(StateType)
+    in_state: Operand = operand_def(StateType)
 
     assembly_format = "$in_state attr-dict `:` type($in_state)"
 

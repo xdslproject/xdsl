@@ -25,6 +25,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -679,7 +680,7 @@ class SwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil = operand_def(stencil.StencilTypeConstr)
+    input_stencil: Operand = operand_def(stencil.StencilTypeConstr)
     swapped_values = opt_result_def(stencil.TempType[Attribute])
 
     swaps = attr_def(builtin.ArrayAttr[ExchangeDeclarationAttr])

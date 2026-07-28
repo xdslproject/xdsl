@@ -44,6 +44,7 @@ from xdsl.irdl import (
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -313,8 +314,8 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
 class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
     """Base class for EmitC binary operations."""
 
-    lhs = operand_def(EmitCTypeConstr)
-    rhs = operand_def(EmitCTypeConstr)
+    lhs: Operand = operand_def(EmitCTypeConstr)
+    rhs: Operand = operand_def(EmitCTypeConstr)
     result = result_def(EmitCTypeConstr)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
@@ -390,7 +391,7 @@ class EmitC_ApplyOp(IRDLOperation):
 
     applicableOperator = prop_def(StringAttr)
 
-    operand = operand_def(AnyAttr())
+    operand: Operand = operand_def(AnyAttr())
 
     result = result_def(EmitCTypeConstr)
 

@@ -21,6 +21,7 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -88,10 +89,10 @@ class VarithSwitchOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    flag = operand_def(IntegerType | IndexType)
+    flag: Operand = operand_def(IntegerType | IndexType)
     case_values = prop_def(DenseIntElementsAttr)
 
-    default_arg = operand_def(T)
+    default_arg: Operand = operand_def(T)
     args = var_operand_def(T)
 
     result = result_def(T)

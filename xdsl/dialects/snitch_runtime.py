@@ -18,6 +18,7 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -321,10 +322,10 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     Initiate an asynchronous 1D DMA transfer
     """
 
-    dst = operand_def(_T)
-    src = operand_def(_T)
+    dst: Operand = operand_def(_T)
+    src: Operand = operand_def(_T)
 
-    size = operand_def(i32)
+    size: Operand = operand_def(i32)
     transfer_id = result_def(tx_id)
 
     def __init__(
@@ -341,12 +342,12 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     Generic base class for starting asynchronous 2D DMA transfers
     """
 
-    dst = operand_def(_T)
-    src = operand_def(_T)
-    dst_stride = operand_def(i32)
-    src_stride = operand_def(i32)
-    size = operand_def(i32)
-    repeat = operand_def(i32)
+    dst: Operand = operand_def(_T)
+    src: Operand = operand_def(_T)
+    dst_stride: Operand = operand_def(i32)
+    src_stride: Operand = operand_def(i32)
+    size: Operand = operand_def(i32)
+    repeat: Operand = operand_def(i32)
     transfer_id = result_def(tx_id)
 
     def __init__(
@@ -407,7 +408,7 @@ class DmaWaitOp(SnitchRuntimeBaseOperation):
     """
 
     name = "snrt.dma_wait"
-    transfer_id = operand_def(tx_id)
+    transfer_id: Operand = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id])
@@ -435,7 +436,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     }
     """
 
-    data_mover = operand_def(i32)
+    data_mover: Operand = operand_def(i32)
     bounds = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
     irdl_options = (AttrSizedOperandSegments(),)
@@ -524,7 +525,7 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
 
     name = "snrt.ssr_repeat"
     dm = prop_def(IntegerAttr[IntegerType])
-    count = operand_def(i32)
+    count: Operand = operand_def(i32)
 
     def __init__(
         self,
@@ -558,7 +559,7 @@ class SsrDisableOp(NoOperandNoResultBaseOperation):
 class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
     dm = prop_def(IntegerAttr[IntegerType])
     dim = prop_def(IntegerAttr[IntegerType])
-    ptr = operand_def(i32)
+    ptr: Operand = operand_def(i32)
 
     def __init__(
         self,

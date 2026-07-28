@@ -19,6 +19,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParametrizedAttribute,
     VarConstraint,
     attr_def,
@@ -53,7 +54,7 @@ class ClockDividerOp(IRDLOperation):
     name = "seq.clock_div"
 
     pow2 = attr_def(IntegerAttr)
-    clockIn = operand_def(ClockType)
+    clockIn: Operand = operand_def(ClockType)
     clockOut = result_def(ClockType)
 
     def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
@@ -96,8 +97,8 @@ class CompRegOp(IRDLOperation):
     DATA_TYPE: ClassVar = VarConstraint("DataType", AnyAttr())
 
     inner_sym = opt_attr_def(InnerSymAttr)
-    input = operand_def(DATA_TYPE)
-    clk = operand_def(clock)
+    input: Operand = operand_def(DATA_TYPE)
+    clk: Operand = operand_def(clock)
     reset = opt_operand_def(i1)
     reset_value = opt_operand_def(DATA_TYPE)
     power_on_value = opt_operand_def(DATA_TYPE)

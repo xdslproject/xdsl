@@ -35,6 +35,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     attr_def,
     operand_def,
     opt_attr_def,
@@ -283,8 +284,8 @@ class RdRsRsOperation(
     """
 
     rd: OpResult[RDInvT] = result_def(RDInvT)
-    rs1 = operand_def(RS1InvT)
-    rs2 = operand_def(RS2InvT)
+    rs1: Operand = operand_def(RS1InvT)
+    rs2: Operand = operand_def(RS2InvT)
 
     def __init__(
         self,
@@ -343,8 +344,8 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     (one integer and one floating-point) and an immediate.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(FloatRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
     immediate = attr_def(IntegerAttr[I12])
 
     def __init__(
@@ -393,7 +394,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(FloatRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[I12] | LabelAttr)
 
     def __init__(
@@ -443,9 +444,9 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(FloatRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-    rs3 = operand_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
+    rs3: Operand = operand_def(FloatRegisterType)
 
     def __init__(
         self,
@@ -482,8 +483,8 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
     fastmath = attr_def(FastMathFlagsAttr)
 
     def __init__(
@@ -537,8 +538,8 @@ class RdRsRsFloatOperationWithFastMath(
     """
 
     rd = result_def(FloatRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
     fastmath = opt_attr_def(FastMathFlagsAttr)
 
     def __init__(
@@ -701,7 +702,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12] | LabelAttr)
 
     def __init__(
@@ -763,7 +764,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAt
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[ShiftImmT])
 
     assembly_format = (
@@ -852,7 +853,7 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
 
     def __init__(
@@ -907,7 +908,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     rd = opt_attr_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
@@ -969,7 +970,7 @@ class RdRsOperation(
     """
 
     rd = result_def(RDInvT)
-    rs = operand_def(RSInvT)
+    rs: Operand = operand_def(RSInvT)
 
     def __init__(
         self,
@@ -1024,8 +1025,8 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
     offset = attr_def(IntegerAttr[SI12] | LabelAttr)
 
     def __init__(
@@ -1074,8 +1075,8 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
 
     # All S-Type operations write to memory
@@ -1125,8 +1126,8 @@ class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     registers.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
 
     def __init__(
         self,
@@ -1195,7 +1196,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     csr = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
 
@@ -1269,7 +1270,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
     csr = attr_def(IntegerAttr)
     readonly = opt_attr_def(UnitAttr)
 

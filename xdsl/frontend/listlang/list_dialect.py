@@ -11,6 +11,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
+    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -35,7 +36,7 @@ class ListType(ParametrizedAttribute, TypeAttribute):
 class LengthOp(IRDLOperation):
     name = "list.length"
 
-    li = operand_def(ListType)
+    li: Operand = operand_def(ListType)
     result = result_def(builtin.i32)
 
     def __init__(self, li: SSAValue):
@@ -51,7 +52,7 @@ class LengthOp(IRDLOperation):
 class MapOp(IRDLOperation):
     name = "list.map"
 
-    li = operand_def(ListType)
+    li: Operand = operand_def(ListType)
     body = region_def("single_block")
     result = result_def(ListType)
 
@@ -129,7 +130,7 @@ class MapOp(IRDLOperation):
 class PrintOp(IRDLOperation):
     name = "list.print"
 
-    li = operand_def(ListType)
+    li: Operand = operand_def(ListType)
 
     def __init__(self, li: SSAValue):
         super().__init__(
@@ -143,8 +144,8 @@ class PrintOp(IRDLOperation):
 class RangeOp(IRDLOperation):
     name = "list.range"
 
-    lower = operand_def(builtin.i32)
-    upper = operand_def(builtin.i32)
+    lower: Operand = operand_def(builtin.i32)
+    upper: Operand = operand_def(builtin.i32)
     result = result_def(ListType)
 
     def __init__(self, lower: SSAValue, upper: SSAValue, result_type: ListType):
@@ -160,7 +161,7 @@ class RangeOp(IRDLOperation):
 class YieldOp(IRDLOperation):
     name = "list.yield"
 
-    yielded = operand_def(AnyOf.get(builtin.IntegerType, ListType))
+    yielded: Operand = operand_def(AnyOf.get(builtin.IntegerType, ListType))
 
     traits = lazy_traits_def(
         lambda: (

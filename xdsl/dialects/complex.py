@@ -37,6 +37,7 @@ from xdsl.irdl import (
     BaseAttr,
     EqIntConstraint,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
@@ -120,7 +121,7 @@ class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    complex = operand_def(T)
+    complex: Operand = operand_def(T)
     result = result_def(T)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
@@ -148,7 +149,7 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    complex = operand_def(ComplexType.constr(T))
+    complex: Operand = operand_def(ComplexType.constr(T))
     result = result_def(T)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
@@ -184,8 +185,8 @@ class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
     """Base class for binary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
@@ -243,8 +244,8 @@ class ComplexCompareOp(IRDLOperation, abc.ABC):
     """Base class for comparison operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(IntegerType(1))
 
     traits = traits_def(Pure())
@@ -295,7 +296,7 @@ class BitcastOp(IRDLOperation):
     """
 
     name = "complex.bitcast"
-    operand = operand_def(
+    operand: Operand = operand_def(
         ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
     )
     result = result_def(
@@ -391,8 +392,8 @@ class CosOp(ComplexUnaryComplexResultOperation):
 class CreateOp(IRDLOperation):
     name = "complex.create"
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
-    real = operand_def(T)
-    imaginary = operand_def(T)
+    real: Operand = operand_def(T)
+    imaginary: Operand = operand_def(T)
     complex = result_def(ComplexType.constr(T))
 
     traits = traits_def(Pure())

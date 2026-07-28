@@ -33,6 +33,7 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     OpDef,
+    Operand,
     OperandDef,
     PropertyDef,
     RangeOf,
@@ -78,7 +79,7 @@ class OpDefTestOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    operand = operand_def()
+    operand: Operand = operand_def()
     result = result_def()
     prop = prop_def()
     attr = attr_def()
@@ -204,7 +205,7 @@ class GenericConstraintVarOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
 
-    operand = operand_def(T)
+    operand: Operand = operand_def(T)
     result = result_def(T)
     attribute = attr_def(T)
 
@@ -465,7 +466,7 @@ class OperandOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    operand = operand_def()
+    operand: Operand = operand_def()
     opt_operand = opt_operand_def()
     var_operand = var_operand_def()
 
@@ -854,7 +855,7 @@ class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
-    operand = operand_def(_Operand)
+    operand: Operand = operand_def(_Operand)
     result = result_def(_Result)
 
 

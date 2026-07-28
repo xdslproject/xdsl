@@ -35,6 +35,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -157,7 +158,7 @@ class ApplyRegisteredPassOp(IRDLOperation):
 
     options = prop_def(DictionaryAttr, default_value=DictionaryAttr({}))
     pass_name = prop_def(StringAttr)
-    target = operand_def(TransformHandleType)
+    target: Operand = operand_def(TransformHandleType)
     # TODO implement dynamic options and custom directive
     # dynamic_options = var_operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
@@ -194,7 +195,7 @@ class GetConsumersOfResultOp(IRDLOperation):
     name = "transform.get_consumers_of_result"
 
     result_number = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
     consumers = result_def(TransformOpHandleType)
 
     def __init__(
@@ -217,7 +218,7 @@ class GetDefiningOp(IRDLOperation):
 
     name = "transform.get_defining_op"
 
-    target = operand_def(TransformValueHandleType)
+    target: Operand = operand_def(TransformValueHandleType)
     result = result_def(TransformOpHandleType)
 
     def __init__(self, target: SSAValue):
@@ -237,7 +238,7 @@ class GetParentOp(IRDLOperation):
     op_name = opt_prop_def(StringAttr)
     deduplicate = opt_prop_def(UnitAttr)
     nth_parent = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
     parent_result = result_def(TransformOpHandleType)
 
     def __init__(
@@ -273,7 +274,7 @@ class GetProducerOfOperandOp(IRDLOperation):
     name = "transform.get_producer_of_operand"
 
     operand_number = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
     producer = result_def(TransformOpHandleType)
 
     def __init__(
@@ -301,7 +302,7 @@ class GetResultOp(IRDLOperation):
     raw_position_list = prop_def(DenseArrayBase)
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
-    target = operand_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
     result = result_def(TransformValueHandleType)
 
     def __init__(
@@ -335,7 +336,7 @@ class GetTypeOp(IRDLOperation):
     name = "transform.get_type"
 
     elemental = opt_prop_def(UnitAttr)
-    value = operand_def(TransformValueHandleType)
+    value: Operand = operand_def(TransformValueHandleType)
     type_param = result_def(TransformParamHandleType)
 
     def __init__(self, elemental: bool, value: SSAValue):
@@ -387,7 +388,7 @@ class MatchOperationEmptyOp(IRDLOperation):
 
     name = "transform.match.operation_empty"
 
-    operand_handle = operand_def(TransformOpHandleType)
+    operand_handle: Operand = operand_def(TransformOpHandleType)
 
     def __init__(self, operand_handle: SSAValue):
         super().__init__(operands=[operand_handle])
@@ -402,7 +403,7 @@ class MatchOperationNameOp(IRDLOperation):
     name = "transform.match.operation_name"
 
     op_names = prop_def(ArrayAttr[StringAttr])
-    operand_handle = operand_def(TransformOpHandleType)
+    operand_handle: Operand = operand_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -433,8 +434,8 @@ class MatchParamCmpIOp(IRDLOperation):
     predicate = prop_def(
         IntegerAttr
     )  # Valid values given in xdsl/xdsl/dialects/arith.py
-    param = operand_def(TransformParamHandleType)
-    reference = operand_def(TransformParamHandleType)
+    param: Operand = operand_def(TransformParamHandleType)
+    reference: Operand = operand_def(TransformParamHandleType)
 
     def __init__(
         self, predicate: int | IntegerAttr, param: SSAValue, reference: SSAValue
@@ -495,7 +496,7 @@ class SplitHandleOp(IRDLOperation):
     pass_through_empty_handle = prop_def(IntegerAttr)
     fail_on_payload_too_small = prop_def(IntegerAttr)
     overflow_result = opt_prop_def(IntegerAttr)
-    handle = operand_def(TransformHandleType)
+    handle: Operand = operand_def(TransformHandleType)
     results_ = var_result_def(TransformHandleType)
 
     def __init__(
@@ -599,7 +600,7 @@ class TileOp(IRDLOperation):
 
     name = "transform.structured.tile_using_for"
 
-    target = operand_def(TransformHandleType)
+    target: Operand = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
     static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
     interchange = opt_prop_def(DenseArrayBase.constr(i64))
@@ -654,7 +655,7 @@ class TileToForallOp(IRDLOperation):
 
     name = "transform.structured.tile_using_forall"
 
-    target = operand_def(TransformHandleType)
+    target: Operand = operand_def(TransformHandleType)
     num_threads = var_operand_def(DenseArrayBase)
     tile_sizes = var_operand_def(DenseArrayBase)
     packed_num_threads = opt_operand_def(DenseArrayBase)
@@ -716,7 +717,7 @@ class SelectOp(IRDLOperation):
     name = "transform.select"
 
     op_name = prop_def(StringAttr)
-    target = operand_def(TransformHandleType)
+    target: Operand = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
 
     def __init__(self, op_name: str | StringAttr, target: SSAValue):
@@ -837,7 +838,7 @@ class CastOp(IRDLOperation):
 
     name = "transform.cast"
 
-    input = operand_def(TransformHandleType)
+    input: Operand = operand_def(TransformHandleType)
     output = result_def(TransformHandleType)
 
     def __init__(self, input: SSAValue):
@@ -858,7 +859,7 @@ class MatchOp(IRDLOperation):
     filter_result_types = opt_prop_def(TypeAttribute)
     filter_operand_types = opt_prop_def(TypeAttribute)
 
-    target = operand_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
     result = result_def(TransformOpHandleType)
 
     def __init__(

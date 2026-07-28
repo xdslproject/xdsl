@@ -546,8 +546,8 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
         name = "arith.addi32"
 
         # Definition of operands and results.
-        input1 = operand_def(i32)
-        input2 = operand_def(i32)
+        input1: Operand = operand_def(i32)
+        input2: Operand = operand_def(i32)
         output = result_def(i32)
 
 
@@ -665,8 +665,8 @@ def _(
 
         T: ClassVar = VarConstraint("T", base(IntegerType))
 
-        lhs = operand_def(T)
-        rhs = operand_def(T)
+        lhs: Operand = operand_def(T)
+        rhs: Operand = operand_def(T)
         result = result_def(T)
 
 
@@ -800,7 +800,7 @@ def _(
     @irdl_op_definition
     class AddVariadic2Op2(IRDLOperation):
         name = "test.add_optional"
-        ops1 = operand_def(i32)
+        ops1: Operand = operand_def(i32)
         ops2 = opt_operand_def(i32)
         res = result_def(i32)
 
@@ -955,8 +955,8 @@ def _(
     @irdl_op_definition
     class MyAddiOp(IRDLOperation):
         name = "test.addi"
-        input1 = operand_def(IntegerType)
-        input2 = operand_def(IntegerType)
+        input1: Operand = operand_def(IntegerType)
+        input2: Operand = operand_def(IntegerType)
         output = result_def(IntegerType)
 
         # Ensure that the inputs and outputs have the same type:

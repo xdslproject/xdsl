@@ -35,6 +35,7 @@ from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
     attr_def,
@@ -1230,8 +1231,8 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
+    input: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    init: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     hidden_region = region_def("single_block")
@@ -1351,8 +1352,8 @@ class BroadcastOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "linalg.reduce"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
+    input: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    init: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     region: Region = region_def("single_block")

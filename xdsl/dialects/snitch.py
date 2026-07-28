@@ -31,6 +31,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     attr_def,
     irdl_attr_definition,
@@ -107,7 +108,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    value = operand_def(IntRegisterType)
+    value: Operand = operand_def(IntRegisterType)
     dm = attr_def(IntAttr)
     dimension = attr_def(IntAttr)
 
@@ -139,7 +140,7 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    value = operand_def(IntRegisterType)
+    value: Operand = operand_def(IntRegisterType)
     dm = attr_def(IntAttr)
 
     def __init__(self, value: Operation | SSAValue, dm: IntAttr):

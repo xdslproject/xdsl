@@ -27,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     base,
     irdl_attr_definition,
@@ -307,7 +308,7 @@ class EraseOp(IRDLOperation):
     """
 
     name = "pdl.erase"
-    op_value = operand_def(OperationType)
+    op_value: Operand = operand_def(OperationType)
 
     assembly_format = "$op_value attr-dict"
 
@@ -683,7 +684,7 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "pdl.replace"
-    op_value = operand_def(OperationType)
+    op_value: Operand = operand_def(OperationType)
     repl_operation = opt_operand_def(OperationType)
     repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
 
@@ -733,7 +734,7 @@ class ResultOp(IRDLOperation):
 
     name = "pdl.result"
     index = prop_def(IntegerAttr[I32])
-    parent_ = operand_def(OperationType)
+    parent_: Operand = operand_def(OperationType)
     val = result_def(ValueType)
 
     assembly_format = "$index `of` $parent_ attr-dict"
@@ -754,7 +755,7 @@ class ResultsOp(IRDLOperation):
 
     name = "pdl.results"
     index = opt_prop_def(IntegerAttr[I32])
-    parent_ = operand_def(OperationType)
+    parent_: Operand = operand_def(OperationType)
     val = result_def(base(ValueType) | base(RangeType[ValueType]))
 
     def __init__(

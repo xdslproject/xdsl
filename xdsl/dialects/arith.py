@@ -38,6 +38,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     VarConstraint,
     base,
@@ -185,8 +186,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
@@ -332,8 +333,8 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
@@ -390,8 +391,8 @@ class AddUIExtendedOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
 
     sum = result_def(T)
     overflow = result_def(boolLike)
@@ -469,8 +470,8 @@ class MulExtendedBase(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     low = result_def(T)
     high = result_def(T)
 
@@ -849,8 +850,8 @@ class CmpiOp(ComparisonOperation):
 
     name = "arith.cmpi"
     predicate = prop_def(IntegerAttr)
-    lhs = operand_def(signlessIntegerLike)
-    rhs = operand_def(signlessIntegerLike)
+    lhs: Operand = operand_def(signlessIntegerLike)
+    rhs: Operand = operand_def(signlessIntegerLike)
     result = result_def(IntegerType(1))
 
     traits = traits_def(CmpiHasCanonicalizationPatterns(), Pure())
@@ -941,8 +942,8 @@ class CmpfOp(ComparisonOperation):
 
     name = "arith.cmpf"
     predicate = prop_def(IntegerAttr)
-    lhs = operand_def(floatingPointLike)
-    rhs = operand_def(floatingPointLike)
+    lhs: Operand = operand_def(floatingPointLike)
+    rhs: Operand = operand_def(floatingPointLike)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
 
@@ -1053,9 +1054,9 @@ class SelectOp(IRDLOperation):
     name = "arith.select"
 
     _T: ClassVar = VarConstraint("_T", AnyAttr())
-    cond = operand_def(IntegerType(1))
-    lhs = operand_def(_T)
-    rhs = operand_def(_T)
+    cond: Operand = operand_def(IntegerType(1))
+    lhs: Operand = operand_def(_T)
+    rhs: Operand = operand_def(_T)
     result = result_def(_T)
 
     traits = traits_def(Pure(), SelectHasCanonicalizationPatterns())
@@ -1119,7 +1120,7 @@ class NegfOp(IRDLOperation):
     _T: ClassVar = VarConstraint("_T", floatingPointLike)
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
-    operand = operand_def(_T)
+    operand: Operand = operand_def(_T)
     result = result_def(_T)
 
     traits = traits_def(Pure())
@@ -1190,7 +1191,7 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
-    input = operand_def(
+    input: Operand = operand_def(
         container_of(IntegerType | IndexType | AnyFloat)
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
@@ -1237,7 +1238,7 @@ class BitcastOp(IRDLOperation):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input = operand_def(base(IntegerType) | base(IndexType))
+    input: Operand = operand_def(base(IntegerType) | base(IndexType))
 
     result = result_def(base(IntegerType) | base(IndexType))
 
@@ -1259,7 +1260,7 @@ class IndexCastOp(IRDLOperation):
 
 
 class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
-    input = operand_def(AnyFloatConstr)
+    input: Operand = operand_def(AnyFloatConstr)
     result = result_def(IntegerType)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -1281,7 +1282,7 @@ class FPToUIOp(FloatingPointToIntegerBaseOp):
 
 
 class IntegerToFloatingPointBaseOp(IRDLOperation, abc.ABC):
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -1306,7 +1307,7 @@ class UIToFPOp(IntegerToFloatingPointBaseOp):
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
-    input = operand_def(floatingPointLike)
+    input: Operand = operand_def(floatingPointLike)
     result = result_def(floatingPointLike)
 
     def __init__(self, op: SSAValue | Operation, target_type: Attribute):
@@ -1321,7 +1322,7 @@ class ExtFOp(IRDLOperation):
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
-    input = operand_def(floatingPointLike)
+    input: Operand = operand_def(floatingPointLike)
     result = result_def(floatingPointLike)
 
     def __init__(self, op: SSAValue | Operation, target_type: Attribute):
@@ -1336,7 +1337,7 @@ class TruncFOp(IRDLOperation):
 class TruncIOp(IRDLOperation):
     name = "arith.trunci"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
@@ -1358,7 +1359,7 @@ class TruncIOp(IRDLOperation):
 class ExtSIOp(IRDLOperation):
     name = "arith.extsi"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
@@ -1378,7 +1379,7 @@ class ExtSIOp(IRDLOperation):
 class ExtUIOp(IRDLOperation):
     name = "arith.extui"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):

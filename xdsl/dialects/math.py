@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -38,7 +39,7 @@ class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    operand = operand_def(T)
+    operand: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$operand attr-dict `:` type($result)"
@@ -56,7 +57,7 @@ class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
-    operand = operand_def(T)
+    operand: Operand = operand_def(T)
     result = result_def(T)
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
@@ -79,8 +80,8 @@ class SignlessIntegerLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
@@ -101,8 +102,8 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
@@ -542,8 +543,8 @@ class FPowIOp(IRDLOperation):
     T: ClassVar = VarConstraint("T1", floatingPointLike)
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
-    lhs = operand_def(T)
-    rhs = operand_def(signlessIntegerLike)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(signlessIntegerLike)
     result = result_def(T)
 
     traits = traits_def(Pure())
@@ -605,9 +606,9 @@ class FmaOp(IRDLOperation):
     name = "math.fma"
 
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
-    a = operand_def(T)
-    b = operand_def(T)
-    c = operand_def(T)
+    a: Operand = operand_def(T)
+    b: Operand = operand_def(T)
+    c: Operand = operand_def(T)
     result = result_def(T)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())

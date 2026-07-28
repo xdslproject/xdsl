@@ -34,6 +34,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -182,7 +183,7 @@ class BroadcastOp(CollectiveCommunicationOp):
 
     name = "shard.broadcast"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
 
@@ -209,7 +210,7 @@ class GatherOp(CollectiveCommunicationOp):
 
     name = "shard.gather"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
     gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
@@ -241,7 +242,7 @@ class ScatterOp(CollectiveCommunicationOp):
 
     name = "shard.scatter"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
     scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
 
     root = prop_def(DenseArrayBase[I64])
@@ -271,7 +272,7 @@ class RecvOp(CollectiveCommunicationOp):
 
     name = "shard.recv"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
     source = opt_prop_def(DenseArrayBase[I64])
     source_dynamic = var_operand_def(IndexType)
 
@@ -294,7 +295,7 @@ class SendOp(CollectiveCommunicationOp):
 
     name = "shard.send"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
 
     destination = prop_def(DenseArrayBase[I64])
     destination_dynamic = var_operand_def(IndexType)
@@ -321,7 +322,7 @@ class ShiftOp(CollectiveCommunicationOp):
 
     name = "shard.shift"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
 
     shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
     offset = prop_def(IntegerAttr[I64])
@@ -440,8 +441,8 @@ class ShardOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", TensorType.constr())
 
-    src = operand_def(T)
-    sharding = operand_def(ShardingType)
+    src: Operand = operand_def(T)
+    sharding: Operand = operand_def(ShardingType)
     annotate_for_users = opt_prop_def(UnitAttr)
 
     result = result_def(T)

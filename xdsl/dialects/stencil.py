@@ -38,6 +38,7 @@ from xdsl.irdl import (
     ConstraintContext,
     IRDLOperation,
     MessageConstraint,
+    Operand,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
@@ -743,7 +744,7 @@ class CastOp(IRDLOperation):
 
     name = "stencil.cast"
 
-    field = operand_def(
+    field: Operand = operand_def(
         FieldType[Attribute].constr(
             element_type=MessageConstraint(
                 VarConstraint("T", AnyAttr()),
@@ -881,7 +882,7 @@ class DynAccessOp(IRDLOperation):
 
     name = "stencil.dyn_access"
 
-    temp = operand_def(
+    temp: Operand = operand_def(
         StencilType[Attribute].constr(
             element_type=MessageConstraint(
                 VarConstraint("T", AnyAttr()),
@@ -936,7 +937,7 @@ class ExternalLoadOp(IRDLOperation):
     """
 
     name = "stencil.external_load"
-    field = operand_def(Attribute)
+    field: Operand = operand_def(Attribute)
     result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
 
     assembly_format = (
@@ -961,8 +962,8 @@ class ExternalStoreOp(IRDLOperation):
     """
 
     name = "stencil.external_store"
-    temp = operand_def(FieldType)
-    field = operand_def(Attribute)
+    temp: Operand = operand_def(FieldType)
+    field: Operand = operand_def(Attribute)
 
     assembly_format = (
         "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
@@ -1029,7 +1030,7 @@ class AccessOp(IRDLOperation):
     """
 
     name = "stencil.access"
-    temp = operand_def(
+    temp: Operand = operand_def(
         StencilType[Attribute].constr(
             element_type=MessageConstraint(
                 VarConstraint("T", AnyAttr()),
@@ -1258,7 +1259,7 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
 
-    field = operand_def(
+    field: Operand = operand_def(
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
@@ -1335,7 +1336,7 @@ class BufferOp(IRDLOperation):
 
     name = "stencil.buffer"
 
-    temp = operand_def(
+    temp: Operand = operand_def(
         TempType[Attribute].constr(
             bounds=MessageConstraint(
                 VarConstraint("B", AnyAttr()),
@@ -1417,7 +1418,7 @@ class StoreOp(IRDLOperation):
 
     name = "stencil.store"
 
-    temp = operand_def(
+    temp: Operand = operand_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
                 TensorIgnoreSizeConstraint("T", AnyAttr()),
@@ -1425,7 +1426,7 @@ class StoreOp(IRDLOperation):
             ),
         )
     )
-    field = operand_def(
+    field: Operand = operand_def(
         FieldType[Attribute].constr(
             bounds=MessageConstraint(
                 StencilBoundsAttr, "Output type's size must be explicit"
@@ -1560,8 +1561,8 @@ class ReduceOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    acc = operand_def(T)
-    init = operand_def(T)
+    acc: Operand = operand_def(T)
+    init: Operand = operand_def(T)
     body = region_def("single_block", entry_args=RangeOf(T).of_length(2))
 
     assembly_format = "$acc `init` $init $body attr-dict `:` type($acc)"
@@ -1597,7 +1598,7 @@ class YieldOp(IRDLOperation):
 
     name = "stencil.yield"
 
-    operand = operand_def()
+    operand: Operand = operand_def()
 
     assembly_format = "$operand attr-dict `:` type($operand)"
 

@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -41,7 +42,7 @@ class HLSYieldOp(IRDLOperation):
 @irdl_op_definition
 class PragmaPipelineOp(IRDLOperation):
     name = "hls.pipeline"
-    ii = operand_def(IntegerType)
+    ii: Operand = operand_def(IntegerType)
 
     def __init__(self, ii: SSAValue | Operation):
         super().__init__(operands=[ii])
@@ -50,7 +51,7 @@ class PragmaPipelineOp(IRDLOperation):
 @irdl_op_definition
 class PragmaUnrollOp(IRDLOperation):
     name = "hls.unroll"
-    factor = operand_def(IntegerType)
+    factor: Operand = operand_def(IntegerType)
 
     def __init__(self, factor: SSAValue | Operation):
         super().__init__(operands=[factor])
@@ -71,8 +72,8 @@ class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
     variable = opt_attr_def(StringAttr)
     array_type = opt_attr_def()  # look at memref.Global
-    factor = operand_def()
-    dim = operand_def()
+    factor: Operand = operand_def()
+    dim: Operand = operand_def()
 
     def __init__(
         self,
@@ -113,8 +114,8 @@ class HLSStreamOp(IRDLOperation):
 @irdl_op_definition
 class HLSStreamWriteOp(IRDLOperation):
     name = "hls.write"
-    element = operand_def()
-    stream = operand_def(HLSStreamType)
+    element: Operand = operand_def()
+    stream: Operand = operand_def(HLSStreamType)
 
     def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
         super().__init__(operands=[element, stream])
@@ -123,7 +124,7 @@ class HLSStreamWriteOp(IRDLOperation):
 @irdl_op_definition
 class HLSStreamReadOp(IRDLOperation):
     name = "hls.read"
-    stream = operand_def(HLSStreamType)
+    stream: Operand = operand_def(HLSStreamType)
     res = result_def()
 
     def __init__(self, stream: SSAValue):
@@ -137,7 +138,7 @@ class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
     position = attr_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
+    container: Operand = operand_def(Attribute)
 
     res = result_def(Attribute)
 

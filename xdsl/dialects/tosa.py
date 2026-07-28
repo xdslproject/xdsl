@@ -31,6 +31,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     VarConstraint,
     irdl_attr_definition,
@@ -158,7 +159,7 @@ class ClampOp(IRDLOperation):
 
     nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
 
-    input = operand_def(TensorType.constr(T))
+    input: Operand = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
     irdl_options = (ParsePropInAttrDict(),)
@@ -204,11 +205,11 @@ class RescaleOp(IRDLOperation):
     input_unsigned = prop_def(BoolAttr)
     output_unsigned = prop_def(BoolAttr)
 
-    input = operand_def(TensorType)
-    multiplier = operand_def(TensorType)
-    shift = operand_def(TensorType)
-    input_zp = operand_def(TensorType)
-    output_zp = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
+    multiplier: Operand = operand_def(TensorType)
+    shift: Operand = operand_def(TensorType)
+    input_zp: Operand = operand_def(TensorType)
+    output_zp: Operand = operand_def(TensorType)
 
     output = result_def(TensorType)
 
@@ -314,8 +315,8 @@ class ElementwiseBinaryOperation(ElementwiseOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
+    input1: Operand = operand_def(TensorType.constr(T))
+    input2: Operand = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
     def verify_(self) -> None:
@@ -371,9 +372,9 @@ class MulOp(ElementwiseOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    shift = operand_def(TensorType[I8])
+    input1: Operand = operand_def(TensorType.constr(T))
+    input2: Operand = operand_def(TensorType.constr(T))
+    shift: Operand = operand_def(TensorType[I8])
     output = result_def(TensorType.constr(T))
 
     def verify_(self) -> None:
@@ -395,7 +396,7 @@ class ElementwiseUnaryOperation(ElementwiseOperation, Generic[TInv]):
     Abstract base class for elementwise unary operations on tensors of floating-point types
     """
 
-    input1 = operand_def(TInv)
+    input1: Operand = operand_def(TInv)
     result = result_def(TInv)
 
 
@@ -448,11 +449,11 @@ class MatMulOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    a = operand_def(TensorType.constr(T))
-    b = operand_def(TensorType.constr(T))
+    a: Operand = operand_def(TensorType.constr(T))
+    b: Operand = operand_def(TensorType.constr(T))
 
-    a_zp = operand_def(TensorType.constr(T))
-    b_zp = operand_def(TensorType.constr(T))
+    a_zp: Operand = operand_def(TensorType.constr(T))
+    b_zp: Operand = operand_def(TensorType.constr(T))
 
     output = result_def(TensorType.constr(T))
 
@@ -507,7 +508,7 @@ class MaxPool2DOp(IRDLOperation):
     name = "tosa.max_pool2d"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    input = operand_def(TensorType.constr(T))
+    input: Operand = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
     kernel = prop_def(DenseArrayBase[I64])
@@ -542,9 +543,9 @@ class AvgPool2DOp(IRDLOperation):
 
     name = "tosa.avg_pool2d"
 
-    input = operand_def(TensorType)
-    input_zp = operand_def(TensorType)
-    output_zp = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
+    input_zp: Operand = operand_def(TensorType)
+    output_zp: Operand = operand_def(TensorType)
 
     kernel = prop_def(DenseArrayBase)
     stride = prop_def(DenseArrayBase)
@@ -619,7 +620,7 @@ class IfOp(IRDLOperation):
 
     name = "tosa.cond_if"
 
-    cond = operand_def(TensorType(i1, []))
+    cond: Operand = operand_def(TensorType(i1, []))
 
     output = var_result_def(TensorType)
 
@@ -644,7 +645,7 @@ class ReductionOperation(IRDLOperation, ABC):
     Base class for all TOSA reduction operations
     """
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
     axis = prop_def(IntegerAttr[I32])
 
     output = result_def(TensorType)

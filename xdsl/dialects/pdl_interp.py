@@ -56,6 +56,7 @@ from xdsl.irdl import (
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    Operand,
     ParsePropInAttrDict,
     VarConstraint,
     base,
@@ -103,7 +104,7 @@ class GetOperandOp(IRDLOperation):
 
     name = "pdl_interp.get_operand"
     index = prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
@@ -124,7 +125,7 @@ class GetOperandsOp(IRDLOperation):
 
     name = "pdl_interp.get_operands"
     index = opt_prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
     # TODO: assembly format doesn't work due to a bug:
@@ -194,7 +195,7 @@ class CheckOperationNameOp(IRDLOperation):
     name = "pdl_interp.check_operation_name"
     traits = traits_def(IsTerminator())
     operation_name = prop_def(StringAttr, prop_name="name")
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -226,7 +227,7 @@ class CheckOperandCountOp(IRDLOperation):
 
     name = "pdl_interp.check_operand_count"
     traits = traits_def(IsTerminator())
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     count = prop_def(IntegerAttr[I32])
     compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
@@ -262,7 +263,7 @@ class CheckResultCountOp(IRDLOperation):
 
     name = "pdl_interp.check_result_count"
     traits = traits_def(IsTerminator())
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     count = prop_def(IntegerAttr[I32])
     compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
@@ -298,7 +299,7 @@ class IsNotNullOp(IRDLOperation):
 
     name = "pdl_interp.is_not_null"
     traits = traits_def(IsTerminator())
-    value = operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    value: Operand = operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -318,7 +319,7 @@ class GetResultOp(IRDLOperation):
 
     name = "pdl_interp.get_result"
     index = prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
@@ -339,7 +340,7 @@ class GetResultsOp(IRDLOperation):
 
     name = "pdl_interp.get_results"
     index = opt_prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
@@ -392,7 +393,7 @@ class GetAttributeOp(IRDLOperation):
 
     name = "pdl_interp.get_attribute"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     value = result_def(AttributeType)
 
     assembly_format = "$name `of` $input_op attr-dict"
@@ -414,7 +415,7 @@ class GetAttributeTypeOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_attribute_type"
-    value = operand_def(AttributeType)
+    value: Operand = operand_def(AttributeType)
     result = result_def(TypeType)
 
     assembly_format = "`of` $value attr-dict"
@@ -435,7 +436,7 @@ class CheckAttributeOp(IRDLOperation):
     name = "pdl_interp.check_attribute"
     traits = traits_def(IsTerminator())
     constantValue = prop_def()
-    attribute = operand_def(AttributeType)
+    attribute: Operand = operand_def(AttributeType)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -466,7 +467,7 @@ class CheckTypeOp(IRDLOperation):
     name = "pdl_interp.check_type"
     traits = traits_def(IsTerminator())
     type = prop_def(TypeAttribute)
-    value = operand_def(TypeType)
+    value: Operand = operand_def(TypeType)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -491,7 +492,7 @@ class CheckTypesOp(IRDLOperation):
     name = "pdl_interp.check_types"
     traits = traits_def(IsTerminator())
     types = prop_def(ArrayAttr[TypeAttribute])
-    value = operand_def(RangeType[TypeType])
+    value: Operand = operand_def(RangeType[TypeType])
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -522,8 +523,8 @@ class AreEqualOp(IRDLOperation):
     name = "pdl_interp.are_equal"
     traits = traits_def(IsTerminator())
     T: ClassVar = VarConstraint("T", AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -712,7 +713,7 @@ class GetValueTypeOp(IRDLOperation):
 
     name = "pdl_interp.get_value_type"
     T: ClassVar = VarConstraint("T", base(TypeType) | base(RangeType[TypeType]))
-    value = operand_def(ValueConstrFromResultConstr(T))
+    value: Operand = operand_def(ValueConstrFromResultConstr(T))
     result = result_def(T)
 
     assembly_format = "`of` $value `:` type($result) attr-dict"
@@ -735,7 +736,7 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "pdl_interp.replace"
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
     repl_values = var_operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = (
@@ -753,7 +754,7 @@ class EraseOp(IRDLOperation):
     """
 
     name = "pdl_interp.erase"
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
 
     assembly_format = "$input_op attr-dict"
 
@@ -1028,7 +1029,7 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_defining_op"
-    value = operand_def(ValueType | RangeType[ValueType])
+    value: Operand = operand_def(ValueType | RangeType[ValueType])
     input_op = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
@@ -1047,7 +1048,7 @@ class SwitchOperationNameOp(IRDLOperation):
 
     case_values = prop_def(ArrayAttr[StringAttr], prop_name="caseValues")
 
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
 
     default_dest = successor_def()
     cases = var_successor_def()
@@ -1082,7 +1083,7 @@ class SwitchOperandCountOp(IRDLOperation):
 
     case_values = prop_def(DenseIntElementsAttr, prop_name="caseValues")
 
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
 
     default_dest = successor_def()
     cases = var_successor_def()
@@ -1122,7 +1123,7 @@ class SwitchResultCountOp(IRDLOperation):
 
     case_values = prop_def(DenseIntElementsAttr, prop_name="caseValues")
 
-    input_op = operand_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
 
     default_dest = successor_def()
     cases = var_successor_def()
@@ -1161,7 +1162,7 @@ class SwitchTypeOp(IRDLOperation):
 
     case_values = prop_def(ArrayAttr[TypeAttribute], prop_name="caseValues")
 
-    value = operand_def(TypeType)
+    value: Operand = operand_def(TypeType)
 
     default_dest = successor_def()
     cases = var_successor_def()
@@ -1197,7 +1198,7 @@ class SwitchTypesOp(IRDLOperation):
 
     case_values = prop_def(ArrayAttr[ArrayAttr[TypeAttribute]], prop_name="caseValues")
 
-    value = operand_def(RangeType[TypeType])
+    value: Operand = operand_def(RangeType[TypeType])
 
     default_dest = successor_def()
     cases = var_successor_def()
@@ -1336,7 +1337,7 @@ class SwitchAttributeOp(IRDLOperation):
 
     name = "pdl_interp.switch_attribute"
 
-    attribute = operand_def(AttributeType)
+    attribute: Operand = operand_def(AttributeType)
     caseValues = prop_def(ArrayAttr)
     defaultDest = successor_def()
     cases = var_successor_def()
@@ -1425,7 +1426,7 @@ class ForEachOp(IRDLOperation):
     name = "pdl_interp.foreach"
     traits = traits_def(IsTerminator())
 
-    values = operand_def(RangeType[AnyPDLType])
+    values: Operand = operand_def(RangeType[AnyPDLType])
     region = region_def()
     successor = successor_def()
 

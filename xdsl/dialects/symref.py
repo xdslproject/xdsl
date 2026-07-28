@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -41,7 +42,7 @@ class FetchOp(IRDLOperation):
 @irdl_op_definition
 class UpdateOp(IRDLOperation):
     name = "symref.update"
-    value = operand_def()
+    value: Operand = operand_def()
     symbol = prop_def(SymbolRefAttr)
 
     assembly_format = "$symbol `=` $value attr-dict `:` type($value)"

@@ -17,6 +17,7 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     Successor,
     VarOperand,
     irdl_op_definition,
@@ -62,7 +63,7 @@ class AssertOp(IRDLOperation):
 
     name = "cf.assert"
 
-    arg = operand_def(IntegerType(1))
+    arg: Operand = operand_def(IntegerType(1))
     msg = prop_def(StringAttr)
 
     traits = traits_def(AssertHasCanonicalizationPatterns())
@@ -130,7 +131,7 @@ class ConditionalBranchOp(IRDLOperation):
 
     name = "cf.cond_br"
 
-    cond = operand_def(IntegerType(1))
+    cond: Operand = operand_def(IntegerType(1))
     then_arguments = var_operand_def()
     else_arguments = var_operand_def()
 
@@ -328,7 +329,7 @@ class SwitchOp(IRDLOperation):
 
     case_values = opt_prop_def(DenseIntElementsAttr)
 
-    flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
+    flag: Operand = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
     default_operands = var_operand_def()
 

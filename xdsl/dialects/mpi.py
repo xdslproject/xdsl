@@ -170,12 +170,12 @@ class ReduceOp(MPIBaseOp):
 
     name = "mpi.reduce"
 
-    send_buffer = operand_def(Attribute)
-    recv_buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
+    send_buffer: Operand = operand_def(Attribute)
+    recv_buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
     operationtype = attr_def(OperationType)
-    root = operand_def(i32)
+    root: Operand = operand_def(i32)
 
     def __init__(
         self,
@@ -221,9 +221,9 @@ class AllreduceOp(MPIBaseOp):
     name = "mpi.allreduce"
 
     send_buffer = opt_operand_def(Attribute)
-    recv_buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
+    recv_buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
     operationtype = attr_def(OperationType)
 
     def __init__(
@@ -276,10 +276,10 @@ class BcastOp(MPIBaseOp):
 
     name = "mpi.bcast"
 
-    buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
-    root = operand_def(i32)
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    root: Operand = operand_def(i32)
 
     def __init__(
         self,
@@ -321,12 +321,12 @@ class IsendOp(MPIBaseOp):
 
     name = "mpi.isend"
 
-    buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
-    dest = operand_def(i32)
-    tag = operand_def(i32)
-    request = operand_def(RequestType)
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    dest: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
+    request: Operand = operand_def(RequestType)
 
     def __init__(
         self,
@@ -370,11 +370,11 @@ class SendOp(MPIBaseOp):
 
     name = "mpi.send"
 
-    buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
-    dest = operand_def(i32)
-    tag = operand_def(i32)
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    dest: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
 
     def __init__(
         self,
@@ -417,12 +417,12 @@ class IrecvOp(MPIBaseOp):
 
     name = "mpi.irecv"
 
-    buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
-    source = operand_def(i32)
-    tag = operand_def(i32)
-    request = operand_def(RequestType)
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    source: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
+    request: Operand = operand_def(RequestType)
 
     def __init__(
         self,
@@ -467,11 +467,11 @@ class RecvOp(MPIBaseOp):
 
     name = "mpi.recv"
 
-    buffer = operand_def(Attribute)
-    count = operand_def(i32)
-    datatype = operand_def(DataType)
-    source = operand_def(i32)
-    tag = operand_def(i32)
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    source: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
 
     status = opt_result_def(StatusType)
 
@@ -508,7 +508,7 @@ class TestOp(MPIBaseOp):
 
     name = "mpi.test"
 
-    request = operand_def(RequestType)
+    request: Operand = operand_def(RequestType)
 
     flag = result_def(t_bool)
     status = result_def(StatusType)
@@ -534,7 +534,7 @@ class WaitOp(MPIBaseOp):
 
     name = "mpi.wait"
 
-    request = operand_def(RequestType)
+    request: Operand = operand_def(RequestType)
     status = opt_result_def(StatusType)
 
     def __init__(self, request: Operand, ignore_status: bool = True):
@@ -564,8 +564,8 @@ class WaitallOp(MPIBaseOp):
 
     name = "mpi.waitall"
 
-    requests = operand_def(VectorType[RequestType])
-    count = operand_def(i32)
+    requests: Operand = operand_def(VectorType[RequestType])
+    count: Operand = operand_def(i32)
     statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
@@ -591,7 +591,7 @@ class GetStatusFieldOp(MPIBaseOp):
 
     name = "mpi.status.get"
 
-    status = operand_def(StatusType)
+    status: Operand = operand_def(StatusType)
 
     field = attr_def(StringAttr)
 
@@ -667,7 +667,7 @@ class UnwrapMemRefOp(MPIBaseOp):
 
     name = "mpi.unwrap_memref"
 
-    ref = operand_def(MemRefType[AnyNumericType])
+    ref: Operand = operand_def(MemRefType[AnyNumericType])
 
     ptr = result_def(llvm.LLVMPointerType)
     len = result_def(i32)
@@ -719,7 +719,7 @@ class AllocateTypeOp(MPIBaseOp):
 
     bindc_name = opt_attr_def(StringAttr)
     dtype = attr_def(VectorWrappableConstr)
-    count = operand_def(i32)
+    count: Operand = operand_def(i32)
 
     result = result_def(VectorType)
 
@@ -748,8 +748,8 @@ class VectorGetOp(MPIBaseOp):
 
     name = "mpi.vector_get"
 
-    vect = operand_def(VectorType)
-    element = operand_def(i32)
+    vect: Operand = operand_def(VectorType)
+    element: Operand = operand_def(i32)
 
     result = result_def(VectorWrappableConstr)
 
@@ -774,7 +774,7 @@ class NullRequestOp(MPIBaseOp):
 
     name = "mpi.request_null"
 
-    request = operand_def(RequestType)
+    request: Operand = operand_def(RequestType)
 
     def __init__(self, req: SSAValue | Operation):
         return super().__init__(operands=[req])
@@ -804,15 +804,15 @@ class GatherOp(MPIBaseOp):
 
     name = "mpi.gather"
 
-    sendbuf = operand_def(llvm.LLVMPointerType)
-    sendcount = operand_def(i32)
-    sendtype = operand_def(DataType)
+    sendbuf: Operand = operand_def(llvm.LLVMPointerType)
+    sendcount: Operand = operand_def(i32)
+    sendtype: Operand = operand_def(DataType)
 
-    recvbuf = operand_def(llvm.LLVMPointerType)
-    recvcount = operand_def(i32)
-    recvtype = operand_def(DataType)
+    recvbuf: Operand = operand_def(llvm.LLVMPointerType)
+    recvcount: Operand = operand_def(i32)
+    recvtype: Operand = operand_def(DataType)
 
-    root = operand_def(i32)
+    root: Operand = operand_def(i32)
 
     def __init__(
         self,

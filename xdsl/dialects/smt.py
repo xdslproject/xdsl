@@ -22,6 +22,7 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -251,7 +252,7 @@ class ApplyFuncOp(IRDLOperation):
     DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
-    func = operand_def(FuncType.constr(DOMAIN, RANGE))
+    func: Operand = operand_def(FuncType.constr(DOMAIN, RANGE))
     args = var_operand_def(DOMAIN)
 
     result = result_def(RANGE)
@@ -302,7 +303,7 @@ class NotOp(IRDLOperation):
 
     name = "smt.not"
 
-    input = operand_def(BoolType)
+    input: Operand = operand_def(BoolType)
     result = result_def(BoolType)
 
     assembly_format = "$input attr-dict"
@@ -375,8 +376,8 @@ class ImpliesOp(IRDLOperation):
 
     name = "smt.implies"
 
-    lhs = operand_def(BoolType)
-    rhs = operand_def(BoolType)
+    lhs: Operand = operand_def(BoolType)
+    rhs: Operand = operand_def(BoolType)
     result = result_def(BoolType)
 
     traits = traits_def(Pure())
@@ -503,9 +504,9 @@ class IteOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    cond = operand_def(BoolType)
-    then_value = operand_def(T)
-    else_value = operand_def(T)
+    cond: Operand = operand_def(BoolType)
+    then_value: Operand = operand_def(T)
+    else_value: Operand = operand_def(T)
 
     result = result_def(T)
 
@@ -597,7 +598,7 @@ class AssertOp(IRDLOperation):
 
     name = "smt.assert"
 
-    input = operand_def(BoolType)
+    input: Operand = operand_def(BoolType)
 
     assembly_format = "$input attr-dict"
 
@@ -654,7 +655,7 @@ class UnaryBVOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(BitVectorType))
 
-    input = operand_def(T)
+    input: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$input attr-dict `:` type($result)"
@@ -693,8 +694,8 @@ class BinaryBVOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(BitVectorType))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
     result = result_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"

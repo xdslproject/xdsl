@@ -25,6 +25,7 @@ from xdsl.irdl import (
     ConstraintContext,
     EqAttrConstraint,
     IRDLOperation,
+    Operand,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -54,15 +55,15 @@ class TensorFromMemRefOp(IRDLOperation):
     name = "test.tensor_from_memref"
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
-    in_tensor = operand_def(
+    in_tensor: Operand = operand_def(
         TensorFromMemRefConstraint(
             MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
         )
     )
 
-    in_var_memref = operand_def(T)
+    in_var_memref: Operand = operand_def(T)
 
-    in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
+    in_var_tensor: Operand = operand_def(TensorFromMemRefConstraint(T))
 
 
 def test_tensor_from_memref_constraint():

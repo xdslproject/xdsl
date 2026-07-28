@@ -26,6 +26,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -1031,7 +1032,7 @@ def test_region_hashable():
 @irdl_op_definition
 class CustomVerifyOp(IRDLOperation):
     name = "test.custom_verify_op"
-    val = operand_def(i64)
+    val: Operand = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):
