@@ -46,18 +46,11 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         Allocate registers for this operation.
         """
 
+    @abc.abstractmethod
     def update_liveness(self, ctx: LivenessContext) -> None:
         """
         Update `ctx.alive` from live-after to live-before this operation.
-        Operations with regions must override this to describe how liveness flows
-        through those regions.
         """
-        if self.regions:
-            raise NotImplementedError(
-                f"{self.name} must override update_liveness to describe how liveness "
-                "flows through its regions."
-            )
-        ctx.alive.update(self.operands)
 
     @staticmethod
     def all_used_registers(
