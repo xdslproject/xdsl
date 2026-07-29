@@ -10,12 +10,12 @@ from xdsl.dialects.builtin import ArrayAttr, FunctionType, ModuleOp
 from xdsl.dialects.py import (
     CallOp,
     ConstantOp,
-    ConstantValue,
     FuncOp,
     ObjectType,
     PassOp,
     ReturnOp,
 )
+from xdsl.dialects.py.attrs import Object
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pydialect.pysemantics import dunder_op_name, type_name
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
@@ -199,7 +199,7 @@ class PyBuilder(ast.NodeVisitor):
     def visit_Constant(self, node: ast.Constant) -> Any:
         self.inserter.insert_op(
             ConstantOp(
-                value=ConstantValue(node.value),
+                value=Object(node.value),
                 result_type=ObjectType(type_name(node.value)),
             )
         )

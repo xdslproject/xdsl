@@ -5,6 +5,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
+    BaseAttr,
     GenericData,
     irdl_attr_definition,
 )
@@ -30,13 +31,15 @@ class ObjectType(GenericData[str], TypeAttribute):
         return AnyAttr()
 
 
-@irdl_attr_definition
-class ConstantValue(Data[ObjectType]):
-    name = "py.const"
+class Object:
+    def __init__(self, value: object):
+        self.value = value
+        self.name = value.__repr__()
 
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> ObjectType:
-        raise NotImplementedError
+
+@irdl_attr_definition
+class ConstantValue(Data[Object]):
+    name = "py.const"
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -44,4 +47,4 @@ class ConstantValue(Data[ObjectType]):
 
     @staticmethod
     def constr() -> AttrConstraint:
-        return AnyAttr()
+        return BaseAttr(ObjectType)
