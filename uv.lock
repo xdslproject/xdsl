@@ -3713,6 +3713,7 @@ wheels = [
 
 [[package]]
 name = "toy"
+version = "0.0.0"
 source = { editable = "docs/Toy" }
 dependencies = [
     { name = "riscemu" },

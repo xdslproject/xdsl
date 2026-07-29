@@ -1,5 +1,10 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=64" ]
+
 [project]
 name = "toy"
+version = "0.0.0"
 description = "Toy compiler tutorial"
 requires-python = ">=3.10"
 classifiers = [
@@ -10,6 +15,8 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-dynamic = [ "version" ]
 dependencies = [ "riscemu==2.2.7", "xdsl" ]
 scripts.toyc = "toy.__main__:main"
+
+[tool.setuptools]
+packages.find.include = [ "toy*" ]
