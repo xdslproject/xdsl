@@ -953,6 +953,16 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
+def test_symbol_ref_attr_get_from_string():
+    assert SymbolRefAttr.get("test") == SymbolRefAttr("test")
+
+
+def test_symbol_ref_attr_get_from_symbol_ref_attr():
+    ref = SymbolRefAttr("test", ["nested"])
+
+    assert SymbolRefAttr.get(ref) is ref
+
+
 def test_array_len_and_iter_attr():
     arr = ArrayAttr([IntAttr(i) for i in range(10)])
 
