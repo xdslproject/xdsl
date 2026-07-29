@@ -6,10 +6,14 @@ from xdsl.dialects.builtin import (
     I32,
     I64,
     I128,
+    FlatSymbolRefAttrConstr,
     Float32Type,
     Float64Type,
+    FloatAttr,
     IntAttr,
+    IntegerAttr,
     NoneAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import (
     Dialect,
@@ -21,17 +25,20 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     IRDLOperation,
+    ParamAttrConstraint,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import Commutative, Pure
+from xdsl.traits import Commutative, ConstantLike, Pure
 
 
 @irdl_attr_definition
@@ -140,6 +147,55 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
         self.limit.print_parameters(printer)
 
 
+@irdl_op_definition
+class ConstOp(IRDLOperation):
+    """Define a WebAssembly numeric constant."""
+
+    name = "wasmssa.const"
+
+    T: ClassVar = VarConstraint.get("T", NumericType)
+
+    value = prop_def(
+        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T))
+        | ParamAttrConstraint(FloatAttr, (AnyAttr(), T))
+    )
+    result = result_def(T)
+
+    traits = traits_def(ConstantLike())
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: IntegerAttr | FloatAttr):
+        super().__init__(
+            properties={"value": value},
+            result_types=[value.get_type()],
+        )
+
+
+@irdl_op_definition
+class GlobalGetOp(IRDLOperation):
+    """Return the value of a WebAssembly global."""
+
+    name = "wasmssa.global_get"
+
+    global_ = prop_def(FlatSymbolRefAttrConstr, prop_name="global")
+    global_val = result_def(ValType)
+
+    traits = traits_def(ConstantLike())
+
+    assembly_format = "$global attr-dict `:` type($global_val)"
+
+    def __init__(
+        self,
+        global_: str | SymbolRefAttr,
+        result_type: ValType,
+    ):
+        super().__init__(
+            properties={"global": SymbolRefAttr.get(global_)},
+            result_types=[result_type],
+        )
+
+
 class BinaryNumericalOperation(IRDLOperation, ABC):
     """Base class for binary WebAssembly numeric operations."""
 
@@ -173,6 +229,8 @@ WasmSSA = Dialect(
     "wasmssa",
     [
         AddOp,
+        ConstOp,
+        GlobalGetOp,
     ],
     [
         ExternRefType,
