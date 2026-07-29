@@ -24,6 +24,7 @@ from xdsl.dialects.x86.registers import (
     X86VectorRegisterType,
 )
 from xdsl.ir import Attribute, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
@@ -118,6 +119,7 @@ class X86Arch(Arch):
         builder: Builder,
         *,
         value_type: Attribute | None,
+        insertion_point: InsertPoint | None = None,
     ) -> SSAValue:
         """
         Move the value to a new register.
@@ -156,7 +158,7 @@ class X86Arch(Arch):
         else:
             raise ValueError(f"Invalid type for move {value.type}")
 
-        result = builder.insert(mov_op).results[0]
+        result = builder.insert(mov_op, insertion_point).results[0]
         result.name_hint = value.name_hint
         return result
 

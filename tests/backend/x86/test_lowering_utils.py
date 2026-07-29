@@ -66,6 +66,27 @@ def test_move_value_to_unallocated(
     assert new.name_hint == "src"
 
 
+def test_move_value_to_unallocated_insertion_point():
+    """An explicit insertion point inserts before the pointed-to op, not at the builder cursor."""
+    dest = Reg64Type.unallocated()
+    block = Block(
+        (
+            first := DS_MovOp(create_ssa_value(dest), destination=dest),
+            second := DS_MovOp(create_ssa_value(dest), destination=dest),
+        )
+    )
+    assert list(block.ops) == [first, second]
+
+    src = create_ssa_value(dest)
+    new = arch.UNKNOWN.move_value_to_unallocated(
+        src,
+        Builder(InsertPoint.before(first)),  # builder insert point gets ignored
+        value_type=None,
+        insertion_point=InsertPoint.before(second),  # this insert point gets used
+    )
+    assert list(block.ops) == [first, new.owner, second]
+
+
 @pytest.mark.parametrize(
     "arch",
     [arch.AVX2, arch.AVX512, arch.UNKNOWN],

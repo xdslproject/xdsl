@@ -10,6 +10,7 @@ from typing import cast
 
 from typing_extensions import Self
 
+from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
@@ -162,6 +163,11 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
                         f"riscv_scf.for's riscv_scf.yield must match carried"
                         f"variables types."
                     )
+
+    def update_liveness(self, ctx: LivenessContext) -> None:
+        raise NotImplementedError(
+            f"{self.name} does not yet implement update_liveness."
+        )
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         # Allocate values used inside the body but defined outside.

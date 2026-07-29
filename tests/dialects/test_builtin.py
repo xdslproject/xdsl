@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     BytesAttr,
     ComplexType,
-    ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -43,6 +42,7 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     bf16,
+    container_of,
     f4E2M1FN,
     f6E2M3FN,
     f6E3M2FN,
@@ -953,6 +953,16 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
+def test_symbol_ref_attr_get_from_string():
+    assert SymbolRefAttr.get("test") == SymbolRefAttr("test")
+
+
+def test_symbol_ref_attr_get_from_symbol_ref_attr():
+    ref = SymbolRefAttr("test", ["nested"])
+
+    assert SymbolRefAttr.get(ref) is ref
+
+
 def test_array_len_and_iter_attr():
     arr = ArrayAttr([IntAttr(i) for i in range(10)])
 
@@ -1346,9 +1356,13 @@ def test_array_of_constraint():
         BaseAttr(B)
     )
 
-    container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
 
-    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
+def test_container_of_constraint():
+    """Test mapping type variables in ContainerOf."""
+
+    container_constraint = container_of(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == container_of(
         BaseAttr(B)
     )
 

@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     I32,
     ArrayAttr,
     BoolAttr,
-    ContainerOf,
     DenseIntElementsAttr,
     DictionaryAttr,
     Float16Type,
@@ -27,6 +26,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     VectorType,
+    container_of,
     i16,
     i32,
 )
@@ -51,7 +51,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
@@ -91,9 +90,9 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
-floatingPointLike = ContainerOf(AnyOf.get(Float16Type, Float32Type, Float64Type))
+boolLike = container_of(IntegerType(1))
+signlessIntegerLike = container_of(IntegerType | IndexType)
+floatingPointLike = container_of(Float16Type | Float32Type | Float64Type)
 
 
 @irdl_op_definition
