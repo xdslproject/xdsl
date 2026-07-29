@@ -1,4 +1,4 @@
-# RUN: uv run ../../../../../xdsl/frontend/pydialect/main.py -T %s | filecheck %s
+# RUN: uv run xdsl-opt %s | filecheck %s
 
 
 def foo(x: float, y: float) -> float:
