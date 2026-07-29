@@ -341,6 +341,12 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
             )
         super().__init__(root, nested)
 
+    @staticmethod
+    def get(value: str | SymbolRefAttr) -> SymbolRefAttr:
+        if isinstance(value, str):
+            return SymbolRefAttr(value)
+        return value
+
     def string_value(self):
         root = self.root_reference.data
         for ref in self.nested_references.data:
