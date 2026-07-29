@@ -31,3 +31,17 @@
 %sum = "wasmssa.add"(%lhs, %rhs) : (i32, i64) -> i32
 
 // CHECK: attribute i32 expected from variable 'T', but got i64
+
+// -----
+
+%lhs, %rhs = "test.op"() : () -> (f32, f32)
+%result = "wasmssa.div_ui"(%lhs, %rhs) : (f32, f32) -> f32
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%lhs, %rhs = "test.op"() : () -> (i32, i32)
+%result = "wasmssa.div"(%lhs, %rhs) : (i32, i32) -> i32
+
+// CHECK: Unexpected attribute i32
