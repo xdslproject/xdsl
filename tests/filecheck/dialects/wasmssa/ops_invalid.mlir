@@ -45,3 +45,42 @@
 %result = "wasmssa.div"(%lhs, %rhs) : (i32, i32) -> i32
 
 // CHECK: Unexpected attribute i32
+
+// -----
+
+%lhs = "test.op"() : () -> i32
+%rhs = "test.op"() : () -> i64
+%comparison = "wasmssa.eq"(%lhs, %rhs) : (i32, i64) -> i32
+
+// CHECK: attribute i32 expected from variable 'T', but got i64
+
+// -----
+
+%lhs = "test.op"() : () -> i32
+%rhs = "test.op"() : () -> i32
+%comparison = "wasmssa.lt"(%lhs, %rhs) : (i32, i32) -> i32
+
+// CHECK: Unexpected attribute i32
+
+// -----
+
+%lhs = "test.op"() : () -> f32
+%rhs = "test.op"() : () -> f32
+%comparison = "wasmssa.lt_si"(%lhs, %rhs) : (f32, f32) -> i32
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%input = "test.op"() : () -> f32
+%comparison = "wasmssa.eqz"(%input) : (f32) -> i32
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%lhs = "test.op"() : () -> i32
+%rhs = "test.op"() : () -> i32
+%comparison = "wasmssa.ne"(%lhs, %rhs) : (i32, i32) -> i64
+
+// CHECK: Expected attribute i32 but got i64
