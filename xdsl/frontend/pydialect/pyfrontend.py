@@ -6,8 +6,6 @@ from dis import dis
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pysemantics import dunder_op_name, type_name
-
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, ModuleOp
 from xdsl.dialects.py import (
     CallOp,
@@ -19,6 +17,7 @@ from xdsl.dialects.py import (
     ReturnOp,
 )
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
+from xdsl.frontend.pydialect.pysemantics import dunder_op_name, type_name
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
@@ -276,6 +275,41 @@ class ASTBuilder:
         pass
 
 
+class PyFrontend:
+    def __init__(
+        self,
+        input: str,
+        name: str = "<unknown>",
+    ):
+        self.source = input
+        self.name = name
+
+    def parse_py_module(
+        self,
+        show_source: bool = False,
+        show_disassemble: bool = False,
+        show_ast: bool = False,
+    ):
+        program = ast.parse(self.source)
+        module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
+        if show_source:
+            print(f"-=-=-=-=-=[ Source ]=-=-=-=-=-\n{self.source}\n")
+
+        if show_disassemble:
+            print("-=-=-=-=-=[ Disassemble ]=-=-=-=-=-\n")
+            dis(self.source)
+            print()
+
+        if show_ast:
+            print(f"-=-=-=-=-=[ AST ]=-=-=-=-=-\n{ast.dump(program, indent=4)}\n")
+
+        if any([show_ast, show_disassemble, show_source]):
+            print("-=-=-=-=-=[ Module ]=-=-=-=-=-\n")
+        print(module)
+        exit(0)  # Full pass not implemented
+        return module
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process Toy file")
     parser.add_argument("source", type=Path, help="toy source file")
@@ -303,33 +337,14 @@ if __name__ == "__main__":
         action="store_true",
         help="More text please",
     )
-    parser.add_argument(
-        "-T",
-        dest="test",
-        action="store_true",
-        help="More text please",
-    )
 
     args = parser.parse_args()
 
     with open(args.source) as f:
         source = f.read()
 
-    program = ast.parse(source)
-    module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
-    if not args.test and (args.src or args.all):
-        print(f"-=-=-=-=-=[ Source ]=-=-=-=-=-\n{source}\n")
-
-    if not args.test and (args.disassemble or args.all):
-        print("-=-=-=-=-=[ Disassemble ]=-=-=-=-=-\n")
-        dis(source)
-        print()
-
-    if not args.test and (args.tree or args.all):
-        print(f"-=-=-=-=-=[ AST ]=-=-=-=-=-\n{ast.dump(program, indent=4)}\n")
-
-    if args.test:
-        print(module)
-    else:
-        print("-=-=-=-=-=[ Module ]=-=-=-=-=-\n")
-        print(module)
+    PyFrontend(source).parse_py_module(
+        args.all or args.src,
+        args.all or args.disassemble,
+        args.all or args.tree,
+    )
