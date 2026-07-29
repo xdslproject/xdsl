@@ -1,5 +1,3 @@
-from typing import Any
-
 from xdsl.ir import (
     Data,
     TypeAttribute,
@@ -33,13 +31,12 @@ class ObjectType(GenericData[str], TypeAttribute):
 
 
 @irdl_attr_definition
-class ConstantValue(Data[Any]):
+class ConstantValue(Data[ObjectType]):
     name = "py.const"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+    def parse_parameter(cls, parser: AttrParser) -> ObjectType:
+        raise NotImplementedError
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
