@@ -15,7 +15,14 @@ def _():
 def _():
     from xdsl.utils import marimo as xmo
 
-    return
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
+    # Depend on xmo so marimo keeps `return (xmo,)` in the sentinel cell above.
+    # Docs export replaces that exact cell body (SYNC_XDSL_IMPORT).
+    _ = xmo
 
 
 @app.cell(hide_code=True)

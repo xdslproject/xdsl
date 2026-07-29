@@ -19,6 +19,13 @@ def _():
 
 
 @app.cell(hide_code=True)
+def _(xmo):
+    # Depend on xmo so marimo keeps `return (xmo,)` in the sentinel cell above.
+    # Docs export replaces that exact cell body (SYNC_XDSL_IMPORT).
+    _ = xmo
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # Chapter 2: Emitting Basic IR
