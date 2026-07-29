@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Literal, overload
+from typing import Literal, cast, overload
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
@@ -337,7 +337,9 @@ class Parser(AttrParser):
 
         return resolved
 
-    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[SSAValue]]:
+    def parse_affine_map_of_ssa_ids(
+        self,
+    ) -> tuple[AffineMap, Sequence[SSAValue[IndexType]]]:
         """
         Parse an affine map of SSA identifiers, e.g.: `[%i0, %i1 + 7]`.
         """
@@ -350,6 +352,7 @@ class Parser(AttrParser):
             for span in spans
         ]
 
+        operands = cast(Sequence[SSAValue[IndexType]], operands)
         return affine_map, operands
 
     def parse_optional_operand(self) -> SSAValue | None:

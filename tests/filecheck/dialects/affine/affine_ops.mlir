@@ -66,6 +66,18 @@
     // CHECK-NEXT: %same_value = affine.load %memref[%zero, %zero] : memref<2x3xf64>
     // CHECK-NEXT: %nested = affine.load %memref[%zero * 7 + 3 + %zero, %zero + 7] : memref<2x3xf64>
 
+    %vmemref = "test.op"() : () -> memref<2x3xf64>
+    %vvalue = "test.op"() : () -> vector<2xf64>
+    affine.vector_store %vvalue, %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vloaded = affine.vector_load %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vnested = affine.vector_load %vmemref[%zero + 3, %zero * 2 + %zero * 5] : memref<2x3xf64>, vector<2xf64>
+
+    // CHECK:      %vmemref = "test.op"() : () -> memref<2x3xf64>
+    // CHECK-NEXT: %vvalue = "test.op"() : () -> vector<2xf64>
+    // CHECK-NEXT: affine.vector_store %vvalue, %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %vloaded = affine.vector_load %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %vnested = affine.vector_load %vmemref[%zero + 3, %zero * 2 + %zero * 5] : memref<2x3xf64>, vector<2xf64>
+
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     ^bb2(%arg0: index):
