@@ -163,7 +163,7 @@ def test_fold_dynamic_trait():
     @irdl_op_definition
     class TestFoldOp(IRDLOperation):
         name = "arith.fold"
-        res = result_def()
+        res: OpResult = result_def()
 
     class TestFold(HasFolder):
         @classmethod

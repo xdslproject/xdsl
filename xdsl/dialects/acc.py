@@ -48,7 +48,12 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
     ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -2453,47 +2458,55 @@ class ParallelOp(IRDLOperation):
 
     name = "acc.parallel"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    num_gangs = var_operand_def(IntegerType | IndexType)
-    num_workers = var_operand_def(IntegerType | IndexType)
-    vector_length = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_gangs: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_workers: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_length: VarOperand = var_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_device_type = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    wait_operands_segments = opt_prop_def(
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
-    num_gangs_segments = opt_prop_def(
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
+    num_gangs_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
     )
-    num_gangs_device_type = opt_prop_def(
+    num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
     )
-    num_workers_device_type = opt_prop_def(
+    num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="numWorkersDeviceType"
     )
-    vector_length_device_type = opt_prop_def(
+    vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="vectorLengthDeviceType"
     )
-    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
-    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
-    combined = opt_prop_def(UnitAttr)
+    self_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr: ClauseDefaultValueAttr | None = opt_prop_def(
+        ClauseDefaultValueAttr, prop_name="defaultAttr"
+    )
+    combined: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    region = region_def("single_block")
+    region: Region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -2626,32 +2639,40 @@ class SerialOp(IRDLOperation):
 
     name = "acc.serial"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_device_type = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    wait_operands_segments = opt_prop_def(
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
-    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
-    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
-    combined = opt_prop_def(UnitAttr)
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
+    self_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr: ClauseDefaultValueAttr | None = opt_prop_def(
+        ClauseDefaultValueAttr, prop_name="defaultAttr"
+    )
+    combined: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    region = region_def("single_block")
+    region: Region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -2762,47 +2783,55 @@ class KernelsOp(IRDLOperation):
 
     name = "acc.kernels"
 
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    num_gangs = var_operand_def(IntegerType | IndexType)
-    num_workers = var_operand_def(IntegerType | IndexType)
-    vector_length = var_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
-    self_cond = opt_operand_def(I1)
-    reduction_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    data_clause_operands = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_gangs: VarOperand = var_operand_def(IntegerType | IndexType)
+    num_workers: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_length: VarOperand = var_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
+    self_cond: OptOperand = opt_operand_def(I1)
+    reduction_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_device_type = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    wait_operands_segments = opt_prop_def(
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
-    num_gangs_segments = opt_prop_def(
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
+    num_gangs_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
     )
-    num_gangs_device_type = opt_prop_def(
+    num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
     )
-    num_workers_device_type = opt_prop_def(
+    num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="numWorkersDeviceType"
     )
-    vector_length_device_type = opt_prop_def(
+    vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="vectorLengthDeviceType"
     )
-    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
-    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
-    combined = opt_prop_def(UnitAttr)
+    self_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr: ClauseDefaultValueAttr | None = opt_prop_def(
+        ClauseDefaultValueAttr, prop_name="defaultAttr"
+    )
+    combined: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    region = region_def()
+    region: Region = region_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -2940,24 +2969,30 @@ class KernelEnvironmentOp(IRDLOperation):
 
     name = "acc.kernel_environment"
 
-    data_clause_operands = var_operand_def()
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_segments = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    wait_operands_device_type = opt_prop_def(
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
 
-    region = region_def("single_block")
+    region: Region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -3035,58 +3070,64 @@ class LoopOp(IRDLOperation):
 
     name = "acc.loop"
 
-    lowerbound = var_operand_def(IntegerType | IndexType)
-    upperbound = var_operand_def(IntegerType | IndexType)
-    step = var_operand_def(IntegerType | IndexType)
-    gang_operands = var_operand_def(IntegerType | IndexType)
-    worker_num_operands = var_operand_def(IntegerType | IndexType)
-    vector_operands = var_operand_def(IntegerType | IndexType)
-    tile_operands = var_operand_def(IntegerType | IndexType)
-    cache_operands = var_operand_def()
-    private_operands = var_operand_def()
-    firstprivate_operands = var_operand_def()
-    reduction_operands = var_operand_def()
+    lowerbound: VarOperand = var_operand_def(IntegerType | IndexType)
+    upperbound: VarOperand = var_operand_def(IntegerType | IndexType)
+    step: VarOperand = var_operand_def(IntegerType | IndexType)
+    gang_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    worker_num_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    vector_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    tile_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    cache_operands: VarOperand = var_operand_def()
+    private_operands: VarOperand = var_operand_def()
+    firstprivate_operands: VarOperand = var_operand_def()
+    reduction_operands: VarOperand = var_operand_def()
 
-    inclusive_upperbound = opt_prop_def(
+    inclusive_upperbound: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(1)), prop_name="inclusiveUpperbound"
     )
-    collapse = opt_prop_def(ArrayAttr[IntegerAttr])
-    collapse_device_type = opt_prop_def(
+    collapse: ArrayAttr[IntegerAttr] | None = opt_prop_def(ArrayAttr[IntegerAttr])
+    collapse_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="collapseDeviceType"
     )
-    gang_operands_arg_type = opt_prop_def(
+    gang_operands_arg_type: ArrayAttr[GangArgTypeAttr] | None = opt_prop_def(
         ArrayAttr[GangArgTypeAttr], prop_name="gangOperandsArgType"
     )
-    gang_operands_segments = opt_prop_def(
+    gang_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="gangOperandsSegments"
     )
-    gang_operands_device_type = opt_prop_def(
+    gang_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="gangOperandsDeviceType"
     )
-    worker_num_operands_device_type = opt_prop_def(
+    worker_num_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="workerNumOperandsDeviceType"
     )
-    vector_operands_device_type = opt_prop_def(
+    vector_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="vectorOperandsDeviceType"
     )
-    seq = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    independent = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    auto_ = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="auto_")
-    gang = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    worker = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    vector = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    tile_operands_segments = opt_prop_def(
+    seq: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    independent: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr]
+    )
+    auto_: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="auto_"
+    )
+    gang: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    worker: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    vector: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    tile_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="tileOperandsSegments"
     )
-    tile_operands_device_type = opt_prop_def(
+    tile_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="tileOperandsDeviceType"
     )
-    combined = opt_prop_def(CombinedConstructsTypeAttr)
-    unstructured = opt_prop_def(UnitAttr)
+    combined: CombinedConstructsTypeAttr | None = opt_prop_def(
+        CombinedConstructsTypeAttr
+    )
+    unstructured: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    results_ = var_result_def()
+    results_: VarOpResult = var_result_def()
 
-    region = region_def()
+    region: Region = region_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -3450,26 +3491,34 @@ class DataOp(IRDLOperation):
 
     name = "acc.data"
 
-    if_cond = opt_operand_def(I1)
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_segments = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    wait_operands_device_type = opt_prop_def(
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
-    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
+    default_attr: ClauseDefaultValueAttr | None = opt_prop_def(
+        ClauseDefaultValueAttr, prop_name="defaultAttr"
+    )
 
-    region = region_def()
+    region: Region = region_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -3587,12 +3636,12 @@ class HostDataOp(IRDLOperation):
 
     name = "acc.host_data"
 
-    if_cond = opt_operand_def(I1)
-    data_clause_operands = var_operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
+    data_clause_operands: VarOperand = var_operand_def()
 
-    if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
+    if_present: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="ifPresent")
 
-    region = region_def()
+    region: Region = region_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -3674,35 +3723,37 @@ class _DataEntryOperation(IRDLOperation, ABC):
     here.
     """
 
-    var = operand_def()
-    var_ptr_ptr = opt_operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    var: Operand = operand_def()
+    var_ptr_ptr: OptOperand = opt_operand_def()
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
-    var_type = prop_def(TypeAttribute, prop_name="varType")
-    async_operands_device_type = opt_prop_def(
+    var_type: TypeAttribute = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    structured = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    structured: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(True),
         prop_name="structured",
     )
-    implicit = opt_prop_def(
+    implicit: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(False),
         prop_name="implicit",
     )
-    modifiers = opt_prop_def(
+    modifiers: DataClauseModifierAttr = opt_prop_def(
         DataClauseModifierAttr,
         default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
         prop_name="modifiers",
     )
-    var_name = opt_prop_def(StringAttr, prop_name="name")
-    recipe = opt_prop_def(SymbolRefAttr, prop_name="recipe")
+    var_name: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
+    recipe: SymbolRefAttr | None = opt_prop_def(SymbolRefAttr, prop_name="recipe")
 
-    acc_var = result_def()
+    acc_var: OpResult = result_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -3795,7 +3846,7 @@ class CopyinOp(_DataEntryOperation):
     """Implementation of upstream acc.copyin."""
 
     name = "acc.copyin"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_COPYIN),
         prop_name="dataClause",
@@ -3807,7 +3858,7 @@ class CreateOp(_DataEntryOperation):
     """Implementation of upstream acc.create."""
 
     name = "acc.create"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_CREATE),
         prop_name="dataClause",
@@ -3819,7 +3870,7 @@ class PresentOp(_DataEntryOperation):
     """Implementation of upstream acc.present."""
 
     name = "acc.present"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_PRESENT),
         prop_name="dataClause",
@@ -3831,7 +3882,7 @@ class NoCreateOp(_DataEntryOperation):
     """Implementation of upstream acc.nocreate."""
 
     name = "acc.nocreate"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_NO_CREATE),
         prop_name="dataClause",
@@ -3843,7 +3894,7 @@ class AttachOp(_DataEntryOperation):
     """Implementation of upstream acc.attach."""
 
     name = "acc.attach"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_ATTACH),
         prop_name="dataClause",
@@ -3855,7 +3906,7 @@ class DevicePtrOp(_DataEntryOperation):
     """Implementation of upstream acc.deviceptr."""
 
     name = "acc.deviceptr"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_DEVICEPTR),
         prop_name="dataClause",
@@ -3867,7 +3918,7 @@ class UseDeviceOp(_DataEntryOperation):
     """Implementation of upstream acc.use_device."""
 
     name = "acc.use_device"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_USE_DEVICE),
         prop_name="dataClause",
@@ -3879,7 +3930,7 @@ class CacheOp(_DataEntryOperation):
     """Implementation of upstream acc.cache. Carries `NoMemoryEffect` per upstream."""
 
     name = "acc.cache"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_CACHE),
         prop_name="dataClause",
@@ -3893,7 +3944,7 @@ class DeclareDeviceResidentOp(_DataEntryOperation):
     """Implementation of upstream acc.declare_device_resident."""
 
     name = "acc.declare_device_resident"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_DECLARE_DEVICE_RESIDENT),
         prop_name="dataClause",
@@ -3905,7 +3956,7 @@ class DeclareLinkOp(_DataEntryOperation):
     """Implementation of upstream acc.declare_link."""
 
     name = "acc.declare_link"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_DECLARE_LINK),
         prop_name="dataClause",
@@ -3922,7 +3973,7 @@ class GetDevicePtrOp(_DataEntryOperation):
     """
 
     name = "acc.getdeviceptr"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_GETDEVICEPTR),
         prop_name="dataClause",
@@ -3934,7 +3985,7 @@ class UpdateDeviceOp(_DataEntryOperation):
     """Implementation of upstream acc.update_device."""
 
     name = "acc.update_device"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_UPDATE_DEVICE),
         prop_name="dataClause",
@@ -3962,7 +4013,7 @@ class PrivateOp(_DataEntryOperation):
     """Implementation of upstream acc.private."""
 
     name = "acc.private"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_PRIVATE),
         prop_name="dataClause",
@@ -3974,7 +4025,7 @@ class FirstprivateOp(_DataEntryOperation):
     """Implementation of upstream acc.firstprivate."""
 
     name = "acc.firstprivate"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
         prop_name="dataClause",
@@ -3992,7 +4043,7 @@ class FirstprivateMapOp(_DataEntryOperation):
     """
 
     name = "acc.firstprivate_map"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
         prop_name="dataClause",
@@ -4010,7 +4061,7 @@ class ReductionOp(_DataEntryOperation):
     """
 
     name = "acc.reduction"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_REDUCTION),
         prop_name="dataClause",
@@ -4042,32 +4093,34 @@ class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
     format, and the keyword-only `__init__` live here.
     """
 
-    acc_var = operand_def()
-    var = operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    acc_var: Operand = operand_def()
+    var: Operand = operand_def()
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
-    var_type = prop_def(TypeAttribute, prop_name="varType")
-    async_operands_device_type = opt_prop_def(
+    var_type: TypeAttribute = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    structured = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    structured: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(True),
         prop_name="structured",
     )
-    implicit = opt_prop_def(
+    implicit: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(False),
         prop_name="implicit",
     )
-    modifiers = opt_prop_def(
+    modifiers: DataClauseModifierAttr = opt_prop_def(
         DataClauseModifierAttr,
         default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
         prop_name="modifiers",
     )
-    var_name = opt_prop_def(StringAttr, prop_name="name")
+    var_name: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -4147,7 +4200,7 @@ class CopyoutOp(_DataExitOperationWithVarPtr):
     """Implementation of upstream acc.copyout."""
 
     name = "acc.copyout"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_COPYOUT),
         prop_name="dataClause",
@@ -4159,7 +4212,7 @@ class UpdateHostOp(_DataExitOperationWithVarPtr):
     """Implementation of upstream acc.update_host."""
 
     name = "acc.update_host"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_UPDATE_HOST),
         prop_name="dataClause",
@@ -4177,30 +4230,32 @@ class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
     need to know the host-side mapping.
     """
 
-    acc_var = operand_def()
-    bounds = var_operand_def(DataBoundsType)
-    async_operands = var_operand_def(IntegerType | IndexType)
+    acc_var: Operand = operand_def()
+    bounds: VarOperand = var_operand_def(DataBoundsType)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    structured = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    structured: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(True),
         prop_name="structured",
     )
-    implicit = opt_prop_def(
+    implicit: BoolAttr = opt_prop_def(
         BoolAttr,
         default_value=IntegerAttr.from_bool(False),
         prop_name="implicit",
     )
-    modifiers = opt_prop_def(
+    modifiers: DataClauseModifierAttr = opt_prop_def(
         DataClauseModifierAttr,
         default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
         prop_name="modifiers",
     )
-    var_name = opt_prop_def(StringAttr, prop_name="name")
+    var_name: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -4271,7 +4326,7 @@ class DeleteOp(_DataExitOperationNoVarPtr):
     """Implementation of upstream acc.delete."""
 
     name = "acc.delete"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_DELETE),
         prop_name="dataClause",
@@ -4283,7 +4338,7 @@ class DetachOp(_DataExitOperationNoVarPtr):
     """Implementation of upstream acc.detach."""
 
     name = "acc.detach"
-    data_clause = opt_prop_def(
+    data_clause: DataClauseAttr = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_DETACH),
         prop_name="dataClause",
@@ -4315,14 +4370,14 @@ class EnterDataOp(IRDLOperation):
 
     name = "acc.enter_data"
 
-    if_cond = opt_operand_def(I1)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_attr = opt_prop_def(UnitAttr, prop_name="async")
-    wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
+    async_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="async")
+    wait_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="wait")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -4408,15 +4463,15 @@ class ExitDataOp(IRDLOperation):
 
     name = "acc.exit_data"
 
-    if_cond = opt_operand_def(I1)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_attr = opt_prop_def(UnitAttr, prop_name="async")
-    wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
-    finalize = opt_prop_def(UnitAttr, prop_name="finalize")
+    async_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="async")
+    wait_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="wait")
+    finalize: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="finalize")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -4518,24 +4573,30 @@ class UpdateOp(IRDLOperation):
 
     name = "acc.update"
 
-    if_cond = opt_operand_def(I1)
-    async_operands = var_operand_def(IntegerType | IndexType)
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    data_clause_operands = var_operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
+    async_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    data_clause_operands: VarOperand = var_operand_def()
 
-    async_operands_device_type = opt_prop_def(
+    async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
     )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_device_type = opt_prop_def(
+    async_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly"
+    )
+    wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
-    wait_operands_segments = opt_prop_def(
+    wait_operands_segments: DenseArrayBase[IntegerType] | None = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
     )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
-    if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
+    has_wait_devnum: ArrayAttr[BoolAttr] | None = opt_prop_def(
+        ArrayAttr[BoolAttr], prop_name="hasWaitDevnum"
+    )
+    wait_only: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOnly"
+    )
+    if_present: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="ifPresent")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -4633,11 +4694,11 @@ class AtomicReadOp(IRDLOperation):
 
     name = "acc.atomic.read"
 
-    x = operand_def()
-    v = operand_def()
-    if_cond = opt_operand_def(I1)
+    x: Operand = operand_def()
+    v: Operand = operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    element_type = prop_def(TypeAttribute)
+    element_type: TypeAttribute = prop_def(TypeAttribute)
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -4681,9 +4742,9 @@ class AtomicWriteOp(IRDLOperation):
 
     name = "acc.atomic.write"
 
-    x = operand_def()
-    expr = operand_def()
-    if_cond = opt_operand_def(I1)
+    x: Operand = operand_def()
+    expr: Operand = operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
 
     custom_directives = (AtomicIfClause,)
 
@@ -4726,10 +4787,10 @@ class AtomicUpdateOp(IRDLOperation):
 
     name = "acc.atomic.update"
 
-    x = operand_def()
-    if_cond = opt_operand_def(I1)
+    x: Operand = operand_def()
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    region = region_def("single_block")
+    region: Region = region_def("single_block")
 
     custom_directives = (AtomicIfClause,)
 
@@ -4795,9 +4856,9 @@ class AtomicCaptureOp(IRDLOperation):
 
     name = "acc.atomic.capture"
 
-    if_cond = opt_operand_def(I1)
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    region = region_def("single_block")
+    region: Region = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (
@@ -4939,9 +5000,9 @@ class DeclareEnterOp(IRDLOperation):
 
     name = "acc.declare_enter"
 
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
-    token = result_def(DeclareTokenType)
+    token: OpResult[DeclareTokenType] = result_def(DeclareTokenType)
 
     assembly_format = (
         "(`dataOperands` `(` $data_clause_operands^ `:`"
@@ -4974,8 +5035,8 @@ class DeclareExitOp(IRDLOperation):
 
     name = "acc.declare_exit"
 
-    token = opt_operand_def(DeclareTokenType)
-    data_clause_operands = var_operand_def()
+    token: OptOperand = opt_operand_def(DeclareTokenType)
+    data_clause_operands: VarOperand = var_operand_def()
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5022,9 +5083,9 @@ class DeclareOp(IRDLOperation):
 
     name = "acc.declare"
 
-    data_clause_operands = var_operand_def()
+    data_clause_operands: VarOperand = var_operand_def()
 
-    region = region_def()
+    region: Region = region_def()
 
     assembly_format = (
         "(`dataOperands` `(` $data_clause_operands^ `:`"
@@ -5062,15 +5123,15 @@ class DataBoundsOp(IRDLOperation):
 
     name = "acc.bounds"
 
-    lowerbound = opt_operand_def(IntegerType | IndexType)
-    upperbound = opt_operand_def(IntegerType | IndexType)
-    extent = opt_operand_def(IntegerType | IndexType)
-    stride = opt_operand_def(IntegerType | IndexType)
-    start_idx = opt_operand_def(IntegerType | IndexType)
+    lowerbound: OptOperand = opt_operand_def(IntegerType | IndexType)
+    upperbound: OptOperand = opt_operand_def(IntegerType | IndexType)
+    extent: OptOperand = opt_operand_def(IntegerType | IndexType)
+    stride: OptOperand = opt_operand_def(IntegerType | IndexType)
+    start_idx: OptOperand = opt_operand_def(IntegerType | IndexType)
 
-    stride_in_bytes = opt_prop_def(BoolAttr, prop_name="strideInBytes")
+    stride_in_bytes: BoolAttr | None = opt_prop_def(BoolAttr, prop_name="strideInBytes")
 
-    result = result_def(DataBoundsType)
+    result: OpResult[DataBoundsType] = result_def(DataBoundsType)
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5127,8 +5188,8 @@ class _DataBoundsAccessorOp(IRDLOperation, ABC):
     `!acc.data_bounds_ty` operand and yields an `index`.
     """
 
-    bounds = operand_def(DataBoundsType)
-    result = result_def(IndexType)
+    bounds: Operand = operand_def(DataBoundsType)
+    result: OpResult[IndexType] = result_def(IndexType)
 
     assembly_format = "$bounds attr-dict `:` `(` type($bounds) `)` `->` type($result)"
 
@@ -5217,8 +5278,8 @@ class _RecipeOperation(IRDLOperation, ABC):
     per-op `verify_`.
     """
 
-    sym_name = prop_def(SymbolNameConstraint())
-    var_type = prop_def(TypeAttribute, prop_name="type")
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    var_type: TypeAttribute = prop_def(TypeAttribute, prop_name="type")
 
 
 @irdl_op_definition
@@ -5230,8 +5291,8 @@ class PrivateRecipeOp(_RecipeOperation):
 
     name = "acc.private.recipe"
 
-    init_region = region_def()
-    destroy_region = region_def()
+    init_region: Region = region_def()
+    destroy_region: Region = region_def()
 
     traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
 
@@ -5285,9 +5346,9 @@ class FirstprivateRecipeOp(_RecipeOperation):
 
     name = "acc.firstprivate.recipe"
 
-    init_region = region_def()
-    copy_region = region_def()
-    destroy_region = region_def()
+    init_region: Region = region_def()
+    copy_region: Region = region_def()
+    destroy_region: Region = region_def()
 
     traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
 
@@ -5354,11 +5415,13 @@ class ReductionRecipeOp(_RecipeOperation):
 
     name = "acc.reduction.recipe"
 
-    reduction_operator = prop_def(ReductionOpKindAttr, prop_name="reductionOperator")
+    reduction_operator: ReductionOpKindAttr = prop_def(
+        ReductionOpKindAttr, prop_name="reductionOperator"
+    )
 
-    init_region = region_def()
-    combiner_region = region_def()
-    destroy_region = region_def()
+    init_region: Region = region_def()
+    combiner_region: Region = region_def()
+    destroy_region: Region = region_def()
 
     traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
 
@@ -5480,10 +5543,12 @@ class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
     `__init__`, and `verify_` — they only override `name`.
     """
 
-    device_num = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    device_num: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    device_types = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="device_types")
+    device_types: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="device_types"
+    )
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5542,11 +5607,13 @@ class SetOp(IRDLOperation):
 
     name = "acc.set"
 
-    default_async = opt_operand_def(IntegerType | IndexType)
-    device_num = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    default_async: OptOperand = opt_operand_def(IntegerType | IndexType)
+    device_num: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    device_type = opt_prop_def(DeviceTypeAttr, prop_name="device_type")
+    device_type: DeviceTypeAttr | None = opt_prop_def(
+        DeviceTypeAttr, prop_name="device_type"
+    )
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5595,12 +5662,12 @@ class WaitOp(IRDLOperation):
 
     name = "acc.wait"
 
-    wait_operands = var_operand_def(IntegerType | IndexType)
-    async_operand = opt_operand_def(IntegerType | IndexType)
-    wait_devnum = opt_operand_def(IntegerType | IndexType)
-    if_cond = opt_operand_def(I1)
+    wait_operands: VarOperand = var_operand_def(IntegerType | IndexType)
+    async_operand: OptOperand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_cond: OptOperand = opt_operand_def(I1)
 
-    async_attr = opt_prop_def(UnitAttr, prop_name="async")
+    async_attr: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="async")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -5661,24 +5728,30 @@ class RoutineOp(IRDLOperation):
 
     name = "acc.routine"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    func_name = prop_def(SymbolRefAttr)
-    bind_id_name = opt_prop_def(ArrayAttr[SymbolRefAttr], prop_name="bindIdName")
-    bind_str_name = opt_prop_def(ArrayAttr[StringAttr], prop_name="bindStrName")
-    bind_id_name_device_type = opt_prop_def(
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    func_name: SymbolRefAttr = prop_def(SymbolRefAttr)
+    bind_id_name: ArrayAttr[SymbolRefAttr] | None = opt_prop_def(
+        ArrayAttr[SymbolRefAttr], prop_name="bindIdName"
+    )
+    bind_str_name: ArrayAttr[StringAttr] | None = opt_prop_def(
+        ArrayAttr[StringAttr], prop_name="bindStrName"
+    )
+    bind_id_name_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="bindIdNameDeviceType"
     )
-    bind_str_name_device_type = opt_prop_def(
+    bind_str_name_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="bindStrNameDeviceType"
     )
-    worker = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    vector = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    seq = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    nohost = opt_prop_def(UnitAttr)
-    implicit = opt_prop_def(UnitAttr)
-    gang = opt_prop_def(ArrayAttr[DeviceTypeAttr])
-    gang_dim = opt_prop_def(ArrayAttr[IntegerAttr], prop_name="gangDim")
-    gang_dim_device_type = opt_prop_def(
+    worker: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    vector: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    seq: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    nohost: UnitAttr | None = opt_prop_def(UnitAttr)
+    implicit: UnitAttr | None = opt_prop_def(UnitAttr)
+    gang: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    gang_dim: ArrayAttr[IntegerAttr] | None = opt_prop_def(
+        ArrayAttr[IntegerAttr], prop_name="gangDim"
+    )
+    gang_dim_device_type: ArrayAttr[DeviceTypeAttr] | None = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="gangDimDeviceType"
     )
 
@@ -5793,8 +5866,8 @@ class _GlobalCtorDtorOperation(IRDLOperation, ABC):
     `sym_name` and an unrestricted region. Concrete leaves override only `name`.
     """
 
-    sym_name = prop_def(SymbolNameConstraint())
-    region = region_def()
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    region: Region = region_def()
 
     assembly_format = "$sym_name $region attr-dict-with-keyword"
 

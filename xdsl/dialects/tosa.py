@@ -25,14 +25,19 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    Region,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParsePropInAttrDict,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -153,13 +158,15 @@ class ClampOp(IRDLOperation):
         type=SignlessIntegerConstraint & T
     ) | FloatAttr.constr(type=AnyFloatConstr & T)
 
-    min_val = prop_def(VALUE)
-    max_val = prop_def(VALUE)
+    min_val: IntegerAttr | FloatAttr[AnyFloat] = prop_def(VALUE)
+    max_val: IntegerAttr | FloatAttr[AnyFloat] = prop_def(VALUE)
 
-    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
+    nan_mode: NanModeAttr = opt_prop_def(
+        NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE)
+    )
 
-    input = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
+    input: Operand = operand_def(TensorType.constr(T))
+    output: OpResult[TensorType] = result_def(TensorType.constr(T))
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -176,9 +183,9 @@ class ConstOp(IRDLOperation):
 
     name = "tosa.const"
 
-    values = prop_def(DenseIntOrFPElementsAttr)
+    values: DenseIntOrFPElementsAttr = prop_def(DenseIntOrFPElementsAttr)
 
-    output = result_def(TensorType)
+    output: OpResult[TensorType] = result_def(TensorType)
 
     def __init__(self, values: DenseIntOrFPElementsAttr):
         super().__init__(
@@ -196,21 +203,21 @@ class RescaleOp(IRDLOperation):
 
     name = "tosa.rescale"
 
-    scale32 = prop_def(BoolAttr)
-    rounding_mode = prop_def(
+    scale32: BoolAttr = prop_def(BoolAttr)
+    rounding_mode: RoundingModeAttr = prop_def(
         RoundingModeAttr, default_value=RoundingModeAttr(RoundingMode.SINGLE_ROUND)
     )
-    per_channel = prop_def(BoolAttr)
-    input_unsigned = prop_def(BoolAttr)
-    output_unsigned = prop_def(BoolAttr)
+    per_channel: BoolAttr = prop_def(BoolAttr)
+    input_unsigned: BoolAttr = prop_def(BoolAttr)
+    output_unsigned: BoolAttr = prop_def(BoolAttr)
 
-    input = operand_def(TensorType)
-    multiplier = operand_def(TensorType)
-    shift = operand_def(TensorType)
-    input_zp = operand_def(TensorType)
-    output_zp = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
+    multiplier: Operand = operand_def(TensorType)
+    shift: Operand = operand_def(TensorType)
+    input_zp: Operand = operand_def(TensorType)
+    output_zp: Operand = operand_def(TensorType)
 
-    output = result_def(TensorType)
+    output: OpResult[TensorType] = result_def(TensorType)
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -314,9 +321,9 @@ class ElementwiseBinaryOperation(ElementwiseOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
+    input1: Operand = operand_def(TensorType.constr(T))
+    input2: Operand = operand_def(TensorType.constr(T))
+    output: OpResult[TensorType] = result_def(TensorType.constr(T))
 
     def verify_(self) -> None:
         t1 = self.input1.type
@@ -371,10 +378,10 @@ class MulOp(ElementwiseOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    shift = operand_def(TensorType[I8])
-    output = result_def(TensorType.constr(T))
+    input1: Operand = operand_def(TensorType.constr(T))
+    input2: Operand = operand_def(TensorType.constr(T))
+    shift: Operand = operand_def(TensorType[I8])
+    output: OpResult[TensorType] = result_def(TensorType.constr(T))
 
     def verify_(self) -> None:
         t1 = self.input1.type
@@ -395,8 +402,8 @@ class ElementwiseUnaryOperation(ElementwiseOperation, Generic[TInv]):
     Abstract base class for elementwise unary operations on tensors of floating-point types
     """
 
-    input1 = operand_def(TInv)
-    result = result_def(TInv)
+    input1: Operand = operand_def(TInv)
+    result: OpResult[TInv] = result_def(TInv)
 
 
 @irdl_op_definition
@@ -448,13 +455,13 @@ class MatMulOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    a = operand_def(TensorType.constr(T))
-    b = operand_def(TensorType.constr(T))
+    a: Operand = operand_def(TensorType.constr(T))
+    b: Operand = operand_def(TensorType.constr(T))
 
-    a_zp = operand_def(TensorType.constr(T))
-    b_zp = operand_def(TensorType.constr(T))
+    a_zp: Operand = operand_def(TensorType.constr(T))
+    b_zp: Operand = operand_def(TensorType.constr(T))
 
-    output = result_def(TensorType.constr(T))
+    output: OpResult[TensorType] = result_def(TensorType.constr(T))
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -507,13 +514,15 @@ class MaxPool2DOp(IRDLOperation):
     name = "tosa.max_pool2d"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    input = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
+    input: Operand = operand_def(TensorType.constr(T))
+    output: OpResult[TensorType] = result_def(TensorType.constr(T))
 
-    kernel = prop_def(DenseArrayBase[I64])
-    stride = prop_def(DenseArrayBase[I64])
-    pad = prop_def(DenseArrayBase[I64])
-    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
+    kernel: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    stride: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    pad: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    nan_mode: NanModeAttr = opt_prop_def(
+        NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE)
+    )
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -542,16 +551,16 @@ class AvgPool2DOp(IRDLOperation):
 
     name = "tosa.avg_pool2d"
 
-    input = operand_def(TensorType)
-    input_zp = operand_def(TensorType)
-    output_zp = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
+    input_zp: Operand = operand_def(TensorType)
+    output_zp: Operand = operand_def(TensorType)
 
-    kernel = prop_def(DenseArrayBase)
-    stride = prop_def(DenseArrayBase)
-    pad = prop_def(DenseArrayBase)
-    acc_type = prop_def(TypeAttribute)
+    kernel: DenseArrayBase = prop_def(DenseArrayBase)
+    stride: DenseArrayBase = prop_def(DenseArrayBase)
+    pad: DenseArrayBase = prop_def(DenseArrayBase)
+    acc_type: TypeAttribute = prop_def(TypeAttribute)
 
-    output = result_def(TensorType)
+    output: OpResult[TensorType] = result_def(TensorType)
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -568,9 +577,9 @@ class ConcatOp(IRDLOperation):
 
     name = "tosa.concat"
 
-    tensors = var_operand_def(TensorType)
-    axis = prop_def(IntegerAttr[I32])
-    output = result_def(TensorType)
+    tensors: VarOperand = var_operand_def(TensorType)
+    axis: IntegerAttr[I32] = prop_def(IntegerAttr[I32])
+    output: OpResult[TensorType] = result_def(TensorType)
 
     def __init__(
         self, tensors: Sequence[SSAValue], axis: IntegerAttr, output_type: TensorType
@@ -596,7 +605,7 @@ class YieldOp(IRDLOperation):
 
     name = "tosa.yield"
 
-    inputs = var_operand_def(TensorType)
+    inputs: VarOperand = var_operand_def(TensorType)
 
     traits = lazy_traits_def(
         lambda: (
@@ -619,12 +628,12 @@ class IfOp(IRDLOperation):
 
     name = "tosa.cond_if"
 
-    cond = operand_def(TensorType(i1, []))
+    cond: Operand = operand_def(TensorType(i1, []))
 
-    output = var_result_def(TensorType)
+    output: VarOpResult[TensorType] = var_result_def(TensorType)
 
-    true_region = region_def("single_block")
-    false_region = region_def("single_block")
+    true_region: Region = region_def("single_block")
+    false_region: Region = region_def("single_block")
 
     traits = traits_def(
         RecursiveMemoryEffect(),
@@ -644,10 +653,10 @@ class ReductionOperation(IRDLOperation, ABC):
     Base class for all TOSA reduction operations
     """
 
-    input = operand_def(TensorType)
-    axis = prop_def(IntegerAttr[I32])
+    input: Operand = operand_def(TensorType)
+    axis: IntegerAttr[I32] = prop_def(IntegerAttr[I32])
 
-    output = result_def(TensorType)
+    output: OpResult[TensorType] = result_def(TensorType)
 
     assembly_format = "$input attr-dict `:` functional-type(operands, results)"
 
@@ -680,7 +689,9 @@ class ReduceMaxOp(ReductionOperation):
 
     name = "tosa.reduce_max"
 
-    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
+    nan_mode: NanModeAttr = opt_prop_def(
+        NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE)
+    )
 
 
 @irdl_op_definition
@@ -691,7 +702,9 @@ class ReduceMinOp(ReductionOperation):
 
     name = "tosa.reduce_min"
 
-    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
+    nan_mode: NanModeAttr = opt_prop_def(
+        NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE)
+    )
 
 
 @irdl_op_definition

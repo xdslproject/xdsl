@@ -48,8 +48,12 @@ from xdsl.irdl import (
     AnyAttr,
     AtLeast,
     IRDLOperation,
+    Operand,
+    OpResult,
     RangeOf,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -906,12 +910,12 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    module_type: ModuleType = attr_def(ModuleType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (
@@ -1023,11 +1027,11 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
-    verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    module_type: ModuleType = attr_def(ModuleType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    verilog_name: StringAttr | None = opt_attr_def(StringAttr, attr_name="verilogName")
 
     traits = lazy_traits_def(
         lambda: (
@@ -1108,13 +1112,19 @@ class InstanceOp(IRDLOperation):
 
     name = "hw.instance"
 
-    instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name = attr_def(FlatSymbolRefAttrConstr, attr_name="moduleName")
-    inputs = var_operand_def()
-    outputs = var_result_def()
-    arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
-    result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
-    inner_sym = opt_attr_def(InnerSymAttr)
+    instance_name: StringAttr = attr_def(StringAttr, attr_name="instanceName")
+    module_name: SymbolRefAttr = attr_def(
+        FlatSymbolRefAttrConstr, attr_name="moduleName"
+    )
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
+    arg_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="argNames"
+    )
+    result_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="resultNames"
+    )
+    inner_sym: InnerSymAttr | None = opt_attr_def(InnerSymAttr)
 
     def __init__(
         self,
@@ -1329,7 +1339,7 @@ class InstanceOp(IRDLOperation):
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
@@ -1392,8 +1402,8 @@ class ArrayCreateOp(IRDLOperation):
     I: ClassVar = VarConstraint("I", AnyAttr())  # Constrain all types to be equal
 
     name = "hw.array_create"
-    inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
-    result = result_def(ArrayType)
+    inputs: VarOperand = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
+    result: OpResult[ArrayType[Attribute]] = result_def(ArrayType)
 
     def __init__(
         self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
@@ -1432,9 +1442,11 @@ class ArrayGetOp(IRDLOperation):
     """
 
     name = "hw.array_get"
-    input = operand_def(ArrayType)
-    index = operand_def(IntegerType)
-    result = result_def(IntegerType | ArrayType)
+    input: Operand = operand_def(ArrayType)
+    index: Operand = operand_def(IntegerType)
+    result: OpResult[IntegerType | ArrayType[Attribute]] = result_def(
+        IntegerType | ArrayType
+    )
 
     def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
         typ = SSAValue.get(input, type=ArrayType).type
@@ -1482,8 +1494,8 @@ class ArrayGetOp(IRDLOperation):
 class BitcastOp(IRDLOperation):
     name = "hw.bitcast"
 
-    input = operand_def()
-    result = result_def()
+    input: Operand = operand_def()
+    result: OpResult = result_def()
 
     assembly_format = "$input attr-dict `:` functional-type($input, $result)"
 
@@ -1498,8 +1510,8 @@ class BitcastOp(IRDLOperation):
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "hw.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
-    result = result_def(_T)
-    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+    result: OpResult = result_def(_T)
+    value: IntegerAttr = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
 
     assembly_format = "attr-dict $value"
 

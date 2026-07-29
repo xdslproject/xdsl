@@ -13,7 +13,9 @@ from xdsl.dialects.builtin import (
     I1,
     I32,
     I64,
+    AnyFloat,
     AnyFloatConstr,
+    AnySignlessIntegerType,
     ArrayAttr,
     BFloat16Type,
     DenseArrayBase,
@@ -70,9 +72,15 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    OptOpResult,
     ParsePropInAttrDict,
     RangeOf,
+    Successor,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -419,9 +427,11 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(T)
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -515,10 +525,12 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
-    overflowFlags = opt_prop_def(IntegerAttr[I32])
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(T)
+    )
+    overflowFlags: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -571,10 +583,12 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
-    is_exact = opt_prop_def(UnitAttr, prop_name="isExact")
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(T)
+    )
+    is_exact: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="isExact")
 
     traits = traits_def(NoMemoryEffect())
 
@@ -633,10 +647,12 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
-    is_disjoint = opt_prop_def(UnitAttr, prop_name="isDisjoint")
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(T)
+    )
+    is_disjoint: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="isDisjoint")
 
     traits = traits_def(NoMemoryEffect())
 
@@ -662,12 +678,14 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(
+            SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+        )
     )
 
     traits = traits_def(NoMemoryEffect())
@@ -702,14 +720,16 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(
+            SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+        )
     )
     traits = traits_def(NoMemoryEffect())
-    non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
+    non_neg: UnitAttr | None = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
     assembly_format = "(`nneg` $nonNeg^)? $arg attr-dict `:` type($arg) `to` type($res)"
 
@@ -731,13 +751,15 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(
+    arg: Operand = operand_def(
         SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    res: OpResult[AnySignlessIntegerType | VectorType[AnySignlessIntegerType]] = (
+        result_def(
+            SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+        )
     )
-    overflowFlags = opt_prop_def(OverflowAttr)
+    overflowFlags: OverflowAttr | None = opt_prop_def(OverflowAttr)
     traits = traits_def(NoMemoryEffect())
 
     def __init__(
@@ -940,10 +962,10 @@ class ICmpOp(IRDLOperation):
         "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
     )
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(I1 | VectorType[I1])
-    predicate = prop_def(IntegerAttr[i64])
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[I1 | VectorType[I1]] = result_def(I1 | VectorType[I1])
+    predicate: IntegerAttr[I64] = prop_def(IntegerAttr[i64])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1119,15 +1141,15 @@ class GEPOp(IRDLOperation):
 
     name = "llvm.getelementptr"
 
-    ptr = operand_def(LLVMPointerType)
-    ssa_indices = var_operand_def(IntegerType)
-    elem_type = prop_def()
-    noWrapFlags = prop_def(IntegerAttr[I32])
+    ptr: Operand = operand_def(LLVMPointerType)
+    ssa_indices: VarOperand = var_operand_def(IntegerType)
+    elem_type: Attribute = prop_def()
+    noWrapFlags: IntegerAttr[I32] = prop_def(IntegerAttr[I32])
 
-    result = result_def(LLVMPointerType)
+    result: OpResult[LLVMPointerType] = result_def(LLVMPointerType)
 
-    rawConstantIndices = prop_def(DenseArrayBase.constr(i32))
-    inbounds = opt_prop_def(UnitAttr)
+    rawConstantIndices: DenseArrayBase[I32] = prop_def(DenseArrayBase.constr(i32))
+    inbounds: UnitAttr | None = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1274,12 +1296,12 @@ class GEPOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
-    size = operand_def(IntegerType)
+    size: Operand = operand_def(IntegerType)
 
-    alignment = opt_prop_def(IntegerAttr)
-    elem_type = prop_def()
+    alignment: IntegerAttr | None = opt_prop_def(IntegerAttr)
+    elem_type: Attribute = prop_def()
 
-    res = result_def()
+    res: OpResult = result_def()
 
     def __init__(
         self,
@@ -1330,9 +1352,9 @@ class IntToPtrOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(IntegerType)
+    input: Operand = operand_def(IntegerType)
 
-    output = result_def(LLVMPointerType)
+    output: OpResult[LLVMPointerType] = result_def(LLVMPointerType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1388,24 +1410,24 @@ class InlineAsmOp(IRDLOperation):
 
     name = "llvm.inline_asm"
 
-    operands_ = var_operand_def()
+    operands_: VarOperand = var_operand_def()
 
-    res = opt_result_def()
+    res: OptOpResult = opt_result_def()
 
     # note: in MLIR upstream this is implemented as AsmDialectAttr;
     # which is an instantiation of an LLVM_EnumAttr
     # 0 for AT&T inline assembly dialect
     # 1 for Intel inline assembly dialect
     # In this context dialect does not refer to an MLIR dialect
-    asm_dialect = opt_prop_def(IntegerAttr[I64])
+    asm_dialect: IntegerAttr[I64] | None = opt_prop_def(IntegerAttr[I64])
 
-    asm_string = prop_def(StringAttr)
-    constraints = prop_def(StringAttr)
+    asm_string: StringAttr = prop_def(StringAttr)
+    constraints: StringAttr = prop_def(StringAttr)
 
-    has_side_effects = opt_prop_def(UnitAttr)
-    is_align_stack = opt_prop_def(UnitAttr)
+    has_side_effects: UnitAttr | None = opt_prop_def(UnitAttr)
+    is_align_stack: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    tail_call_kind = prop_def(
+    tail_call_kind: TailCallKindAttr = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
 
@@ -1520,9 +1542,9 @@ class PtrToIntOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(LLVMPointerType)
+    input: Operand = operand_def(LLVMPointerType)
 
-    output = result_def(IntegerType)
+    output: OpResult[IntegerType] = result_def(IntegerType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1551,12 +1573,14 @@ for the corresponding MLIR enum values.
 class LoadOp(IRDLOperation):
     name = "llvm.load"
 
-    ptr = operand_def(LLVMPointerType)
+    ptr: Operand = operand_def(LLVMPointerType)
 
-    alignment = opt_prop_def(IntegerAttr[IntegerType])
-    ordering = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64))
+    alignment: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    ordering: IntegerAttr[IntegerType] = prop_def(
+        IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64)
+    )
 
-    dereferenced_value = result_def()
+    dereferenced_value: OpResult = result_def()
 
     def __init__(
         self,
@@ -1623,13 +1647,13 @@ class LoadOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "llvm.store"
 
-    value = operand_def()
-    ptr = operand_def(LLVMPointerType)
+    value: Operand = operand_def()
+    ptr: Operand = operand_def(LLVMPointerType)
 
-    alignment = opt_prop_def(IntegerAttr[IntegerType])
-    ordering = opt_prop_def(IntegerAttr[IntegerType])
-    volatile_ = opt_prop_def(UnitAttr)
-    nontemporal = opt_prop_def(UnitAttr)
+    alignment: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    ordering: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    volatile_: UnitAttr | None = opt_prop_def(UnitAttr)
+    nontemporal: UnitAttr | None = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -1709,10 +1733,10 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
+    position: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    container: Operand = operand_def(Attribute)
 
-    res = result_def(Attribute)
+    res: OpResult = result_def(Attribute)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1776,11 +1800,11 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
-    value = operand_def(Attribute)
+    position: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    container: Operand = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
-    res = result_def(Attribute)
+    res: OpResult = result_def(Attribute)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1857,10 +1881,10 @@ class InsertElementOp(IRDLOperation):
         ),
     )
 
-    vector = operand_def(VECTOR)
-    value = operand_def(ELEMENT)
-    index = operand_def(SignlessIntegerConstraint)
-    res = result_def(VECTOR)
+    vector: Operand = operand_def(VECTOR)
+    value: Operand = operand_def(ELEMENT)
+    index: Operand = operand_def(SignlessIntegerConstraint)
+    res: OpResult[VectorType[Attribute]] = result_def(VECTOR)
 
     assembly_format = (
         "$value `,` $vector `[` $index `:` type($index) `]` attr-dict `:` type($vector)"
@@ -1890,7 +1914,7 @@ class UndefOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($res)"
 
-    res = result_def(Attribute)
+    res: OpResult = result_def(Attribute)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1961,10 +1985,12 @@ class ShuffleVectorOp(IRDLOperation):
     )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
 
-    v1 = operand_def(VEC_TYPE)
-    v2 = operand_def(VEC_TYPE)
-    mask = prop_def(MASK)
-    res = result_def(ShuffleVectorResultConstraint(T, MASK))
+    v1: Operand = operand_def(VEC_TYPE)
+    v2: Operand = operand_def(VEC_TYPE)
+    mask: DenseArrayBase[I32] = prop_def(MASK)
+    res: OpResult[VectorType[Attribute]] = result_def(
+        ShuffleVectorResultConstraint(T, MASK)
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -2019,21 +2045,23 @@ UNNAMED_ADDR_KEY_BY_KEYWORD: dict[str, int] = {
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type = prop_def()
-    constant = opt_prop_def(UnitAttr)
-    sym_name = prop_def(SymbolNameConstraint())
-    linkage = prop_def(LinkageAttr)
-    dso_local = opt_prop_def(UnitAttr)
-    thread_local_ = opt_prop_def(UnitAttr)
-    visibility_ = opt_prop_def(IntegerAttr[IntegerType])
-    value = opt_prop_def()
-    alignment = opt_prop_def(IntegerAttr)
-    addr_space = prop_def(IntegerAttr)
-    unnamed_addr = opt_prop_def(IntegerAttr)
-    section = opt_prop_def(StringAttr)
+    global_type: Attribute = prop_def()
+    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    dso_local: UnitAttr | None = opt_prop_def(UnitAttr)
+    thread_local_: UnitAttr | None = opt_prop_def(UnitAttr)
+    visibility_: IntegerAttr[IntegerType] | None = opt_prop_def(
+        IntegerAttr[IntegerType]
+    )
+    value: Attribute | None = opt_prop_def()
+    alignment: IntegerAttr | None = opt_prop_def(IntegerAttr)
+    addr_space: IntegerAttr = prop_def(IntegerAttr)
+    unnamed_addr: IntegerAttr | None = opt_prop_def(IntegerAttr)
+    section: StringAttr | None = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
-    body = region_def()
+    body: Region = region_def()
 
     traits = traits_def(SymbolOpInterface())
 
@@ -2186,8 +2214,8 @@ class AddressOfOp(IRDLOperation):
 
     assembly_format = "$global_name attr-dict `:` type($result)"
 
-    global_name = prop_def(SymbolRefAttr)
-    result = result_def(LLVMPointerType)
+    global_name: SymbolRefAttr = prop_def(SymbolRefAttr)
+    result: OpResult[LLVMPointerType] = result_def(LLVMPointerType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -2325,27 +2353,33 @@ class FuncOp(IRDLOperation):
 
     name = "llvm.func"
 
-    body = region_def()
-    sym_name = prop_def(SymbolNameConstraint())
-    function_type = prop_def(LLVMFunctionType)
-    CConv = prop_def(CallingConventionAttr)
-    linkage = prop_def(LinkageAttr)
-    sym_visibility = opt_prop_def(StringAttr)
-    visibility_ = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, 64))
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    function_type: LLVMFunctionType = prop_def(LLVMFunctionType)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
+    visibility_: IntegerAttr[IntegerType] = prop_def(
+        IntegerAttr[IntegerType], default_value=IntegerAttr(0, 64)
+    )
 
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    frame_pointer = opt_prop_def(FramePointerKindAttr)
-    no_inline = opt_prop_def(UnitAttr)
-    no_unwind = opt_prop_def(UnitAttr)
-    optimize_none = opt_prop_def(UnitAttr)
-    passthrough = opt_prop_def(ArrayAttr[Attribute])
-    target_cpu = opt_prop_def(StringAttr)
-    target_features = opt_prop_def(TargetFeaturesAttr)
-    tune_cpu = opt_prop_def(StringAttr)
-    unnamed_addr = opt_prop_def(IntegerAttr)
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    res_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    frame_pointer: FramePointerKindAttr | None = opt_prop_def(FramePointerKindAttr)
+    no_inline: UnitAttr | None = opt_prop_def(UnitAttr)
+    no_unwind: UnitAttr | None = opt_prop_def(UnitAttr)
+    optimize_none: UnitAttr | None = opt_prop_def(UnitAttr)
+    passthrough: ArrayAttr[Attribute] | None = opt_prop_def(ArrayAttr[Attribute])
+    target_cpu: StringAttr | None = opt_prop_def(StringAttr)
+    target_features: TargetFeaturesAttr | None = opt_prop_def(TargetFeaturesAttr)
+    tune_cpu: StringAttr | None = opt_prop_def(StringAttr)
+    unnamed_addr: IntegerAttr | None = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface())
 
@@ -2558,7 +2592,7 @@ class ReturnOp(IRDLOperation):
 
     assembly_format = "($arg^ `:` type($arg))? attr-dict"
 
-    arg = opt_operand_def(Attribute)
+    arg: OptOperand = opt_operand_def(Attribute)
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 
@@ -2569,8 +2603,10 @@ class ReturnOp(IRDLOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
-    result = result_def(Attribute)
-    value = prop_def(IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr)
+    result: OpResult = result_def(Attribute)
+    value: IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr = prop_def(
+        IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -2619,15 +2655,17 @@ class CallIntrinsicOp(IRDLOperation):
 
     name = "llvm.call_intrinsic"
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
-    intrin = prop_def(StringAttr)
-    op_bundle_sizes = prop_def(
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
+    intrin: StringAttr = prop_def(StringAttr)
+    op_bundle_sizes: DenseArrayBase[I32] = prop_def(
         DenseArrayBase.constr(i32),
         default_value=DenseArrayBase.from_list(i32, ()),
     )
-    args = var_operand_def()
-    op_bundle_operands = var_operand_def()
-    ress = opt_result_def()
+    args: VarOperand = var_operand_def()
+    op_bundle_operands: VarOperand = var_operand_def()
+    ress: OptOpResult = opt_result_def()
 
     assembly_format = (
         "$intrin `(` $args `)` (`[` $op_bundle_operands^ `:`"
@@ -2697,21 +2735,25 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
 class CallOp(IRDLOperation):
     name = "llvm.call"
 
-    args = var_operand_def()
-    op_bundle_operands = var_operand_def()
+    args: VarOperand = var_operand_def()
+    op_bundle_operands: VarOperand = var_operand_def()
 
-    callee = opt_prop_def(SymbolRefAttr)
-    var_callee_type = opt_prop_def(LLVMFunctionType)
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
-    CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
-    op_bundle_sizes = prop_def(
+    callee: SymbolRefAttr | None = opt_prop_def(SymbolRefAttr)
+    var_callee_type: LLVMFunctionType | None = opt_prop_def(LLVMFunctionType)
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr("none")
+    )
+    CConv: CallingConventionAttr = prop_def(
+        CallingConventionAttr, default_value=CallingConventionAttr("ccc")
+    )
+    op_bundle_sizes: DenseArrayBase[I32] = prop_def(
         DenseArrayBase.constr(i32),
         default_value=DenseArrayBase.from_list(i32, ()),
     )
-    TailCallKind = prop_def(
+    TailCallKind: TailCallKindAttr = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
-    returned = opt_result_def()
+    returned: OptOpResult = opt_result_def()
 
     traits = traits_def(CallOpSymbolUserOpInterface())
 
@@ -2869,16 +2911,22 @@ class ZeroOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    res = result_def(LLVMTypeConstr)
+    res: OpResult[
+        LLVMStructType
+        | LLVMPointerType
+        | LLVMArrayType
+        | LLVMVoidType
+        | LLVMFunctionType
+    ] = result_def(LLVMTypeConstr)
 
 
 class GenericCastOp(IRDLOperation, ABC):
-    arg = operand_def(Attribute)
+    arg: Operand = operand_def(Attribute)
     """
     LLVM-compatible non-aggregate type
     """
 
-    result = result_def(Attribute)
+    result: OpResult = result_def(Attribute)
     """
     LLVM-compatible non-aggregate type
     """
@@ -2897,11 +2945,13 @@ class GenericCastOp(IRDLOperation, ABC):
 class AbstractFloatArithOp(IRDLOperation, ABC):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
@@ -2988,12 +3038,14 @@ class FCmpOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(I1)
-    predicate = prop_def(IntegerAttr[i64])
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[I1] = result_def(I1)
+    predicate: IntegerAttr[I64] = prop_def(IntegerAttr[i64])
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     traits = traits_def(Pure())
 
@@ -3062,10 +3114,12 @@ class FAbsOp(IRDLOperation):
 
     name = "llvm.intr.fabs"
 
-    input = operand_def(T)
-    result = result_def(T)
+    input: Operand = operand_def(T)
+    result: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3094,10 +3148,12 @@ class FCeilOp(IRDLOperation):
 
     name = "llvm.intr.ceil"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3127,10 +3183,12 @@ class FSqrtOp(IRDLOperation):
 
     name = "llvm.intr.sqrt"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3160,10 +3218,12 @@ class FFloorOp(IRDLOperation):
 
     name = "llvm.intr.floor"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3193,10 +3253,12 @@ class FExp2Op(IRDLOperation):
 
     name = "llvm.intr.exp2"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3226,10 +3288,12 @@ class FLogOp(IRDLOperation):
 
     name = "llvm.intr.log"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3259,10 +3323,12 @@ class FExpOp(IRDLOperation):
 
     name = "llvm.intr.exp"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3292,10 +3358,12 @@ class FSinOp(IRDLOperation):
 
     name = "llvm.intr.sin"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3325,10 +3393,12 @@ class FCosOp(IRDLOperation):
 
     name = "llvm.intr.cos"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3358,10 +3428,12 @@ class FLog2Op(IRDLOperation):
 
     name = "llvm.intr.log2"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3391,10 +3463,12 @@ class FNegOp(IRDLOperation):
 
     name = "llvm.fneg"
 
-    arg = operand_def(T)
-    res = result_def(T)
+    arg: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
@@ -3420,10 +3494,10 @@ class FNegOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(VectorType.constr(AnyFloatConstr))
-    data = operand_def(LLVMPointerType)
-    mask = operand_def(VectorType[I1])
-    alignment = prop_def(IntegerAttr[i32])
+    value: Operand = operand_def(VectorType.constr(AnyFloatConstr))
+    data: Operand = operand_def(LLVMPointerType)
+    mask: Operand = operand_def(VectorType[I1])
+    alignment: IntegerAttr[I32] = prop_def(IntegerAttr[i32])
 
     assembly_format = (
         "$value `,` $data `,` $mask attr-dict `:`"
@@ -3454,12 +3528,14 @@ class SelectOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    cond = operand_def(I1)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    cond: Operand = operand_def(I1)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     traits = traits_def(Pure())
 
@@ -3483,9 +3559,9 @@ class SelectOp(IRDLOperation):
 class BrOp(IRDLOperation):
     name = "llvm.br"
 
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
-    successor = successor_def()
+    successor: Successor = successor_def()
 
     traits = traits_def(IsTerminator())
 
@@ -3499,14 +3575,14 @@ class BrOp(IRDLOperation):
 class CondBrOp(IRDLOperation):
     name = "llvm.cond_br"
 
-    cond = operand_def(IntegerType(1))
-    then_arguments = var_operand_def()
-    else_arguments = var_operand_def()
+    cond: Operand = operand_def(IntegerType(1))
+    then_arguments: VarOperand = var_operand_def()
+    else_arguments: VarOperand = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    then_block = successor_def()
-    else_block = successor_def()
+    then_block: Successor = successor_def()
+    else_block: Successor = successor_def()
 
     traits = traits_def(IsTerminator())
 
@@ -3537,11 +3613,13 @@ class VectorFMaxOp(IRDLOperation):
 
     name = "llvm.intr.maxnum"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3572,11 +3650,13 @@ class FCopySignOp(IRDLOperation):
 
     name = "llvm.intr.copysign"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3607,12 +3687,14 @@ class FMAOp(IRDLOperation):
 
     name = "llvm.intr.fma"
 
-    a = operand_def(T)
-    b = operand_def(T)
-    c = operand_def(T)
-    res = result_def(T)
+    a: Operand = operand_def(T)
+    b: Operand = operand_def(T)
+    c: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3644,11 +3726,13 @@ class VectorFMinOp(IRDLOperation):
 
     name = "llvm.intr.minnum"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3679,11 +3763,13 @@ class FPowOp(IRDLOperation):
 
     name = "llvm.intr.pow"
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    res: OpResult[AnyFloat | VectorType[AnyFloat]] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -3712,7 +3798,7 @@ class FPowOp(IRDLOperation):
 class StackSaveOp(IRDLOperation):
     name = "llvm.intr.stacksave"
 
-    res = result_def(LLVMPointerType)
+    res: OpResult[LLVMPointerType] = result_def(LLVMPointerType)
 
     assembly_format = "attr-dict `:` type($res)"
 
@@ -3723,11 +3809,13 @@ class StackSaveOp(IRDLOperation):
 class VectorReduceOperation(IRDLOperation, ABC):
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    start_value = operand_def(T)
-    vector = operand_def(VectorType.constr(T))
-    res = result_def(T)
+    start_value: Operand = operand_def(T)
+    vector: Operand = operand_def(VectorType.constr(T))
+    res: OpResult[AnyFloat] = result_def(T)
 
-    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+    fastmathFlags: FastMathAttr = prop_def(
+        FastMathAttr, default_value=FastMathAttr(None)
+    )
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -3762,7 +3850,7 @@ class VectorReduceFMulOp(VectorReduceOperation):
 class StackRestoreOp(IRDLOperation):
     name = "llvm.intr.stackrestore"
 
-    ptr = operand_def(LLVMPointerType)
+    ptr: Operand = operand_def(LLVMPointerType)
 
     assembly_format = "$ptr attr-dict `:` type($ptr)"
 

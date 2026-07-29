@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -25,14 +25,14 @@ class OperandTileInfo:
     - `result_shape` the shape that tiled subview should have.
     """
 
-    source_type: MemRefType[Attribute]
+    source_type: MemRefType
     loop_dims: tuple[int, ...]
     result_shape: tuple[int, ...]
 
     @staticmethod
     def analyze(
         indexing_map: AffineMap,
-        source_type: MemRefType[Attribute],
+        source_type: MemRefType,
         tile_sizes: Sequence[int],
     ) -> "OperandTileInfo":
         """

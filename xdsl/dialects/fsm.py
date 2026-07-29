@@ -31,6 +31,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -68,15 +73,19 @@ class MachineOp(IRDLOperation):
 
     name = "fsm.machine"
 
-    body = region_def()
+    body: Region = region_def()
 
-    sym_name = attr_def(SymbolNameConstraint())
-    initialState = attr_def(StringAttr)
-    function_type = attr_def(FunctionType)
-    arg_attrs = opt_attr_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_attr_def(ArrayAttr[DictionaryAttr])
-    arg_names = opt_attr_def(ArrayAttr[StringAttr])
-    res_names = opt_attr_def(ArrayAttr[StringAttr])
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    initialState: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = attr_def(FunctionType)
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = opt_attr_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    res_attrs: ArrayAttr[DictionaryAttr] | None = opt_attr_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    arg_names: ArrayAttr[StringAttr] | None = opt_attr_def(ArrayAttr[StringAttr])
+    res_names: ArrayAttr[StringAttr] | None = opt_attr_def(ArrayAttr[StringAttr])
 
     traits = traits_def(NoTerminator(), SymbolTable(), SymbolOpInterface())
 
@@ -139,11 +148,11 @@ class StateOp(IRDLOperation):
 
     name = "fsm.state"
 
-    output = region_def()
+    output: Region = region_def()
 
-    transitions = region_def()
+    transitions: Region = region_def()
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), HasParent(MachineOp))
 
@@ -189,7 +198,7 @@ class OutputOp(IRDLOperation):
 
     name = "fsm.output"
 
-    operand = var_operand_def()
+    operand: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(StateOp))
 
@@ -227,11 +236,11 @@ class TransitionOp(IRDLOperation):
 
     name = "fsm.transition"
 
-    guard = region_def()
+    guard: Region = region_def()
 
-    action = region_def()
+    action: Region = region_def()
 
-    nextState = attr_def(FlatSymbolRefAttrConstr)
+    nextState: SymbolRefAttr = attr_def(FlatSymbolRefAttrConstr)
 
     traits = traits_def(NoTerminator(), HasParent(StateOp))
 
@@ -278,9 +287,9 @@ class UpdateOp(IRDLOperation):
 
     name = "fsm.update"
 
-    variable = operand_def(Attribute)
+    variable: Operand = operand_def(Attribute)
 
-    value = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
     traits = traits_def(HasParent(TransitionOp))
 
@@ -323,10 +332,10 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    initValue = attr_def()
-    name_var = opt_attr_def(StringAttr)
+    initValue: Attribute = attr_def()
+    name_var: StringAttr | None = opt_attr_def(StringAttr)
 
-    result = var_result_def(Attribute)
+    result: VarOpResult = var_result_def(Attribute)
 
     def __init__(
         self,
@@ -354,7 +363,7 @@ class ReturnOp(IRDLOperation):
 
     name = "fsm.return"
 
-    operand = opt_operand_def(signlessIntegerLike)
+    operand: OptOperand = opt_operand_def(signlessIntegerLike)
 
     traits = traits_def(IsTerminator(), HasParent(TransitionOp))
 
@@ -376,11 +385,11 @@ class InstanceOp(IRDLOperation):
 
     name = "fsm.instance"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
-    machine = attr_def(FlatSymbolRefAttrConstr)
+    machine: SymbolRefAttr = attr_def(FlatSymbolRefAttrConstr)
 
-    res = result_def(InstanceType)
+    res: OpResult[InstanceType] = result_def(InstanceType)
 
     def __init__(
         self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
@@ -415,11 +424,11 @@ class TriggerOp(IRDLOperation):
 
     name = "fsm.trigger"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
 
-    instance = operand_def(InstanceType)
+    instance: Operand = operand_def(InstanceType)
 
-    outputs = var_result_def()
+    outputs: VarOpResult = var_result_def()
 
     def __init__(
         self,
@@ -465,13 +474,13 @@ class HWInstanceOp(IRDLOperation):
 
     name = "fsm.hw_instance"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    machine = attr_def(FlatSymbolRefAttrConstr)
-    inputs = var_operand_def()
-    clock = operand_def(signlessIntegerLike)
-    reset = operand_def(signlessIntegerLike)
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    machine: SymbolRefAttr = attr_def(FlatSymbolRefAttrConstr)
+    inputs: VarOperand = var_operand_def()
+    clock: Operand = operand_def(signlessIntegerLike)
+    reset: Operand = operand_def(signlessIntegerLike)
 
-    outputs = var_result_def()
+    outputs: VarOpResult = var_result_def()
 
     def __init__(
         self,

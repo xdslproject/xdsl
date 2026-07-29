@@ -18,7 +18,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.irdl import IRDLOperation, var_operand_def
+from xdsl.irdl import IRDLOperation, VarOperand, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
@@ -30,7 +30,7 @@ class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
     and a definition of the `arguments` variadic operand.
     """
 
-    arguments = var_operand_def(AttributeInvT)
+    arguments: VarOperand = var_operand_def(AttributeInvT)
 
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 

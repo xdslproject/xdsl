@@ -11,6 +11,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -27,8 +29,8 @@ class GetClassValsOp(IRDLOperation):
     """
 
     name = "ematch.get_class_vals"
-    value = operand_def(ValueType)
-    result = result_def(RangeType[ValueType])
+    value: Operand = operand_def(ValueType)
+    result: OpResult[RangeType[ValueType]] = result_def(RangeType[ValueType])
 
     assembly_format = "$value attr-dict"
 
@@ -46,8 +48,8 @@ class GetClassRepresentativeOp(IRDLOperation):
     """
 
     name = "ematch.get_class_representative"
-    value = operand_def(ValueType)
-    result = result_def(ValueType)
+    value: Operand = operand_def(ValueType)
+    result: OpResult[ValueType] = result_def(ValueType)
 
     assembly_format = "$value attr-dict"
 
@@ -65,8 +67,8 @@ class GetClassResultOp(IRDLOperation):
     """
 
     name = "ematch.get_class_result"
-    value = operand_def(ValueType)
-    result = result_def(ValueType)
+    value: Operand = operand_def(ValueType)
+    result: OpResult[ValueType] = result_def(ValueType)
 
     assembly_format = "$value attr-dict"
 
@@ -85,8 +87,8 @@ class GetClassResultsOp(IRDLOperation):
     """
 
     name = "ematch.get_class_results"
-    values = operand_def(RangeType[ValueType])
-    result = result_def(RangeType[ValueType])
+    values: Operand = operand_def(RangeType[ValueType])
+    result: OpResult[RangeType[ValueType]] = result_def(RangeType[ValueType])
 
     assembly_format = "$values attr-dict"
 
@@ -110,8 +112,8 @@ class UnionOp(IRDLOperation):
     """
 
     name = "ematch.union"
-    lhs = operand_def(ValueType | OperationType | RangeType[ValueType])
-    rhs = operand_def(ValueType | RangeType[ValueType])
+    lhs: Operand = operand_def(ValueType | OperationType | RangeType[ValueType])
+    rhs: Operand = operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = "$lhs `:` type($lhs) `,` $rhs `:` type($rhs) attr-dict"
 
@@ -128,8 +130,8 @@ class DedupOp(IRDLOperation):
     """
 
     name = "ematch.dedup"
-    input_op = operand_def(OperationType)
-    result_op = result_def(OperationType)
+    input_op: Operand = operand_def(OperationType)
+    result_op: OpResult[OperationType] = result_def(OperationType)
 
     assembly_format = "$input_op attr-dict"
 

@@ -38,7 +38,11 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -64,9 +68,9 @@ from xdsl.utils.hints import isa
 class ApplyOp(IRDLOperation):
     name = "affine.apply"
 
-    mapOperands = var_operand_def(IndexType)
-    map = prop_def(AffineMapAttr)
-    result = result_def(IndexType)
+    mapOperands: VarOperand = var_operand_def(IndexType)
+    map: AffineMapAttr = prop_def(AffineMapAttr)
+    result: OpResult[IndexType] = result_def(IndexType)
 
     traits = traits_def(Pure())
 
@@ -131,16 +135,16 @@ class ApplyOp(IRDLOperation):
 class ForOp(IRDLOperation):
     name = "affine.for"
 
-    lowerBoundOperands = var_operand_def(IndexType)
-    upperBoundOperands = var_operand_def(IndexType)
-    inits = var_operand_def()
-    res = var_result_def()
+    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
+    upperBoundOperands: VarOperand = var_operand_def(IndexType)
+    inits: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
-    lowerBoundMap = prop_def(AffineMapAttr)
-    upperBoundMap = prop_def(AffineMapAttr)
-    step = prop_def(IntegerAttr)
+    lowerBoundMap: AffineMapAttr = prop_def(AffineMapAttr)
+    upperBoundMap: AffineMapAttr = prop_def(AffineMapAttr)
+    step: IntegerAttr = prop_def(IntegerAttr)
 
-    body = region_def()
+    body: Region = region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -218,13 +222,13 @@ class IfOp(IRDLOperation):
 
     name = "affine.if"
 
-    args = var_operand_def(IndexType)
-    res = var_result_def()
+    args: VarOperand = var_operand_def(IndexType)
+    res: VarOpResult = var_result_def()
 
-    condition = prop_def(AffineSetAttr)
+    condition: AffineSetAttr = prop_def(AffineSetAttr)
 
-    then_region = region_def("single_block")
-    else_region = region_def()
+    then_region: Region = region_def("single_block")
+    else_region: Region = region_def()
 
     traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
@@ -237,18 +241,20 @@ class ParallelOp(IRDLOperation):
 
     name = "affine.parallel"
 
-    map_operands = var_operand_def(IndexType)
+    map_operands: VarOperand = var_operand_def(IndexType)
 
-    reductions = prop_def(ArrayAttr[StringAttr])
-    lowerBoundsMap = prop_def(AffineMapAttr)
-    lowerBoundsGroups = prop_def(DenseIntElementsAttr)
-    upperBoundsMap = prop_def(AffineMapAttr)
-    upperBoundsGroups = prop_def(DenseIntElementsAttr)
-    steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+    reductions: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
+    lowerBoundsMap: AffineMapAttr = prop_def(AffineMapAttr)
+    lowerBoundsGroups: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
+    upperBoundsMap: AffineMapAttr = prop_def(AffineMapAttr)
+    upperBoundsGroups: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
+    steps: ArrayAttr[IntegerAttr[IntegerType]] = prop_def(
+        ArrayAttr[IntegerAttr[IntegerType]]
+    )
 
-    res = var_result_def()
+    res: VarOpResult = var_result_def()
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     def verify_(self) -> None:
         if (
@@ -369,10 +375,10 @@ class StoreOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    value = operand_def(T)
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
-    map = prop_def(AffineMapAttr)
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType.constr(T))
+    indices: VarOperand = var_operand_def(IndexType)
+    map: AffineMapAttr = prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -422,12 +428,12 @@ class LoadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
+    memref: Operand = operand_def(MemRefType.constr(T))
+    indices: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(T)
+    result: OpResult = result_def(T)
 
-    map = prop_def(AffineMapAttr)
+    map: AffineMapAttr = prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -479,10 +485,10 @@ class LoadOp(IRDLOperation):
 @irdl_op_definition
 class MinOp(IRDLOperation):
     name = "affine.min"
-    arguments = var_operand_def(IndexType())
-    result = result_def(IndexType())
+    arguments: VarOperand = var_operand_def(IndexType())
+    result: OpResult[IndexType] = result_def(IndexType())
 
-    map = prop_def(AffineMapAttr)
+    map: AffineMapAttr = prop_def(AffineMapAttr)
 
     def verify_(self) -> None:
         if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
@@ -497,7 +503,7 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "affine.yield"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), Pure())
 

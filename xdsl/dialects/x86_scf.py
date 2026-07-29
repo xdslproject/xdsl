@@ -22,9 +22,13 @@ from xdsl.ir import Dialect
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
+    Operand,
     Operation,
+    OptOperand,
     Region,
     SSAValue,
+    VarOperand,
+    VarOpResult,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -62,17 +66,17 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
 
 
 class ForRofOperation(X86HasRegisterConstraints, ABC):
-    lb = operand_def(GeneralRegisterType)
-    ub_val = opt_operand_def(GeneralRegisterType)
-    ub_attr = opt_prop_def(IntegerAttr[SI32])
-    step_val = opt_operand_def(GeneralRegisterType)
-    step_attr = opt_prop_def(IntegerAttr[SI32])
+    lb: Operand = operand_def(GeneralRegisterType)
+    ub_val: OptOperand = opt_operand_def(GeneralRegisterType)
+    ub_attr: IntegerAttr[SI32] | None = opt_prop_def(IntegerAttr[SI32])
+    step_val: OptOperand = opt_operand_def(GeneralRegisterType)
+    step_attr: IntegerAttr[SI32] | None = opt_prop_def(IntegerAttr[SI32])
 
-    iter_args = var_operand_def(X86RegisterType)
+    iter_args: VarOperand = var_operand_def(X86RegisterType)
 
-    res = var_result_def(X86RegisterType)
+    res: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
     irdl_options = (AttrSizedOperandSegments(as_property=True),)

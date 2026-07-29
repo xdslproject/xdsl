@@ -4,6 +4,8 @@ from xdsl.dialects import arith, builtin
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -29,8 +31,8 @@ class PrintFormatOp(IRDLOperation):
 
     name = "printf.print_format"
 
-    format_str = attr_def(builtin.StringAttr)
-    format_vals = var_operand_def()
+    format_str: builtin.StringAttr = attr_def(builtin.StringAttr)
+    format_vals: VarOperand = var_operand_def()
 
     def __init__(self, format_str: str, *vals: SSAValue | Operation):
         super().__init__(
@@ -97,7 +99,7 @@ class PrintCharOp(IRDLOperation):
     """
 
     name = "printf.print_char"
-    char = operand_def(i8)
+    char: Operand = operand_def(i8)
 
     def __init__(self, char: SSAValue | Operation):
         super().__init__(
@@ -128,7 +130,7 @@ class PrintIntOp(IRDLOperation):
     """
 
     name = "printf.print_int"
-    int = operand_def(builtin.IntegerType)
+    int: Operand = operand_def(builtin.IntegerType)
 
     def __init__(self, integer: SSAValue | Operation):
         super().__init__(

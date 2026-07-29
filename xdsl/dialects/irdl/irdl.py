@@ -28,6 +28,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    OpResult,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -113,7 +115,7 @@ class DialectOp(IRDLOperation):
     name = "irdl.dialect"
 
     sym_name = prop_def(SymbolNameConstraint())
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), SymbolTable())
 
@@ -144,8 +146,8 @@ class TypeOp(IRDLOperation):
 
     name = "irdl.type"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    body = region_def("single_block")
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    body: Region = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
@@ -183,9 +185,9 @@ class CPredOp(IRDLOperation):
 
     name = "irdl.c_pred"
 
-    pred = prop_def(StringAttr)
+    pred: StringAttr = prop_def(StringAttr)
 
-    output = result_def(AttributeType())
+    output: OpResult[AttributeType] = result_def(AttributeType())
 
     assembly_format = "$pred attr-dict"
 
@@ -201,8 +203,8 @@ class AttributeOp(IRDLOperation):
 
     name = "irdl.attribute"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    body = region_def("single_block")
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    body: Region = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
@@ -255,9 +257,9 @@ class ParametersOp(IRDLOperation):
 
     name = "irdl.parameters"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
-    names = prop_def(ArrayAttr[StringAttr])
+    names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(HasParent(TypeOp, AttributeOp))
 
@@ -287,8 +289,8 @@ class OperationOp(IRDLOperation):
 
     name = "irdl.operation"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    body = region_def("single_block")
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    body: Region = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
@@ -362,11 +364,11 @@ class OperandsOp(IRDLOperation):
 
     name = "irdl.operands"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
-    variadicity = prop_def(VariadicityArrayAttr)
+    variadicity: VariadicityArrayAttr = prop_def(VariadicityArrayAttr)
 
-    names = prop_def(ArrayAttr[StringAttr])
+    names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(HasParent(OperationOp))
 
@@ -408,11 +410,11 @@ class ResultsOp(IRDLOperation):
 
     name = "irdl.results"
 
-    args = var_operand_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
 
-    variadicity = prop_def(VariadicityArrayAttr)
+    variadicity: VariadicityArrayAttr = prop_def(VariadicityArrayAttr)
 
-    names = prop_def(ArrayAttr[StringAttr])
+    names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(HasParent(OperationOp))
 
@@ -468,9 +470,9 @@ class AttributesOp(IRDLOperation):
 
     name = "irdl.attributes"
 
-    attribute_values = var_operand_def(AttributeType())
+    attribute_values: VarOperand = var_operand_def(AttributeType())
 
-    attribute_value_names = prop_def(ArrayAttr[StringAttr])
+    attribute_value_names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     def __init__(
         self,
@@ -525,9 +527,9 @@ class RegionsOp(IRDLOperation):
 
     name = "irdl.regions"
 
-    args = var_operand_def(RegionType())
+    args: VarOperand = var_operand_def(RegionType())
 
-    names = prop_def(ArrayAttr[StringAttr])
+    names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     def __init__(self, args: Sequence[SSAValue], names: ArrayAttr[StringAttr]):
         super().__init__(operands=[args], properties={"names": names})
@@ -560,8 +562,8 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected = prop_def()
-    output = result_def(AttributeType)
+    expected: Attribute = prop_def()
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):
         super().__init__(
@@ -584,9 +586,9 @@ class BaseOp(IRDLOperation):
 
     name = "irdl.base"
 
-    base_ref = opt_prop_def(SymbolRefAttr)
-    base_name = opt_prop_def(StringAttr)
-    output = result_def(AttributeType)
+    base_ref: SymbolRefAttr | None = opt_prop_def(SymbolRefAttr)
+    base_name: StringAttr | None = opt_prop_def(StringAttr)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(
         self,
@@ -637,9 +639,9 @@ class ParametricOp(IRDLOperation):
 
     name = "irdl.parametric"
 
-    base_type = prop_def(SymbolRefAttr)
-    args = var_operand_def(AttributeType)
-    output = result_def(AttributeType)
+    base_type: SymbolRefAttr = prop_def(SymbolRefAttr)
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(
         self, base_type: str | StringAttr | SymbolRefAttr, args: Sequence[SSAValue]
@@ -675,13 +677,13 @@ class RegionOp(IRDLOperation):
 
     name = "irdl.region"
 
-    entry_block_args = var_operand_def(AttributeType())
+    entry_block_args: VarOperand = var_operand_def(AttributeType())
 
-    constrained_arguments = opt_prop_def(UnitAttr)
+    constrained_arguments: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    number_of_blocks = opt_prop_def(IntegerAttr[I32])
+    number_of_blocks: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
 
-    output = result_def(RegionType())
+    output: OpResult[RegionType] = result_def(RegionType())
 
     assembly_format = (
         "(```(` $entry_block_args $constrained_arguments^ `)`)?"
@@ -714,7 +716,7 @@ class AnyOp(IRDLOperation):
 
     name = "irdl.any"
 
-    output = result_def(AttributeType)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(self):
         super().__init__(result_types=[AttributeType()])
@@ -733,8 +735,8 @@ class AnyOfOp(IRDLOperation):
 
     name = "irdl.any_of"
 
-    args = var_operand_def(AttributeType)
-    output = result_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args], result_types=[AttributeType()])
@@ -757,8 +759,8 @@ class AllOfOp(IRDLOperation):
 
     name = "irdl.all_of"
 
-    args = var_operand_def(AttributeType)
-    output = result_def(AttributeType)
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args], result_types=[AttributeType()])

@@ -22,6 +22,8 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
     prop_def,
     region_def,
     var_operand_def,
@@ -53,22 +55,22 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     via a unified interface.
     """
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     """
     The operands that won't be mutated.
     """
-    outputs = var_operand_def(ShapedType)
+    outputs: VarOperand = var_operand_def(ShapedType)
     """
     The operands that will be accumulated into.
     These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.
     """
 
-    res = var_result_def(TensorType)
+    res: VarOpResult[TensorType] = var_result_def(TensorType)
     """
     The updated `outputs`, empty if the inputs are memrefs.
     """
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
     """
     The body implementing the combination of scalar elements of the inputs, and
     yielding the scalar elements of the outputs.
@@ -383,8 +385,8 @@ class PoolingOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = prop_def(DenseIntElementsAttr)
-    dilations = prop_def(DenseIntElementsAttr)
+    strides: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
+    dilations: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
 
     def __init__(
         self,
@@ -417,8 +419,8 @@ class ConvOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = prop_def(DenseIntElementsAttr)
-    dilations = prop_def(DenseIntElementsAttr)
+    strides: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
+    dilations: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
 
     def __init__(
         self,

@@ -54,8 +54,13 @@ from xdsl.ir import (
 from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    OptOpResult,
     ParametrizedAttribute,
     VarConstraint,
+    VarOperand,
     attr_def,
     base,
     eq,
@@ -135,11 +140,15 @@ class _FuncBase(IRDLOperation, ABC):
     Base class for the shared functionalty of FuncOp and TaskOp
     """
 
-    body = region_def()
-    sym_name = prop_def(SymbolNameConstraint())
-    function_type = prop_def(FunctionType)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    function_type: FunctionType = prop_def(FunctionType)
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    res_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
 
     def _props_region(
         self,
@@ -338,8 +347,8 @@ class PtrCastOp(IRDLOperation):
 
     name = "csl.ptrcast"
 
-    ptr = operand_def(PtrType)
-    result = result_def(PtrType)
+    ptr: Operand = operand_def(PtrType)
+    result: OpResult[PtrType] = result_def(PtrType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -430,8 +439,8 @@ class VariableOp(IRDLOperation):
 
     name = "csl.variable"
 
-    default = opt_prop_def(ParamAttr)
-    res = result_def(VarType)
+    default: ParamAttr | None = opt_prop_def(ParamAttr)
+    res: OpResult[VarType] = result_def(VarType)
 
     assembly_format = "`(` $default `)` `:` type($res) attr-dict"
 
@@ -470,8 +479,8 @@ class LoadVarOp(IRDLOperation):
     """
 
     name = "csl.load_var"
-    var = operand_def(VarType)
-    res = result_def()
+    var: Operand = operand_def(VarType)
+    res: OpResult = result_def()
 
     traits = traits_def(MemoryReadEffect())
 
@@ -504,8 +513,8 @@ class StoreVarOp(IRDLOperation):
     """
 
     name = "csl.store_var"
-    var = operand_def(VarType)
-    new_value = operand_def()
+    var: Operand = operand_def(VarType)
+    new_value: Operand = operand_def()
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -529,9 +538,9 @@ class StoreVarOp(IRDLOperation):
 class DirectionOp(IRDLOperation):
     name = "csl.get_dir"
 
-    dir = prop_def(DirectionAttr)
+    dir: DirectionAttr = prop_def(DirectionAttr)
 
-    res = result_def(DirectionType)
+    res: OpResult[DirectionType] = result_def(DirectionType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -548,9 +557,9 @@ class CslModuleOp(IRDLOperation):
     """
 
     name = "csl.module"
-    body = region_def("single_block")
-    kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(SymbolNameConstraint())
+    body: Region = region_def("single_block")
+    kind: ModuleKindAttr = prop_def(ModuleKindAttr)
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),
@@ -570,11 +579,11 @@ class ImportModuleConstOp(IRDLOperation):
 
     traits = traits_def(HasParent(CslModuleOp))
 
-    module = prop_def(StringAttr)
+    module: StringAttr = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLikeConstr)
+    params: OptOperand = opt_operand_def(StructLikeConstr)
 
-    result = result_def(ImportedModuleType)
+    result: OpResult[ImportedModuleType] = result_def(ImportedModuleType)
 
     def __init__(
         self, name: str | StringAttr, params: SSAValue | Operation | None = None
@@ -594,10 +603,10 @@ class ConstStructOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    items = opt_prop_def(DictionaryAttr)
-    ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
-    ssa_values = var_operand_def()
-    res = result_def(ComptimeStructType)
+    items: DictionaryAttr | None = opt_prop_def(DictionaryAttr)
+    ssa_fields: ArrayAttr[StringAttr] | None = opt_prop_def(ArrayAttr[StringAttr])
+    ssa_values: VarOperand = var_operand_def()
+    res: OpResult[ComptimeStructType] = result_def(ComptimeStructType)
 
     def __init__(self, *args: tuple[str, Operation | SSAValue]):
         operands: list[Operation | SSAValue] = []
@@ -640,11 +649,11 @@ class ZerosOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
-    size = opt_operand_def(T)
+    size: OptOperand = opt_operand_def(T)
 
-    result = result_def(MemRefType.constr(T))
+    result: OpResult[MemRefType] = result_def(MemRefType.constr(T))
 
-    is_const = opt_prop_def(builtin.UnitAttr)
+    is_const: builtin.UnitAttr | None = opt_prop_def(builtin.UnitAttr)
 
     def __init__(
         self,
@@ -675,13 +684,13 @@ class ConstantsOp(IRDLOperation):
         "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
     )
 
-    size = operand_def(IntegerType)
+    size: Operand = operand_def(IntegerType)
 
-    value = operand_def(T)
+    value: Operand = operand_def(T)
 
-    result = result_def(MemRefType.constr(T))
+    result: OpResult[MemRefType] = result_def(MemRefType.constr(T))
 
-    is_const = opt_prop_def(builtin.UnitAttr)
+    is_const: builtin.UnitAttr | None = opt_prop_def(builtin.UnitAttr)
 
     def __init__(self, size: SSAValue | Operation, value: SSAValue | Operation):
         super().__init__(
@@ -696,8 +705,8 @@ class GetColorOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    id = operand_def(IntegerType)
-    res = result_def(ColorType)
+    id: Operand = operand_def(IntegerType)
+    res: OpResult[ColorType] = result_def(ColorType)
 
     def __init__(self, op: Operation):
         super().__init__(operands=[op], result_types=[ColorType()])
@@ -713,11 +722,11 @@ class MemberAccessOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    struct = operand_def(StructLikeConstr)
+    struct: Operand = operand_def(StructLikeConstr)
 
-    field = prop_def(StringAttr)
+    field: StringAttr = prop_def(StringAttr)
 
-    result = result_def(Attribute)
+    result: OpResult = result_def(Attribute)
 
 
 @irdl_op_definition
@@ -728,13 +737,13 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-    struct = operand_def(StructLikeConstr)
+    struct: Operand = operand_def(StructLikeConstr)
 
-    field = prop_def(StringAttr)
+    field: StringAttr = prop_def(StringAttr)
 
-    args = var_operand_def(Attribute)
+    args: VarOperand = var_operand_def(Attribute)
 
-    result = opt_result_def(Attribute)
+    result: OptOpResult = opt_result_def(Attribute)
 
     def __init__(
         self,
@@ -830,8 +839,8 @@ class TaskOp(_FuncBase):
 
     name = "csl.task"
 
-    kind = prop_def(TaskKindAttr)
-    id = opt_prop_def(ColorIdAttr)
+    kind: TaskKindAttr = prop_def(TaskKindAttr)
+    id: ColorIdAttr | None = opt_prop_def(ColorIdAttr)
 
     traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
@@ -960,8 +969,8 @@ class ActivateOp(IRDLOperation):
 
     name = "csl.activate"
 
-    id = prop_def(ColorIdAttr)
-    kind = prop_def(TaskKindAttr)
+    id: ColorIdAttr = prop_def(ColorIdAttr)
+    kind: TaskKindAttr = prop_def(TaskKindAttr)
 
     assembly_format = "attr-dict $kind `,` $id"
 
@@ -982,7 +991,7 @@ class ReturnOp(IRDLOperation):
 
     name = "csl.return"
 
-    ret_val = opt_operand_def(Attribute)
+    ret_val: OptOperand = opt_operand_def(Attribute)
 
     assembly_format = "attr-dict ($ret_val^ `:` type($ret_val))?"
 
@@ -1005,7 +1014,7 @@ class ReturnOp(IRDLOperation):
 class LayoutOp(IRDLOperation):
     name = "csl.layout"
 
-    body = region_def()
+    body: Region = region_def()
 
     traits = traits_def(NoTerminator(), InModuleKind(ModuleKind.LAYOUT))
 
@@ -1033,9 +1042,9 @@ class CallOp(IRDLOperation):
 
     name = "csl.call"
 
-    callee = prop_def(SymbolRefAttr)
-    args = var_operand_def(Attribute)
-    result = opt_result_def(Attribute)
+    callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    args: VarOperand = var_operand_def(Attribute)
+    result: OptOpResult = opt_result_def(Attribute)
 
     def __init__(
         self,
@@ -1058,8 +1067,8 @@ class SetRectangleOp(IRDLOperation):
 
     traits = traits_def(HasParent(LayoutOp))
 
-    x_dim = operand_def(IntegerType)
-    y_dim = operand_def(IntegerType)
+    x_dim: Operand = operand_def(IntegerType)
+    y_dim: Operand = operand_def(IntegerType)
 
 
 @irdl_op_definition
@@ -1068,11 +1077,11 @@ class SetTileCodeOp(IRDLOperation):
 
     traits = traits_def(HasAncestor(LayoutOp))
 
-    file = prop_def(StringAttr)
+    file: StringAttr = prop_def(StringAttr)
 
-    x_coord = operand_def(IntegerType)
-    y_coord = operand_def(IntegerType)
-    params = opt_operand_def(ComptimeStructType)
+    x_coord: Operand = operand_def(IntegerType)
+    y_coord: Operand = operand_def(IntegerType)
+    params: OptOperand = opt_operand_def(ComptimeStructType)
 
     def __init__(
         self,
@@ -1138,8 +1147,8 @@ class _GetDsdOp(IRDLOperation, ABC):
     Abstract base class for CSL @get_dsd()
     """
 
-    sizes = var_operand_def(IntegerType)
-    result = result_def(DsdType)
+    sizes: VarOperand = var_operand_def(IntegerType)
+    result: OpResult[DsdType] = result_def(DsdType)
 
 
 @irdl_op_definition
@@ -1153,8 +1162,8 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType) | base(TensorType[Attribute]))
-    tensor_access = opt_prop_def(AffineMapAttr)
+    base_addr: Operand = operand_def(base(MemRefType) | base(TensorType))
+    tensor_access: AffineMapAttr | None = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
         Pure(),
@@ -1197,10 +1206,10 @@ class GetFabDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_fab_dsd"
-    fabric_color = prop_def(ColorIdAttr)
-    queue_id = prop_def(QueueIdAttr)
-    control = opt_prop_def(BoolAttr)
-    wavelet_index_offset = opt_prop_def(BoolAttr)
+    fabric_color: ColorIdAttr = prop_def(ColorIdAttr)
+    queue_id: QueueIdAttr = prop_def(QueueIdAttr)
+    control: BoolAttr | None = opt_prop_def(BoolAttr)
+    wavelet_index_offset: BoolAttr | None = opt_prop_def(BoolAttr)
 
     def verify_(self) -> None:
         if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
@@ -1227,11 +1236,11 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     name = "csl.set_dsd_base_addr"
 
-    op = operand_def(DsdType)
-    base_addr = operand_def(
-        base(MemRefType) | base(TensorType[Attribute]) | base(PtrType)
+    op: Operand = operand_def(DsdType)
+    base_addr: Operand = operand_def(
+        base(MemRefType) | base(TensorType) | base(PtrType)
     )
-    result = result_def(DsdType)
+    result: OpResult[DsdType] = result_def(DsdType)
 
     traits = traits_def(Pure())
 
@@ -1267,10 +1276,10 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     name = "csl.increment_dsd_offset"
 
-    op = operand_def(DsdType)
-    offset = operand_def(eq(i16) | eq(i16_value))
-    elem_type = prop_def(DsdElementTypeConstr)
-    result = result_def(DsdType)
+    op: Operand = operand_def(DsdType)
+    offset: Operand = operand_def(eq(i16) | eq(i16_value))
+    elem_type: Float16Type | Float32Type | IntegerType = prop_def(DsdElementTypeConstr)
+    result: OpResult[DsdType] = result_def(DsdType)
 
     traits = traits_def(Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait())
 
@@ -1294,9 +1303,9 @@ class SetDsdLengthOp(IRDLOperation):
     """
 
     name = "csl.set_dsd_length"
-    op = operand_def(DsdType)
-    length = operand_def(eq(i16) | eq(u16_value))
-    result = result_def(DsdType)
+    op: Operand = operand_def(DsdType)
+    length: Operand = operand_def(eq(i16) | eq(u16_value))
+    result: OpResult[DsdType] = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
 
@@ -1321,9 +1330,9 @@ class SetDsdStrideOp(IRDLOperation):
     """
 
     name = "csl.set_dsd_stride"
-    op = operand_def(DsdType)
-    stride = operand_def(eq(i8) | eq(i8_value))
-    result = result_def(DsdType)
+    op: Operand = operand_def(DsdType)
+    stride: Operand = operand_def(eq(i8) | eq(i8_value))
+    result: OpResult[DsdType] = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
 
@@ -1339,7 +1348,7 @@ FunctionSignatures = list[tuple[Attribute | type[Attribute], ...]]
 
 
 class BuiltinDsdOp(IRDLOperation, ABC):
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     SIGNATURES: ClassVar[FunctionSignatures]
 
@@ -1783,11 +1792,13 @@ class SymbolExportOp(IRDLOperation):
 
     traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
-    value = opt_operand_def(PtrType)
+    value: OptOperand = opt_operand_def(PtrType)
 
-    var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
+    var_name: StringAttr | SymbolRefAttr = prop_def(
+        base(StringAttr) | base(SymbolRefAttr)
+    )
 
-    type = prop_def(base(PtrType) | base(FunctionType))
+    type: PtrType | FunctionType = prop_def(base(PtrType) | base(FunctionType))
 
     def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
         var_name: StringAttr | SymbolRefAttr = (
@@ -1848,9 +1859,9 @@ class AddressOfFnOp(IRDLOperation):
     """
 
     name = "csl.addressof_fn"
-    fn_name = prop_def(SymbolRefAttr)
+    fn_name: SymbolRefAttr = prop_def(SymbolRefAttr)
 
-    res = result_def(PtrType)
+    res: OpResult[PtrType] = result_def(PtrType)
 
     def __init__(self, fn: FuncOp):
         fn_name = SymbolRefAttr(fn.sym_name)
@@ -1887,8 +1898,8 @@ class AddressOfOp(IRDLOperation):
 
     name = "csl.addressof"
 
-    value = operand_def()
-    res = result_def(PtrType)
+    value: Operand = operand_def()
+    res: OpResult[PtrType] = result_def(PtrType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1955,7 +1966,7 @@ class RpcOp(IRDLOperation):
 
     traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
-    id = operand_def(ColorType)
+    id: Operand = operand_def(ColorType)
 
 
 ParamOpAttr: TypeAlias = (
@@ -1997,10 +2008,18 @@ class ParamOp(IRDLOperation):
 
     traits = traits_def(HasParent(CslModuleOp))  # has to be at top level
 
-    param_name = prop_def(StringAttr)
-    init_value = opt_operand_def(T)
+    param_name: StringAttr = prop_def(StringAttr)
+    init_value: OptOperand = opt_operand_def(T)
 
-    res = result_def(T)
+    res: OpResult[
+        Float16Type
+        | Float32Type
+        | IntegerType
+        | ColorType
+        | FunctionType
+        | ImportedModuleType
+        | ComptimeStructType
+    ] = result_def(T)
 
     def __init__(
         self,
@@ -2025,9 +2044,9 @@ class SignednessCastOp(IRDLOperation):
 
     name = "csl.mlir.signedness_cast"
 
-    inp = operand_def(IntegerType)
+    inp: Operand = operand_def(IntegerType)
 
-    result = result_def(IntegerType)
+    result: OpResult[IntegerType] = result_def(IntegerType)
 
     assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
@@ -2082,11 +2101,11 @@ class ConcatStructOp(IRDLOperation):
 
     name = "csl.concat_structs"
 
-    this_struct = operand_def(ComptimeStructType)
+    this_struct: Operand = operand_def(ComptimeStructType)
 
-    another_struct = operand_def(ComptimeStructType)
+    another_struct: Operand = operand_def(ComptimeStructType)
 
-    result = result_def(ComptimeStructType)
+    result: OpResult[ComptimeStructType] = result_def(ComptimeStructType)
 
     def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
         super().__init__(

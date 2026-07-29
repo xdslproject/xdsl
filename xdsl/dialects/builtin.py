@@ -68,6 +68,8 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    VarOperand,
+    VarOpResult,
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -2213,8 +2215,8 @@ class TensorType(
         )
 
 
-AnyTensorType: TypeAlias = TensorType[Attribute]
-AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
+AnyTensorType: TypeAlias = TensorType
+AnyTensorTypeConstr = BaseAttr[TensorType](TensorType)
 
 
 @irdl_attr_definition
@@ -2237,7 +2239,7 @@ class UnrankedTensorType(
             printer.print_attribute(self.element_type)
 
 
-AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+AnyUnrankedTensorType: TypeAlias = UnrankedTensorType
 AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
@@ -2719,8 +2721,8 @@ class AffineSetAttr(_BuiltinData[AffineSet]):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs = var_operand_def()
-    outputs = var_result_def()
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
 
     traits = traits_def(NoMemoryEffect())
 
@@ -2936,9 +2938,9 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
-    sym_name = opt_prop_def(StringAttr)
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(
         IsolatedFromAbove(),

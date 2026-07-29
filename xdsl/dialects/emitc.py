@@ -44,7 +44,11 @@ from xdsl.irdl import (
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -313,9 +317,9 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
 class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
     """Base class for EmitC binary operations."""
 
-    lhs = operand_def(EmitCTypeConstr)
-    rhs = operand_def(EmitCTypeConstr)
-    result = result_def(EmitCTypeConstr)
+    lhs: Operand = operand_def(EmitCTypeConstr)
+    rhs: Operand = operand_def(EmitCTypeConstr)
+    result: OpResult = result_def(EmitCTypeConstr)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -388,11 +392,11 @@ class EmitC_ApplyOp(IRDLOperation):
         $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
       """
 
-    applicableOperator = prop_def(StringAttr)
+    applicableOperator: StringAttr = prop_def(StringAttr)
 
-    operand = operand_def(AnyAttr())
+    operand: Operand = operand_def(AnyAttr())
 
-    result = result_def(EmitCTypeConstr)
+    result: OpResult = result_def(EmitCTypeConstr)
 
     def verify_(self) -> None:
         applicable_operator = self.applicableOperator.data
@@ -437,12 +441,12 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 
     name = "emitc.call_opaque"
 
-    callee = prop_def(StringAttr)
-    args = opt_prop_def(ArrayAttr)
-    template_args = opt_prop_def(ArrayAttr)
+    callee: StringAttr = prop_def(StringAttr)
+    args: ArrayAttr[Attribute] | None = opt_prop_def(ArrayAttr)
+    template_args: ArrayAttr[Attribute] | None = opt_prop_def(ArrayAttr)
     # The SSA-value operands of the call
-    call_args = var_operand_def()
-    res = var_result_def()
+    call_args: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
     irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (

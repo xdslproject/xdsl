@@ -25,6 +25,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    VarOperand,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -114,21 +118,21 @@ class LaunchOp(IRDLOperation):
 
     name = "accfg.launch"
 
-    values = var_operand_def(Attribute)  # TODO: make more precise?
+    values: VarOperand = var_operand_def(Attribute)  # TODO: make more precise?
     """
     The actual values used to set up registers linked to launch
     """
 
-    state = operand_def(StateType)
+    state: Operand = operand_def(StateType)
 
-    param_names = prop_def(ArrayAttr[StringAttr])
+    param_names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
     """
     Maps the SSA values in `values` to accelerator launch parameters
     """
 
-    accelerator = prop_def(StringAttr)
+    accelerator: StringAttr = prop_def(StringAttr)
 
-    token = result_def()
+    token: OpResult = result_def()
 
     def __init__(
         self,
@@ -187,7 +191,7 @@ class AwaitOp(IRDLOperation):
 
     name = "accfg.await"
 
-    token = operand_def(TokenType)
+    token: Operand = operand_def(TokenType)
 
     def __init__(self, token: SSAValue | Operation):
         super().__init__(operands=[token])
@@ -205,27 +209,27 @@ class SetupOp(IRDLOperation):
 
     name = "accfg.setup"
 
-    values = var_operand_def(Attribute)  # TODO: make more precise?
+    values: VarOperand = var_operand_def(Attribute)  # TODO: make more precise?
     """
     The actual values used to set up the CSRs
     """
 
-    in_state = opt_operand_def(StateType)
+    in_state: OptOperand = opt_operand_def(StateType)
     """
     The state produced by a previous accfg.setup
     """
 
-    out_state = result_def(StateType)
+    out_state: OpResult[StateType] = result_def(StateType)
     """
     The CSR state after the setup op modified it.
     """
 
-    param_names = prop_def(ArrayAttr[StringAttr])
+    param_names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
     """
     Maps the SSA values in `values` to accelerator parameter names
     """
 
-    accelerator = prop_def(StringAttr)
+    accelerator: StringAttr = prop_def(StringAttr)
     """
     Name of the accelerator this setup is for
     """
@@ -370,13 +374,13 @@ class AcceleratorOp(IRDLOperation):
 
     traits = traits_def(AcceleratorSymbolOpTrait())
 
-    name_prop = prop_def(SymbolRefAttr, prop_name="name")
+    name_prop: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
-    fields = prop_def(DictionaryAttr)
+    fields: DictionaryAttr = prop_def(DictionaryAttr)
 
-    launch_fields = prop_def(DictionaryAttr)
+    launch_fields: DictionaryAttr = prop_def(DictionaryAttr)
 
-    barrier = prop_def(
+    barrier: IntegerAttr[IntegerType] = prop_def(
         IntegerAttr[IntegerType]
     )  # TODO: this will be reworked in a later version
 
@@ -436,7 +440,7 @@ class AcceleratorOp(IRDLOperation):
 class ResetOp(IRDLOperation):
     name = "accfg.reset"
 
-    in_state = operand_def(StateType)
+    in_state: Operand = operand_def(StateType)
 
     assembly_format = "$in_state attr-dict `:` type($in_state)"
 

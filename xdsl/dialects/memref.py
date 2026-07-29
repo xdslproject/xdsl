@@ -9,7 +9,9 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
+    AnyFloat,
     AnyFloatConstr,
+    AnySignlessIntegerType,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -37,16 +39,21 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
+    ArrayOfIntArrayAttr,
     ContiguousArrayOfIntArray,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParsePropInAttrDict,
     SameVariadicResultSize,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     base,
     irdl_op_definition,
     lazy_traits_def,
@@ -94,11 +101,13 @@ class LoadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    nontemporal: BoolAttr = opt_prop_def(
+        BoolAttr, default_value=BoolAttr.from_bool(False)
+    )
 
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType())
-    res = result_def(T)
+    memref: Operand = operand_def(MemRefType.constr(T))
+    indices: VarOperand = var_operand_def(IndexType())
+    res: OpResult = result_def(T)
 
     traits = traits_def(MemoryReadEffect())
 
@@ -133,11 +142,13 @@ class StoreOp(IRDLOperation):
 
     name = "memref.store"
 
-    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    nontemporal: BoolAttr = opt_prop_def(
+        BoolAttr, default_value=BoolAttr.from_bool(False)
+    )
 
-    value = operand_def(T)
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType())
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType.constr(T))
+    indices: VarOperand = var_operand_def(IndexType())
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -175,13 +186,13 @@ class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 class AllocOp(IRDLOperation):
     name = "memref.alloc"
 
-    dynamic_sizes = var_operand_def(IndexType)
-    symbol_operands = var_operand_def(IndexType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType)
+    symbol_operands: VarOperand = var_operand_def(IndexType)
 
-    memref = result_def(MemRefType)
+    memref: OpResult[MemRefType] = result_def(MemRefType)
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = opt_prop_def(IntegerAttr)
+    alignment: IntegerAttr | None = opt_prop_def(IntegerAttr)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -302,16 +313,16 @@ class AllocOp(IRDLOperation):
 class AllocaScopeOp(IRDLOperation):
     name = "memref.alloca_scope"
 
-    res = var_result_def()
+    res: VarOpResult = var_result_def()
 
-    scope = region_def()
+    scope: Region = region_def()
 
 
 @irdl_op_definition
 class AllocaScopeReturnOp(IRDLOperation):
     name = "memref.alloca_scope.return"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
 
@@ -327,13 +338,13 @@ class AllocaScopeReturnOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "memref.alloca"
 
-    dynamic_sizes = var_operand_def(IndexType)
-    symbol_operands = var_operand_def(IndexType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType)
+    symbol_operands: VarOperand = var_operand_def(IndexType)
 
-    memref = result_def(MemRefType)
+    memref: OpResult[MemRefType] = result_def(MemRefType)
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = opt_prop_def(IntegerAttr)
+    alignment: IntegerAttr | None = opt_prop_def(IntegerAttr)
 
     traits = traits_def(MemoryAllocEffect())
 
@@ -386,13 +397,13 @@ class AtomicRMWOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
-    value = operand_def(T)
-    memref = operand_def(MemRefType.constr(T))
-    indices = var_operand_def(IndexType)
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType.constr(T))
+    indices: VarOperand = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[I64])
+    kind: IntegerAttr[I64] = prop_def(IntegerAttr[I64])
 
-    result = result_def(T)
+    result: OpResult[AnyFloat | AnySignlessIntegerType] = result_def(T)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
@@ -400,7 +411,7 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    memref: Operand = operand_def(base(MemRefType) | base(UnrankedMemRefType))
 
     traits = traits_def(MemoryFreeEffect())
 
@@ -414,8 +425,8 @@ class DeallocOp(IRDLOperation):
 @irdl_op_definition
 class GetGlobalOp(IRDLOperation):
     name = "memref.get_global"
-    memref = result_def(MemRefType)
-    name_ = prop_def(SymbolRefAttr, prop_name="name")
+    memref: OpResult[MemRefType] = result_def(MemRefType)
+    name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
     traits = traits_def(NoMemoryEffect())
 
@@ -434,12 +445,14 @@ class GetGlobalOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "memref.global"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    sym_visibility = prop_def(StringAttr)
-    type = prop_def(MemRefType)
-    initial_value = prop_def(UnitAttr | DenseIntOrFPElementsAttr)
-    constant = opt_prop_def(UnitAttr)
-    alignment = opt_prop_def(IntegerAttr[I64])
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    sym_visibility: StringAttr = prop_def(StringAttr)
+    type: MemRefType = prop_def(MemRefType)
+    initial_value: UnitAttr | DenseIntOrFPElementsAttr = prop_def(
+        UnitAttr | DenseIntOrFPElementsAttr
+    )
+    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    alignment: IntegerAttr[I64] | None = opt_prop_def(IntegerAttr[I64])
 
     traits = traits_def(SymbolOpInterface(), MemoryAllocEffect())
 
@@ -480,10 +493,10 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    index = operand_def(IndexType)
+    source: Operand = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    index: Operand = operand_def(IndexType)
 
-    result = result_def(IndexType)
+    result: OpResult[IndexType] = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -500,9 +513,9 @@ class DimOp(IRDLOperation):
 class RankOp(IRDLOperation):
     name = "memref.rank"
 
-    source = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
 
-    rank = result_def(IndexType)
+    rank: OpResult[IndexType] = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -512,8 +525,8 @@ class RankOp(IRDLOperation):
 
 
 class AlterShapeOperation(IRDLOperation, abc.ABC):
-    result = result_def(MemRefType)
-    reassociation = prop_def(ContiguousArrayOfIntArray())
+    result: OpResult[MemRefType] = result_def(MemRefType)
+    reassociation: ArrayOfIntArrayAttr = prop_def(ContiguousArrayOfIntArray())
 
     traits = traits_def(NoMemoryEffect())
 
@@ -526,7 +539,7 @@ class CollapseShapeOp(AlterShapeOperation):
 
     name = "memref.collapse_shape"
 
-    src = operand_def(MemRefType)
+    src: Operand = operand_def(MemRefType)
 
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
@@ -541,10 +554,10 @@ class ExpandShapeOp(AlterShapeOperation):
 
     name = "memref.expand_shape"
 
-    src = operand_def(MemRefType)
-    output_shape = var_operand_def(IndexType)
+    src: Operand = operand_def(MemRefType)
+    output_shape: VarOperand = var_operand_def(IndexType)
 
-    static_output_shape = prop_def(DenseArrayBase.constr(i64))
+    static_output_shape: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
     assembly_format = (
         "$src $reassociation `output_shape`"
@@ -563,12 +576,12 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     name = "memref.extract_strided_metadata"
 
-    source = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
 
-    base_buffer = result_def(MemRefType)
-    offset = result_def(IndexType)
-    sizes = var_result_def(IndexType)
-    strides = var_result_def(IndexType)
+    base_buffer: OpResult[MemRefType] = result_def(MemRefType)
+    offset: OpResult[IndexType] = result_def(IndexType)
+    sizes: VarOpResult[IndexType] = var_result_def(IndexType)
+    strides: VarOpResult[IndexType] = var_result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -602,9 +615,9 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
-    source = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
 
-    aligned_pointer = result_def(IndexType)
+    aligned_pointer: OpResult[IndexType] = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -629,14 +642,14 @@ class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class SubviewOp(IRDLOperation):
     name = "memref.subview"
 
-    source = operand_def(MemRefType)
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase.constr(i64))
-    static_sizes = prop_def(DenseArrayBase.constr(i64))
-    static_strides = prop_def(DenseArrayBase.constr(i64))
-    result = result_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
+    static_offsets: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    static_sizes: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    static_strides: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    result: OpResult[MemRefType] = result_def(MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -720,13 +733,13 @@ class SubviewOp(IRDLOperation):
 
     @staticmethod
     def infer_result_type(
-        source_type: MemRefType[Attribute],
+        source_type: MemRefType,
         offsets: Sequence[SSAValue | int],
         sizes: Sequence[SSAValue | int],
         strides: Sequence[SSAValue | int],
         *,
         reduce_rank: bool = False,
-    ) -> MemRefType[Attribute]:
+    ) -> MemRefType:
         """
         Infer the result type of a memref.subview from its source type and
         offsets/sizes/strides.
@@ -851,8 +864,10 @@ class SubviewOp(IRDLOperation):
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source: Operand = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    dest: OpResult[MemRefType | UnrankedMemRefType] = result_def(
+        base(MemRefType) | base(UnrankedMemRefType)
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -868,8 +883,10 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source: Operand = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    dest: OpResult[MemRefType | UnrankedMemRefType] = result_def(
+        base(MemRefType) | base(UnrankedMemRefType)
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -913,17 +930,17 @@ class ReinterpretCastOp(IRDLOperation):
 
     name = "memref.reinterpret_cast"
 
-    source = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
 
-    offsets = var_operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
-    strides = var_operand_def(IndexType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
 
-    static_offsets = prop_def(DenseArrayBase.constr(i64))
-    static_sizes = prop_def(DenseArrayBase.constr(i64))
-    static_strides = prop_def(DenseArrayBase.constr(i64))
+    static_offsets: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    static_sizes: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
+    static_strides: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
-    result = result_def(MemRefType)
+    result: OpResult[MemRefType] = result_def(MemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1051,11 +1068,11 @@ class ViewOp(IRDLOperation):
 
     name = "memref.view"
 
-    source = operand_def(MemRefType[i8])
-    byte_shift = operand_def(IndexType)
-    sizes = var_operand_def(IndexType)
+    source: Operand = operand_def(MemRefType[i8])
+    byte_shift: Operand = operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(MemRefType)
+    result: OpResult[MemRefType] = result_def(MemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1114,16 +1131,16 @@ class ViewOp(IRDLOperation):
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
-    src = operand_def(MemRefType)
-    src_indices = var_operand_def(IndexType)
+    src: Operand = operand_def(MemRefType)
+    src_indices: VarOperand = var_operand_def(IndexType)
 
-    dest = operand_def(MemRefType)
-    dest_indices = var_operand_def(IndexType)
+    dest: Operand = operand_def(MemRefType)
+    dest_indices: VarOperand = var_operand_def(IndexType)
 
-    num_elements = operand_def(IndexType)
+    num_elements: Operand = operand_def(IndexType)
 
-    tag = operand_def(MemRefType[IntegerType])
-    tag_indices = var_operand_def(IndexType)
+    tag: Operand = operand_def(MemRefType[IntegerType])
+    tag_indices: VarOperand = var_operand_def(IndexType)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
@@ -1182,10 +1199,10 @@ class DmaStartOp(IRDLOperation):
 class DmaWaitOp(IRDLOperation):
     name = "memref.dma_wait"
 
-    tag = operand_def(MemRefType)
-    tag_indices = var_operand_def(IndexType)
+    tag: Operand = operand_def(MemRefType)
+    tag_indices: VarOperand = var_operand_def(IndexType)
 
-    num_elements = operand_def(IndexType)
+    num_elements: Operand = operand_def(IndexType)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
@@ -1218,8 +1235,8 @@ class DmaWaitOp(IRDLOperation):
 @irdl_op_definition
 class CopyOp(IRDLOperation):
     name = "memref.copy"
-    source = operand_def(MemRefType)
-    destination = operand_def(MemRefType)
+    source: Operand = operand_def(MemRefType)
+    destination: Operand = operand_def(MemRefType)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 

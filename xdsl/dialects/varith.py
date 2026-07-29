@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     IndexType,
     IntegerType,
+    TensorType,
     VectorType,
     container_of,
 )
@@ -21,7 +22,10 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -53,8 +57,37 @@ class VarithOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", integerOrFloatLike)
 
-    args = var_operand_def(T)
-    res = result_def(T)
+    args: VarOperand = var_operand_def(T)
+    res: OpResult[
+        IntegerType
+        | IndexType
+        | BFloat16Type
+        | Float16Type
+        | Float32Type
+        | Float64Type
+        | Float80Type
+        | Float128Type
+        | VectorType[
+            IntegerType
+            | IndexType
+            | BFloat16Type
+            | Float16Type
+            | Float32Type
+            | Float64Type
+            | Float80Type
+            | Float128Type
+        ]
+        | TensorType[
+            IntegerType
+            | IndexType
+            | BFloat16Type
+            | Float16Type
+            | Float32Type
+            | Float64Type
+            | Float80Type
+            | Float128Type
+        ]
+    ] = result_def(T)
 
     traits = traits_def(Pure())
 
@@ -88,13 +121,13 @@ class VarithSwitchOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    flag = operand_def(IntegerType | IndexType)
-    case_values = prop_def(DenseIntElementsAttr)
+    flag: Operand = operand_def(IntegerType | IndexType)
+    case_values: DenseIntElementsAttr = prop_def(DenseIntElementsAttr)
 
-    default_arg = operand_def(T)
-    args = var_operand_def(T)
+    default_arg: Operand = operand_def(T)
+    args: VarOperand = var_operand_def(T)
 
-    result = result_def(T)
+    result: OpResult = result_def(T)
 
     traits = traits_def(Pure())
 

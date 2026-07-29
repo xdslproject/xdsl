@@ -25,9 +25,13 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
     IRDLOperation,
+    Operand,
     Operation,
+    OptOperand,
     Region,
     SSAValue,
+    VarOperand,
+    VarOpResult,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -65,16 +69,16 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
-    lb = operand_def(IntRegisterType)
-    ub = operand_def(IntRegisterType)
-    step_val = opt_operand_def(IntRegisterType)
-    step_attr = opt_prop_def(IntegerAttr[IntegerType])
+    lb: Operand = operand_def(IntRegisterType)
+    ub: Operand = operand_def(IntRegisterType)
+    step_val: OptOperand = opt_operand_def(IntRegisterType)
+    step_attr: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
 
-    iter_args = var_operand_def(RISCVRegisterType)
+    iter_args: VarOperand = var_operand_def(RISCVRegisterType)
 
-    res = var_result_def(RISCVRegisterType)
+    res: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -294,11 +298,11 @@ class RofOp(ForRofOperation):
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "riscv_scf.while"
-    arguments = var_operand_def(RISCVRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    res = var_result_def(RISCVRegisterType)
-    before_region = region_def()
-    after_region = region_def()
+    res: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
+    before_region: Region = region_def()
+    after_region: Region = region_def()
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -420,8 +424,8 @@ class WhileOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
-    cond = operand_def(IntRegisterType)
-    arguments = var_operand_def(RISCVRegisterType)
+    cond: Operand = operand_def(IntRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 

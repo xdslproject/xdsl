@@ -27,6 +27,7 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
+    Region,
     SpacedOpaqueSyntaxAttribute,
     StrEnum,
     TypeAttribute,
@@ -40,6 +41,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     Operation,
+    OptOperand,
     RangeOf,
     SameVariadicOperandSize,
     VarOperand,
@@ -524,7 +526,7 @@ class MapBoundsType(ParametrizedAttribute, TypeAttribute):
 class LoopNestOp(IRDLOperation):
     name = "omp.loop_nest"
 
-    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
+    lowerBound: VarOperand = var_operand_def(base(IntegerType) | base(IndexType))
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
 
@@ -933,14 +935,16 @@ class DistributeOp(BlockArgOpenMPOperation):
     dist_schedule_chunk_size = opt_operand_def(IntegerType | IndexType)
     private_vars = var_operand_def()
 
-    dist_schedule_static = opt_prop_def(UnitAttr)
-    order = opt_prop_def(OrderKindAttr)
-    order_mod = opt_prop_def(OrderModifierAttr)
-    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    dist_schedule_static: UnitAttr | None = opt_prop_def(UnitAttr)
+    order: OrderKindAttr | None = opt_prop_def(OrderKindAttr)
+    order_mod: OrderModifierAttr | None = opt_prop_def(OrderModifierAttr)
+    private_syms: ArrayAttr[SymbolRefAttr] | None = opt_prop_def(
+        ArrayAttr[SymbolRefAttr]
+    )
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
 
@@ -963,19 +967,19 @@ class TargetTaskBasedDataOp(IRDLOperation):
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
 
-    depend_vars = var_operand_def(
+    depend_vars: VarOperand = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
         ).of_length(DEP_COUNT)
     )
-    device = opt_operand_def(IntegerType | IndexType)
-    if_expr = opt_operand_def(i1)
-    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    device: OptOperand = opt_operand_def(IntegerType | IndexType)
+    if_expr: OptOperand = opt_operand_def(i1)
+    mapped_vars: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
-    depend_kinds = opt_prop_def(
+    depend_kinds: ArrayAttr[DependKindAttr] | None = opt_prop_def(
         ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
     )
-    nowait = opt_prop_def(UnitAttr)
+    nowait: UnitAttr | None = opt_prop_def(UnitAttr)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -1054,13 +1058,17 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     name = "omp.target_data"
 
-    device = opt_operand_def(IntegerType)
-    if_expr = opt_operand_def(i1)
-    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    use_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    use_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    device: OptOperand = opt_operand_def(IntegerType)
+    if_expr: OptOperand = opt_operand_def(i1)
+    mapped_vars: VarOperand = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    use_device_addr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
+    use_device_ptr_vars: VarOperand = (
+        var_operand_def()
+    )  # TODO: OpenMP_PointerLikeTypeInterface
 
-    region = region_def()
+    region: Region = region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 

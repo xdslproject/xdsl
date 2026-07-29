@@ -15,11 +15,15 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnySignlessIntegerType,
     IndexType,
+    TensorType,
+    VectorType,
     container_of,
 )
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -38,8 +42,13 @@ class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    operand = operand_def(T)
-    result = result_def(T)
+    operand: Operand = operand_def(T)
+    result: OpResult[
+        AnySignlessIntegerType
+        | IndexType
+        | VectorType[AnySignlessIntegerType | IndexType]
+        | TensorType[AnySignlessIntegerType | IndexType]
+    ] = result_def(T)
 
     assembly_format = "$operand attr-dict `:` type($result)"
 
@@ -56,10 +65,14 @@ class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
-    operand = operand_def(T)
-    result = result_def(T)
+    operand: Operand = operand_def(T)
+    result: OpResult[AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]] = (
+        result_def(T)
+    )
 
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
@@ -79,9 +92,14 @@ class SignlessIntegerLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult[
+        AnySignlessIntegerType
+        | IndexType
+        | VectorType[AnySignlessIntegerType | IndexType]
+        | TensorType[AnySignlessIntegerType | IndexType]
+    ] = result_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
@@ -101,11 +119,15 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult[AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]] = (
+        result_def(T)
+    )
 
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
 
     assembly_format = (
         "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
@@ -541,10 +563,14 @@ class FPowIOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T1", floatingPointLike)
 
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
-    lhs = operand_def(T)
-    rhs = operand_def(signlessIntegerLike)
-    result = result_def(T)
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(signlessIntegerLike)
+    result: OpResult[AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]] = (
+        result_def(T)
+    )
 
     traits = traits_def(Pure())
 
@@ -604,11 +630,15 @@ class FmaOp(IRDLOperation):
 
     name = "math.fma"
 
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
-    a = operand_def(T)
-    b = operand_def(T)
-    c = operand_def(T)
-    result = result_def(T)
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
+    a: Operand = operand_def(T)
+    b: Operand = operand_def(T)
+    c: Operand = operand_def(T)
+    result: OpResult[AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]] = (
+        result_def(T)
+    )
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 

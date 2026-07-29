@@ -133,9 +133,11 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     name = "stim.circuit"
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
-    qubitlayout = opt_prop_def(ArrayAttr[QubitMappingAttr])
+    qubitlayout: ArrayAttr[QubitMappingAttr] | None = opt_prop_def(
+        ArrayAttr[QubitMappingAttr]
+    )
 
     assembly_format = "(`qubitlayout` $qubitlayout^)? attr-dict-with-keyword $body"
 
@@ -190,7 +192,7 @@ class QubitCoordsOp(AnnotationOp):
 
     name = "stim.assign_qubit_coord"
 
-    qubitmapping = prop_def(QubitMappingAttr)
+    qubitmapping: QubitMappingAttr = prop_def(QubitMappingAttr)
 
     assembly_format = "$qubitmapping attr-dict"
 
@@ -216,7 +218,7 @@ class SingleQubitGateOp(StimPrintable, IRDLOperation, ABC):
 
     STIM_NAME: ClassVar[str]
 
-    targets = prop_def(ArrayAttr[QubitAttr])
+    targets: ArrayAttr[QubitAttr] = prop_def(ArrayAttr[QubitAttr])
 
     assembly_format = "$targets attr-dict"
 
@@ -311,7 +313,7 @@ class TwoQubitGateOp(StimPrintable, IRDLOperation, ABC):
 
     STIM_NAME: ClassVar[str]
 
-    targets = prop_def(ArrayAttr[QubitAttr])
+    targets: ArrayAttr[QubitAttr] = prop_def(ArrayAttr[QubitAttr])
 
     assembly_format = "$targets attr-dict"
 
@@ -380,8 +382,8 @@ class MeasurementOperation(StimPrintable, IRDLOperation, ABC):
 
     STIM_NAME: ClassVar[str]
 
-    targets = prop_def(ArrayAttr[QubitAttr])
-    flip_prob = opt_prop_def(FloatData)
+    targets: ArrayAttr[QubitAttr] = prop_def(ArrayAttr[QubitAttr])
+    flip_prob: FloatData | None = opt_prop_def(FloatData)
 
     assembly_format = "(`flip_prob` $flip_prob^)? $targets attr-dict"
 
@@ -436,7 +438,7 @@ class ResetOperation(StimPrintable, IRDLOperation, ABC):
 
     STIM_NAME: ClassVar[str]
 
-    targets = prop_def(ArrayAttr[QubitAttr])
+    targets: ArrayAttr[QubitAttr] = prop_def(ArrayAttr[QubitAttr])
 
     assembly_format = "$targets attr-dict"
 
@@ -481,8 +483,8 @@ class MeasureResetOperation(StimPrintable, IRDLOperation, ABC):
 
     STIM_NAME: ClassVar[str]
 
-    targets = prop_def(ArrayAttr[QubitAttr])
-    flip_prob = opt_prop_def(FloatData)
+    targets: ArrayAttr[QubitAttr] = prop_def(ArrayAttr[QubitAttr])
+    flip_prob: FloatData | None = opt_prop_def(FloatData)
 
     assembly_format = "(`flip_prob` $flip_prob^)? $targets attr-dict"
 

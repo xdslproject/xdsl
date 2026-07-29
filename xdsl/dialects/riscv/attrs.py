@@ -56,7 +56,7 @@ class LabelAttr(Data[str]):
 
 def _parse_optional_immediate_value(
     parser: AttrParser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+) -> IntegerAttr | LabelAttr | None:
     """
     Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
     """
@@ -72,7 +72,7 @@ def _parse_optional_immediate_value(
 
 def parse_immediate_value(
     parser: AttrParser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+) -> IntegerAttr | LabelAttr:
     return parser.expect(
         lambda: _parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",

@@ -17,6 +17,8 @@ from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedResultSegments,
     IRDLOperation,
+    OpResult,
+    VarOpResult,
     irdl_op_definition,
     result_def,
     var_result_def,
@@ -106,9 +108,9 @@ def test_run_get_results():
     @irdl_op_definition
     class MultiResultGroupsOp(IRDLOperation):
         name = "test.multi_result_group"
-        res1 = var_result_def()
-        res2 = result_def()
-        res3 = var_result_def()
+        res1: VarOpResult = var_result_def()
+        res2: OpResult = result_def()
+        res3: VarOpResult = var_result_def()
 
         irdl_options = (AttrSizedResultSegments(),)
 
@@ -1444,9 +1446,9 @@ def test_run_replace_rangetype_mixed():
     @irdl_op_definition
     class MultiResultGroupsOp(IRDLOperation):
         name = "test.multi_result_group"
-        res1 = var_result_def()
-        res2 = result_def()
-        res3 = var_result_def()
+        res1: VarOpResult = var_result_def()
+        res2: OpResult = result_def()
+        res3: VarOpResult = var_result_def()
 
         irdl_options = (AttrSizedResultSegments(),)
 

@@ -26,7 +26,6 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import (
-    Attribute,
     AttributeInvT,
     Block,
     BlockArgument,
@@ -83,9 +82,7 @@ class StencilTypeConversion(TypeConversionPattern):
     """
 
     @attr_type_rewrite_pattern
-    def convert_type(
-        self, typ: stencil.FieldType[TensorType[Attribute]]
-    ) -> memref.MemRefType:
+    def convert_type(self, typ: stencil.FieldType[TensorType]) -> memref.MemRefType:
         # todo should this convert to `memref` or `stencil.field<..xmemref<..>>`?
         return tensor_to_memref_type(typ.get_element_type())
 
@@ -113,7 +110,7 @@ class ApplyOpBufferize(RewritePattern):
             lambda use: use.operation != buf_iter_arg,
         )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
-            if isa(arg.type, TensorType[Attribute]):
+            if isa(arg.type, TensorType):
                 to_memrefs.append(new_arg := to_buffer_op(arg))
                 buf_args.append(new_arg.memref)
             else:
@@ -168,7 +165,7 @@ class ApplyOpBufferize(RewritePattern):
                 done_exchange_arg_mapping.append(arg)
 
         typ = op.receive_chunk.block.args[0].type
-        assert isa(typ, TensorType[Attribute])
+        assert isa(typ, TensorType)
         chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
 
         # inline blocks from old into new regions
@@ -211,7 +208,7 @@ class ApplyOpBufferize(RewritePattern):
     def _inject_iter_arg_into_linalg_outs(
         op: csl_stencil.ApplyOp,
         rewriter: PatternRewriter,
-        chunk_type: TensorType[Attribute],
+        chunk_type: TensorType,
         iter_arg: SSAValue,
     ):
         """
@@ -269,7 +266,7 @@ class ApplyOpBufferize(RewritePattern):
 
         # this is the unbufferized `tensor<(neighbours)x(ZDim)x(type)>` value
         typ = op.receive_chunk.block.args[0].type
-        assert isa(typ, TensorType[Attribute])
+        assert isa(typ, TensorType)
 
         return tensor.ExtractSliceOp(
             operands=[to_tensor.tensor, [offset], [], []],
@@ -294,7 +291,7 @@ class AccessOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
-        if not isa(op.result.type, TensorType[Attribute]):
+        if not isa(op.result.type, TensorType):
             return
         r_type = tensor_to_memref_type(op.result.type)
 
@@ -334,7 +331,7 @@ class YieldOpBufferize(RewritePattern):
         to_memrefs: list[Operation] = []
         args: list[SSAValue] = []
         for arg in op.arguments:
-            if isa(arg.type, TensorType[Attribute]):
+            if isa(arg.type, TensorType):
                 to_memrefs.append(new_arg := to_buffer_op(arg))
                 args.append(new_arg.memref)
             else:
@@ -358,7 +355,7 @@ class FuncOpBufferize(RewritePattern):
             [
                 (
                     tensor_to_memref_type(t.get_element_type())
-                    if isa(t, stencil.FieldType[TensorType[Attribute]])
+                    if isa(t, stencil.FieldType[TensorType])
                     else t
                 )
                 for t in op.function_type.inputs
@@ -366,7 +363,7 @@ class FuncOpBufferize(RewritePattern):
             [
                 (
                     tensor_to_memref_type(t.get_element_type())
-                    if isa(t, stencil.FieldType[TensorType[Attribute]])
+                    if isa(t, stencil.FieldType[TensorType])
                     else t
                 )
                 for t in op.function_type.outputs
@@ -394,7 +391,7 @@ class ArithConstBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter, /):
-        if not isa(op.result.type, TensorType[Attribute]):
+        if not isa(op.result.type, TensorType):
             return
         assert isa(op.value, DenseIntOrFPElementsAttr)
         assert isa(op.value.type, TensorType[AnyDenseElement])

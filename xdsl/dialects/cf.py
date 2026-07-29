@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
+    I32,
     DenseArrayBase,
     DenseIntElementsAttr,
     IndexType,
@@ -17,8 +18,10 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     Successor,
     VarOperand,
+    VarSuccessor,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -62,8 +65,8 @@ class AssertOp(IRDLOperation):
 
     name = "cf.assert"
 
-    arg = operand_def(IntegerType(1))
-    msg = prop_def(StringAttr)
+    arg: Operand = operand_def(IntegerType(1))
+    msg: StringAttr = prop_def(StringAttr)
 
     traits = traits_def(AssertHasCanonicalizationPatterns())
 
@@ -95,8 +98,8 @@ class BranchOp(IRDLOperation):
 
     name = "cf.br"
 
-    arguments = var_operand_def()
-    successor = successor_def()
+    arguments: VarOperand = var_operand_def()
+    successor: Successor = successor_def()
 
     traits = traits_def(IsTerminator(), BranchOpHasCanonicalizationPatterns())
 
@@ -130,14 +133,14 @@ class ConditionalBranchOp(IRDLOperation):
 
     name = "cf.cond_br"
 
-    cond = operand_def(IntegerType(1))
-    then_arguments = var_operand_def()
-    else_arguments = var_operand_def()
+    cond: Operand = operand_def(IntegerType(1))
+    then_arguments: VarOperand = var_operand_def()
+    else_arguments: VarOperand = var_operand_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    then_block = successor_def()
-    else_block = successor_def()
+    then_block: Successor = successor_def()
+    else_block: Successor = successor_def()
 
     traits = traits_def(
         IsTerminator(), ConditionalBranchOpHasCanonicalizationPatterns()
@@ -326,20 +329,20 @@ class SwitchOp(IRDLOperation):
 
     name = "cf.switch"
 
-    case_values = opt_prop_def(DenseIntElementsAttr)
+    case_values: DenseIntElementsAttr | None = opt_prop_def(DenseIntElementsAttr)
 
-    flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
+    flag: Operand = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
-    default_operands = var_operand_def()
+    default_operands: VarOperand = var_operand_def()
 
-    case_operands = var_operand_def()
+    case_operands: VarOperand = var_operand_def()
 
     # Copied from AttrSizedSegments
-    case_operand_segments = prop_def(DenseArrayBase.constr(i32))
+    case_operand_segments: DenseArrayBase[I32] = prop_def(DenseArrayBase.constr(i32))
 
-    default_block = successor_def()
+    default_block: Successor = successor_def()
 
-    case_blocks = var_successor_def()
+    case_blocks: VarSuccessor = var_successor_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 

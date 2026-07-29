@@ -44,6 +44,10 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -110,7 +114,7 @@ def test_print_custom_format_op_location():
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
 
-    parallelize = opt_attr_def(UnitAttr)
+    parallelize: UnitAttr | None = opt_attr_def(UnitAttr)
 
 
 def test_unit_attr():
@@ -614,9 +618,9 @@ def test_print_region_empty_block_with_args():
 @irdl_op_definition
 class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
-    lhs = operand_def(IntegerType)
-    rhs = operand_def(IntegerType)
-    res = result_def(IntegerType)
+    lhs: Operand = operand_def(IntegerType)
+    rhs: Operand = operand_def(IntegerType)
+    res: OpResult[IntegerType] = result_def(IntegerType)
 
     @classmethod
     def parse(cls, parser: Parser) -> PlusCustomFormatOp:
@@ -727,8 +731,8 @@ def test_custom_format_II():
 class NoCustomFormatOp(IRDLOperation):
     name = "test.no_custom_format"
 
-    ops = var_operand_def()
-    res = var_result_def()
+    ops: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
 
 def test_missing_custom_format():

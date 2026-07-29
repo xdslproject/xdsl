@@ -23,12 +23,16 @@ from xdsl.ir import (
     Dialect,
     Operation,
     ParametrizedAttribute,
+    Region,
     SSAValue,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    OpResult,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -123,17 +127,21 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil = operand_def(
+    input_stencil: Operand = operand_def(
         stencil.StencilTypeConstr | MemRefType.constr() | AnyTensorTypeConstr
     )
 
-    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] = prop_def(
+        builtin.ArrayAttr[ExchangeDeclarationAttr]
+    )
 
-    topo = prop_def(dmp.RankTopoAttr)
+    topo: dmp.RankTopoAttr = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(IntegerAttr)
+    num_chunks: IntegerAttr = prop_def(IntegerAttr)
 
-    result = result_def(MemRefType.constr() | AnyTensorTypeConstr)
+    result: OpResult[MemRefType | TensorType] = result_def(
+        MemRefType.constr() | AnyTensorTypeConstr
+    )
 
     def __init__(
         self,
@@ -141,7 +149,7 @@ class PrefetchOp(IRDLOperation):
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType | TensorType[Attribute] | None = None,
+        result_type: memref.MemRefType | TensorType | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -216,28 +224,32 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    field = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
+    field: Operand = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
 
-    accumulator = operand_def(TensorType | MemRefType)
+    accumulator: Operand = operand_def(TensorType | MemRefType)
 
-    args_rchunk = var_operand_def(Attribute)
-    args_dexchng = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldTypeConstr | MemRefType.constr())
+    args_rchunk: VarOperand = var_operand_def(Attribute)
+    args_dexchng: VarOperand = var_operand_def(Attribute)
+    dest: VarOperand = var_operand_def(stencil.FieldTypeConstr | MemRefType.constr())
 
-    receive_chunk = region_def()
-    done_exchange = region_def()
+    receive_chunk: Region = region_def()
+    done_exchange: Region = region_def()
 
-    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] = prop_def(
+        builtin.ArrayAttr[ExchangeDeclarationAttr]
+    )
 
-    topo = prop_def(dmp.RankTopoAttr)
+    topo: dmp.RankTopoAttr = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(IntegerAttr)
+    num_chunks: IntegerAttr = prop_def(IntegerAttr)
 
-    bounds = opt_prop_def(stencil.StencilBoundsAttr)
+    bounds: stencil.StencilBoundsAttr | None = opt_prop_def(stencil.StencilBoundsAttr)
 
-    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
+    coeffs: builtin.ArrayAttr[CoeffAttr] | None = opt_prop_def(
+        builtin.ArrayAttr[CoeffAttr]
+    )
 
-    res = var_result_def(stencil.StencilTypeConstr)
+    res: VarOpResult[stencil.StencilType] = var_result_def(stencil.StencilTypeConstr)
 
     traits = traits_def(
         IsolatedFromAbove(),
@@ -447,12 +459,12 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(
+    op: Operand = operand_def(
         MemRefType.constr() | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
-    offset = prop_def(stencil.IndexAttr)
-    offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType | MemRefType)
+    offset: stencil.IndexAttr = prop_def(stencil.IndexAttr)
+    offset_mapping: stencil.IndexAttr | None = opt_prop_def(stencil.IndexAttr)
+    result: OpResult[TensorType | MemRefType] = result_def(TensorType | MemRefType)
 
     traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
@@ -460,7 +472,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute] | MemRefType,
+        result_type: TensorType | MemRefType,
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(

@@ -37,6 +37,8 @@ from xdsl.irdl import (
     BaseAttr,
     EqIntConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
@@ -120,9 +122,11 @@ class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    complex = operand_def(T)
-    result = result_def(T)
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    complex: Operand = operand_def(T)
+    result: OpResult[ComplexType[AnyFloat | IntegerType]] = result_def(T)
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
 
     traits = traits_def(Pure())
 
@@ -148,9 +152,11 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
 
-    complex = operand_def(ComplexType.constr(T))
-    result = result_def(T)
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    complex: Operand = operand_def(ComplexType.constr(T))
+    result: OpResult[AnyFloat] = result_def(T)
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
 
     traits = traits_def(Pure())
 
@@ -184,10 +190,12 @@ class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
     """Base class for binary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(T)
-    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult[ComplexType[AnyFloat | IntegerType]] = result_def(T)
+    fastmath: FastMathFlagsAttr = prop_def(
+        FastMathFlagsAttr, default_value=FastMathFlagsAttr("none")
+    )
 
     traits = traits_def(Pure())
 
@@ -243,9 +251,9 @@ class ComplexCompareOp(IRDLOperation, abc.ABC):
     """Base class for comparison operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(IntegerType(1))
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult[IntegerType] = result_def(IntegerType(1))
 
     traits = traits_def(Pure())
 
@@ -295,11 +303,13 @@ class BitcastOp(IRDLOperation):
     """
 
     name = "complex.bitcast"
-    operand = operand_def(
+    operand: Operand = operand_def(
         ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
     )
-    result = result_def(
-        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    result: OpResult[ComplexType[AnyFloat | IntegerType] | AnyFloat | IntegerType] = (
+        result_def(
+            ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+        )
     )
 
     traits = traits_def(Pure())
@@ -342,7 +352,7 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "complex.constant"
     T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
-    value = prop_def(
+    value: ArrayAttr[IntegerAttr | FloatAttr[AnyFloat]] = prop_def(
         ArrayOfConstraint(
             RangeOf(
                 AnyOf.get(
@@ -355,7 +365,9 @@ class ConstantOp(IRDLOperation, HasFolderInterface):
 
     # In contrast to other operations, `complex.constant` can
     # have any complex result type, not just floating point:
-    complex = result_def(ComplexType.constr(T))
+    complex: OpResult[ComplexType[AnyFloat | IntegerType]] = result_def(
+        ComplexType.constr(T)
+    )
 
     traits = traits_def(Pure(), ConstantLike())
 
@@ -391,9 +403,11 @@ class CosOp(ComplexUnaryComplexResultOperation):
 class CreateOp(IRDLOperation):
     name = "complex.create"
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
-    real = operand_def(T)
-    imaginary = operand_def(T)
-    complex = result_def(ComplexType.constr(T))
+    real: Operand = operand_def(T)
+    imaginary: Operand = operand_def(T)
+    complex: OpResult[ComplexType[AnyFloat | IntegerType]] = result_def(
+        ComplexType.constr(T)
+    )
 
     traits = traits_def(Pure())
 

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import ModuleOp, TensorType
-from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -18,7 +17,7 @@ from xdsl.utils.hints import isa
 class LiftAddfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddfOp, rewriter: PatternRewriter, /):
-        if isa(op.result.type, TensorType[Attribute]):
+        if isa(op.result.type, TensorType):
             rewriter.replace(
                 op, linalg.ops.AddOp(op.operands, [op.lhs], [op.result.type])
             )
@@ -27,7 +26,7 @@ class LiftAddfPass(RewritePattern):
 class LiftSubfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SubfOp, rewriter: PatternRewriter, /):
-        if isa(op.result.type, TensorType[Attribute]):
+        if isa(op.result.type, TensorType):
             rewriter.replace(
                 op, linalg.ops.SubOp(op.operands, [op.lhs], [op.result.type])
             )
@@ -36,7 +35,7 @@ class LiftSubfPass(RewritePattern):
 class LiftMulfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.MulfOp, rewriter: PatternRewriter, /):
-        if isa(op.result.type, TensorType[Attribute]):
+        if isa(op.result.type, TensorType):
             rewriter.replace(
                 op, linalg.ops.MulOp(op.operands, [op.lhs], [op.result.type])
             )

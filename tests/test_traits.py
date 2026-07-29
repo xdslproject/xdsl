@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyTensorTypeConstr,
     AnyUnrankedMemRefTypeConstr,
+    AnyUnrankedTensorType,
     AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
@@ -25,6 +26,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     i1,
     i32,
@@ -35,7 +37,13 @@ from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptRegion,
     Region,
+    VarOperand,
+    VarOpResult,
+    VarSuccessor,
     attr_def,
     irdl_op_definition,
     lazy_traits_def,
@@ -132,8 +140,8 @@ class TestOp(IRDLOperation):
     name = "test.test"
     traits = traits_def(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
 
-    ops = operand_def(IntegerType)
-    res = result_def(IntegerType)
+    ops: Operand = operand_def(IntegerType)
+    res: OpResult[IntegerType] = result_def(IntegerType)
 
 
 def test_has_trait_object():
@@ -272,7 +280,7 @@ class HasInterfaceOp(IRDLOperation):
     name = "test.op_with_interface"
     traits = traits_def(GetNumResultsTraitForOpWithOneResult())
 
-    res = result_def(IntegerType)
+    res: OpResult[IntegerType] = result_def(IntegerType)
 
 
 def test_interface():
@@ -322,7 +330,7 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name = attr_def(IntegerAttr)
+        sym_name: IntegerAttr = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
     op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr(1, 32)})
@@ -337,7 +345,7 @@ def test_symbol_op_interface():
     class SymNameOp(IRDLOperation):
         name = "sym_name"
 
-        sym_name = attr_def(SymbolNameConstraint())
+        sym_name: StringAttr = attr_def(SymbolNameConstraint())
         traits = traits_def(SymbolOpInterface())
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
@@ -353,7 +361,7 @@ def test_optional_symbol_op_interface():
     class OptionalSymNameOp(IRDLOperation):
         name = "no_sym_name"
 
-        sym_name = opt_attr_def(StringAttr)
+        sym_name: StringAttr | None = opt_attr_def(StringAttr)
 
         traits = traits_def(OptionalSymbolOpInterface())
 
@@ -376,7 +384,7 @@ def test_optional_symbol_op_interface():
 class SymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 
@@ -388,7 +396,7 @@ class SymbolOp(IRDLOperation):
 class PropSymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = prop_def(SymbolNameConstraint())
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 
@@ -403,10 +411,10 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
 
-        sym_name = opt_attr_def(StringAttr)
+        sym_name: StringAttr | None = opt_attr_def(StringAttr)
 
-        one = region_def()
-        two = opt_region_def()
+        one: Region = region_def()
+        two: OptRegion = opt_region_def()
 
         traits = traits_def(SymbolTable(), OptionalSymbolOpInterface())
 
@@ -506,7 +514,7 @@ def test_insert_or_update():
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
 
-        reg = region_def()
+        reg: Region = region_def()
 
         traits = traits_def(SymbolTable())
 
@@ -559,7 +567,7 @@ def test_speculability(
     @irdl_op_definition
     class SupeculatabilityTestOp(IRDLOperation):
         name = "test.speculatability"
-        region = region_def()
+        region: Region = region_def()
 
         traits = traits_def(*trait)
 
@@ -582,7 +590,7 @@ def test_conditionally_speculatable_interface(speculatability: bool):
         IRDLOperation, ConditionallySpeculatableInterface
     ):
         name = "test.interface_speculatability"
-        region = region_def()
+        region: Region = region_def()
 
         def is_speculatable(self) -> bool:
             return speculatability
@@ -611,8 +619,8 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
     class SameOperandsAndResultTypeOp(IRDLOperation):
         name = "test.same_operand_and_result_type"
 
-        ops = var_operand_def(test.TestType("foo"))
-        res = var_result_def(test.TestType("foo"))
+        ops: VarOperand = var_operand_def(test.TestType("foo"))
+        res: VarOpResult[test.TestType] = var_result_def(test.TestType("foo"))
 
         traits = traits_def(SameOperandsAndResultType())
 
@@ -628,14 +636,16 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
 class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
-    ops = var_operand_def(
+    ops: VarOperand = var_operand_def(
         MemRefType.constr()
         | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
         | AnyTensorTypeConstr
     )
 
-    res = var_result_def(
+    res: VarOpResult[
+        MemRefType | UnrankedMemRefType | AnyUnrankedTensorType | TensorType
+    ] = var_result_def(
         MemRefType.constr()
         | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
@@ -1058,8 +1068,8 @@ def test_return_like():
         name = "test.return_like"
 
         traits = traits_def(ReturnLike())
-        my_results = var_result_def()
-        my_successors = var_successor_def()
+        my_results: VarOpResult = var_result_def()
+        my_successors: VarSuccessor = var_successor_def()
 
     terminator = TestReturnLikeOp(result_types=((),), successors=((),))
 

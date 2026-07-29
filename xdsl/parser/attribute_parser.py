@@ -1468,7 +1468,7 @@ class AttrParser(BaseParser):
 
     def try_parse_builtin_boolean_attr(
         self,
-    ) -> IntegerAttr[IntegerType | IndexType] | None:
+    ) -> IntegerAttr | None:
         if (value := self.parse_optional_boolean()) is not None:
             return IntegerAttr(1 if value else 0, IntegerType(1))
         return None

@@ -27,7 +27,12 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
     ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -182,12 +187,14 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    constraint_name = prop_def(StringAttr, prop_name="name")
-    is_negated = prop_def(
+    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
+    is_negated: BoolAttr = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res: VarOpResult[
+        AttributeType | OperationType | TypeType | ValueType | RangeType[AnyPDLType]
+    ] = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -216,9 +223,11 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
+    args: VarOperand = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res: VarOpResult[
+        AttributeType | OperationType | TypeType | ValueType | RangeType[AnyPDLType]
+    ] = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     def __init__(
         self,
@@ -265,9 +274,9 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value = opt_prop_def()
-    value_type = opt_operand_def(TypeType)
-    output = result_def(AttributeType)
+    value: Attribute | None = opt_prop_def()
+    value_type: OptOperand = opt_operand_def(TypeType)
+    output: OpResult[AttributeType] = result_def(AttributeType)
 
     assembly_format = "(`:` $value_type^)? (`=` $value^)? attr-dict-with-keyword"
 
@@ -307,7 +316,7 @@ class EraseOp(IRDLOperation):
     """
 
     name = "pdl.erase"
-    op_value = operand_def(OperationType)
+    op_value: Operand = operand_def(OperationType)
 
     assembly_format = "$op_value attr-dict"
 
@@ -322,8 +331,8 @@ class OperandOp(IRDLOperation):
     """
 
     name = "pdl.operand"
-    value_type = opt_operand_def(TypeType)
-    value = result_def(ValueType)
+    value_type: OptOperand = opt_operand_def(TypeType)
+    value: OpResult[ValueType] = result_def(ValueType)
 
     assembly_format = "(`:` $value_type^)? attr-dict"
 
@@ -341,8 +350,8 @@ class OperandsOp(IRDLOperation):
     """
 
     name = "pdl.operands"
-    value_type = opt_operand_def(RangeType[TypeType])
-    value = result_def(RangeType[ValueType])
+    value_type: OptOperand = opt_operand_def(RangeType[TypeType])
+    value: OpResult[RangeType[ValueType]] = result_def(RangeType[ValueType])
 
     assembly_format = "(`:` $value_type^)? attr-dict"
 
@@ -360,13 +369,17 @@ class OperationOp(IRDLOperation):
     """
 
     name = "pdl.operation"
-    opName = opt_prop_def(StringAttr)
-    attributeValueNames = prop_def(ArrayAttr[StringAttr])
+    opName: StringAttr | None = opt_prop_def(StringAttr)
+    attributeValueNames: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
-    operand_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
-    attribute_values = var_operand_def(AttributeType)
-    type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
-    op = result_def(OperationType)
+    operand_values: VarOperand = var_operand_def(
+        base(ValueType) | base(RangeType[ValueType])
+    )
+    attribute_values: VarOperand = var_operand_def(AttributeType)
+    type_values: VarOperand = var_operand_def(
+        base(TypeType) | base(RangeType[TypeType])
+    )
+    op: OpResult[OperationType] = result_def(OperationType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -521,9 +534,9 @@ class PatternOp(IRDLOperation):
     """
 
     name = "pdl.pattern"
-    benefit = prop_def(IntegerAttr[I16])
-    sym_name = opt_prop_def(StringAttr)
-    body = region_def("single_block")
+    benefit: IntegerAttr[I16] = prop_def(IntegerAttr[I16])
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
+    body: Region = region_def("single_block")
 
     traits = traits_def(OptionalSymbolOpInterface())
 
@@ -607,8 +620,10 @@ class RangeOp(IRDLOperation):
     """
 
     name = "pdl.range"
-    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    result = result_def(RangeType[AnyPDLType])
+    arguments: VarOperand = var_operand_def(
+        AnyPDLTypeConstr | base(RangeType[AnyPDLType])
+    )
+    result: OpResult[RangeType[AnyPDLType]] = result_def(RangeType[AnyPDLType])
 
     traits = lazy_traits_def(lambda: (HasParent(RewriteOp),))
 
@@ -683,9 +698,11 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "pdl.replace"
-    op_value = operand_def(OperationType)
-    repl_operation = opt_operand_def(OperationType)
-    repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
+    op_value: Operand = operand_def(OperationType)
+    repl_operation: OptOperand = opt_operand_def(OperationType)
+    repl_values: VarOperand = var_operand_def(
+        base(ValueType) | base(RangeType[ValueType])
+    )
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -732,9 +749,9 @@ class ResultOp(IRDLOperation):
     """
 
     name = "pdl.result"
-    index = prop_def(IntegerAttr[I32])
-    parent_ = operand_def(OperationType)
-    val = result_def(ValueType)
+    index: IntegerAttr[I32] = prop_def(IntegerAttr[I32])
+    parent_: Operand = operand_def(OperationType)
+    val: OpResult[ValueType] = result_def(ValueType)
 
     assembly_format = "$index `of` $parent_ attr-dict"
 
@@ -753,9 +770,11 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index = opt_prop_def(IntegerAttr[I32])
-    parent_ = operand_def(OperationType)
-    val = result_def(base(ValueType) | base(RangeType[ValueType]))
+    index: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
+    parent_: Operand = operand_def(OperationType)
+    val: OpResult[ValueType | RangeType[ValueType]] = result_def(
+        base(ValueType) | base(RangeType[ValueType])
+    )
 
     def __init__(
         self,
@@ -799,13 +818,13 @@ class RewriteOp(IRDLOperation):
     """
 
     name = "pdl.rewrite"
-    root = opt_operand_def(OperationType)
+    root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
-    name_ = opt_prop_def(StringAttr, prop_name="name")
+    name_: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function
-    external_args = var_operand_def(AnyPDLTypeConstr)
+    external_args: VarOperand = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body = region_def()
+    body: Region = region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -859,8 +878,8 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def(TypeAttribute)
-    result = result_def(TypeType)
+    constantType: TypeAttribute | None = opt_prop_def(TypeAttribute)
+    result: OpResult[TypeType] = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"
 
@@ -880,8 +899,10 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes = opt_prop_def(ArrayAttr[TypeAttribute])
-    result = result_def(RangeType[TypeType])
+    constantTypes: ArrayAttr[TypeAttribute] | None = opt_prop_def(
+        ArrayAttr[TypeAttribute]
+    )
+    result: OpResult[RangeType[TypeType]] = result_def(RangeType[TypeType])
 
     assembly_format = "attr-dict (`:` $constantTypes^)?"
 

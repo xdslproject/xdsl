@@ -13,6 +13,7 @@ from enum import auto
 from xdsl.ir import Attribute, Dialect, EnumAttribute, SpacedOpaqueSyntaxAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    OpResult,
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
@@ -47,9 +48,9 @@ class ConstantAttr(EnumAttribute[Constant], SpacedOpaqueSyntaxAttribute):
 class ConstantOp(IRDLOperation):
     name = "math_xdsl.constant"
 
-    symbol = prop_def(ConstantAttr)
+    symbol: ConstantAttr = prop_def(ConstantAttr)
 
-    value = result_def()
+    value: OpResult = result_def()
 
     assembly_format = "$symbol attr-dict `:` type($value)"
 

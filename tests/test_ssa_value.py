@@ -3,7 +3,7 @@ import re
 import pytest
 
 from xdsl.dialects.builtin import StringAttr, i32, i64
-from xdsl.ir import Block, BlockArgument, Operation, SSAValue
+from xdsl.ir import Block, BlockArgument, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
 from xdsl.rewriter import Rewriter
 from xdsl.utils.test_value import create_ssa_value
@@ -13,8 +13,8 @@ from xdsl.utils.test_value import create_ssa_value
 class TwoResultOp(IRDLOperation):
     name = "test.tworesults"
 
-    res1 = result_def(StringAttr)
-    res2 = result_def(StringAttr)
+    res1: OpResult[StringAttr] = result_def(StringAttr)
+    res2: OpResult[StringAttr] = result_def(StringAttr)
 
 
 def test_var_mixed_builder():

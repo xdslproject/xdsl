@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IndexTypeConstr,
     IntegerAttr,
+    StringAttr,
     SymbolNameConstraint,
     TensorType,
     UnitAttr,
@@ -34,7 +35,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -166,8 +170,8 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
     Base class for collective communication ops.
     """
 
-    grid = prop_def(FlatSymbolRefAttr)
-    grid_axes = prop_def(
+    grid: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
+    grid_axes: ShardAxesAttr = prop_def(
         ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b""))
     )
 
@@ -182,11 +186,11 @@ class BroadcastOp(CollectiveCommunicationOp):
 
     name = "shard.broadcast"
 
-    input = operand_def(TensorType)
-    root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    input: Operand = operand_def(TensorType)
+    root: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     traits = traits_def(Pure())
 
@@ -209,12 +213,12 @@ class GatherOp(CollectiveCommunicationOp):
 
     name = "shard.gather"
 
-    input = operand_def(TensorType)
-    gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
-    root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    input: Operand = operand_def(TensorType)
+    gather_axis: IntegerAttr = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    root: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     traits = traits_def(Pure())
 
@@ -241,13 +245,13 @@ class ScatterOp(CollectiveCommunicationOp):
 
     name = "shard.scatter"
 
-    input = operand_def(TensorType)
-    scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    input: Operand = operand_def(TensorType)
+    scatter_axis: IntegerAttr = prop_def(IntegerAttr.constr(IndexTypeConstr))
 
-    root = prop_def(DenseArrayBase[I64])
-    root_dynamic = var_operand_def(IndexType)
+    root: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    root_dynamic: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     traits = traits_def(
         Pure(),
@@ -271,11 +275,11 @@ class RecvOp(CollectiveCommunicationOp):
 
     name = "shard.recv"
 
-    input = operand_def(TensorType)
-    source = opt_prop_def(DenseArrayBase[I64])
-    source_dynamic = var_operand_def(IndexType)
+    input: Operand = operand_def(TensorType)
+    source: DenseArrayBase[I64] | None = opt_prop_def(DenseArrayBase[I64])
+    source_dynamic: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     assembly_format = (
         "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
@@ -294,12 +298,12 @@ class SendOp(CollectiveCommunicationOp):
 
     name = "shard.send"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
 
-    destination = prop_def(DenseArrayBase[I64])
-    destination_dynamic = var_operand_def(IndexType)
+    destination: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
+    destination_dynamic: VarOperand = var_operand_def(IndexType)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     assembly_format = (
         "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
@@ -321,13 +325,13 @@ class ShiftOp(CollectiveCommunicationOp):
 
     name = "shard.shift"
 
-    input = operand_def(TensorType)
+    input: Operand = operand_def(TensorType)
 
-    shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
-    offset = prop_def(IntegerAttr[I64])
-    rotate = prop_def(UnitAttr)
+    shift_axis: IntegerAttr = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    offset: IntegerAttr[I64] = prop_def(IntegerAttr[I64])
+    rotate: UnitAttr = prop_def(UnitAttr)
 
-    result = result_def(TensorType)
+    result: OpResult[TensorType] = result_def(TensorType)
 
     traits = traits_def(
         Pure(),
@@ -351,8 +355,8 @@ class ShiftOp(CollectiveCommunicationOp):
 class GridOp(IRDLOperation):
     name = "shard.grid"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    shape = prop_def(DenseArrayBase[I64])
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    shape: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
 
     traits = traits_def(SymbolOpInterface(), Pure())
 
@@ -386,18 +390,18 @@ class ShardingOp(IRDLOperation):
 
     name = "shard.sharding"
 
-    grid = prop_def(FlatSymbolRefAttr)
-    split_axes = prop_def(ShardAxesArrayAttr)
-    static_sharded_dims_offsets = prop_def(
+    grid: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
+    split_axes: ShardAxesArrayAttr = prop_def(ShardAxesArrayAttr)
+    static_sharded_dims_offsets: DenseArrayBase[I64] = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
     )
-    dynamic_sharded_dims_offsets = var_operand_def(I64)
-    static_halo_sizes = prop_def(
+    dynamic_sharded_dims_offsets: VarOperand = var_operand_def(I64)
+    static_halo_sizes: DenseArrayBase[I64] = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
     )
-    dynamic_halo_sizes = var_operand_def(I64)
+    dynamic_halo_sizes: VarOperand = var_operand_def(I64)
 
-    result = result_def(ShardingType)
+    result: OpResult[ShardingType] = result_def(ShardingType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -440,11 +444,11 @@ class ShardOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", TensorType.constr())
 
-    src = operand_def(T)
-    sharding = operand_def(ShardingType)
-    annotate_for_users = opt_prop_def(UnitAttr)
+    src: Operand = operand_def(T)
+    sharding: Operand = operand_def(ShardingType)
+    annotate_for_users: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    result = result_def(T)
+    result: OpResult[TensorType] = result_def(T)
 
     traits = traits_def(
         Pure(),

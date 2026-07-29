@@ -8,7 +8,12 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    SymbolNameConstraint,
+)
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -24,6 +29,11 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedResultSegments,
     IRDLOperation,
+    OpResult,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -58,13 +68,13 @@ class TestOp(IRDLOperation):
 
     name = "test.op"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
+    prop1: Attribute | None = opt_prop_def()
+    prop2: Attribute | None = opt_prop_def()
+    prop3: Attribute | None = opt_prop_def()
 
     def __init__(
         self,
@@ -96,14 +106,14 @@ class TestTermOp(IRDLOperation):
 
     name = "test.termop"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
-    successor = var_successor_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
+    prop1: Attribute | None = opt_prop_def()
+    prop2: Attribute | None = opt_prop_def()
+    prop3: Attribute | None = opt_prop_def()
 
     traits = traits_def(IsTerminator())
 
@@ -139,14 +149,14 @@ class TestPureOp(IRDLOperation):
 
     name = "test.pureop"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
-    successor = var_successor_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
+    prop1: Attribute | None = opt_prop_def()
+    prop2: Attribute | None = opt_prop_def()
+    prop3: Attribute | None = opt_prop_def()
 
     traits = traits_def(Pure())
 
@@ -182,14 +192,14 @@ class TestReadOp(IRDLOperation):
 
     name = "test.op_with_memread"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
-    successor = var_successor_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
+    prop1: Attribute | None = opt_prop_def()
+    prop2: Attribute | None = opt_prop_def()
+    prop3: Attribute | None = opt_prop_def()
 
     traits = traits_def(MemoryReadEffect())
 
@@ -225,14 +235,14 @@ class TestWriteOp(IRDLOperation):
 
     name = "test.op_with_memwrite"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
-    successor = var_successor_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
+    prop1: Attribute | None = opt_prop_def()
+    prop2: Attribute | None = opt_prop_def()
+    prop3: Attribute | None = opt_prop_def()
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -263,8 +273,8 @@ class TestConstantOp(IRDLOperation, HasFolderInterface):
 
     name = "test.constant"
 
-    result = result_def(IntegerType)
-    value = prop_def(IntegerAttr)
+    result: OpResult[IntegerType] = result_def(IntegerType)
+    value: IntegerAttr = prop_def(IntegerAttr)
 
     traits = traits_def(Pure(), ConstantLike())
 
@@ -310,11 +320,11 @@ class TestSymbolOp(IRDLOperation):
 
     name = "test.op_with_symbol"
 
-    res = var_result_def()
-    ops = var_operand_def()
-    regs = var_region_def()
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
 
-    sym_name = prop_def(SymbolNameConstraint())
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
     traits = traits_def(SymbolOpInterface())
 
     def __init__(
@@ -338,10 +348,10 @@ class TestSymbolOp(IRDLOperation):
 class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
 
-    in_operands = var_operand_def()
-    inout_operands = var_operand_def()
-    out_results = var_result_def()
-    inout_results = var_result_def()
+    in_operands: VarOperand = var_operand_def()
+    inout_operands: VarOperand = var_operand_def()
+    out_results: VarOpResult = var_result_def()
+    inout_results: VarOpResult = var_result_def()
 
     traits = traits_def(RegisterAllocatedMemoryEffect())
 

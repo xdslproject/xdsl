@@ -18,11 +18,13 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     ParametrizedAttribute,
+    Region,
     TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    OpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -70,7 +72,7 @@ class PyModuleOp(PyOperation):
     """
 
     name = "py.module"
-    body = region_def()
+    body: Region = region_def()
 
 
 @irdl_op_definition
@@ -83,8 +85,8 @@ class PyConstOp(PyOperation):
     assembly_format = "$const attr-dict"
 
     # We can expand this to other types later.
-    const = prop_def(IntegerAttr[I64])
-    res = result_def(PyObjectType())
+    const: IntegerAttr[I64] = prop_def(IntegerAttr[I64])
+    res: OpResult[PyObjectType] = result_def(PyObjectType())
 
     def __init__(self, const: IntegerAttr[I64]):
         super().__init__(properties={"const": const}, result_types=[PyObjectType()])
@@ -97,10 +99,10 @@ class PyBinOp(PyOperation):
     """
 
     name = "py.binop"
-    lhs = operand_def(PyObjectType())
-    rhs = operand_def(PyObjectType())
-    res = result_def(PyObjectType())
-    op = prop_def(StringAttr)
+    lhs: Operand = operand_def(PyObjectType())
+    rhs: Operand = operand_def(PyObjectType())
+    res: OpResult[PyObjectType] = result_def(PyObjectType())
+    op: StringAttr = prop_def(StringAttr)
     assembly_format = "$op $lhs $rhs attr-dict"
 
     def __init__(

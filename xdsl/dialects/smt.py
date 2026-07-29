@@ -22,11 +22,14 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
+    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -224,8 +227,8 @@ class DeclareFunOp(IRDLOperation):
 
     name = "smt.declare_fun"
 
-    name_prefix = opt_prop_def(StringAttr, prop_name="namePrefix")
-    result = result_def(SMTType)
+    name_prefix: StringAttr | None = opt_prop_def(StringAttr, prop_name="namePrefix")
+    result: OpResult[SMTType] = result_def(SMTType)
 
     assembly_format = "($namePrefix^)? attr-dict `:` type($result)"
 
@@ -251,10 +254,10 @@ class ApplyFuncOp(IRDLOperation):
     DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
-    func = operand_def(FuncType.constr(DOMAIN, RANGE))
-    args = var_operand_def(DOMAIN)
+    func: Operand = operand_def(FuncType.constr(DOMAIN, RANGE))
+    args: VarOperand = var_operand_def(DOMAIN)
 
-    result = result_def(RANGE)
+    result: OpResult[NonFuncSMTType] = result_def(RANGE)
 
     assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
 
@@ -274,8 +277,8 @@ class ConstantBoolOp(IRDLOperation, HasFolderInterface):
 
     name = "smt.constant"
 
-    value_attr = prop_def(BoolAttr, prop_name="value")
-    result = result_def(BoolType())
+    value_attr: BoolAttr = prop_def(BoolAttr, prop_name="value")
+    result: OpResult[BoolType] = result_def(BoolType())
 
     traits = traits_def(Pure(), ConstantLike())
 
@@ -302,8 +305,8 @@ class NotOp(IRDLOperation):
 
     name = "smt.not"
 
-    input = operand_def(BoolType)
-    result = result_def(BoolType)
+    input: Operand = operand_def(BoolType)
+    result: OpResult[BoolType] = result_def(BoolType)
 
     assembly_format = "$input attr-dict"
 
@@ -319,8 +322,8 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
-    result = result_def(BoolType())
+    inputs: VarOperand = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
+    result: OpResult[BoolType] = result_def(BoolType())
 
     traits = traits_def(Pure())
 
@@ -375,9 +378,9 @@ class ImpliesOp(IRDLOperation):
 
     name = "smt.implies"
 
-    lhs = operand_def(BoolType)
-    rhs = operand_def(BoolType)
-    result = result_def(BoolType)
+    lhs: Operand = operand_def(BoolType)
+    rhs: Operand = operand_def(BoolType)
+    result: OpResult[BoolType] = result_def(BoolType)
 
     traits = traits_def(Pure())
 
@@ -432,8 +435,8 @@ class VariadicPredicateOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    inputs = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
-    result = result_def(BoolType())
+    inputs: VarOperand = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
+    result: OpResult[BoolType] = result_def(BoolType())
 
     traits = traits_def(Pure())
 
@@ -503,11 +506,11 @@ class IteOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    cond = operand_def(BoolType)
-    then_value = operand_def(T)
-    else_value = operand_def(T)
+    cond: Operand = operand_def(BoolType)
+    then_value: Operand = operand_def(T)
+    else_value: Operand = operand_def(T)
 
-    result = result_def(T)
+    result: OpResult[NonFuncSMTType] = result_def(T)
 
     assembly_format = (
         "$cond `,` $then_value `,` $else_value attr-dict `:` type($result)"
@@ -523,8 +526,8 @@ class IteOp(IRDLOperation):
 
 
 class QuantifierOp(IRDLOperation, ABC):
-    result = result_def(BoolType)
-    body = region_def("single_block")
+    result: OpResult[BoolType] = result_def(BoolType)
+    body: Region = region_def("single_block")
 
     traits = traits_def(Pure())
 
@@ -581,7 +584,7 @@ class ForallOp(QuantifierOp):
 class YieldOp(IRDLOperation):
     name = "smt.yield"
 
-    values = var_operand_def(NonFuncSMTType)
+    values: VarOperand = var_operand_def(NonFuncSMTType)
 
     assembly_format = "($values^ `:` type($values))? attr-dict"
 
@@ -597,7 +600,7 @@ class AssertOp(IRDLOperation):
 
     name = "smt.assert"
 
-    input = operand_def(BoolType)
+    input: Operand = operand_def(BoolType)
 
     assembly_format = "$input attr-dict"
 
@@ -616,8 +619,8 @@ class BvConstantOp(IRDLOperation, HasFolderInterface):
 
     T: ClassVar = VarConstraint("T", base(BitVectorType))
 
-    value = prop_def(BitVectorAttr.constr(T))
-    result = result_def(T)
+    value: BitVectorAttr = prop_def(BitVectorAttr.constr(T))
+    result: OpResult[BitVectorType] = result_def(T)
 
     assembly_format = "qualified($value) attr-dict"
 
@@ -654,8 +657,8 @@ class UnaryBVOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(BitVectorType))
 
-    input = operand_def(T)
-    result = result_def(T)
+    input: Operand = operand_def(T)
+    result: OpResult[BitVectorType] = result_def(T)
 
     assembly_format = "$input attr-dict `:` type($result)"
 
@@ -693,9 +696,9 @@ class BinaryBVOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(BitVectorType))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult[BitVectorType] = result_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 

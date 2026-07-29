@@ -19,7 +19,11 @@ from xdsl.dialects.test import TestAllocatableOp, TestOp, TestRegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -144,8 +148,8 @@ def test_deprecated_iter_used_registers():
     class TestDepracatedAllocatableOp(IRDLOperation, HasRegisterConstraints):
         name = "test.allocatable"
 
-        o = var_operand_def()
-        r = var_result_def()
+        o: VarOperand = var_operand_def()
+        r: VarOpResult = var_result_def()
 
         traits = traits_def(RegisterAllocatedMemoryEffect())
 
@@ -398,8 +402,8 @@ def test_verify_register_constraints():
     class MisconstrainedOp(HasRegisterConstraints, IRDLOperation):
         T: ClassVar = VarConstraint("T", base(TestRegisterType))
 
-        a = operand_def(T)
-        b = result_def(T)
+        a: Operand = operand_def(T)
+        b: OpResult[TestRegisterType] = result_def(T)
 
     @irdl_op_definition
     class UndeclaredOperandOp(MisconstrainedOp):
@@ -471,8 +475,8 @@ def test_fail_error_message():
 
         T: ClassVar = VarConstraint("T", base(TestRegisterType))
 
-        a = operand_def(T)
-        b = result_def(T)
+        a: Operand = operand_def(T)
+        b: OpResult[TestRegisterType] = result_def(T)
 
         def get_register_constraints(self) -> RegisterConstraints:
             return RegisterConstraints((), (), ((self.a, self.b),))

@@ -23,6 +23,8 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -52,9 +54,9 @@ class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 class PtrAddOp(IRDLOperation):
     name = "ptr_xdsl.ptradd"
 
-    addr = operand_def(PtrType)
-    offset = operand_def(IntegerAttrTypeConstr)
-    result = result_def(PtrType)
+    addr: Operand = operand_def(PtrType)
+    offset: Operand = operand_def(IntegerAttrTypeConstr)
+    result: OpResult[PtrType] = result_def(PtrType)
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
 
@@ -69,8 +71,8 @@ class PtrAddOp(IRDLOperation):
 class TypeOffsetOp(IRDLOperation):
     name = "ptr_xdsl.type_offset"
 
-    elem_type = prop_def(AnyAttr())
-    offset = result_def(IntegerAttrTypeConstr)
+    elem_type: Attribute = prop_def(AnyAttr())
+    offset: OpResult[IndexType | IntegerType] = result_def(IntegerAttrTypeConstr)
 
     assembly_format = "$elem_type attr-dict `:` type($offset)"
 
@@ -82,12 +84,12 @@ class TypeOffsetOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "ptr_xdsl.store"
 
-    addr = operand_def(PtrType)
-    value = operand_def()
+    addr: Operand = operand_def(PtrType)
+    value: Operand = operand_def()
 
-    volatile = opt_prop_def(UnitAttr)
-    syncscope = opt_prop_def(UnitAttr)
-    ordering = opt_prop_def(UnitAttr)
+    volatile: UnitAttr | None = opt_prop_def(UnitAttr)
+    syncscope: UnitAttr | None = opt_prop_def(UnitAttr)
+    ordering: UnitAttr | None = opt_prop_def(UnitAttr)
 
     assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"  # noqa: E501
 
@@ -114,13 +116,13 @@ class StoreOp(IRDLOperation):
 class LoadOp(IRDLOperation):
     name = "ptr_xdsl.load"
 
-    addr = operand_def(PtrType)
-    res = result_def()
+    addr: Operand = operand_def(PtrType)
+    res: OpResult = result_def()
 
-    volatile = opt_prop_def(UnitAttr)
-    syncscope = opt_prop_def(UnitAttr)
-    ordering = opt_prop_def(UnitAttr)
-    invariant = opt_prop_def(UnitAttr)
+    volatile: UnitAttr | None = opt_prop_def(UnitAttr)
+    syncscope: UnitAttr | None = opt_prop_def(UnitAttr)
+    ordering: UnitAttr | None = opt_prop_def(UnitAttr)
+    invariant: UnitAttr | None = opt_prop_def(UnitAttr)
 
     assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"  # noqa: E501
 
@@ -158,8 +160,8 @@ class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ToPtrOp(IRDLOperation):
     name = "ptr_xdsl.to_ptr"
 
-    source = operand_def(MemRefType)
-    res = result_def(PtrType)
+    source: Operand = operand_def(MemRefType)
+    res: OpResult[PtrType] = result_def(PtrType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 
@@ -181,8 +183,8 @@ class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 class FromPtrOp(IRDLOperation):
     name = "ptr_xdsl.from_ptr"
 
-    source = operand_def(PtrType)
-    res = result_def(MemRefType)
+    source: Operand = operand_def(PtrType)
+    res: OpResult[MemRefType] = result_def(MemRefType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 

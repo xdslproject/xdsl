@@ -78,8 +78,8 @@ def test_inner_sym_target():
 @irdl_op_definition
 class ModuleOp(IRDLOperation):
     name = "module"
-    region = region_def()
-    sym_name = attr_def(SymbolNameConstraint())
+    region: Region = region_def()
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
 
@@ -93,7 +93,7 @@ class OutputOp(IRDLOperation):
 class CircuitOp(IRDLOperation):
     name = "circuit"
     region: Region | None = opt_region_def()
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
     traits = traits_def(
         InnerRefNamespaceTrait(),
         SymbolTable(),
@@ -108,7 +108,7 @@ class CircuitOp(IRDLOperation):
 @irdl_op_definition
 class WireOp(IRDLOperation):
     name = "wire"
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerRefUserOpInterfaceTrait())
 
 
@@ -150,8 +150,8 @@ def test_inner_symbol_table_interface():
     @irdl_op_definition
     class MissingTraitModuleOp(IRDLOperation):
         name = "module"
-        region = region_def()
-        sym_name = attr_def(SymbolNameConstraint())
+        region: Region = region_def()
+        sym_name: StringAttr = attr_def(SymbolNameConstraint())
         traits = traits_def(InnerSymbolTableTrait())
 
     mod_missing_trait = MissingTraitModuleOp(
@@ -170,7 +170,7 @@ def test_inner_symbol_table_interface():
     @irdl_op_definition
     class MissingAttrModuleOp(IRDLOperation):
         name = "module"
-        region = region_def()
+        region: Region = region_def()
         traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
     mod_missing_trait_parent = ModuleOp(regions=[[OutputOp()]])
@@ -191,7 +191,7 @@ def test_inner_ref_namespace_interface():
     class MissingTraitCircuitOp(IRDLOperation):
         name = "circuit"
         region: Region | None = opt_region_def()
-        sym_name = attr_def(SymbolNameConstraint())
+        sym_name: StringAttr = attr_def(SymbolNameConstraint())
         traits = traits_def(
             InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)
         )

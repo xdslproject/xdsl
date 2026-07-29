@@ -8,6 +8,7 @@ from typing_extensions import Self
 from xdsl.builder import Builder
 from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import (
+    I64,
     AffineMapAttr,
     AnyFloat,
     AnyTensorType,
@@ -35,8 +36,12 @@ from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
+    VarOperand,
+    VarOpResult,
     attr_def,
     base,
     irdl_op_definition,
@@ -70,10 +75,10 @@ class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
 
     # Trait attributes
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
-    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc = opt_prop_def(StringAttr)
-    library_call = opt_prop_def(StringAttr)
+    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
+    iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -300,9 +305,9 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 class IndexOp(IRDLOperation):
     name = "linalg.index"
 
-    dim = prop_def(IntegerAttr[i64])
+    dim: IntegerAttr[I64] = prop_def(IntegerAttr[i64])
 
-    result = result_def(IndexTypeConstr)
+    result: OpResult[IndexType] = result_def(IndexTypeConstr)
 
     traits = traits_def(HasParent(GenericOp))
 
@@ -854,15 +859,15 @@ class TransposeOp(LinalgStructuredOperation):
 
     name = "linalg.transpose"
 
-    inputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
-    outputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
-    res = var_result_def(AnyTensorType)
+    inputs: VarOperand = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    outputs: VarOperand = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    res: VarOpResult[AnyTensorType] = var_result_def(AnyTensorType)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     irdl_options = (SameVariadicOperandSize(), ParsePropInAttrDict())
 
-    permutation = prop_def(DenseArrayBase.constr(i64))
+    permutation: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1003,7 +1008,7 @@ class MatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    indexing_maps = prop_def(
+    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(
         ArrayAttr[AffineMapAttr],
         default_value=ArrayAttr(
             [
@@ -1085,7 +1090,7 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    memoized_indexing_maps = attr_def(
+    memoized_indexing_maps: ArrayAttr[AffineMapAttr] = attr_def(
         ArrayAttr[AffineMapAttr],
         default_value=ArrayAttr(
             [
@@ -1230,13 +1235,13 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    input: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    init: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    result: VarOpResult[AnyTensorType] = var_result_def(AnyTensorType)
 
-    hidden_region = region_def("single_block")
+    hidden_region: Region = region_def("single_block")
 
-    dimensions = prop_def(DenseArrayBase.constr(i64))
+    dimensions: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1351,13 +1356,13 @@ class BroadcastOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "linalg.reduce"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    input: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    init: Operand = operand_def(base(MemRefType) | base(AnyTensorType))
+    result: VarOpResult[AnyTensorType] = var_result_def(AnyTensorType)
 
     region: Region = region_def("single_block")
 
-    dimensions = prop_def(DenseArrayBase.constr(i64))
+    dimensions: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,

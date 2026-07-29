@@ -16,6 +16,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    OpResult,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
@@ -39,11 +40,11 @@ class GlobalOp(IRDLOperation):
 
     name = "ml_program.global"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    type = attr_def(TypeAttribute)
-    is_mutable = opt_attr_def(UnitAttr)
-    value = opt_attr_def()
-    sym_visibility = attr_def(StringAttr)
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    type: TypeAttribute = attr_def(TypeAttribute)
+    is_mutable: UnitAttr | None = opt_attr_def(UnitAttr)
+    value: Attribute | None = opt_attr_def()
+    sym_visibility: StringAttr = attr_def(StringAttr)
 
     traits = traits_def(SymbolOpInterface())
 
@@ -124,8 +125,8 @@ class GlobalLoadConstantOp(IRDLOperation):
 
     name = "ml_program.global_load_const"
 
-    global_attr = attr_def(SymbolRefAttr)
-    result = result_def()
+    global_attr: SymbolRefAttr = attr_def(SymbolRefAttr)
+    result: OpResult = result_def()
 
     def __init__(
         self,

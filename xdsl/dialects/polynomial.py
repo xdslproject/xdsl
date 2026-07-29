@@ -20,6 +20,8 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     FloatAttr,
     StringAttr,
+    TensorType,
+    VectorType,
     container_of,
     f64,
 )
@@ -33,6 +35,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     VarConstraint,
     attr_def,
     irdl_attr_definition,
@@ -233,14 +237,16 @@ class EvalOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", container_of(AnyFloat))
 
-    value = operand_def(T)
-    result = result_def(T)
+    value: Operand = operand_def(T)
+    result: OpResult[AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]] = (
+        result_def(T)
+    )
 
-    polynomial = prop_def(TypedChebyshevPolynomialAttr)
+    polynomial: TypedChebyshevPolynomialAttr = prop_def(TypedChebyshevPolynomialAttr)
 
-    scheme = attr_def(StringAttr)
-    domain_lower = opt_attr_def(FloatAttr)
-    domain_upper = opt_attr_def(FloatAttr)
+    scheme: StringAttr = attr_def(StringAttr)
+    domain_lower: FloatAttr[AnyFloat] | None = opt_attr_def(FloatAttr)
+    domain_upper: FloatAttr[AnyFloat] | None = opt_attr_def(FloatAttr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 

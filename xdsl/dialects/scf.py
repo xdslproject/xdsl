@@ -6,6 +6,7 @@ from typing import ClassVar
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    I64,
     DenseArrayBase,
     IndexType,
     IntegerType,
@@ -29,7 +30,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
     base,
     irdl_op_definition,
     lazy_traits_def,
@@ -60,11 +65,11 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "scf.while"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
-    res = var_result_def()
-    before_region = region_def("single_block")
-    after_region = region_def("single_block")
+    res: VarOpResult = var_result_def()
+    before_region: Region = region_def("single_block")
+    after_region: Region = region_def("single_block")
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -201,8 +206,8 @@ class ExecuteRegionOp(IRDLOperation):
 
     name = "scf.execute_region"
 
-    outs = var_result_def()
-    region = region_def()
+    outs: VarOpResult = var_result_def()
+    region: Region = region_def()
 
     traits = traits_def(
         ExecuteRegionOpHasCanonicalizationPatternsTrait(),
@@ -270,12 +275,12 @@ class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 @irdl_op_definition
 class IfOp(IRDLOperation):
     name = "scf.if"
-    output = var_result_def()
-    cond = operand_def(IntegerType(1))
+    output: VarOpResult = var_result_def()
+    cond: Operand = operand_def(IntegerType(1))
 
-    true_region = region_def("single_block")
+    true_region: Region = region_def("single_block")
     # TODO this should be optional under certain conditions
-    false_region = region_def()
+    false_region: Region = region_def()
 
     traits = traits_def(
         SingleBlockImplicitTerminator(YieldOp),
@@ -385,15 +390,15 @@ class ForOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
 
-    lb = operand_def(T)
-    ub = operand_def(T)
-    step = operand_def(T)
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
-    iter_args = var_operand_def()
+    iter_args: VarOperand = var_operand_def()
 
-    res = var_result_def()
+    res: VarOpResult = var_result_def()
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(
         SingleBlockImplicitTerminator(YieldOp),
@@ -490,13 +495,13 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     name = "scf.parallel"
-    lowerBound = var_operand_def(IndexType)
-    upperBound = var_operand_def(IndexType)
-    step = var_operand_def(IndexType)
-    initVals = var_operand_def()
-    res = var_result_def()
+    lowerBound: VarOperand = var_operand_def(IndexType)
+    upperBound: VarOperand = var_operand_def(IndexType)
+    step: VarOperand = var_operand_def(IndexType)
+    initVals: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -598,9 +603,9 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    args = var_operand_def()
+    args: VarOperand = var_operand_def()
 
-    reductions = var_region_def("single_block")
+    reductions: VarRegion = var_region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (
@@ -661,7 +666,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result = operand_def()
+    result: Operand = operand_def()
 
     traits = traits_def(HasParent(ReduceOp), IsTerminator(), Pure())
 
@@ -674,8 +679,8 @@ class ReduceReturnOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "scf.condition"
-    condition = operand_def(IntegerType(1))
-    args = var_operand_def()
+    condition: Operand = operand_def(IntegerType(1))
+    args: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), Pure())
 
@@ -693,13 +698,13 @@ class ConditionOp(IRDLOperation):
 class IndexSwitchOp(IRDLOperation):
     name = "scf.index_switch"
 
-    arg = operand_def(IndexType)
-    cases = prop_def(DenseArrayBase.constr(i64))
+    arg: Operand = operand_def(IndexType)
+    cases: DenseArrayBase[I64] = prop_def(DenseArrayBase.constr(i64))
 
-    output = var_result_def()
+    output: VarOpResult = var_result_def()
 
-    default_region = region_def("single_block")
-    case_regions = var_region_def("single_block")
+    default_region: Region = region_def("single_block")
+    case_regions: VarRegion = var_region_def("single_block")
 
     traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(YieldOp))
 

@@ -31,7 +31,9 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     IRDLOperation,
+    Operand,
     ParamAttrConstraint,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -107,9 +109,9 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
-    dimension = attr_def(IntAttr)
+    value: Operand = operand_def(IntRegisterType)
+    dm: IntAttr[int] = attr_def(IntAttr)
+    dimension: IntAttr[int] = attr_def(IntAttr)
 
     def __init__(
         self,
@@ -139,8 +141,8 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
+    value: Operand = operand_def(IntRegisterType)
+    dm: IntAttr[int] = attr_def(IntAttr)
 
     def __init__(self, value: Operation | SSAValue, dm: IntAttr):
         super().__init__(
@@ -208,7 +210,9 @@ class SsrEnableOp(IRDLOperation):
 
     name = "snitch.ssr_enable"
 
-    streams = var_result_def(ReadableStreamType.constr() | WritableStreamType.constr())
+    streams: VarOpResult[
+        ReadableStreamType[Attribute] | WritableStreamType[Attribute]
+    ] = var_result_def(ReadableStreamType.constr() | WritableStreamType.constr())
 
     def __init__(self, stream_types: Sequence[Attribute]):
         super().__init__(result_types=[stream_types])

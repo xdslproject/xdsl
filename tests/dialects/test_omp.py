@@ -9,7 +9,7 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class DummyLoopWrapper(IRDLOperation):
     name = "dummy.loop_wrapper"
-    body = region_def()
+    body: Region = region_def()
 
     traits = traits_def(omp.LoopWrapper())
 
@@ -54,8 +54,8 @@ def test_loop_wrapper_many_regions():
         name = "dummy.loop_wrapper"
 
         traits = traits_def(omp.LoopWrapper())
-        b1 = region_def()
-        b2 = region_def()
+        b1: Region = region_def()
+        b2: Region = region_def()
 
     with pytest.raises(
         VerifyException, match="is not a LoopWrapper: has 2 region, expected 1"

@@ -24,6 +24,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    OpResult,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -103,10 +105,10 @@ class ImportOp(IRDLOperation):
 
     name = "csl_wrapper.import"
 
-    ops = var_operand_def()
-    module = prop_def(StringAttr)
-    fields = prop_def(ArrayAttr[StringAttr])
-    result = result_def(csl.ImportedModuleType)
+    ops: VarOperand = var_operand_def()
+    module: StringAttr = prop_def(StringAttr)
+    fields: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
+    result: OpResult[csl.ImportedModuleType] = result_def(csl.ImportedModuleType)
 
     def __init__(
         self, module: str, field_name_mapping: dict[str, Operation | SSAValue]
@@ -158,14 +160,14 @@ class ModuleOp(IRDLOperation):
 
     name = "csl_wrapper.module"
 
-    width = prop_def(IntegerAttr[IntegerType])
-    height = prop_def(IntegerAttr[IntegerType])
-    program_name = opt_prop_def(StringAttr)
-    target = prop_def(StringAttr)
-    params = prop_def(ArrayAttr[ParamAttribute])
+    width: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+    height: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+    program_name: StringAttr | None = opt_prop_def(StringAttr)
+    target: StringAttr = prop_def(StringAttr)
+    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
 
-    layout_module = region_def("single_block")
-    program_module = region_def("single_block")
+    layout_module: Region = region_def("single_block")
+    program_module: Region = region_def("single_block")
 
     def __init__(
         self,
@@ -374,8 +376,8 @@ class YieldOp(IRDLOperation):
 
     name = "csl_wrapper.yield"
 
-    values = var_operand_def(Attribute)
-    fields = prop_def(ArrayAttr[StringAttr])
+    values: VarOperand = var_operand_def(Attribute)
+    fields: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     traits = lazy_traits_def(
         lambda: (

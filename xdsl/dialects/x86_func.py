@@ -52,10 +52,10 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """x86 function definition operation"""
 
     name = "x86_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
-    body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    body: Region = region_def()
+    function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = traits_def(
         SymbolOpInterface(),

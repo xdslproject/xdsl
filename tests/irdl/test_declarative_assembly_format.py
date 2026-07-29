@@ -34,7 +34,9 @@ from xdsl.dialects.utils import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Operation,
+    OpResult,
     ParametrizedAttribute,
+    Region,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -49,15 +51,23 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
+    Operand,
+    OptOperand,
+    OptOpResult,
+    OptRegion,
+    OptSuccessor,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
     SameVariadicOperandSize,
     SameVariadicResultSize,
+    Successor,
     VarConstraint,
     VarOperand,
     VarOpResult,
+    VarRegion,
+    VarSuccessor,
     attr_def,
     eq,
     irdl_attr_definition,
@@ -302,7 +312,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop = opt_prop_def()
+        prop: Attribute | None = opt_prop_def()
         irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "attr-dict"
 
@@ -330,8 +340,8 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop1 = prop_def()
-        prop2 = opt_prop_def()
+        prop1: Attribute = prop_def()
+        prop2: Attribute | None = opt_prop_def()
         irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "$prop1 attr-dict"
 
@@ -351,7 +361,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
 class OpWithAttrOp(IRDLOperation):
     name = "test.one_attr"
 
-    attr = attr_def()
+    attr: Attribute = attr_def()
     assembly_format = "$attr attr-dict"
 
 
@@ -400,7 +410,7 @@ def test_attr_name(program: str, generic_program: str):
     class RenamedAttrOp(IRDLOperation):
         name = "test.one_attr"
 
-        python = attr_def(Attribute, attr_name="irdl")
+        python: Attribute = attr_def(Attribute, attr_name="irdl")
         assembly_format = "$irdl attr-dict"
 
     ctx = Context()
@@ -437,7 +447,7 @@ def test_unqualified_attr(program: str, generic_program: str):
     class UnqualifiedAttrOp(IRDLOperation):
         name = "test.one_attr"
 
-        attr = attr_def(ParamOne)
+        attr: ParamOne = attr_def(ParamOne)
         assembly_format = "$attr attr-dict"
 
     ctx = Context()
@@ -452,8 +462,8 @@ def test_missing_property_error():
     class MissingPropOp(IRDLOperation):
         name = "test.missing_prop"
 
-        prop1 = prop_def()
-        prop2 = prop_def()
+        prop1: Attribute = prop_def()
+        prop2: Attribute = prop_def()
         assembly_format = "$prop1 attr-dict"
 
     with pytest.raises(
@@ -474,7 +484,7 @@ def test_attribute_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_attribute_op"
-            attr = attr_def()
+            attr: Attribute = attr_def()
 
             assembly_format = "$attr $attr attr-dict"
 
@@ -490,7 +500,7 @@ def test_property_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_property_op"
-            attr = prop_def()
+            attr: Attribute = prop_def()
 
             assembly_format = "$attr $attr attr-dict"
 
@@ -510,7 +520,7 @@ def test_standard_prop_directive(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.one_prop"
 
-        prop = prop_def()
+        prop: Attribute = prop_def()
         assembly_format = "$prop attr-dict"
 
     ctx = Context()
@@ -535,7 +545,7 @@ def test_prop_name(program: str, generic_program: str):
     class RenamedPropOp(IRDLOperation):
         name = "test.one_prop"
 
-        python = prop_def(Attribute, prop_name="irdl")
+        python: Attribute = prop_def(Attribute, prop_name="irdl")
         assembly_format = "$irdl attr-dict"
 
     ctx = Context()
@@ -564,7 +574,7 @@ def test_optional_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def()
+        prop: Attribute | None = opt_prop_def()
 
         assembly_format = "(`prop` $prop^)? attr-dict"
 
@@ -595,7 +605,7 @@ def test_optional_qualified_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def()
+        prop: Attribute | None = opt_prop_def()
 
         assembly_format = "($prop^)? attr-dict"
 
@@ -626,7 +636,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def()
+        prop: Attribute | None = opt_prop_def()
 
         assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
 
@@ -657,7 +667,7 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalUnitAttrPropertyOp(IRDLOperation):
         name = "test.optional_unit_attr_prop"
-        unit_attr = opt_prop_def(UnitAttr)
+        unit_attr: UnitAttr | None = opt_prop_def(UnitAttr)
 
         assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
 
@@ -688,7 +698,7 @@ def test_optional_unit_attr_attribute(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalUnitAttrOp(IRDLOperation):
         name = "test.optional_unit_attr"
-        unit_attr = opt_prop_def(UnitAttr)
+        unit_attr: UnitAttr | None = opt_prop_def(UnitAttr)
 
         assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
 
@@ -719,7 +729,7 @@ def test_optional_attribute(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalAttributeOp(IRDLOperation):
         name = "test.optional_attribute"
-        attr = opt_attr_def()
+        attr: Attribute | None = opt_attr_def()
 
         assembly_format = "(`attr` $attr^)? attr-dict"
 
@@ -746,8 +756,8 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     @irdl_op_definition
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
-        attr = attr_def(IntegerAttr[I32])
-        float_attr = attr_def(FloatAttr[Float64Type])
+        attr: IntegerAttr[I32] = attr_def(IntegerAttr[I32])
+        float_attr: FloatAttr[Float64Type] = attr_def(FloatAttr[Float64Type])
 
         assembly_format = "$attr $float_attr attr-dict"
 
@@ -777,8 +787,8 @@ def test_symbol_name_variable(program: str, generic_program: str):
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = prop_def(SymbolNameConstraint())
-        attr_sym_name = attr_def(SymbolNameConstraint())
+        sym_name: StringAttr = prop_def(SymbolNameConstraint())
+        attr_sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
         assembly_format = "$sym_name $attr_sym_name attr-dict"
 
@@ -808,9 +818,9 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = opt_prop_def(SymbolNameConstraint())
+        sym_name: StringAttr | None = opt_prop_def(SymbolNameConstraint())
 
-        other_sym_name = opt_prop_def(SymbolNameConstraint())
+        other_sym_name: StringAttr | None = opt_prop_def(SymbolNameConstraint())
 
         assembly_format = "$other_sym_name (`symbol` $sym_name^)? attr-dict"
 
@@ -842,13 +852,13 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
     class DenseArrayOp(IRDLOperation):
         name = "test.symbol"
 
-        i32s = attr_def(DenseArrayBase[I32])
-        i64s = opt_prop_def(DenseArrayBase[I64])
-        f32s = prop_def(
+        i32s: DenseArrayBase[I32] = attr_def(DenseArrayBase[I32])
+        i64s: DenseArrayBase[I64] | None = opt_prop_def(DenseArrayBase[I64])
+        f32s: DenseArrayBase[Float32Type] = prop_def(
             DenseArrayBase[Float32Type],
             default_value=DenseArrayBase.from_list(f32, (9.0,)),
         )
-        f64s = prop_def(
+        f64s: DenseArrayBase[Float64Type] = prop_def(
             VarConstraint("F64S", irdl_to_attr_constraint(DenseArrayBase[Float64Type]))
         )
 
@@ -954,7 +964,7 @@ def test_missing_operand():
         @irdl_op_definition
         class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "attr-dict"
 
@@ -968,7 +978,7 @@ def test_operands_missing_type():
         @irdl_op_definition
         class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand attr-dict"
 
@@ -984,7 +994,7 @@ def test_operands_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_operand_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand $operand type($operand) attr-dict"
 
@@ -1000,7 +1010,7 @@ def test_operands_duplicated_type():
             IRDLOperation
         ):
             name = "test.duplicated_operand_type_op"
-            operand = operand_def()
+            operand: Operand = operand_def()
 
             assembly_format = "$operand type($operand) type($operand) attr-dict"
 
@@ -1035,8 +1045,8 @@ def test_operands(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
-        lhs = operand_def()
-        rhs = operand_def()
+        lhs: Operand = operand_def()
+        rhs: Operand = operand_def()
 
         assembly_format = format
 
@@ -1083,7 +1093,7 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class VariadicOperandOp(IRDLOperation):
         name = "test.variadic_operand"
-        args = var_operand_def()
+        args: VarOperand = var_operand_def()
 
         assembly_format = format
 
@@ -1116,7 +1126,7 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class OptionalOperandOp(IRDLOperation):
         name = "test.optional_operand"
-        args = opt_operand_def()
+        args: OptOperand = opt_operand_def()
 
         assembly_format = format
 
@@ -1167,8 +1177,8 @@ def test_multiple_variadic_operands(
     @irdl_op_definition
     class VariadicOperandsOp(IRDLOperation):
         name = "test.variadic_operands"
-        args1 = var_operand_def()
-        args2 = var_operand_def()
+        args1: VarOperand = var_operand_def()
+        args2: VarOperand = var_operand_def()
 
         irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
@@ -1204,8 +1214,8 @@ def test_multiple_optional_operands(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalOperandsOp(IRDLOperation):
         name = "test.optional_operands"
-        arg1 = opt_operand_def()
-        arg2 = opt_operand_def()
+        arg1: OptOperand = opt_operand_def()
+        arg2: OptOperand = opt_operand_def()
 
         irdl_options = (AttrSizedOperandSegments(),)
 
@@ -1237,8 +1247,8 @@ def test_operands_graph_region(format: str, program: str):
     @irdl_op_definition
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
-        lhs = operand_def()
-        rhs = operand_def()
+        lhs: Operand = operand_def()
+        rhs: Operand = operand_def()
 
         assembly_format = format
 
@@ -1264,8 +1274,8 @@ def test_operands_directive_with_variadic(program: str):
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = operand_def()
-        op2 = var_operand_def()
+        op1: Operand = operand_def()
+        op2: VarOperand = var_operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1290,8 +1300,8 @@ def test_operands_directive_with_optional(program: str):
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = opt_operand_def()
-        op2 = operand_def()
+        op1: OptOperand = opt_operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1309,8 +1319,8 @@ def test_operands_directive_with_no_variadic():
     class OperandsDirectiveOp(IRDLOperation):
         name = "test.operands_directive"
 
-        op1 = operand_def()
-        op2 = operand_def()
+        op1: Operand = operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
@@ -1333,8 +1343,8 @@ def test_operands_directive_fails_with_two_var():
         class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_var_op"
 
-            op1 = var_operand_def()
-            op2 = var_operand_def()
+            op1: VarOperand = var_operand_def()
+            op2: VarOperand = var_operand_def()
 
             irdl_options = (AttrSizedOperandSegments(),)
 
@@ -1359,8 +1369,8 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_operand_def()
-        res2 = var_operand_def()
+        res1: VarOperand = var_operand_def()
+        res2: VarOperand = var_operand_def()
 
         irdl_options = (SameVariadicOperandSize(),)
 
@@ -1390,8 +1400,8 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_operand_def()
-        res2 = var_operand_def()
+        res1: VarOperand = var_operand_def()
+        res2: VarOperand = var_operand_def()
 
         irdl_options = (SameVariadicOperandSize(),)
 
@@ -1431,8 +1441,8 @@ def test_operands_directive_fails_with_other_directive():
         class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_operands_op"
 
-            op1 = operand_def()
-            op2 = operand_def()
+            op1: Operand = operand_def()
+            op2: Operand = operand_def()
 
             assembly_format = "$op1 `,` operands attr-dict `:` type(operands)"
 
@@ -1449,8 +1459,8 @@ def test_operands_directive_fails_with_other_type_directive():
         class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_operands_op"
 
-            op1 = operand_def()
-            op2 = operand_def()
+            op1: Operand = operand_def()
+            op2: Operand = operand_def()
 
             assembly_format = "operands attr-dict `:` type($op1) `,` type(operands)"
 
@@ -1475,8 +1485,8 @@ def test_operands_directive_bounds(program: str, error: str):
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
 
-        op1 = operand_def()
-        op2 = operand_def()
+        op1: Operand = operand_def()
+        op2: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1514,9 +1524,9 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
 
-        op1 = operand_def()
-        op2 = opt_operand_def()
-        op3 = operand_def()
+        op1: Operand = operand_def()
+        op2: OptOperand = opt_operand_def()
+        op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1546,9 +1556,9 @@ def test_operands_directive_bound_with_var(program: str, error: str):
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
 
-        op1 = operand_def()
-        op2 = var_operand_def()
-        op3 = operand_def()
+        op1: Operand = operand_def()
+        op2: VarOperand = var_operand_def()
+        op3: Operand = operand_def()
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1578,7 +1588,7 @@ def test_operands_directive_with_non_variadic_type_directive():
     class OneOperandOp(IRDLOperation):
         name = "test.one_operand"
 
-        op1 = operand_def()
+        op1: Operand = operand_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> OneOperandOp:
@@ -1613,8 +1623,8 @@ def test_operands_directive_with_variadic_type_directive():
     class TwoOperandOp(IRDLOperation):
         name = "test.two_operand"
 
-        op1 = operand_def()
-        op2 = var_operand_def()
+        op1: Operand = operand_def()
+        op2: VarOperand = var_operand_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> TwoOperandOp:
@@ -1643,7 +1653,7 @@ def test_missing_result_type():
         @irdl_op_definition
         class NoResultTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_result_type_op"
-            result = result_def()
+            result: OpResult = result_def()
 
             assembly_format = "attr-dict"
 
@@ -1659,7 +1669,7 @@ def test_results_duplicated_type():
             IRDLOperation
         ):
             name = "test.duplicated_result_type_op"
-            result = result_def()
+            result: OpResult = result_def()
 
             assembly_format = "type($result) type($result) attr-dict"
 
@@ -1690,8 +1700,8 @@ def test_results(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class TwoResultOp(IRDLOperation):
         name = "test.two_results"
-        lhs = result_def()
-        rhs = result_def()
+        lhs: OpResult = result_def()
+        rhs: OpResult = result_def()
 
         assembly_format = format
 
@@ -1734,7 +1744,7 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class VariadicResultOp(IRDLOperation):
         name = "test.variadic_result"
-        res = var_result_def()
+        res: VarOpResult = var_result_def()
 
         assembly_format = format
 
@@ -1758,7 +1768,7 @@ def test_variadic_result_failure():
         class VariadicResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.var_results_op"
 
-            res = var_result_def(IndexType())
+            res: VarOpResult[IndexType] = var_result_def(IndexType())
 
             irdl_options = (AttrSizedResultSegments(),)
 
@@ -1786,7 +1796,7 @@ def test_optional_result(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class OptionalResultOp(IRDLOperation):
         name = "test.optional_result"
-        res = opt_result_def()
+        res: OptOpResult = opt_result_def()
 
         assembly_format = format
 
@@ -1813,8 +1823,8 @@ def test_results_directive_with_variadic(program: str):
     class ResultsDirectiveOp(IRDLOperation):
         name = "test.results_directive"
 
-        res1 = result_def()
-        res2 = var_result_def()
+        res1: OpResult = result_def()
+        res2: VarOpResult = var_result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1839,8 +1849,8 @@ def test_results_directive_with_optional(program: str):
     class ResultsDirectiveOp(IRDLOperation):
         name = "test.results_directive"
 
-        res1 = opt_result_def()
-        res2 = result_def()
+        res1: OptOpResult = opt_result_def()
+        res2: OpResult = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1858,8 +1868,8 @@ def test_results_directive_with_no_variadic():
     class ResultsDirectiveOp(IRDLOperation):
         name = "test.results_directive"
 
-        res1 = result_def()
-        res2 = result_def()
+        res1: OpResult = result_def()
+        res2: OpResult = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1882,8 +1892,8 @@ def test_results_directive_fails_with_two_var():
         class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_var_op"
 
-            res1 = var_result_def()
-            res2 = var_result_def()
+            res1: VarOpResult = var_result_def()
+            res2: VarOpResult = var_result_def()
 
             irdl_options = (AttrSizedResultSegments(),)
 
@@ -1908,8 +1918,8 @@ def test_results_directive_works_with_two_var_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_result_def()
-        res2 = var_result_def()
+        res1: VarOpResult = var_result_def()
+        res2: VarOpResult = var_result_def()
 
         irdl_options = (SameVariadicResultSize(),)
 
@@ -1939,8 +1949,8 @@ def test_results_directive_works_with_two_opt_and_option(program: str):
     class TwoVarOp(IRDLOperation):
         name = "test.two_var_op"
 
-        res1 = var_result_def()
-        res2 = var_result_def()
+        res1: VarOpResult = var_result_def()
+        res2: VarOpResult = var_result_def()
 
         irdl_options = (SameVariadicResultSize(),)
 
@@ -1980,8 +1990,8 @@ def test_results_directive_fails_with_other_type_directive():
         class TwoResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.two_results_op"
 
-            res1 = result_def()
-            res2 = result_def()
+            res1: OpResult = result_def()
+            res2: OpResult = result_def()
 
             assembly_format = "attr-dict `:` type($res1) `,` type(results)"
 
@@ -2001,8 +2011,8 @@ def test_results_directive_bounds(program: str, error: str):
     class TwoResultsOp(IRDLOperation):
         name = "test.two_results"
 
-        res1 = result_def()
-        res2 = result_def()
+        res1: OpResult = result_def()
+        res2: OpResult = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2032,9 +2042,9 @@ def test_results_directive_bounds_with_opt(program: str, error: str):
     class ThreeResultsOp(IRDLOperation):
         name = "test.three_results"
 
-        res1 = result_def()
-        res2 = opt_result_def()
-        res3 = result_def()
+        res1: OpResult = result_def()
+        res2: OptOpResult = opt_result_def()
+        res3: OpResult = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2051,9 +2061,9 @@ def test_results_directive_bound_with_var():
     class ThreeResultsOp(IRDLOperation):
         name = "test.three_results"
 
-        res1 = result_def()
-        res2 = var_result_def()
-        res3 = result_def()
+        res1: OpResult = result_def()
+        res2: VarOpResult = var_result_def()
+        res3: OpResult = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2082,7 +2092,7 @@ def test_results_directive_with_non_variadic_type_directive():
     class OneResultOp(IRDLOperation):
         name = "test.one_result"
 
-        res = result_def()
+        res: OpResult = result_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> OneResultOp:
@@ -2116,8 +2126,8 @@ def test_results_directive_with_variadic_type_directive():
     class TwoResultsOp(IRDLOperation):
         name = "test.two_results"
 
-        res1 = result_def()
-        res2 = var_result_def()
+        res1: OpResult = result_def()
+        res2: VarOpResult = var_result_def()
 
         @classmethod
         def parse(cls, parser: Parser) -> TwoResultsOp:
@@ -2154,8 +2164,8 @@ def test_functional_type(program: str):
     class FunctionalTypeOp(IRDLOperation):
         name = "test.functional_type"
 
-        ops = var_operand_def()
-        res = var_result_def()
+        ops: VarOperand = var_operand_def()
+        res: VarOpResult = var_result_def()
 
         assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
 
@@ -2183,10 +2193,10 @@ def test_functional_type_with_operands_and_results(program: str):
     class FunctionalTypeOp(IRDLOperation):
         name = "test.functional_type"
 
-        op1 = operand_def()
-        ops2 = var_operand_def()
-        res1 = var_result_def()
-        res2 = result_def()
+        op1: Operand = operand_def()
+        ops2: VarOperand = var_operand_def()
+        res1: VarOpResult = var_result_def()
+        res2: OpResult = result_def()
 
         assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -2208,7 +2218,7 @@ def test_missing_region():
         @irdl_op_definition
         class NoRegionOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_region_op"
-            region = region_def()
+            region: Region = region_def()
 
             assembly_format = "attr-dict-with-keyword"
 
@@ -2222,7 +2232,7 @@ def test_region_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_region_op"
-            r = region_def()
+            r: Region = region_def()
 
             assembly_format = "$r $r attr-dict"
 
@@ -2237,7 +2247,7 @@ def test_attr_dict_directly_before_region_variable():
         @irdl_op_definition
         class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.region_op_missing_keyword"
-            region = region_def()
+            region: Region = region_def()
 
             assembly_format = "attr-dict $region"
 
@@ -2273,7 +2283,7 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
     @irdl_op_definition
     class RegionsOp(IRDLOperation):
         name = "test.region_attr_dict"
-        region = region_def()
+        region: Region = region_def()
 
         assembly_format = format
 
@@ -2311,8 +2321,8 @@ def test_regions(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class TwoRegionsOp(IRDLOperation):
         name = "test.two_regions"
-        fst = region_def()
-        snd = region_def()
+        fst: Region = region_def()
+        snd: Region = region_def()
 
         assembly_format = format
 
@@ -2355,7 +2365,7 @@ def test_variadic_region(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class VariadicRegionOp(IRDLOperation):
         name = "test.variadic_region"
-        region = var_region_def()
+        region: VarRegion = var_region_def()
 
         assembly_format = format
 
@@ -2388,7 +2398,7 @@ def test_optional_region(format: str, program: str, generic_program: str):
     @irdl_op_definition
     class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region"
-        region = opt_region_def()
+        region: OptRegion = opt_region_def()
 
         assembly_format = format
 
@@ -2411,8 +2421,8 @@ def test_multiple_optional_regions():
         class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
             irdl_options = (AttrSizedRegionSegments(),)
-            region1 = opt_region_def()
-            region2 = opt_region_def()
+            region1: OptRegion = opt_region_def()
+            region2: OptRegion = opt_region_def()
 
             assembly_format = "attr-dict-with-keyword $region1 $region2"
 
@@ -2438,7 +2448,7 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     @irdl_op_definition
     class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region_group"
-        opt_region = opt_region_def()
+        opt_region: OptRegion = opt_region_def()
 
         assembly_format = format
 
@@ -2473,7 +2483,7 @@ def test_optional_groups_empty_regions(program: str, generic_program: str):
     @irdl_op_definition
     class EmptyRegionOp(IRDLOperation):
         name = "test.empty_region_group"
-        maybe_empty = region_def()
+        maybe_empty: Region = region_def()
 
         assembly_format = "(`keyword` $maybe_empty^)? attr-dict"
 
@@ -2495,7 +2505,7 @@ def test_attr_dict_directly_after_optional_group_with_first_region_variable():
         @irdl_op_definition
         class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.region_op_ambiguous_optional_group"
-            region = region_def()
+            region: Region = region_def()
 
             assembly_format = "($region^)? attr-dict"
 
@@ -2512,7 +2522,7 @@ def test_missing_successor():
         @irdl_op_definition
         class NoSuccessorOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_successor_op"
-            successor = successor_def()
+            successor: Successor = successor_def()
 
             assembly_format = "attr-dict-with-keyword"
 
@@ -2528,7 +2538,7 @@ def test_successor_duplicated():
             IRDLOperation
         ):
             name = "test.duplicated_successor_op"
-            succ = successor_def()
+            succ: Successor = successor_def()
 
             assembly_format = "$succ $succ attr-dict"
 
@@ -2557,8 +2567,8 @@ def test_successors():
     @irdl_op_definition
     class TwoSuccessorsOp(IRDLOperation):
         name = "test.two_successors"
-        fst = successor_def()
-        snd = successor_def()
+        fst: Successor = successor_def()
+        snd: Successor = successor_def()
 
         assembly_format = "$fst $snd attr-dict"
 
@@ -2628,7 +2638,7 @@ def test_variadic_successor(program: str, generic_program: str):
     @irdl_op_definition
     class VarSuccessorOp(IRDLOperation):
         name = "test.var_successor"
-        succ = var_successor_def()
+        succ: VarSuccessor = var_successor_def()
 
         assembly_format = "$succ attr-dict"
 
@@ -2680,7 +2690,7 @@ def test_optional_successor(program: str, generic_program: str):
     @irdl_op_definition
     class OptSuccessorOp(IRDLOperation):
         name = "test.opt_successor"
-        succ = opt_successor_def()
+        succ: OptSuccessor = opt_successor_def()
 
         assembly_format = "$succ attr-dict"
 
@@ -2715,9 +2725,9 @@ def test_basic_inference(format: str):
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
-        res = result_def(T)
-        lhs = operand_def(T)
-        rhs = operand_def(T)
+        res: OpResult = result_def(T)
+        lhs: Operand = operand_def(T)
+        rhs: Operand = operand_def(T)
 
         assembly_format = format
 
@@ -2743,8 +2753,8 @@ def test_eq_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeOp(IRDLOperation):
         name = "test.one_operand_eq_type"
-        index = operand_def(UnitType())
-        res = result_def(UnitType())
+        index: Operand = operand_def(UnitType())
+        res: OpResult[UnitType] = result_def(UnitType())
 
         assembly_format = "attr-dict $index"
 
@@ -2771,7 +2781,7 @@ def test_all_of_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeAllOfNestedOp(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
-        index = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
+        index: Operand = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
 
         assembly_format = "attr-dict $index"
 
@@ -2816,9 +2826,9 @@ def test_nested_inference():
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
-        res = result_def(T)
-        lhs = operand_def(ParamOne.constr(p=T))
-        rhs = operand_def(T)
+        res: OpResult = result_def(T)
+        lhs: Operand = operand_def(ParamOne.constr(p=T))
+        rhs: Operand = operand_def(T)
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
 
@@ -2855,8 +2865,8 @@ def test_nested_inference_variable():
         U: ClassVar = VarConstraint("U", ParamOne.constr(p=T))
 
         name = "test.result_type_is_operand_param"
-        res = result_def(T)
-        arg = operand_def(U)
+        res: OpResult = result_def(T)
+        arg: Operand = operand_def(U)
 
         assembly_format = "$arg attr-dict `:` type($arg)"
 
@@ -2897,8 +2907,8 @@ def test_non_verifying_inference():
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.one_operand_one_result_nested"
-        res = result_def(T)
-        lhs = operand_def(ParamOne.constr(p=T))
+        res: OpResult = result_def(T)
+        lhs: Operand = operand_def(ParamOne.constr(p=T))
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
@@ -2925,8 +2935,8 @@ def test_variadic_length_inference():
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
         T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
-        ins = var_operand_def(T)
-        outs = var_result_def(T)
+        ins: VarOperand = var_operand_def(T)
+        outs: VarOpResult = var_result_def(T)
 
         assembly_format = "$ins attr-dict `:` type($ins)"
 
@@ -2952,8 +2962,10 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
-        outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
+        ins: VarOperand = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
+        outs: VarOpResult[IntegerType] = var_result_def(
+            RangeOf(eq(IntegerType(64))).of_length(T)
+        )
 
         assembly_format = "$ins attr-dict"
 
@@ -3096,7 +3108,7 @@ def test_optional_group_optional_operand_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        args = opt_operand_def()
+        args: OptOperand = opt_operand_def()
 
         assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
 
@@ -3129,8 +3141,8 @@ def test_optional_else_group(
     class OptionalElseGroupOp(IRDLOperation):
         name = "test.optional_else_group"
 
-        v = opt_operand_def(i32)
-        a = opt_prop_def(IntegerAttr[I32])
+        v: OptOperand = opt_operand_def(i32)
+        a: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
 
         assembly_format = """($v^):($a)? attr-dict"""
 
@@ -3153,7 +3165,7 @@ def test_impossible_optional_else_group():
         class OptionalImpossibleElseGroup(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.impossible_optional_else_group"
 
-            val = opt_prop_def(IntegerAttr[I32])
+            val: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
 
             assembly_format = """($val^):($val)? attr-dict"""
 
@@ -3183,8 +3195,8 @@ def test_optional_optional_group_optional_operand_anchor(
     class OptionalOptionalGroupOp(IRDLOperation):
         name = "test.optional_optional_group"
 
-        prop = opt_prop_def(StringAttr)
-        arg = opt_operand_def(I32)
+        prop: StringAttr | None = opt_prop_def(StringAttr)
+        arg: OptOperand = opt_operand_def(I32)
 
         assembly_format = "(`with` $prop^ ($arg^)?)? attr-dict"
 
@@ -3223,7 +3235,7 @@ def test_optional_group_variadic_operand_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        args = var_operand_def()
+        args: VarOperand = var_operand_def()
 
         assembly_format = "($args^ `:` type($args))? attr-dict"
 
@@ -3256,7 +3268,7 @@ def test_optional_group_optional_result_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        res = opt_result_def()
+        res: OptOpResult = opt_result_def()
 
         assembly_format = "(`(` type($res)^ `)`)? attr-dict"
 
@@ -3293,7 +3305,7 @@ def test_optional_group_variadic_result_anchor(
     class OptionalGroupOp(IRDLOperation):
         name = "test.optional_group"
 
-        res = var_result_def()
+        res: VarOpResult = var_result_def()
 
         assembly_format = "(`(` type($res)^ `)`)? attr-dict"
 
@@ -3338,10 +3350,10 @@ def test_optional_group_checkers(format: str, error: str):
         class WrongOptionalGroupOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.wrong_optional_group"
 
-            args = var_operand_def()
-            rets = var_result_def()
-            mandatory_arg = operand_def()
-            optional_unit_arg = opt_prop_def(UnitAttr())
+            args: VarOperand = var_operand_def()
+            rets: VarOpResult = var_result_def()
+            mandatory_arg: Operand = operand_def()
+            optional_unit_arg: UnitAttr | None = opt_prop_def(UnitAttr())
 
             assembly_format = format
 
@@ -3370,8 +3382,8 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
     @irdl_op_definition
     class MixedOp(IRDLOperation):
         name = "test.mixed"
-        var = var_operand_def(TestType("index"))
-        sin = operand_def(TestType("index"))
+        var: VarOperand = var_operand_def(TestType("index"))
+        sin: Operand = operand_def(TestType("index"))
 
         assembly_format = "$sin `(` $var `)` attr-dict"
 
@@ -3387,11 +3399,11 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
 class DefaultOp(IRDLOperation):
     name = "test.default"
 
-    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
-    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+    prop: BoolAttr = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop: BoolAttr = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
 
-    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
-    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+    attr: BoolAttr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr: BoolAttr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
 
     assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
 
@@ -3470,10 +3482,10 @@ def test_default_properties(program: str, output: str, generic: str):
 class RenamedPropOp(IRDLOperation):
     name = "test.renamed"
 
-    prop1 = prop_def(
+    prop1: BoolAttr = prop_def(
         BoolAttr, default_value=BoolAttr.from_bool(False), prop_name="test_prop1"
     )
-    prop2 = opt_prop_def(BoolAttr, prop_name="test_prop2")
+    prop2: BoolAttr | None = opt_prop_def(BoolAttr, prop_name="test_prop2")
 
     assembly_format = "(`prop1` $test_prop1^)? (`prop2` $test_prop2^)? attr-dict"
 
@@ -3536,9 +3548,9 @@ def test_default_property_in_attr_dict(program: str, generic: str):
     class DefaultAttrDictOp(IRDLOperation):
         name = "test.default_attr_dict"
 
-        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+        prop: BoolAttr = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+        attr: BoolAttr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
         irdl_options = (ParsePropInAttrDict(),)
 
@@ -3569,7 +3581,7 @@ def test_default_attr_in_attr_dict(program: str, generic: str):
     class DefaultAttrDictOp(IRDLOperation):
         name = "test.default_attr_dict"
 
-        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+        attr: BoolAttr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
         assembly_format = "attr-dict"
 
@@ -3590,8 +3602,8 @@ class AllOfExtractorOp(IRDLOperation):
     name = "test.all_of_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T & MemRefType.constr(T))
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T & MemRefType.constr(T))
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
@@ -3627,8 +3639,8 @@ class ParamExtractorOp(IRDLOperation):
     name = "test.param_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
@@ -3655,8 +3667,8 @@ class MultipleOperandExtractorOp(IRDLOperation):
     name = "test.multiple_operand_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)"
 
@@ -3688,9 +3700,11 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop: IntegerAttr = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    outs = var_result_def(RangeOf(eq(IndexType())).of_length(_I))
+    outs: VarOpResult[IndexType] = var_result_def(
+        RangeOf(eq(IndexType())).of_length(_I)
+    )
 
     assembly_format = "$prop attr-dict"
 
@@ -3733,11 +3747,13 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop: IntegerAttr = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop2: IntegerAttr | None = opt_prop_def(
+        IntegerAttr.constr(value=_I, type=eq(IndexType()))
+    )
 
-    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
+    ins: VarOperand = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
@@ -3800,7 +3816,7 @@ class MyAttr(ParametrizedAttribute):
 class NonQualifiedAttrOp(IRDLOperation):
     name = "test.non_qualified_attr"
 
-    attr = prop_def(MyAttr)
+    attr: MyAttr = prop_def(MyAttr)
 
     assembly_format = "$attr attr-dict"
 
@@ -3820,7 +3836,7 @@ def test_non_qualified_attr():
 class QualifiedAttrOp(IRDLOperation):
     name = "test.qualified_attr"
 
-    attr = prop_def(MyAttr)
+    attr: MyAttr = prop_def(MyAttr)
 
     assembly_format = "qualified($attr) attr-dict"
 
@@ -3904,7 +3920,7 @@ class Bars(CustomDirective):
 class CustomDirectiveWithParamOp(IRDLOperation):
     name = "test.custom_param"
 
-    ops = var_operand_def()
+    ops: VarOperand = var_operand_def()
 
     assembly_format = "custom<Bars>($ops) (`:` type($ops)^)? attr-dict"
 
@@ -3988,12 +4004,12 @@ class EmptyDirectiveWithParams(CustomDirective):
 class RefDirectivesOp(IRDLOperation):
     name = "test.ref_directives"
 
-    op = operand_def()
-    res = result_def()
-    attr = attr_def()
-    prop = prop_def()
-    region = region_def()
-    successor = successor_def()
+    op: Operand = operand_def()
+    res: OpResult = result_def()
+    attr: Attribute = attr_def()
+    prop: Attribute = prop_def()
+    region: Region = region_def()
+    successor: Successor = successor_def()
 
     assembly_format = (
         "$op type($op) type($res) $attr $prop $region $successor "
@@ -4049,8 +4065,8 @@ def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
     class DynIndexListOp(IRDLOperation):
         name = "test.dyn_index_list"
 
-        dynamic_indices = var_operand_def(I64)
-        static_indices = prop_def(DenseArrayBase[I64])
+        dynamic_indices: VarOperand = var_operand_def(I64)
+        static_indices: DenseArrayBase[I64] = prop_def(DenseArrayBase[I64])
 
         assembly_format = "(`keyword` custom<DynamicIndexList>($dynamic_indices, $static_indices)^)? attr-dict"
 

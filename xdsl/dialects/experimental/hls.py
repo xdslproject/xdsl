@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from xdsl.dialects.builtin import (
+    I64,
     Attribute,
     DenseArrayBase,
     IntegerType,
@@ -11,6 +12,9 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -27,7 +31,7 @@ from xdsl.traits import IsTerminator
 @irdl_op_definition
 class HLSYieldOp(IRDLOperation):
     name = "hls.yield"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(IsTerminator())
 
@@ -41,7 +45,7 @@ class HLSYieldOp(IRDLOperation):
 @irdl_op_definition
 class PragmaPipelineOp(IRDLOperation):
     name = "hls.pipeline"
-    ii = operand_def(IntegerType)
+    ii: Operand = operand_def(IntegerType)
 
     def __init__(self, ii: SSAValue | Operation):
         super().__init__(operands=[ii])
@@ -50,7 +54,7 @@ class PragmaPipelineOp(IRDLOperation):
 @irdl_op_definition
 class PragmaUnrollOp(IRDLOperation):
     name = "hls.unroll"
-    factor = operand_def(IntegerType)
+    factor: Operand = operand_def(IntegerType)
 
     def __init__(self, factor: SSAValue | Operation):
         super().__init__(operands=[factor])
@@ -60,7 +64,7 @@ class PragmaUnrollOp(IRDLOperation):
 class PragmaDataflowOp(IRDLOperation):
     name = "hls.dataflow"
 
-    body = region_def()
+    body: Region = region_def()
 
     def __init__(self, region: Region):
         super().__init__(regions=[region])
@@ -69,10 +73,10 @@ class PragmaDataflowOp(IRDLOperation):
 @irdl_op_definition
 class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
-    variable = opt_attr_def(StringAttr)
-    array_type = opt_attr_def()  # look at memref.Global
-    factor = operand_def()
-    dim = operand_def()
+    variable: StringAttr | None = opt_attr_def(StringAttr)
+    array_type: Attribute | None = opt_attr_def()  # look at memref.Global
+    factor: Operand = operand_def()
+    dim: Operand = operand_def()
 
     def __init__(
         self,
@@ -97,8 +101,10 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class HLSStreamOp(IRDLOperation):
     name = "hls.stream"
-    elem_type = attr_def()
-    result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
+    elem_type: Attribute = attr_def()
+    result: OpResult[HLSStreamType] = result_def(
+        HLSStreamType
+    )  # This should be changed to HLSStreamType
 
     @staticmethod
     def get(elem_type: Attribute) -> HLSStreamOp:
@@ -113,8 +119,8 @@ class HLSStreamOp(IRDLOperation):
 @irdl_op_definition
 class HLSStreamWriteOp(IRDLOperation):
     name = "hls.write"
-    element = operand_def()
-    stream = operand_def(HLSStreamType)
+    element: Operand = operand_def()
+    stream: Operand = operand_def(HLSStreamType)
 
     def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
         super().__init__(operands=[element, stream])
@@ -123,8 +129,8 @@ class HLSStreamWriteOp(IRDLOperation):
 @irdl_op_definition
 class HLSStreamReadOp(IRDLOperation):
     name = "hls.read"
-    stream = operand_def(HLSStreamType)
-    res = result_def()
+    stream: Operand = operand_def(HLSStreamType)
+    res: OpResult = result_def()
 
     def __init__(self, stream: SSAValue):
         assert isinstance(stream.type, HLSStreamType)
@@ -136,10 +142,10 @@ class HLSStreamReadOp(IRDLOperation):
 class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position = attr_def(DenseArrayBase.constr(i64))
-    container = operand_def(Attribute)
+    position: DenseArrayBase[I64] = attr_def(DenseArrayBase.constr(i64))
+    container: Operand = operand_def(Attribute)
 
-    res = result_def(Attribute)
+    res: OpResult = result_def(Attribute)
 
     def __init__(
         self,

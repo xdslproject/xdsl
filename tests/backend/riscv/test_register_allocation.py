@@ -11,8 +11,14 @@ from xdsl.backend.riscv.register_allocation import (
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.dialects import riscv
 from xdsl.dialects.test import TestOp
-from xdsl.ir import SSAValue
-from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
+from xdsl.ir import OpResult, SSAValue
+from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -78,10 +84,10 @@ def test_allocate_with_inout_constraints():
     ):
         name = "riscv.my_instruction"
 
-        rs0 = operand_def()
-        rs1 = operand_def()
-        rd0 = result_def()
-        rd1 = result_def()
+        rs0: Operand = operand_def()
+        rs1: Operand = operand_def()
+        rd0: OpResult = result_def()
+        rd1: OpResult = result_def()
 
         @classmethod
         def get(cls, rs0: SSAValue, rs1: SSAValue, rd0: str, rd1: str) -> Self:

@@ -26,6 +26,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    VarOperand,
+    VarOpResult,
     irdl_op_definition,
     opt_prop_def,
     prop_def,
@@ -110,12 +112,16 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
 class FuncOp(IRDLOperation):
     name = "func.func"
 
-    body = region_def()
-    sym_name = prop_def(SymbolNameConstraint())
-    function_type = prop_def(FunctionType)
-    sym_visibility = opt_prop_def(StringAttr)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    function_type: FunctionType = prop_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    res_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
 
     traits = traits_def(
         IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
@@ -320,9 +326,9 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "func.call"
-    arguments = var_operand_def()
-    callee = prop_def(FlatSymbolRefAttrConstr)
-    res = var_result_def()
+    arguments: VarOperand = var_operand_def()
+    callee: SymbolRefAttr = prop_def(FlatSymbolRefAttrConstr)
+    res: VarOpResult = var_result_def()
 
     traits = traits_def(
         CallOpSymbolUserOpInterface(),
@@ -350,7 +356,7 @@ class CallOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     name = "func.return"
-    arguments = var_operand_def()
+    arguments: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(FuncOp), IsTerminator(), ReturnLike())
 

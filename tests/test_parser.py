@@ -31,7 +31,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, Block, ParametrizedAttribute
+from xdsl.ir import Attribute, Block, ParametrizedAttribute, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     IRDLOperation,
@@ -417,8 +417,8 @@ def test_parse_region_with_args_fail(text: str):
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
-    r1 = region_def()
-    r2 = region_def()
+    r1: Region = region_def()
+    r2: Region = region_def()
 
 
 def test_parse_multi_region_mlir():
@@ -974,8 +974,8 @@ def test_parse_number_error(text: str, allow_boolean: bool):
 class PropertyOp(IRDLOperation):
     name = "test.prop_op"
 
-    first = prop_def(StringAttr)
-    second = prop_def(IntegerAttr[IntegerType])
+    first: StringAttr = prop_def(StringAttr)
+    second: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
 
 
 def test_properties_retrocompatibility():

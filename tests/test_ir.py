@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
+    Attribute,
     Block,
     ErasedSSAValue,
     Operation,
@@ -26,6 +27,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    VarRegion,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -41,7 +44,7 @@ from xdsl.utils.test_value import create_ssa_value
 class TestWithPropOp(IRDLOperation):
     name = "test.op_with_prop"
 
-    prop = prop_def()
+    prop: Attribute = prop_def()
 
 
 def test_ops_accessor():
@@ -941,7 +944,7 @@ ModuleOp(
 @irdl_op_definition
 class MultipleRegionsOp(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region = var_region_def()
+    region: VarRegion = var_region_def()
 
 
 def test_region_index_fetch():
@@ -1031,7 +1034,7 @@ def test_region_hashable():
 @irdl_op_definition
 class CustomVerifyOp(IRDLOperation):
     name = "test.custom_verify_op"
-    val = operand_def(i64)
+    val: Operand = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):

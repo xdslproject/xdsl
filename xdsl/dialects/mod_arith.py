@@ -7,10 +7,18 @@ from abc import ABC
 from typing import ClassVar
 
 from xdsl.dialects.arith import signlessIntegerLike
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    TensorType,
+    VectorType,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
@@ -29,10 +37,15 @@ class BinaryOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    output = result_def(T)
-    modulus = prop_def(IntegerAttr)
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    output: OpResult[
+        IntegerType
+        | IndexType
+        | VectorType[IntegerType | IndexType]
+        | TensorType[IntegerType | IndexType]
+    ] = result_def(T)
+    modulus: IntegerAttr = prop_def(IntegerAttr)
 
     irdl_options = (ParsePropInAttrDict(),)
 

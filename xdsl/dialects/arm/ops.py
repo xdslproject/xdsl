@@ -5,6 +5,8 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -28,7 +30,7 @@ class ARMInstruction(ARMAsmOperation, ABC):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
-    comment = opt_attr_def(StringAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -65,8 +67,8 @@ class DSMovOp(ARMInstruction):
 
     name = "arm.ds.mov"
 
-    d = result_def(IntRegisterType)
-    s = operand_def(IntRegisterType)
+    d: OpResult[IntRegisterType] = result_def(IntRegisterType)
+    s: Operand = operand_def(IntRegisterType)
     assembly_format = "$s attr-dict `:` `(` type($s) `)` `->` type($d)"
 
     def __init__(
@@ -99,7 +101,7 @@ class GetRegisterOp(ARMAsmOperation):
 
     name = "arm.get_register"
 
-    result = result_def(IntRegisterType)
+    result: OpResult[IntRegisterType] = result_def(IntRegisterType)
     assembly_format = "attr-dict `:` type($result)"
 
     def __init__(self, register_type: IntRegisterType):
@@ -119,9 +121,9 @@ class DSSMulOp(ARMInstruction):
 
     name = "arm.dss.mul"
 
-    d = result_def(IntRegisterType)
-    s1 = operand_def(IntRegisterType)
-    s2 = operand_def(IntRegisterType)
+    d: OpResult[IntRegisterType] = result_def(IntRegisterType)
+    s1: Operand = operand_def(IntRegisterType)
+    s2: Operand = operand_def(IntRegisterType)
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
     )
@@ -159,8 +161,8 @@ class LabelOp(ARMAsmOperation):
     """
 
     name = "arm.label"
-    label = prop_def(StringAttr)
-    comment = opt_attr_def(StringAttr)
+    label: StringAttr = prop_def(StringAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     assembly_format = "$label attr-dict"
 
@@ -196,8 +198,8 @@ class CmpRegOp(ARMInstruction):
     """
 
     name = "arm.cmp"
-    s1 = operand_def(IntRegisterType)
-    s2 = operand_def(IntRegisterType)
+    s1: Operand = operand_def(IntRegisterType)
+    s2: Operand = operand_def(IntRegisterType)
 
     assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
 

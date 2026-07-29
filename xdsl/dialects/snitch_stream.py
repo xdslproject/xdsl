@@ -40,6 +40,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
@@ -238,17 +239,17 @@ class StreamingRegionOp(IRDLOperation):
 
     name = "snitch_stream.streaming_region"
 
-    inputs = var_operand_def(riscv.IntRegisterType)
+    inputs: VarOperand = var_operand_def(riscv.IntRegisterType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(riscv.IntRegisterType)
+    outputs: VarOperand = var_operand_def(riscv.IntRegisterType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    stride_patterns = prop_def(ArrayAttr[StridePattern])
+    stride_patterns: ArrayAttr[StridePattern] = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams. If there is
     one stride pattern, and more inputs and outputs, the stride pattern is applied to all

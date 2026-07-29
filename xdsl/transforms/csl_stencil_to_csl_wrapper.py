@@ -26,7 +26,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, BlockArgument, Operation, OpResult, SSAValue
+from xdsl.ir import BlockArgument, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -219,14 +219,14 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
 
-            if isa(arg.type, stencil.FieldType[TensorType[Attribute]]) or isa(
+            if isa(arg.type, stencil.FieldType[TensorType]) or isa(
                 arg.type, memref.MemRefType
             ):
                 arg_t = (
                     csl_stencil_bufferize.tensor_to_memref_type(
                         arg.type.get_element_type()
                     )
-                    if isa(arg.type, stencil.FieldType[TensorType[Attribute]])
+                    if isa(arg.type, stencil.FieldType[TensorType])
                     else arg.type
                 )
                 arg_ops.append(alloc := memref.AllocOp([], [], arg_t))

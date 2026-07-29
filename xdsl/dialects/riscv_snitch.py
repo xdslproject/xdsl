@@ -45,7 +45,11 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     BaseAttr,
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     attr_def,
     base,
     irdl_op_definition,
@@ -119,8 +123,8 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     name = "riscv_snitch.scfgwi"
 
-    rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12])
+    rs1: Operand = operand_def(IntRegisterType)
+    immediate: IntegerAttr[SI12] = attr_def(IntegerAttr[SI12])
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -182,8 +186,8 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(snitch.ReadableStreamType.constr(T))
-    res = result_def(T)
+    stream: Operand = operand_def(snitch.ReadableStreamType.constr(T))
+    res: OpResult = result_def(T)
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
@@ -218,8 +222,8 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    value = operand_def(T)
-    stream = operand_def(snitch.WritableStreamType.constr(T))
+    value: Operand = operand_def(T)
+    stream: Operand = operand_def(snitch.WritableStreamType.constr(T))
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
@@ -290,17 +294,17 @@ class FRepOperation(RISCVInstruction):
     Snitch paper: See external [documentation](https://arxiv.org/abs/2002.10143).
     """
 
-    max_rep = operand_def(IntRegisterType)
+    max_rep: Operand = operand_def(IntRegisterType)
     """Number of times to repeat the instructions."""
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
     """
     Instructions to repeat, containing maximum 15 instructions, with no side effects.
     """
-    iter_args = var_operand_def(riscv.RISCVRegisterType)
+    iter_args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     """
     Loop-carried variable initial values.
     """
-    stagger_mask = attr_def(
+    stagger_mask: IntegerAttr[I4] = attr_def(
         IntegerAttr[I4],
         default_value=IntegerAttr(0, i4),
     )
@@ -308,7 +312,7 @@ class FRepOperation(RISCVInstruction):
     4 bits for each operand (rs1 rs2 rs3 rd). If the bit is set, the corresponding operand
     is staggered.
     """
-    stagger_count = attr_def(
+    stagger_count: IntegerAttr[I3] = attr_def(
         IntegerAttr[I3],
         default_value=IntegerAttr(0, i3),
     )
@@ -316,7 +320,7 @@ class FRepOperation(RISCVInstruction):
     3 bits, indicating for how many iterations the stagger should increment before it
     wraps again (up to 23 = 8).
     """
-    res = var_result_def(riscv.RISCVRegisterType)
+    res: VarOpResult[RISCVRegisterType] = var_result_def(riscv.RISCVRegisterType)
     """
     Loop-carried variable initial values.
     """
@@ -597,9 +601,11 @@ class FrepInnerOp(FRepOperation):
 class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.get_stream"
 
-    stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+    stream: OpResult[snitch.ReadableStreamType | snitch.WritableStreamType] = (
+        result_def(
+            snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+            | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        )
     )
 
     traits = traits_def(NoMemoryEffect())
@@ -632,8 +638,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
 class DMSourceOp(RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
-    ptrlo = operand_def(riscv.IntRegisterType)
-    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo: Operand = operand_def(riscv.IntRegisterType)
+    ptrhi: Operand = operand_def(riscv.IntRegisterType)
 
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
@@ -653,8 +659,8 @@ class DMSourceOp(RISCVInstruction):
 class DMDestinationOp(RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
-    ptrlo = operand_def(riscv.IntRegisterType)
-    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo: Operand = operand_def(riscv.IntRegisterType)
+    ptrhi: Operand = operand_def(riscv.IntRegisterType)
 
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
@@ -674,8 +680,8 @@ class DMDestinationOp(RISCVInstruction):
 class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
-    srcstrd = operand_def(riscv.IntRegisterType)
-    dststrd = operand_def(riscv.IntRegisterType)
+    srcstrd: Operand = operand_def(riscv.IntRegisterType)
+    dststrd: Operand = operand_def(riscv.IntRegisterType)
 
     assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
 
@@ -695,7 +701,7 @@ class DMStrideOp(RISCVInstruction):
 class DMRepOp(RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
-    reps = operand_def(riscv.IntRegisterType)
+    reps: Operand = operand_def(riscv.IntRegisterType)
 
     assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
 
@@ -723,9 +729,9 @@ class DMCopyOp(RISCVInstruction):
 
     name = "riscv_snitch.dmcpy"
 
-    dest = result_def(riscv.IntRegisterType)
-    size = operand_def(riscv.IntRegisterType)
-    config = operand_def(riscv.IntRegisterType)
+    dest: OpResult[IntRegisterType] = result_def(riscv.IntRegisterType)
+    size: Operand = operand_def(riscv.IntRegisterType)
+    config: Operand = operand_def(riscv.IntRegisterType)
     """
     config* determines the following parameters of the
     transfer:
@@ -763,8 +769,8 @@ class DMCopyOp(RISCVInstruction):
 class DMStatOp(RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
-    dest = result_def(riscv.IntRegisterType)
-    status = operand_def(riscv.IntRegisterType)
+    dest: OpResult[IntRegisterType] = result_def(riscv.IntRegisterType)
+    status: Operand = operand_def(riscv.IntRegisterType)
 
     assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
@@ -796,9 +802,9 @@ class DMCopyImmOp(RISCVInstruction):
 
     name = "riscv_snitch.dmcpyi"
 
-    dest = result_def(riscv.IntRegisterType)
-    size = operand_def(riscv.IntRegisterType)
-    config = prop_def(IntegerAttr[UI5])
+    dest: OpResult[IntRegisterType] = result_def(riscv.IntRegisterType)
+    size: Operand = operand_def(riscv.IntRegisterType)
+    config: IntegerAttr[UI5] = prop_def(IntegerAttr[UI5])
     """
     config* determines the following parameters of the
     transfer:
@@ -842,8 +848,8 @@ class DMCopyImmOp(RISCVInstruction):
 class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
-    dest = result_def(riscv.IntRegisterType)
-    status = prop_def(IntegerAttr[UI5])
+    dest: OpResult[IntRegisterType] = result_def(riscv.IntRegisterType)
+    status: IntegerAttr[UI5] = prop_def(IntegerAttr[UI5])
 
     assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
 
@@ -1046,12 +1052,12 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
         "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
     )
 
-    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
-    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
+    rd_out: OpResult[FloatRegisterType] = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in: Operand = operand_def(SAME_FLOAT_REGISTER_TYPE)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
 
-    fastmath = opt_attr_def(FastMathFlagsAttr)
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1112,9 +1118,9 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
         "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
     )
 
-    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
-    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
-    rs = operand_def(FloatRegisterType)
+    rd_out: OpResult[FloatRegisterType] = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in: Operand = operand_def(SAME_FLOAT_REGISTER_TYPE)
+    rs: Operand = operand_def(FloatRegisterType)
 
     traits = traits_def(AlwaysSpeculatable())
 

@@ -4,6 +4,8 @@ from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -14,7 +16,7 @@ from xdsl.irdl import (
 @irdl_op_definition
 class DeclareOp(IRDLOperation):
     name = "symref.declare"
-    sym_name = prop_def(StringAttr)
+    sym_name: StringAttr = prop_def(StringAttr)
 
     assembly_format = "$sym_name attr-dict"
 
@@ -27,8 +29,8 @@ class DeclareOp(IRDLOperation):
 @irdl_op_definition
 class FetchOp(IRDLOperation):
     name = "symref.fetch"
-    value = result_def()
-    symbol = prop_def(SymbolRefAttr)
+    value: OpResult = result_def()
+    symbol: SymbolRefAttr = prop_def(SymbolRefAttr)
 
     assembly_format = "$symbol attr-dict `:` type($value)"
 
@@ -41,8 +43,8 @@ class FetchOp(IRDLOperation):
 @irdl_op_definition
 class UpdateOp(IRDLOperation):
     name = "symref.update"
-    value = operand_def()
-    symbol = prop_def(SymbolRefAttr)
+    value: Operand = operand_def()
+    symbol: SymbolRefAttr = prop_def(SymbolRefAttr)
 
     assembly_format = "$symbol `=` $value attr-dict `:` type($value)"
 

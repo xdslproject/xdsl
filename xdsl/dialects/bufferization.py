@@ -10,6 +10,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     AnyUnrankedMemRefTypeConstr,
+    AnyUnrankedTensorType,
     AnyUnrankedTensorTypeConstr,
     IndexType,
     MemRefType,
@@ -25,7 +26,12 @@ from xdsl.irdl import (
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    OptOpResult,
     VarConstraint,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -39,9 +45,7 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class TensorFromMemRefConstraint(
-    AttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
-):
+class TensorFromMemRefConstraint(AttrConstraint[TensorType | UnrankedTensorType]):
     """
     Converts an input memref constraint to the corresponding tensor constraint, i.e. the constraints
     on element type and shape are the same as the input constraint, but the attribute is verified to be
@@ -71,9 +75,7 @@ class TensorFromMemRefConstraint(
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.memref_constraint.can_infer(var_constraint_names)
 
-    def infer(
-        self, context: ConstraintContext
-    ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
+    def infer(self, context: ConstraintContext) -> TensorType | UnrankedTensorType:
         memref_type = self.memref_constraint.infer(context)
         return self.memref_to_tensor(memref_type)
 
@@ -137,11 +139,11 @@ class AllocTensorOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
 
-    dynamic_sizes = var_operand_def(IndexType())
-    copy = opt_operand_def(T)
-    size_hint = opt_operand_def(IndexType())
+    dynamic_sizes: VarOperand = var_operand_def(IndexType())
+    copy: OptOperand = opt_operand_def(T)
+    size_hint: OptOperand = opt_operand_def(IndexType())
 
-    tensor = result_def(T)
+    tensor: OpResult[TensorType | AnyUnrankedTensorType] = result_def(T)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -166,8 +168,8 @@ class CloneOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
-    input = operand_def(T)
-    output = result_def(T)
+    input: Operand = operand_def(T)
+    output: OpResult[MemRefType | UnrankedMemRefType] = result_def(T)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
@@ -182,11 +184,13 @@ class ToTensorOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
-    memref = operand_def(T)
-    tensor = result_def(TensorFromMemRefConstraint(T))
+    memref: Operand = operand_def(T)
+    tensor: OpResult[TensorType | UnrankedTensorType] = result_def(
+        TensorFromMemRefConstraint(T)
+    )
 
-    writable = opt_prop_def(UnitAttr)
-    restrict = opt_prop_def(UnitAttr)
+    writable: UnitAttr | None = opt_prop_def(UnitAttr)
+    restrict: UnitAttr | None = opt_prop_def(UnitAttr)
 
     assembly_format = "$memref (`restrict` $restrict^)? (`writable` $writable^)? attr-dict `:` type($memref) `to` type($tensor)"
 
@@ -214,10 +218,10 @@ class ToBufferOp(IRDLOperation):
     name = "bufferization.to_buffer"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    tensor = operand_def(TensorFromMemRefConstraint(T))
-    memref = result_def(T)
+    tensor: Operand = operand_def(TensorFromMemRefConstraint(T))
+    memref: OpResult[MemRefType | UnrankedMemRefType] = result_def(T)
 
-    read_only = opt_prop_def(UnitAttr)
+    read_only: UnitAttr | None = opt_prop_def(UnitAttr)
 
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($tensor) `to` type($memref)"
 
@@ -227,12 +231,14 @@ class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    source = operand_def(TensorFromMemRefConstraint(T))
-    dest = operand_def(T | TensorFromMemRefConstraint(T))
-    result = opt_result_def(TensorFromMemRefConstraint(T))
+    source: Operand = operand_def(TensorFromMemRefConstraint(T))
+    dest: Operand = operand_def(T | TensorFromMemRefConstraint(T))
+    result: OptOpResult[TensorType | UnrankedTensorType] = opt_result_def(
+        TensorFromMemRefConstraint(T)
+    )
 
-    restrict = opt_prop_def(UnitAttr)
-    writable = opt_prop_def(UnitAttr)
+    restrict: UnitAttr | None = opt_prop_def(UnitAttr)
+    writable: UnitAttr | None = opt_prop_def(UnitAttr)
 
     assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"  # noqa: E501
 

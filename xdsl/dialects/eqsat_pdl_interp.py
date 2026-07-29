@@ -30,6 +30,11 @@ from xdsl.ir import Attribute, Block, Dialect, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    Successor,
+    VarOperand,
+    VarSuccessor,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -52,9 +57,9 @@ class GetResultOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.get_result"
-    index = prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
-    value = result_def(ValueType)
+    index: IntegerAttr[I32] = prop_def(IntegerAttr[I32])
+    input_op: Operand = operand_def(OperationType)
+    value: OpResult[ValueType] = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
 
@@ -73,9 +78,11 @@ class GetResultsOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.get_results"
-    index = opt_prop_def(IntegerAttr[I32])
-    input_op = operand_def(OperationType)
-    value = result_def(ValueType | RangeType[ValueType])
+    index: IntegerAttr[I32] | None = opt_prop_def(IntegerAttr[I32])
+    input_op: Operand = operand_def(OperationType)
+    value: OpResult[ValueType | RangeType[ValueType]] = result_def(
+        ValueType | RangeType[ValueType]
+    )
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
     # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136.
@@ -126,8 +133,8 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.get_defining_op"
-    value = operand_def(ValueType | RangeType[ValueType])
-    input_op = result_def(OperationType)
+    value: Operand = operand_def(ValueType | RangeType[ValueType])
+    input_op: OpResult[OperationType] = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
 
@@ -142,8 +149,8 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.replace"
-    input_op = operand_def(OperationType)
-    repl_values = var_operand_def(ValueType | RangeType[ValueType])
+    input_op: Operand = operand_def(OperationType)
+    repl_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
 
     assembly_format = (
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
@@ -160,17 +167,21 @@ class CreateOperationOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.create_operation"
-    constraint_name = prop_def(StringAttr, prop_name="name")
-    input_attribute_names = prop_def(
+    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
+    input_attribute_names: ArrayAttr[StringAttr] = prop_def(
         ArrayAttr[StringAttr], prop_name="inputAttributeNames"
     )
-    inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
+    inferred_result_types: UnitAttr | None = opt_prop_def(
+        UnitAttr, prop_name="inferredResultTypes"
+    )
 
-    input_operands = var_operand_def(ValueType | RangeType[ValueType])
-    input_attributes = var_operand_def(AttributeType | RangeType[AttributeType])
-    input_result_types = var_operand_def(TypeType | RangeType[TypeType])
+    input_operands: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
+    input_attributes: VarOperand = var_operand_def(
+        AttributeType | RangeType[AttributeType]
+    )
+    input_result_types: VarOperand = var_operand_def(TypeType | RangeType[TypeType])
 
-    result_op = result_def(OperationType)
+    result_op: OpResult[OperationType] = result_def(OperationType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -334,15 +345,15 @@ class RecordMatchOp(IRDLOperation):
 
     name = "eqsat_pdl_interp.record_match"
     traits = traits_def(IsTerminator())
-    rewriter = prop_def(SymbolRefAttr)
-    rootKind = opt_prop_def(StringAttr)
-    generatedOps = opt_prop_def(ArrayAttr[StringAttr])
-    benefit = prop_def(IntegerAttr[I16])
+    rewriter: SymbolRefAttr = prop_def(SymbolRefAttr)
+    rootKind: StringAttr | None = opt_prop_def(StringAttr)
+    generatedOps: ArrayAttr[StringAttr] | None = opt_prop_def(ArrayAttr[StringAttr])
+    benefit: IntegerAttr[I16] = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr)
-    matched_ops = var_operand_def(OperationType)
+    inputs: VarOperand = var_operand_def(AnyPDLTypeConstr)
+    matched_ops: VarOperand = var_operand_def(OperationType)
 
-    dest = successor_def()
+    dest: Successor = successor_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -408,8 +419,8 @@ class ChooseOp(IRDLOperation):
     """
 
     name = "eqsat_pdl_interp.choose"
-    default_dest = successor_def()
-    choices = var_successor_def()
+    default_dest: Successor = successor_def()
+    choices: VarSuccessor = var_successor_def()
     traits = traits_def(IsTerminator())
     assembly_format = "`from` $choices `then` $default_dest attr-dict"
 

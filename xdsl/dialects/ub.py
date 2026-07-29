@@ -11,6 +11,7 @@ from __future__ import annotations
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    OpResult,
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
@@ -60,9 +61,9 @@ class PoisonOp(IRDLOperation):
     # xDSL does not model that interface yet, so we accept any `Attribute` for
     # now; this should be tightened to a `PoisonAttrInterface` check once the
     # interface is available.
-    value = prop_def(Attribute, default_value=PoisonAttr())
+    value: Attribute = prop_def(Attribute, default_value=PoisonAttr())
 
-    result = result_def()
+    result: OpResult = result_def()
 
     traits = traits_def(ConstantLike(), Pure())
 

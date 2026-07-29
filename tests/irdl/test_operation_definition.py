@@ -8,6 +8,7 @@ from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
+    I32,
     BoolAttr,
     DenseArrayBase,
     IndexType,
@@ -33,13 +34,21 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     OpDef,
+    Operand,
     OperandDef,
+    OptOperand,
+    OptOpResult,
+    OptRegion,
     PropertyDef,
     RangeOf,
     RangeVarConstraint,
     RegionDef,
     ResultDef,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    VarSuccessor,
     attr_def,
     base,
     irdl_op_definition,
@@ -78,11 +87,11 @@ class OpDefTestOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    operand = operand_def()
-    result = result_def()
-    prop = prop_def()
-    attr = attr_def()
-    region = region_def()
+    operand: Operand = operand_def()
+    result: OpResult = result_def()
+    prop: Attribute = prop_def()
+    attr: Attribute = attr_def()
+    region: Region = region_def()
 
     # Check that we can define methods in operation definitions
     def test(self):
@@ -187,7 +196,7 @@ def test_list_irdl_options():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr = attr_def(StringAttr)
+    attr: StringAttr = attr_def(StringAttr)
 
 
 def test_attr_verify():
@@ -204,9 +213,9 @@ class GenericConstraintVarOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
 
-    operand = operand_def(T)
-    result = result_def(T)
-    attribute = attr_def(T)
+    operand: Operand = operand_def(T)
+    result: OpResult[IntegerType | IndexType] = result_def(T)
+    attribute: IntegerType | IndexType = attr_def(T)
 
 
 def test_generic_constraint_var():
@@ -284,10 +293,12 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
 class ConstraintRangeVarOp(IRDLOperation):
     name = "test.constraint_range_var"
 
-    operand = var_operand_def(
+    operand: VarOperand = var_operand_def(
         RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType)))
     )
-    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType))))
+    result: VarOpResult[I32 | IndexType] = var_result_def(
+        RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType)))
+    )
 
 
 def test_range_var():
@@ -370,8 +381,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
-    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    operand: VarOperand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result: VarOpResult = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
 def test_same_length_op():
@@ -410,7 +421,7 @@ def test_same_length_op():
 class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1 = prop_def()
+    prop1: Attribute = prop_def()
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -433,9 +444,9 @@ class RegionOp(IRDLOperation):
 
     irdl_options = (AttrSizedRegionSegments(),)
 
-    region = region_def()
-    opt_region = opt_region_def()
-    var_region = var_region_def()
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
+    var_region: VarRegion = var_region_def()
 
 
 def test_region_accessors():
@@ -465,9 +476,9 @@ class OperandOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    operand = operand_def()
-    opt_operand = opt_operand_def()
-    var_operand = var_operand_def()
+    operand: Operand = operand_def()
+    opt_operand: OptOperand = opt_operand_def()
+    var_operand: VarOperand = var_operand_def()
 
 
 def test_operand_accessors():
@@ -495,9 +506,9 @@ class OpResultOp(IRDLOperation):
 
     irdl_options = (AttrSizedResultSegments(),)
 
-    result = result_def()
-    opt_result = opt_result_def()
-    var_result = var_result_def()
+    result: OpResult = result_def()
+    opt_result: OptOpResult = opt_result_def()
+    var_result: VarOpResult = var_result_def()
 
 
 def test_opresult_accessors():
@@ -518,8 +529,8 @@ def test_opresult_accessors():
 class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr = attr_def(StringAttr)
-    opt_attr = opt_attr_def(StringAttr)
+    attr: StringAttr = attr_def(StringAttr)
+    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
 
 
 def test_attribute_accessors():
@@ -566,8 +577,8 @@ def test_attribute_missing():
 class PropertyOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr = prop_def(StringAttr)
-    opt_attr = opt_prop_def(StringAttr)
+    attr: StringAttr = prop_def(StringAttr)
+    opt_attr: StringAttr | None = opt_prop_def(StringAttr)
 
 
 def test_property_accessors():
@@ -638,7 +649,7 @@ def test_op_accessor_assignment():
     ):
         op1.ops = new_operands
 
-    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    new_results: SSAValues[OpResult] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
         match="Cannot write to named operands, regions, results, or successors.",
@@ -664,17 +675,17 @@ def test_op_segmented_accessor_assignment():
     @irdl_op_definition
     class TestSegmentedOp(IRDLOperation):
         name = "test.segmentedop"
-        operands1 = var_operand_def()
-        operands2 = var_operand_def()
+        operands1: VarOperand = var_operand_def()
+        operands2: VarOperand = var_operand_def()
 
-        results1 = var_result_def()
-        results2 = var_result_def()
+        results1: VarOpResult = var_result_def()
+        results2: VarOpResult = var_result_def()
 
-        regions1 = var_region_def()
-        regions2 = var_region_def()
+        regions1: VarRegion = var_region_def()
+        regions2: VarRegion = var_region_def()
 
-        successors1 = var_successor_def()
-        successors2 = var_successor_def()
+        successors1: VarSuccessor = var_successor_def()
+        successors2: VarSuccessor = var_successor_def()
 
         irdl_options = (
             AttrSizedOperandSegments(as_property=True),
@@ -699,7 +710,7 @@ def test_op_segmented_accessor_assignment():
     ):
         op1.operands1 = new_operands
 
-    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    new_results: SSAValues[OpResult] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
         match="Cannot write to named operands, regions, results, or successors.",
@@ -736,8 +747,10 @@ class RenamedAttributeOp(IRDLOperation):
 
     name = "test.renamed_attribute_op"
 
-    accessor = attr_def(StringAttr, attr_name="attr_name")
-    opt_accessor = opt_attr_def(StringAttr, attr_name="opt_attr_name")
+    accessor: StringAttr = attr_def(StringAttr, attr_name="attr_name")
+    opt_accessor: StringAttr | None = opt_attr_def(
+        StringAttr, attr_name="opt_attr_name"
+    )
 
 
 def test_renamed_attributes_verify():
@@ -791,8 +804,10 @@ class RenamedPropertyOp(IRDLOperation):
 
     name = "test.renamed_property_op"
 
-    accessor = prop_def(StringAttr, prop_name="prop_name")
-    opt_accessor = opt_prop_def(StringAttr, prop_name="opt_prop_name")
+    accessor: StringAttr = prop_def(StringAttr, prop_name="prop_name")
+    opt_accessor: StringAttr | None = opt_prop_def(
+        StringAttr, prop_name="opt_prop_name"
+    )
 
 
 def test_renamed_properties_verify():
@@ -854,8 +869,8 @@ class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
-    operand = operand_def(_Operand)
-    result = result_def(_Result)
+    operand: Operand = operand_def(_Operand)
+    result: OpResult[_Result] = result_def(_Result)
 
 
 @irdl_op_definition
@@ -912,7 +927,7 @@ def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
 
 
 class OtherParentOp(IRDLOperation):
-    other_attr = attr_def()
+    other_attr: Attribute = attr_def()
 
 
 @irdl_op_definition
@@ -952,7 +967,7 @@ def test_multiple_inheritance_op():
 @irdl_op_definition
 class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
-    body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
+    body: OptRegion = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
     traits = traits_def(NoTerminator())
 
@@ -990,9 +1005,9 @@ Operation does not verify: Region 'body' at position 0 entry arguments do not ve
 @irdl_op_definition
 class MultipleEntryArgsOp(IRDLOperation):
     name = "test.entry_args"
-    body1 = opt_region_def(entry_args=RangeOf(AnyAttr()).of_length(1))
-    bodies1 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(2))
-    bodies2 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(3))
+    body1: OptRegion = opt_region_def(entry_args=RangeOf(AnyAttr()).of_length(1))
+    bodies1: VarRegion = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(2))
+    bodies2: VarRegion = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(3))
 
     traits = traits_def(NoTerminator())
 
@@ -1029,8 +1044,8 @@ def test_multiple_entry_args_op():
 class OptionlessMultipleVarOp(IRDLOperation):
     name = "test.multiple_var_op"
 
-    optional = opt_operand_def()
-    variadic = var_operand_def()
+    optional: OptOperand = opt_operand_def()
+    variadic: VarOperand = var_operand_def()
 
 
 def test_no_multiple_var_option():
@@ -1047,11 +1062,11 @@ def test_no_multiple_var_option():
 class DefaultOp(IRDLOperation):
     name = "test.default"
 
-    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
-    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+    prop: BoolAttr = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop: BoolAttr = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
 
-    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
-    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+    attr: BoolAttr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr: BoolAttr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
 
     assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
 

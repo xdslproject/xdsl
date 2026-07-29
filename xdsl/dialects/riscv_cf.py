@@ -15,7 +15,9 @@ from xdsl.interfaces import HasCanonicalizationPatternsInterface
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    Operand,
     Successor,
+    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -51,16 +53,16 @@ class ConditionalBranchOperation(
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    else_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    then_block = successor_def()
-    else_block = successor_def()
+    then_block: Successor = successor_def()
+    else_block: Successor = successor_def()
 
     traits = traits_def(IsTerminator())
 
@@ -305,9 +307,9 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     name = "riscv_cf.branch"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
-    successor = successor_def()
-    comment = opt_attr_def(StringAttr)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    successor: Successor = successor_def()
+    comment: StringAttr | None = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -395,9 +397,9 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    successor = successor_def()
+    successor: Successor = successor_def()
 
     traits = traits_def(IsTerminator())
 
@@ -474,15 +476,15 @@ class BnezOp(RISCVInstruction):
 
     name = "riscv_cf.bnez"
 
-    rs = operand_def(IntRegisterType)
+    rs: Operand = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    else_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
-    then_block = successor_def()
-    else_block = successor_def()
+    then_block: Successor = successor_def()
+    else_block: Successor = successor_def()
 
     traits = traits_def(IsTerminator())
 

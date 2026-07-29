@@ -32,7 +32,13 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOpResult,
+    OptRegion,
     ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -67,10 +73,10 @@ class AsyncTokenAttr(ParametrizedAttribute, TypeAttribute):
 class AllocOp(IRDLOperation):
     name = "air.alloc"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr)
 
-    async_token = result_def(AsyncTokenAttr)
-    result = result_def(MemRefType)
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
+    result: OpResult[MemRefType] = result_def(MemRefType)
 
     def __init__(
         self,
@@ -88,8 +94,8 @@ class AllocOp(IRDLOperation):
 class ChannelOp(IRDLOperation):
     name = "air.channel"
 
-    sym_name = prop_def(SymbolRefAttr)
-    size = prop_def(ArrayAttr)
+    sym_name: SymbolRefAttr = prop_def(SymbolRefAttr)
+    size: ArrayAttr[Attribute] = prop_def(ArrayAttr)
 
     def __init__(
         self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]
@@ -103,15 +109,15 @@ class ChannelOp(IRDLOperation):
 class ChannelGetOp(IRDLOperation):
     name = "air.channel.get"
 
-    chan_name = attr_def(SymbolRefAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    indices = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType)
-    dst_offsets = var_operand_def(IndexType())
-    dst_sizes = var_operand_def(IndexType())
-    dst_strides = var_operand_def(IndexType())
+    chan_name: SymbolRefAttr = attr_def(SymbolRefAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    indices: VarOperand = var_operand_def(AsyncTokenAttr())
+    dst: Operand = operand_def(MemRefType)
+    dst_offsets: VarOperand = var_operand_def(IndexType())
+    dst_sizes: VarOperand = var_operand_def(IndexType())
+    dst_strides: VarOperand = var_operand_def(IndexType())
 
-    async_token = result_def(AsyncTokenAttr())
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr())
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -144,16 +150,16 @@ class ChannelGetOp(IRDLOperation):
 class ChannelPutOp(IRDLOperation):
     name = "air.channel.put"
 
-    chan_name = attr_def(SymbolRefAttr)
+    chan_name: SymbolRefAttr = attr_def(SymbolRefAttr)
 
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    indices = var_operand_def(IndexType())
-    src = operand_def(MemRefType)
-    src_offsets = var_operand_def(IndexType())
-    src_sizes = var_operand_def(IndexType())
-    src_strides = var_operand_def(IndexType())
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    indices: VarOperand = var_operand_def(IndexType())
+    src: Operand = operand_def(MemRefType)
+    src_offsets: VarOperand = var_operand_def(IndexType())
+    src_sizes: VarOperand = var_operand_def(IndexType())
+    src_strides: VarOperand = var_operand_def(IndexType())
 
-    async_token = result_def(AsyncTokenAttr())
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr())
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -187,11 +193,11 @@ class ChannelPutOp(IRDLOperation):
 class CustomOp(IRDLOperation):
     name = "air.custom"
 
-    symbol = attr_def(SymbolRefAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    custom_operands = var_operand_def(Attribute)
+    symbol: SymbolRefAttr = attr_def(SymbolRefAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr)
+    custom_operands: VarOperand = var_operand_def(Attribute)
 
-    async_token = result_def(AsyncTokenAttr)
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -212,10 +218,10 @@ class CustomOp(IRDLOperation):
 class DeallocOp(IRDLOperation):
     name = "air.dealloc"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    memref = operand_def(MemRefType)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr)
+    memref: Operand = operand_def(MemRefType)
 
-    async_token = result_def(AsyncTokenAttr)
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
 
     def __init__(
         self,
@@ -231,17 +237,17 @@ class DeallocOp(IRDLOperation):
 class DmaMemcpyNdOp(IRDLOperation):
     name = "air.dma_memcpy_nd"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType)
-    dst_offsets = var_operand_def(IndexType())
-    dst_sizes = var_operand_def(IndexType())
-    dst_strides = var_operand_def(IndexType())
-    src = operand_def(MemRefType)
-    src_offsets = var_operand_def(IndexType())
-    src_sizes = var_operand_def(IndexType())
-    src_strides = var_operand_def(IndexType())
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    dst: Operand = operand_def(MemRefType)
+    dst_offsets: VarOperand = var_operand_def(IndexType())
+    dst_sizes: VarOperand = var_operand_def(IndexType())
+    dst_strides: VarOperand = var_operand_def(IndexType())
+    src: Operand = operand_def(MemRefType)
+    src_offsets: VarOperand = var_operand_def(IndexType())
+    src_sizes: VarOperand = var_operand_def(IndexType())
+    src_strides: VarOperand = var_operand_def(IndexType())
 
-    async_token = result_def(AsyncTokenAttr())
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr())
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -293,10 +299,10 @@ class DmaMemcpyNdOp(IRDLOperation):
 class ExecuteOp(IRDLOperation):
     name = "air.execute"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    async_token = result_def(AsyncTokenAttr)
-    results_ = var_result_def(Attribute)
-    body = region_def()
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr)
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
+    results_: VarOpResult = var_result_def(Attribute)
+    body: Region = region_def()
 
     traits = lazy_traits_def(
         lambda: (SingleBlockImplicitTerminator(ExecuteTerminatorOp),)
@@ -336,7 +342,7 @@ class ExecuteTerminatorOp(IRDLOperation):
     name = "air.execute_terminator"
 
     # even though this is an operand they decided to name it "result" in the original specification
-    results_op = var_operand_def()
+    results_op: VarOperand = var_operand_def()
 
     traits = traits_def(HasParent(ExecuteOp), IsTerminator())
 
@@ -367,12 +373,12 @@ class HerdTerminatorOp(IRDLOperation):
 class HerdOp(IRDLOperation):
     name = "air.herd"
 
-    sym_name = opt_prop_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    sizes = var_operand_def(IndexType())
-    herd_operands = var_operand_def()
-    async_token = opt_result_def(AsyncTokenAttr)
-    region = opt_region_def()
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    sizes: VarOperand = var_operand_def(IndexType())
+    herd_operands: VarOperand = var_operand_def()
+    async_token: OptOpResult[AsyncTokenAttr] = opt_result_def(AsyncTokenAttr)
+    region: OptRegion = opt_region_def()
 
     traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)
@@ -524,12 +530,12 @@ class LaunchTerminatorOp(IRDLOperation):
 class LaunchOp(IRDLOperation):
     name = "air.launch"
 
-    sym_name = opt_prop_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    sizes = var_operand_def(IndexType())
-    launch_operands = var_operand_def()
-    async_token = result_def(AsyncTokenAttr)
-    body = opt_region_def()
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    sizes: VarOperand = var_operand_def(IndexType())
+    launch_operands: VarOperand = var_operand_def()
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
+    body: OptRegion = opt_region_def()
 
     traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)
@@ -624,7 +630,7 @@ class LaunchOp(IRDLOperation):
 class HerdPipelineOp(IRDLOperation):
     name = "air.pipeline"
 
-    body = opt_region_def()
+    body: OptRegion = opt_region_def()
 
     traits = traits_def(HasParent(HerdOp))
 
@@ -649,9 +655,9 @@ class HerdPipelineOp(IRDLOperation):
 class PipelineGetOp(IRDLOperation):
     name = "air.pipeline.get"
 
-    src0 = operand_def(Attribute)
-    src1 = operand_def(Attribute)
-    results = var_result_def(Attribute)
+    src0: Operand = operand_def(Attribute)
+    src1: Operand = operand_def(Attribute)
+    results: VarOpResult = var_result_def(Attribute)
 
     def __init__(
         self,
@@ -666,9 +672,9 @@ class PipelineGetOp(IRDLOperation):
 class PipelinePutOp(IRDLOperation):
     name = "air.pipeline.put"
 
-    dst0 = operand_def(Attribute)
-    dst1 = operand_def(Attribute)
-    opers = var_operand_def(Attribute)
+    dst0: Operand = operand_def(Attribute)
+    dst1: Operand = operand_def(Attribute)
+    opers: VarOperand = var_operand_def(Attribute)
 
     def __init__(
         self,
@@ -683,10 +689,10 @@ class PipelinePutOp(IRDLOperation):
 class PipelineStageOp(IRDLOperation):
     name = "air.pipeline.stage"
 
-    opers = var_operand_def(Attribute)
-    result = var_result_def()
+    opers: VarOperand = var_operand_def(Attribute)
+    result: VarOpResult = var_result_def()
 
-    body = opt_region_def()
+    body: OptRegion = opt_region_def()
 
     traits = traits_def(HasParent(HerdPipelineOp))
 
@@ -758,13 +764,13 @@ class SegmentTerminatorOp(IRDLOperation):
 class SegmentOp(IRDLOperation):
     name = "air.segment"
 
-    sym_name = opt_prop_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr())
-    sizes = var_operand_def(IndexType())
-    segment_operands = var_operand_def()
-    async_token = result_def(AsyncTokenAttr)
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr())
+    sizes: VarOperand = var_operand_def(IndexType())
+    segment_operands: VarOperand = var_operand_def()
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
 
-    body = opt_region_def()
+    body: OptRegion = opt_region_def()
 
     traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)
@@ -836,8 +842,8 @@ class SegmentOp(IRDLOperation):
 class WaitAllOp(IRDLOperation):
     name = "air.wait_all"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    async_token = result_def(AsyncTokenAttr)
+    async_dependencies: VarOperand = var_operand_def(AsyncTokenAttr)
+    async_token: OpResult[AsyncTokenAttr] = result_def(AsyncTokenAttr)
 
     def __init__(self, async_dependencies: list[SSAValue] | None):
         super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr()])

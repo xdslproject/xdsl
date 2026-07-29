@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerAttr,
-    IntegerType,
     MemRefType,
     StringAttr,
 )
@@ -41,8 +40,11 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
     ParamAttrConstraint,
     VarConstraint,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -242,8 +244,8 @@ class ReadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType.constr(T))
-    res = result_def(T)
+    stream: Operand = operand_def(ReadableStreamType.constr(T))
+    res: OpResult = result_def(T)
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
@@ -265,8 +267,8 @@ class WriteOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    value = operand_def(T)
-    stream = operand_def(WritableStreamType.constr(T))
+    value: Operand = operand_def(T)
+    stream: Operand = operand_def(WritableStreamType.constr(T))
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
@@ -289,24 +291,24 @@ class StreamingRegionOp(IRDLOperation):
 
     name = "memref_stream.streaming_region"
 
-    inputs = var_operand_def(memref.MemRefType)
+    inputs: VarOperand = var_operand_def(memref.MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(memref.MemRefType)
+    outputs: VarOperand = var_operand_def(memref.MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    patterns = prop_def(ArrayAttr[StridePattern])
+    patterns: ArrayAttr[StridePattern] = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams.
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
     indexing maps for the outputs.
     """
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -448,44 +450,48 @@ class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
 
-    inputs = var_operand_def()
+    inputs: VarOperand = var_operand_def()
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(MemRefType.constr() | WritableStreamType.constr())
+    outputs: VarOperand = var_operand_def(
+        MemRefType.constr() | WritableStreamType.constr()
+    )
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
-    inits = var_operand_def()
+    inits: VarOperand = var_operand_def()
     """
     Initial values for outputs. The outputs are at corresponding `init_indices`. The
     inits may be set only for the imperfectly nested form.
     """
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
     """
     Stride patterns that define the order of the input and output streams.
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by
     the indexing maps for the outputs.
     """
-    bounds = prop_def(ArrayAttr[IntegerAttr[IndexType]])
+    bounds: ArrayAttr[IntegerAttr[IndexType]] = prop_def(
+        ArrayAttr[IntegerAttr[IndexType]]
+    )
     """
     The bounds of the iteration space, from the outermost loop inwards.
     All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
 
-    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
-    init_indices = prop_def(ArrayAttr[IntAttr])
+    iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
+    init_indices: ArrayAttr[IntAttr[int]] = prop_def(ArrayAttr[IntAttr])
     """
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
-    doc = opt_prop_def(StringAttr)
-    library_call = opt_prop_def(StringAttr)
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
 
-    body = region_def("single_block")
+    body: Region = region_def("single_block")
 
     traits = traits_def(GenericOpHasCanonicalizationPatternsTrait())
 
@@ -692,7 +698,7 @@ class GenericOp(IRDLOperation):
 
         if "bounds" in attrs:
             bounds = attrs["bounds"]
-            assert isa(bounds, ArrayAttr[IntegerAttr[IntegerType | IndexType]]), bounds
+            assert isa(bounds, ArrayAttr[IntegerAttr | IntegerAttr]), bounds
             index = IndexType()
             bounds = ArrayAttr(
                 tuple(IntegerAttr(attr.value, index) for attr in bounds.data)
@@ -935,8 +941,8 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType.constr(T))
-    value = operand_def(T)
+    memref: Operand = operand_def(memref.MemRefType.constr(T))
+    value: Operand = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"
 

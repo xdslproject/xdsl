@@ -8,9 +8,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
-    IndexType,
     IntegerAttr,
-    IntegerType,
     ModuleOp,
     StringAttr,
 )
@@ -285,7 +283,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.AddiOp,
         args: tuple[Any, ...],
     ):
-        immediate = cast(IntegerAttr[IntegerType | IndexType], op.immediate).value.data
+        immediate = cast(IntegerAttr, op.immediate).value.data
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (args[0] + immediate,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)

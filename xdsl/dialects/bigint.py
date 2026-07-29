@@ -3,7 +3,7 @@
 import abc
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import IntAttr, IntegerType, f64, i1
+from xdsl.dialects.builtin import I1, Float64Type, IntAttr, IntegerType, f64, i1
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -14,6 +14,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    OpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -45,9 +47,9 @@ bigint = BigIntegerType()
 class BinaryOperation(IRDLOperation, abc.ABC):
     """Binary operation where all operands and results are `bigint`s."""
 
-    lhs = operand_def(bigint)
-    rhs = operand_def(bigint)
-    result = result_def(bigint)
+    lhs: Operand = operand_def(bigint)
+    rhs: Operand = operand_def(bigint)
+    result: OpResult[BigIntegerType] = result_def(bigint)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
@@ -62,8 +64,8 @@ class BinaryOperation(IRDLOperation, abc.ABC):
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
     name = "bigint.constant"
-    result = result_def(bigint)
-    value = prop_def(IntAttr)
+    result: OpResult[BigIntegerType] = result_def(bigint)
+    value: IntAttr[int] = prop_def(IntAttr)
 
     traits = traits_def(ConstantLike(), HasFolder(), Pure())
 
@@ -102,8 +104,8 @@ class ConstantOp(IRDLOperation):
 @irdl_op_definition
 class TruncateToIntOp(IRDLOperation):
     name = "bigint.truncate_to_int"
-    result = result_def(IntegerType)
-    value = operand_def(bigint)
+    result: OpResult[IntegerType] = result_def(IntegerType)
+    value: Operand = operand_def(bigint)
 
     traits = traits_def(Pure())
 
@@ -266,9 +268,9 @@ class DivOp(IRDLOperation):
 
     name = "bigint.div"
 
-    lhs = operand_def(bigint)
-    rhs = operand_def(bigint)
-    result = result_def(f64)
+    lhs: Operand = operand_def(bigint)
+    rhs: Operand = operand_def(bigint)
+    result: OpResult[Float64Type] = result_def(f64)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
@@ -287,9 +289,9 @@ class DivOp(IRDLOperation):
 class ComparisonOperation(IRDLOperation, abc.ABC):
     """Binary operation comparing two `bigint`s and returning a boolean."""
 
-    lhs = operand_def(bigint)
-    rhs = operand_def(bigint)
-    result = result_def(i1)
+    lhs: Operand = operand_def(bigint)
+    rhs: Operand = operand_def(bigint)
+    result: OpResult[I1] = result_def(i1)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 

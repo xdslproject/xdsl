@@ -11,6 +11,8 @@ from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     IRDLOperation,
+    OptRegion,
+    OptSuccessor,
     irdl_op_definition,
     lazy_traits_def,
     opt_region_def,
@@ -33,7 +35,7 @@ from xdsl.utils.exceptions import VerifyException
 class ParentOp(IRDLOperation):
     name = "test.parent"
 
-    region = region_def()
+    region: Region = region_def()
 
     traits = traits_def(NoTerminator())
 
@@ -42,7 +44,7 @@ class ParentOp(IRDLOperation):
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
-    region = region_def()
+    region: Region = region_def()
 
     traits = traits_def(NoTerminator())
 
@@ -127,7 +129,7 @@ class HasNoTerminatorOp(IRDLOperation):
 
     name = "test.has_no_terminator"
 
-    region = region_def()
+    region: Region = region_def()
 
     traits = traits_def(NoTerminator())
 
@@ -166,7 +168,7 @@ class IsTerminatorOp(IRDLOperation):
 
     name = "test.is_terminator"
 
-    successor = opt_successor_def()
+    successor: OptSuccessor = opt_successor_def()
 
     traits = traits_def(IsTerminator())
 
@@ -282,8 +284,8 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     irdl_options = (AttrSizedRegionSegments(),)
 
-    region = region_def()
-    opt_region = opt_region_def()
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
 
     traits = traits_def(
         SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
@@ -306,8 +308,8 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
 
     irdl_options = (AttrSizedRegionSegments(),)
 
-    region = region_def()
-    opt_region = opt_region_def()
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
 
     traits = traits_def(
         SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
@@ -329,8 +331,8 @@ class HasSingleBlockImplicitTerminatorWrongCreation2Op(IRDLOperation):
 
     irdl_options = (AttrSizedRegionSegments(),)
 
-    region = region_def()
-    opt_region = opt_region_def()
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
 
     traits = traits_def(
         NoTerminator(),
@@ -439,7 +441,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     name = "test.isolated_from_above"
 
-    region = region_def()
+    region: Region = region_def()
 
     traits = traits_def(IsolatedFromAbove(), NoTerminator())
 

@@ -70,7 +70,7 @@ def get_stencil_access_operands(op: Operand) -> set[Operand]:
 def _get_prefetch_buf_idx(op: stencil.ApplyOp) -> int | None:
     # calculate memory cost of all prefetch operands
     def get_prefetch_overhead(o: OpResult):
-        assert isa(o.type, TensorType[Attribute])
+        assert isa(o.type, TensorType)
         return prod(o.type.get_shape())
 
     candidate_prefetches = [
@@ -178,7 +178,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             op.input_stencil.type
         )
         t_type = op.input_stencil.type.get_element_type()
-        assert isa(t_type, TensorType[Attribute])
+        assert isa(t_type, TensorType)
         assert op.strategy.comm_layout() is not None, (
             f"topology on {type(op)} is not given"
         )
@@ -397,7 +397,7 @@ class ConvertApplyOpPattern(RewritePattern):
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
-        assert isa(prefetch.type, TensorType[Attribute])
+        assert isa(prefetch.type, TensorType)
         field_op_arg = prefetch.op.input_stencil
 
         # add empty tensor before op to be used as `accumulator`

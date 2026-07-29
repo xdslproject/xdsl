@@ -89,9 +89,7 @@ def get_required_result_type(op: Operation) -> TensorType[Any] | None:
                     return r_type
 
 
-def needs_update_shape(
-    op_type: Attribute, succ_req_type: TensorType[Attribute]
-) -> bool:
+def needs_update_shape(op_type: Attribute, succ_req_type: TensorType) -> bool:
     assert isa(op_type, TensorType)
     return op_type.get_shape() != succ_req_type.get_shape()
 
@@ -346,8 +344,7 @@ class CslStencilAccessOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ) and (
-                isa(op.op.type, TempType[TensorType[Attribute]])
-                or isa(op.op.type, TensorType[Attribute])
+                isa(op.op.type, TempType[TensorType]) or isa(op.op.type, TensorType)
             ):
                 rewriter.replace(
                     op,
@@ -356,7 +353,7 @@ class CslStencilAccessOpUpdateShape(RewritePattern):
                         op.offset,
                         (
                             op.op.type.get_element_type()
-                            if isa(op.op.type, TempType[TensorType[Attribute]])
+                            if isa(op.op.type, TempType[TensorType])
                             else typ
                         ),
                         op.offset_mapping,

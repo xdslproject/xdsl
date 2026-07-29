@@ -24,6 +24,9 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    OptOpResult,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
@@ -74,9 +77,9 @@ class RiscvFunctionCallMemoryEffect(MemoryEffect):
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args = var_operand_def(riscv.IntRegisterType)
-    syscall_num = attr_def(IntegerAttr[I32])
-    result = opt_result_def(riscv.IntRegisterType)
+    args: VarOperand = var_operand_def(riscv.IntRegisterType)
+    syscall_num: IntegerAttr[I32] = attr_def(IntegerAttr[I32])
+    result: OptOpResult[riscv.IntRegisterType] = opt_result_def(riscv.IntRegisterType)
 
     # Function calls can have arbitrary memory effects, and may overwrite the
     # A, T, FA, and FT registers
@@ -118,9 +121,9 @@ class CallOp(riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args = var_operand_def(riscv.RISCVRegisterType)
-    callee = attr_def(SymbolRefAttr)
-    ress = var_result_def(riscv.RISCVRegisterType)
+    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
+    ress: VarOpResult[riscv.RISCVRegisterType] = var_result_def(riscv.RISCVRegisterType)
 
     assembly_format = (
         "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
@@ -192,11 +195,11 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
-    body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
-    p2align = opt_attr_def(IntegerAttr[I8])
+    sym_name: StringAttr = attr_def(SymbolNameConstraint())
+    body: Region = region_def()
+    function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    p2align: IntegerAttr[I8] | None = opt_attr_def(IntegerAttr[I8])
 
     traits = traits_def(
         SymbolOpInterface(),
@@ -289,8 +292,8 @@ class ReturnOp(riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values = var_operand_def(riscv.RISCVRegisterType)
-    comment = opt_attr_def(StringAttr)
+    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = traits_def(
         IsTerminator(),

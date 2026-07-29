@@ -189,7 +189,7 @@ def test_call_not_function():
     class SymbolOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = attr_def(SymbolNameConstraint())
+        sym_name: StringAttr = attr_def(SymbolNameConstraint())
 
         traits = traits_def(SymbolOpInterface())
 

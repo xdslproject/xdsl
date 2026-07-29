@@ -7,6 +7,7 @@ from xdsl.backend.assembly_printer import reg
 from xdsl.dialects.arm.ops import ARMAsmOperation, ARMInstruction
 from xdsl.dialects.arm.registers import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
+    I8,
     IntegerAttr,
     StringAttr,
     VectorType,
@@ -25,7 +26,11 @@ from xdsl.ir import (
     StrEnum,
 )
 from xdsl.irdl import (
+    Operand,
+    OpResult,
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -176,7 +181,7 @@ class GetRegisterOp(ARMAsmOperation):
 
     name = "arm_neon.get_register"
 
-    result = result_def(NEONRegisterType)
+    result: OpResult[NEONRegisterType] = result_def(NEONRegisterType)
     assembly_format = "attr-dict `:` type($result)"
 
     def __init__(self, register_type: NEONRegisterType):
@@ -206,11 +211,11 @@ class DSSFMulOp(ARMInstruction):
     """
 
     name = "arm_neon.dss.fmul"
-    d = result_def(NEONRegisterType)
-    s1 = operand_def(NEONRegisterType)
-    s2 = operand_def(NEONRegisterType)
-    scalar_idx = opt_prop_def(IntegerAttr[i8])
-    arrangement = prop_def(NeonArrangementAttr)
+    d: OpResult[NEONRegisterType] = result_def(NEONRegisterType)
+    s1: Operand = operand_def(NEONRegisterType)
+    s2: Operand = operand_def(NEONRegisterType)
+    scalar_idx: IntegerAttr[I8] | None = opt_prop_def(IntegerAttr[i8])
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
 
     assembly_format = (
         "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict "
@@ -277,12 +282,12 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     )
 
     name = "arm_neon.dss.fmla"
-    res = result_def(SAME_NEON_REGISTER_TYPE)
-    d = operand_def(SAME_NEON_REGISTER_TYPE)
-    s1 = operand_def(NEONRegisterType)
-    s2 = operand_def(NEONRegisterType)
-    scalar_idx = prop_def(IntegerAttr[i8])
-    arrangement = prop_def(NeonArrangementAttr)
+    res: OpResult[NEONRegisterType] = result_def(SAME_NEON_REGISTER_TYPE)
+    d: Operand = operand_def(SAME_NEON_REGISTER_TYPE)
+    s1: Operand = operand_def(NEONRegisterType)
+    s2: Operand = operand_def(NEONRegisterType)
+    scalar_idx: IntegerAttr[I8] = prop_def(IntegerAttr[i8])
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
 
     assembly_format = (
         "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
@@ -336,9 +341,9 @@ class DSDupOp(ARMInstruction):
     """
 
     name = "arm_neon.ds.dup"
-    s = operand_def(IntRegisterType)
-    d = result_def(NEONRegisterType)
-    arrangement = prop_def(NeonArrangementAttr)
+    s: Operand = operand_def(IntRegisterType)
+    d: OpResult[NEONRegisterType] = result_def(NEONRegisterType)
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
 
     assembly_format = "$s $arrangement attr-dict `:` type($s) `->` `(` type($d) `)`"
 
@@ -381,10 +386,10 @@ class DSVecMovOp(ARMInstruction):
     """
 
     name = "arm_neon.dsvec.mov"
-    s = operand_def(NEONRegisterType)
-    d = result_def(IntRegisterType)
-    scalar_idx = prop_def(IntegerAttr[i8])
-    arrangement = prop_def(NeonArrangementAttr)
+    s: Operand = operand_def(NEONRegisterType)
+    d: OpResult[IntRegisterType] = result_def(IntRegisterType)
+    scalar_idx: IntegerAttr[I8] = prop_def(IntegerAttr[i8])
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
     assembly_format = (
         "$s `[` $scalar_idx `]` $arrangement attr-dict `:` type($s) `->` type($d)"
     )
@@ -431,9 +436,9 @@ class DVarSLd1Op(ARMInstruction):
     """
 
     name = "arm_neon.dvars.ld1"
-    s = operand_def(IntRegisterType)
-    dest_regs = var_result_def(NEONRegisterType)
-    arrangement = prop_def(NeonArrangementAttr)
+    s: Operand = operand_def(IntRegisterType)
+    dest_regs: VarOpResult[NEONRegisterType] = var_result_def(NEONRegisterType)
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
 
     assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
 
@@ -485,9 +490,9 @@ class DVarSSt1Op(ARMInstruction):
     """
 
     name = "arm_neon.dvars.st1"
-    d = operand_def(IntRegisterType)
-    src_regs = var_operand_def(NEONRegisterType)
-    arrangement = prop_def(NeonArrangementAttr)
+    d: Operand = operand_def(IntRegisterType)
+    src_regs: VarOperand = var_operand_def(NEONRegisterType)
+    arrangement: NeonArrangementAttr = prop_def(NeonArrangementAttr)
 
     assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
 

@@ -4,6 +4,8 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import (
+    I1,
+    I64,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
@@ -35,6 +37,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -155,12 +162,12 @@ class ApplyRegisteredPassOp(IRDLOperation):
 
     name = "transform.apply_registered_pass"
 
-    options = prop_def(DictionaryAttr, default_value=DictionaryAttr({}))
-    pass_name = prop_def(StringAttr)
-    target = operand_def(TransformHandleType)
+    options: DictionaryAttr = prop_def(DictionaryAttr, default_value=DictionaryAttr({}))
+    pass_name: StringAttr = prop_def(StringAttr)
+    target: Operand = operand_def(TransformHandleType)
     # TODO implement dynamic options and custom directive
     # dynamic_options = var_operand_def(TransformHandleType)
-    result = result_def(TransformHandleType)
+    result: OpResult[TransformHandleType] = result_def(TransformHandleType)
     assembly_format = "$pass_name (`with` `options` `=` $options^)? `to` $target attr-dict `:` functional-type(operands, results)"
 
     def __init__(
@@ -193,9 +200,9 @@ class GetConsumersOfResultOp(IRDLOperation):
 
     name = "transform.get_consumers_of_result"
 
-    result_number = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
-    consumers = result_def(TransformOpHandleType)
+    result_number: IntegerAttr = prop_def(IntegerAttr)
+    target: Operand = operand_def(TransformOpHandleType)
+    consumers: OpResult[TransformOpHandleType] = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -217,8 +224,8 @@ class GetDefiningOp(IRDLOperation):
 
     name = "transform.get_defining_op"
 
-    target = operand_def(TransformValueHandleType)
-    result = result_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformValueHandleType)
+    result: OpResult[TransformOpHandleType] = result_def(TransformOpHandleType)
 
     def __init__(self, target: SSAValue):
         super().__init__(operands=[target], result_types=[AnyOpType()])
@@ -232,13 +239,13 @@ class GetParentOp(IRDLOperation):
 
     name = "transform.get_parent_op"
 
-    isolated_from_above = opt_prop_def(UnitAttr)
-    allow_empty_results = opt_prop_def(UnitAttr)
-    op_name = opt_prop_def(StringAttr)
-    deduplicate = opt_prop_def(UnitAttr)
-    nth_parent = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
-    parent_result = result_def(TransformOpHandleType)
+    isolated_from_above: UnitAttr | None = opt_prop_def(UnitAttr)
+    allow_empty_results: UnitAttr | None = opt_prop_def(UnitAttr)
+    op_name: StringAttr | None = opt_prop_def(StringAttr)
+    deduplicate: UnitAttr | None = opt_prop_def(UnitAttr)
+    nth_parent: IntegerAttr = prop_def(IntegerAttr)
+    target: Operand = operand_def(TransformOpHandleType)
+    parent_result: OpResult[TransformOpHandleType] = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -272,9 +279,9 @@ class GetProducerOfOperandOp(IRDLOperation):
 
     name = "transform.get_producer_of_operand"
 
-    operand_number = prop_def(IntegerAttr)
-    target = operand_def(TransformOpHandleType)
-    producer = result_def(TransformOpHandleType)
+    operand_number: IntegerAttr = prop_def(IntegerAttr)
+    target: Operand = operand_def(TransformOpHandleType)
+    producer: OpResult[TransformOpHandleType] = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -298,11 +305,11 @@ class GetResultOp(IRDLOperation):
 
     name = "transform.get_result"
 
-    raw_position_list = prop_def(DenseArrayBase)
-    is_inverted = opt_prop_def(UnitAttr)
-    is_all = opt_prop_def(UnitAttr)
-    target = operand_def(TransformOpHandleType)
-    result = result_def(TransformValueHandleType)
+    raw_position_list: DenseArrayBase = prop_def(DenseArrayBase)
+    is_inverted: UnitAttr | None = opt_prop_def(UnitAttr)
+    is_all: UnitAttr | None = opt_prop_def(UnitAttr)
+    target: Operand = operand_def(TransformOpHandleType)
+    result: OpResult[TransformValueHandleType] = result_def(TransformValueHandleType)
 
     def __init__(
         self,
@@ -334,9 +341,11 @@ class GetTypeOp(IRDLOperation):
 
     name = "transform.get_type"
 
-    elemental = opt_prop_def(UnitAttr)
-    value = operand_def(TransformValueHandleType)
-    type_param = result_def(TransformParamHandleType)
+    elemental: UnitAttr | None = opt_prop_def(UnitAttr)
+    value: Operand = operand_def(TransformValueHandleType)
+    type_param: OpResult[TransformParamHandleType] = result_def(
+        TransformParamHandleType
+    )
 
     def __init__(self, elemental: bool, value: SSAValue):
         super().__init__(
@@ -354,10 +363,10 @@ class IncludeOp(IRDLOperation):
 
     name = "transform.include"
 
-    target = prop_def(SymbolRefAttr)
-    failure_propagation_mode = prop_def()
-    operands_input = var_operand_def(TransformHandleType)
-    result = var_result_def(TransformHandleType)
+    target: SymbolRefAttr = prop_def(SymbolRefAttr)
+    failure_propagation_mode: Attribute = prop_def()
+    operands_input: VarOperand = var_operand_def(TransformHandleType)
+    result: VarOpResult[TransformHandleType] = var_result_def(TransformHandleType)
 
     def __init__(
         self,
@@ -387,7 +396,7 @@ class MatchOperationEmptyOp(IRDLOperation):
 
     name = "transform.match.operation_empty"
 
-    operand_handle = operand_def(TransformOpHandleType)
+    operand_handle: Operand = operand_def(TransformOpHandleType)
 
     def __init__(self, operand_handle: SSAValue):
         super().__init__(operands=[operand_handle])
@@ -401,8 +410,8 @@ class MatchOperationNameOp(IRDLOperation):
 
     name = "transform.match.operation_name"
 
-    op_names = prop_def(ArrayAttr[StringAttr])
-    operand_handle = operand_def(TransformOpHandleType)
+    op_names: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
+    operand_handle: Operand = operand_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -430,11 +439,11 @@ class MatchParamCmpIOp(IRDLOperation):
 
     name = "transform.match.param.cmpi"
 
-    predicate = prop_def(
+    predicate: IntegerAttr = prop_def(
         IntegerAttr
     )  # Valid values given in xdsl/xdsl/dialects/arith.py
-    param = operand_def(TransformParamHandleType)
-    reference = operand_def(TransformParamHandleType)
+    param: Operand = operand_def(TransformParamHandleType)
+    reference: Operand = operand_def(TransformParamHandleType)
 
     def __init__(
         self, predicate: int | IntegerAttr, param: SSAValue, reference: SSAValue
@@ -455,9 +464,9 @@ class MergeHandlesOp(IRDLOperation):
 
     name = "transform.merge_handles"
 
-    deduplicate = opt_prop_def(UnitAttr)
-    handles = var_operand_def(TransformHandleType)
-    result = result_def(TransformHandleType)
+    deduplicate: UnitAttr | None = opt_prop_def(UnitAttr)
+    handles: VarOperand = var_operand_def(TransformHandleType)
+    result: OpResult[TransformHandleType] = result_def(TransformHandleType)
 
     def __init__(self, handles: Sequence[SSAValue], deduplicate: bool = False):
         super().__init__(
@@ -475,8 +484,8 @@ class ParamConstantOp(IRDLOperation):
 
     name = "transform.param.constant"
 
-    value = prop_def()
-    param = result_def(ParamType)
+    value: Attribute = prop_def()
+    param: OpResult[ParamType] = result_def(ParamType)
 
     def __init__(self, value: Attribute, param_type: TypeAttribute):
         super().__init__(
@@ -492,11 +501,11 @@ class SplitHandleOp(IRDLOperation):
 
     name = "transform.split_handle"
 
-    pass_through_empty_handle = prop_def(IntegerAttr)
-    fail_on_payload_too_small = prop_def(IntegerAttr)
-    overflow_result = opt_prop_def(IntegerAttr)
-    handle = operand_def(TransformHandleType)
-    results_ = var_result_def(TransformHandleType)
+    pass_through_empty_handle: IntegerAttr = prop_def(IntegerAttr)
+    fail_on_payload_too_small: IntegerAttr = prop_def(IntegerAttr)
+    overflow_result: IntegerAttr | None = opt_prop_def(IntegerAttr)
+    handle: Operand = operand_def(TransformHandleType)
+    results_: VarOpResult[TransformHandleType] = var_result_def(TransformHandleType)
 
     def __init__(
         self,
@@ -554,10 +563,10 @@ class SequenceOp(IRDLOperation):
 
     name = "transform.sequence"
 
-    body = region_def("single_block")
-    failure_propagation_mode = prop_def()
-    root = var_operand_def(AnyOpType)
-    extra_bindings = var_operand_def(TransformHandleType)
+    body: Region = region_def("single_block")
+    failure_propagation_mode: Attribute = prop_def()
+    root: VarOperand = var_operand_def(AnyOpType)
+    extra_bindings: VarOperand = var_operand_def(TransformHandleType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
@@ -599,14 +608,14 @@ class TileOp(IRDLOperation):
 
     name = "transform.structured.tile_using_for"
 
-    target = operand_def(TransformHandleType)
-    dynamic_sizes = var_operand_def(TransformHandleType)
-    static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
-    interchange = opt_prop_def(DenseArrayBase.constr(i64))
-    scalable_sizes = opt_prop_def(DenseArrayBase.constr(i1))
+    target: Operand = operand_def(TransformHandleType)
+    dynamic_sizes: VarOperand = var_operand_def(TransformHandleType)
+    static_sizes: DenseArrayBase[I64] | None = opt_prop_def(DenseArrayBase.constr(i64))
+    interchange: DenseArrayBase[I64] | None = opt_prop_def(DenseArrayBase.constr(i64))
+    scalable_sizes: DenseArrayBase[I1] | None = opt_prop_def(DenseArrayBase.constr(i1))
 
-    tiled_linalg_op = result_def(AnyOpType)
-    loops = var_result_def(AnyOpType)
+    tiled_linalg_op: OpResult[AnyOpType] = result_def(AnyOpType)
+    loops: VarOpResult[AnyOpType] = var_result_def(AnyOpType)
 
     def __init__(
         self,
@@ -654,17 +663,17 @@ class TileToForallOp(IRDLOperation):
 
     name = "transform.structured.tile_using_forall"
 
-    target = operand_def(TransformHandleType)
-    num_threads = var_operand_def(DenseArrayBase)
-    tile_sizes = var_operand_def(DenseArrayBase)
-    packed_num_threads = opt_operand_def(DenseArrayBase)
-    packed_tile_sizes = opt_operand_def(DenseArrayBase)
-    static_num_threads = opt_prop_def(DenseArrayBase)
-    static_tile_sizes = opt_prop_def(DenseArrayBase)
-    mapping = opt_attr_def(DenseArrayBase)
+    target: Operand = operand_def(TransformHandleType)
+    num_threads: VarOperand = var_operand_def(DenseArrayBase)
+    tile_sizes: VarOperand = var_operand_def(DenseArrayBase)
+    packed_num_threads: OptOperand = opt_operand_def(DenseArrayBase)
+    packed_tile_sizes: OptOperand = opt_operand_def(DenseArrayBase)
+    static_num_threads: DenseArrayBase | None = opt_prop_def(DenseArrayBase)
+    static_tile_sizes: DenseArrayBase | None = opt_prop_def(DenseArrayBase)
+    mapping: DenseArrayBase | None = opt_attr_def(DenseArrayBase)
 
-    forall_op = result_def(TransformHandleType)
-    tiled_op = result_def(TransformHandleType)
+    forall_op: OpResult[TransformHandleType] = result_def(TransformHandleType)
+    tiled_op: OpResult[TransformHandleType] = result_def(TransformHandleType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -715,9 +724,9 @@ class SelectOp(IRDLOperation):
 
     name = "transform.select"
 
-    op_name = prop_def(StringAttr)
-    target = operand_def(TransformHandleType)
-    result = result_def(TransformHandleType)
+    op_name: StringAttr = prop_def(StringAttr)
+    target: Operand = operand_def(TransformHandleType)
+    result: OpResult[TransformHandleType] = result_def(TransformHandleType)
 
     def __init__(self, op_name: str | StringAttr, target: SSAValue):
         if isinstance(op_name, str):
@@ -737,12 +746,16 @@ class NamedSequenceOp(IRDLOperation):
 
     name = "transform.named_sequence"
 
-    sym_name = prop_def(SymbolNameConstraint())
-    function_type = prop_def(FunctionType)
-    sym_visibility = opt_prop_def(StringAttr)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    body = region_def("single_block")
+    sym_name: StringAttr = prop_def(SymbolNameConstraint())
+    function_type: FunctionType = prop_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    res_attrs: ArrayAttr[DictionaryAttr] | None = opt_prop_def(
+        ArrayAttr[DictionaryAttr]
+    )
+    body: Region = region_def("single_block")
 
     traits = traits_def(
         IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
@@ -837,8 +850,8 @@ class CastOp(IRDLOperation):
 
     name = "transform.cast"
 
-    input = operand_def(TransformHandleType)
-    output = result_def(TransformHandleType)
+    input: Operand = operand_def(TransformHandleType)
+    output: OpResult[TransformHandleType] = result_def(TransformHandleType)
 
     def __init__(self, input: SSAValue):
         super().__init__(operands=[input], result_types=[AnyOpType()])
@@ -852,14 +865,14 @@ class MatchOp(IRDLOperation):
 
     name = "transform.structured.match"
 
-    ops = opt_prop_def(ArrayAttr[StringAttr])
-    interface = opt_prop_def(IntegerAttr)
-    op_attrs = opt_prop_def(DictionaryAttr)
-    filter_result_types = opt_prop_def(TypeAttribute)
-    filter_operand_types = opt_prop_def(TypeAttribute)
+    ops: ArrayAttr[StringAttr] | None = opt_prop_def(ArrayAttr[StringAttr])
+    interface: IntegerAttr | None = opt_prop_def(IntegerAttr)
+    op_attrs: DictionaryAttr | None = opt_prop_def(DictionaryAttr)
+    filter_result_types: TypeAttribute | None = opt_prop_def(TypeAttribute)
+    filter_operand_types: TypeAttribute | None = opt_prop_def(TypeAttribute)
 
-    target = operand_def(TransformOpHandleType)
-    result = result_def(TransformOpHandleType)
+    target: Operand = operand_def(TransformOpHandleType)
+    result: OpResult[TransformOpHandleType] = result_def(TransformOpHandleType)
 
     def __init__(
         self,

@@ -29,6 +29,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
@@ -2051,8 +2052,8 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
     """
 
     name = "riscv.label"
-    label = attr_def(LabelAttr)
-    comment = opt_attr_def(StringAttr)
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2109,8 +2110,8 @@ class DirectiveOp(
     """
 
     name = "riscv.directive"
-    directive = attr_def(StringAttr)
-    value = opt_attr_def(StringAttr)
+    directive: StringAttr = attr_def(StringAttr)
+    value: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2181,8 +2182,8 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
 
     name = "riscv.assembly_section"
-    directive = attr_def(StringAttr)
-    data = region_def("single_block")
+    directive: StringAttr = attr_def(StringAttr)
+    data: Region = region_def("single_block")
 
     traits = traits_def(NoTerminator(), IsolatedFromAbove())
 
@@ -2251,10 +2252,10 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs = var_operand_def()
-    outputs = var_result_def()
-    instruction_name = attr_def(StringAttr)
-    comment = opt_attr_def(StringAttr)
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
+    instruction_name: StringAttr = attr_def(StringAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2288,7 +2289,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 @irdl_op_definition
 class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
-    comment = attr_def(StringAttr)
+    comment: StringAttr = attr_def(StringAttr)
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):
@@ -2344,12 +2345,14 @@ class ParallelMovOp(RISCVRegallocOperation):
     _L: ClassVar = IntVarConstraint("L", AnyInt())
 
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    inputs: VarOperand = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
         RangeOf(RISCVRegisterType).of_length(_L)
     )
-    input_widths = prop_def(DenseArrayBase.constr(i32))
-    free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
+    input_widths: DenseArrayBase[I32] = prop_def(DenseArrayBase.constr(i32))
+    free_registers: ArrayAttr[RISCVRegisterType] | None = opt_prop_def(
+        ArrayAttr[RISCVRegisterType]
+    )
 
     assembly_format = (
         "$inputs $input_widths attr-dict `:` functional-type($inputs, $outputs)"
