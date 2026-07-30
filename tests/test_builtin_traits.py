@@ -16,6 +16,7 @@ from xdsl.irdl import (
     opt_region_def,
     opt_successor_def,
     region_def,
+    result_def,
     traits_def,
 )
 from xdsl.traits import (
@@ -444,6 +445,20 @@ class IsolatedFromAboveOp(IRDLOperation):
     traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
 
+@irdl_op_definition
+class IsolatedFromAboveWithResultOp(IRDLOperation):
+    """
+    An isolated from above operation with a result.
+    """
+
+    name = "test.isolated_from_above_with_result"
+
+    region = region_def()
+    result = result_def()
+
+    traits = traits_def(IsolatedFromAbove(), NoTerminator())
+
+
 def test_isolated_from_above():
     # Empty Isolated is fine
     op = IsolatedFromAboveOp(regions=[Region()])
@@ -466,8 +481,21 @@ def test_isolated_from_above():
             ),
         ]
     )
-    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
-    with pytest.raises(VerifyException, match=message):
+    illegal_addiop_message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
+    with pytest.raises(VerifyException, match=illegal_addiop_message):
+        out_block.verify()
+
+    # Check an isolated op cannot use its own result within itself
+    cst_op = arith.ConstantOp.from_int_and_width(0, builtin.i32)
+    isolated_op = IsolatedFromAboveWithResultOp(
+        result_types=[builtin.i32],
+        regions=[Region(Block([cst_op]))],
+    )
+    # create and add to block an op which uses the output of isolated_op itself
+    add_op = arith.AddiOp(isolated_op.results[0], cst_op.results[0])
+    isolated_op.region.block.add_op(add_op)
+    out_block = Block([isolated_op])
+    with pytest.raises(VerifyException, match=illegal_addiop_message):
         out_block.verify()
 
     # Check a nested isolation violation
@@ -495,11 +523,10 @@ def test_isolated_from_above():
         ]
     )
     # Check that the IR as a whole is wrong
-    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
-    with pytest.raises(VerifyException, match=message):
+    with pytest.raises(VerifyException, match=illegal_addiop_message):
         out_block.verify()
     # Check that the outer one in itself is fine
     out_isolated.verify(verify_nested_ops=False)
     # Check that the inner one is indeed failing to verify.
-    with pytest.raises(VerifyException, match=message):
+    with pytest.raises(VerifyException, match=illegal_addiop_message):
         in_isolated.verify()
