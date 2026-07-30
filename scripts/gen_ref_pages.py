@@ -81,6 +81,11 @@ MARIMO_NOTEBOOK_MODES: dict[str, MarimoExportMode] = {
     "ir_gen.py": "edit",
     "rewrite_exercises.py": "edit",
     "traversing_ir.py": "edit",
+    # Toy tutorial
+    "Toy/ch0.py": "edit",
+    "Toy/ch1.py": "edit",
+    "Toy/ch2.py": "edit",
+    "Toy/ch3.py": "edit",
 }
 
 MARIMO_NOTEBOOKS_DOCS_DIR = docs_root / "notebooks"
@@ -96,13 +101,17 @@ def _():
 def replace_xdsl_import(path: Path, destination_dir: Path):
     """
     Copy over the original notebook, replacing SYNC_XDSL_IMPORT with the contents of
-    `./marimo_import_xdsl_wheel.py`.
+    `./marimo_import_xdsl_wheel.py` or `./marimo_import_toy_wheel.py` for Toy notebooks.
     """
     # Read the original notebook
     notebook_text = path.read_text(encoding="utf-8")
 
-    # Read the contents of marimo_import_xdsl_wheel.py
-    import_path = Path(__file__).parent / "marimo_import_xdsl_wheel.py"
+    script_name = (
+        "marimo_import_toy_wheel.py"
+        if path.is_relative_to(MARIMO_NOTEBOOKS_DOCS_DIR / "Toy")
+        else "marimo_import_xdsl_wheel.py"
+    )
+    import_path = Path(__file__).parent / script_name
     import_code = import_path.read_text(encoding="utf-8").rstrip()
 
     # Replace the SYNC_XDSL_IMPORT string with the import_code
@@ -182,8 +191,10 @@ def gen_marimo():
         doc_path = path.relative_to(docs_root).with_suffix(".html")
 
         with mkdocs_gen_files.open(doc_path, "w") as fd:
-            # Create an HTML page that redirects to the generated marimo app
-            relative_path = f"html/{notebook_name}/index.html"
+            # Create an HTML page that redirects to the generated marimo app.
+            # Nested notebook paths (e.g. Toy/ch0.py) need to climb back to notebooks/.
+            depth = len(Path(name).parts) - 1
+            relative_path = ("../" * depth) + f"html/{notebook_name}/index.html"
             fd.write(
                 f"""<!DOCTYPE html>
 <html>
@@ -217,5 +228,7 @@ with open(MARIMO_NOTEBOOKS_DOCS_DIR / "README.md") as rf:
 with mkdocs_gen_files.open("notebooks/index.md", "w") as fd:
     for name in MARIMO_NOTEBOOK_MODES:
         # Replace occurrences of notebook names with readonly html versions.
-        marimo_readme = marimo_readme.replace(name, "html/" + name[:-3] + "/index.html")
+        marimo_readme = marimo_readme.replace(
+            name, f"html/{Path(name).stem}/index.html"
+        )
     fd.write(marimo_readme.replace(".py", ".html"))

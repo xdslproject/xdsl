@@ -82,16 +82,8 @@ pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in
 filecheck-toy: uv-installed ## run tests for Toy tutorial
 	$(UV_RUN) lit $(LIT_OPTIONS) docs/Toy/examples
 
-.PHONY: pytest-toy-nb
-pytest-toy-nb:
-	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
-		uv run pytest -W error --nbval $(PYTEST_OPTIONS) docs/Toy --nbval-current-env; \
-	else \
-		echo "riscemu is not installed, skipping tests."; \
-	fi
-
 .PHONY: tests-toy
-tests-toy: filecheck-toy pytest-toy-nb
+tests-toy: filecheck-toy
 
 
 .PHONY: tests-marimo
@@ -100,7 +92,7 @@ tests-marimo: uv-installed
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
 		files_requiring_mlir_opt=("docs/notebooks/mlir_interoperation.py"); \
-		for file in docs/notebooks/*.py; do \
+		for file in docs/notebooks/*.py docs/notebooks/Toy/*.py; do \
 			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
 					echo "Skipping $$file (mlir-opt is not available)"; \
@@ -135,14 +127,6 @@ tests-quiet: uv-installed ## run functional tests with minimal output
 tests: tests-functional pyright ## run all tests
 	@echo All tests done.
 
-
-.PHONY: rerun-notebooks
-rerun-notebooks: uv-installed ## re-generate the output from all jupyter notebooks in the docs directory
-	uv run jupyter nbconvert \
-		--ClearMetadataPreprocessor.enabled=True \
-		--inplace \
-		--to notebook \
-		--execute docs/*.ipynb docs/Toy/*.ipynb
 
 .PHONY: precommit-install
 precommit-install: uv-installed ## set up all precommit hooks
