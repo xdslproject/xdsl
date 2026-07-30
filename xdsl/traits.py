@@ -288,7 +288,9 @@ class IsolatedFromAbove(OpTrait):
                     # Check every operand of the operation
                     for operand in child_op.operands:
                         # The operand must not be defined out of the IsolatedFromAbove op.
-                        if not op.is_ancestor(operand.owner):
+                        # Since op.is_ancestor(op) evaluates to True, also check if the operand is
+                        # owned by the op itself (not allowed).
+                        if not op.is_ancestor(operand.owner) or operand.owner is op:
                             raise VerifyException(
                                 "Operation using value defined out of its "
                                 f"IsolatedFromAbove parent: {child_op}"
