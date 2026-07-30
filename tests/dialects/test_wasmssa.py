@@ -1,8 +1,11 @@
 import pytest
 
+from xdsl.dialects.builtin import f32, i32
 from xdsl.dialects.wasmssa import (
     AddOp,
     AndOp,
+    BinaryComparisonOperation,
+    BinaryNumericalOperation,
     CopySignOp,
     DivOp,
     DivSIOp,
@@ -31,50 +34,69 @@ from xdsl.dialects.wasmssa import (
     SubOp,
     XOrOp,
 )
+from xdsl.ir import Attribute
 from xdsl.irdl import IRDLOperation
 from xdsl.traits import Commutative, NoMemoryEffect, OpTrait, Pure
+from xdsl.utils.test_value import create_ssa_value
 
 
-@pytest.mark.parametrize(
-    "op_type, required_traits, forbidden_traits",
-    [
-        (AddOp, [Pure(), Commutative()], []),
-        (AndOp, [Pure(), Commutative()], []),
-        (DivOp, [Pure()], [Commutative()]),
-        (DivUIOp, [NoMemoryEffect()], [Pure(), Commutative()]),
-        (DivSIOp, [NoMemoryEffect()], [Pure(), Commutative()]),
-        (MulOp, [Pure(), Commutative()], []),
-        (OrOp, [Pure(), Commutative()], []),
-        (SubOp, [Pure()], [Commutative()]),
-        (RemUIOp, [NoMemoryEffect()], [Pure(), Commutative()]),
-        (RemSIOp, [NoMemoryEffect()], [Pure(), Commutative()]),
-        (XOrOp, [Pure(), Commutative()], []),
-        (MinOp, [Pure(), Commutative()], []),
-        (MaxOp, [Pure(), Commutative()], []),
-        (CopySignOp, [Pure()], [Commutative()]),
-        (EqOp, [Pure(), Commutative()], []),
-        (NeOp, [Pure(), Commutative()], []),
-        (LtSIOp, [Pure()], [Commutative()]),
-        (LtUIOp, [Pure()], [Commutative()]),
-        (LeSIOp, [Pure()], [Commutative()]),
-        (LeUIOp, [Pure()], [Commutative()]),
-        (GtSIOp, [Pure()], [Commutative()]),
-        (GtUIOp, [Pure()], [Commutative()]),
-        (GeSIOp, [Pure()], [Commutative()]),
-        (GeUIOp, [Pure()], [Commutative()]),
-        (LtOp, [Pure()], [Commutative()]),
-        (LeOp, [Pure()], [Commutative()]),
-        (GtOp, [Pure()], [Commutative()]),
-        (GeOp, [Pure()], [Commutative()]),
-        (EqzOp, [Pure()], [Commutative()]),
-    ],
-)
-def test_traits(
-    op_type: type[IRDLOperation],
+def _assert_traits(
+    op: IRDLOperation,
     required_traits: list[OpTrait],
     forbidden_traits: list[OpTrait],
 ):
     for trait in required_traits:
-        assert op_type.has_trait(trait)
+        assert op.has_trait(trait)
     for trait in forbidden_traits:
-        assert not op_type.has_trait(trait)
+        assert not op.has_trait(trait)
+
+
+@pytest.mark.parametrize(
+    "op_type, operand_type, required_traits, forbidden_traits",
+    [
+        (AddOp, i32, [Pure(), Commutative()], []),
+        (AndOp, i32, [Pure(), Commutative()], []),
+        (DivOp, f32, [Pure()], [Commutative()]),
+        (DivUIOp, i32, [NoMemoryEffect()], [Pure(), Commutative()]),
+        (DivSIOp, i32, [NoMemoryEffect()], [Pure(), Commutative()]),
+        (MulOp, i32, [Pure(), Commutative()], []),
+        (OrOp, i32, [Pure(), Commutative()], []),
+        (SubOp, i32, [Pure()], [Commutative()]),
+        (RemUIOp, i32, [NoMemoryEffect()], [Pure(), Commutative()]),
+        (RemSIOp, i32, [NoMemoryEffect()], [Pure(), Commutative()]),
+        (XOrOp, i32, [Pure(), Commutative()], []),
+        (MinOp, f32, [Pure(), Commutative()], []),
+        (MaxOp, f32, [Pure(), Commutative()], []),
+        (CopySignOp, f32, [Pure()], [Commutative()]),
+        (EqOp, i32, [Pure(), Commutative()], []),
+        (NeOp, i32, [Pure(), Commutative()], []),
+        (LtSIOp, i32, [Pure()], [Commutative()]),
+        (LtUIOp, i32, [Pure()], [Commutative()]),
+        (LeSIOp, i32, [Pure()], [Commutative()]),
+        (LeUIOp, i32, [Pure()], [Commutative()]),
+        (GtSIOp, i32, [Pure()], [Commutative()]),
+        (GtUIOp, i32, [Pure()], [Commutative()]),
+        (GeSIOp, i32, [Pure()], [Commutative()]),
+        (GeUIOp, i32, [Pure()], [Commutative()]),
+        (LtOp, f32, [Pure()], [Commutative()]),
+        (LeOp, f32, [Pure()], [Commutative()]),
+        (GtOp, f32, [Pure()], [Commutative()]),
+        (GeOp, f32, [Pure()], [Commutative()]),
+    ],
+)
+def test_binary_traits(
+    op_type: type[BinaryNumericalOperation] | type[BinaryComparisonOperation],
+    operand_type: Attribute,
+    required_traits: list[OpTrait],
+    forbidden_traits: list[OpTrait],
+):
+    lhs = create_ssa_value(operand_type)
+    rhs = create_ssa_value(operand_type)
+
+    _assert_traits(op_type(lhs, rhs), required_traits, forbidden_traits)
+
+
+def test_eqz_traits():
+    input = create_ssa_value(i32)
+
+    _assert_traits(EqzOp(input), [Pure()], [Commutative()])
