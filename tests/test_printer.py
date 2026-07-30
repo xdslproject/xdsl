@@ -495,6 +495,24 @@ def test_print_block():
     )
 
 
+def test_print_region_twice_with_same_printer():
+    """A printer may print the same region more than once, keeping block names."""
+    block0 = Block()
+    block1 = Block()
+    block0.add_op(test.TestTermOp.create(successors=[block1]))
+    block1.add_op(test.TestTermOp.create())
+    region = Region([block0, block1])
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    first = io.getvalue()
+    io.truncate(0)
+    io.seek(0)
+    p.print_region(region)
+    assert io.getvalue() == first
+
+
 def test_print_block_without_arguments():
     """Print a block and its arguments separately."""
     block = Block(arg_types=[i32, i32])

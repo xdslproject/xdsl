@@ -276,8 +276,11 @@ class Printer(BasePrinter):
         """
         # Match MLIR by assigning block names in region order before successors are
         # printed.
+        # A printer may be reused to print the same region more than once, in which
+        # case the blocks already have names and must keep them.
         for block_index, block in enumerate(region.blocks):
-            self._populate_block_name(block, block_index)
+            if block not in self._blocks:
+                self._populate_block_name(block, block_index)
 
         # Empty region
         with self.in_braces():
