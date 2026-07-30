@@ -26,11 +26,8 @@ dependencies = [
 optional-dependencies.dev = [
   "coverage<8",
   "filecheck==1.0.3",
-  "ipykernel",
   "lit<19",
   "marimo>=0.23,<0.24",
-  "nbconvert>=7.7.2,<8",
-  "nbval<0.12",
   "prek~=0.4.0",
   "pyright==1.1.411",
   "pytest<9.2",
@@ -111,9 +108,6 @@ lint.ignore = [
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]
 lint.per-file-ignores."__init__.py" = [ "F403" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch1.ipynb" = [ "E402" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch2.ipynb" = [ "E402" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch3.ipynb" = [ "E402" ]
 lint.per-file-ignores."scripts/**" = [ "INP" ]
 lint.per-file-ignores."tests/*" = [ "E501", "INP" ]
 lint.per-file-ignores."tests/test_declarative_assembly_format.py" = [ "F811" ]

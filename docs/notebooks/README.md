@@ -38,6 +38,18 @@ assembly-level concepts as MLIR IR.
 1. [RISC-V Dialects](riscv_dialects.py)
 1. [Compiling `linalg` to Snitch](linalg_snitch.py)
 
+## Toy Tutorial
+
+An interactive walkthrough of the Toy language and compiler, based on the
+[MLIR Toy tutorial](https://mlir.llvm.org/docs/Tutorials/Toy/).
+The compiler implementation lives under
+[`docs/Toy/`](https://github.com/xdslproject/xdsl/tree/main/docs/Toy).
+
+1. [Chapter 0: Compiling and Running Toy](Toy/ch0.py)
+1. [Chapter 1: Toy Language and AST](Toy/ch1.py)
+1. [Chapter 2: Emitting Basic IR](Toy/ch2.py)
+1. [Chapter 3: Analysis and Transformation](Toy/ch3.py)
+
 ## Other Projects
 
 1. [Equality Saturation](eqsat.py)
