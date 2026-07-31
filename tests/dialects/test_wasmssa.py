@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.dialects.builtin import f32, f64, i32, i64
+from xdsl.dialects.builtin import IntegerAttr, f32, f64, i32, i64
 from xdsl.dialects.wasmssa import (
     AddOp,
     AndOp,
@@ -143,7 +143,8 @@ def test_extend_i32_traits(op_type: type[ExtendSI32Op] | type[ExtendUI32Op]):
     _assert_traits(op_type(input), [Pure()], [Commutative()])
 
 
-def test_extend_low_bits_traits():
+@pytest.mark.parametrize("bits_to_take", [8, IntegerAttr(8, i64)])
+def test_extend_low_bits_traits(bits_to_take: int | IntegerAttr):
     input = create_ssa_value(i32)
 
-    _assert_traits(ExtendLowBitsSOp(input, 8), [Pure()], [Commutative()])
+    _assert_traits(ExtendLowBitsSOp(input, bits_to_take), [Pure()], [Commutative()])
