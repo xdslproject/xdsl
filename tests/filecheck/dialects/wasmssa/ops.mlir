@@ -60,6 +60,37 @@
 // CHECK-NEXT: %f32_copysign = wasmssa.copysign %f32 %f32 : f32
 %f32_copysign = wasmssa.copysign %f32 %f32 : f32
 
+// CHECK-NEXT: %i32_eq = wasmssa.eq %i32 %i32 : i32 -> i32
+%i32_eq = wasmssa.eq %i32 %i32 : i32 -> i32
+// CHECK-NEXT: %f32_ne = wasmssa.ne %f32 %f32 : f32 -> i32
+%f32_ne = wasmssa.ne %f32 %f32 : f32 -> i32
+// CHECK-NEXT: %i32_lt_si = wasmssa.lt_si %i32 %i32 : i32 -> i32
+%i32_lt_si = wasmssa.lt_si %i32 %i32 : i32 -> i32
+// CHECK-NEXT: %i32_lt_ui = wasmssa.lt_ui %i32 %i32 : i32 -> i32
+%i32_lt_ui = wasmssa.lt_ui %i32 %i32 : i32 -> i32
+// CHECK-NEXT: %i32_le_si = wasmssa.le_si %i32 %i32 : i32 -> i32
+%i32_le_si = wasmssa.le_si %i32 %i32 : i32 -> i32
+// CHECK-NEXT: %i32_le_ui = wasmssa.le_ui %i32 %i32 : i32 -> i32
+%i32_le_ui = wasmssa.le_ui %i32 %i32 : i32 -> i32
+// CHECK-NEXT: %i64_gt_si = wasmssa.gt_si %i64 %i64 : i64 -> i32
+%i64_gt_si = wasmssa.gt_si %i64 %i64 : i64 -> i32
+// CHECK-NEXT: %i64_gt_ui = wasmssa.gt_ui %i64 %i64 : i64 -> i32
+%i64_gt_ui = wasmssa.gt_ui %i64 %i64 : i64 -> i32
+// CHECK-NEXT: %i64_ge_si = wasmssa.ge_si %i64 %i64 : i64 -> i32
+%i64_ge_si = wasmssa.ge_si %i64 %i64 : i64 -> i32
+// CHECK-NEXT: %i64_ge_ui = wasmssa.ge_ui %i64 %i64 : i64 -> i32
+%i64_ge_ui = wasmssa.ge_ui %i64 %i64 : i64 -> i32
+// CHECK-NEXT: %f32_lt = wasmssa.lt %f32 %f32 : f32 -> i32
+%f32_lt = wasmssa.lt %f32 %f32 : f32 -> i32
+// CHECK-NEXT: %f32_le = wasmssa.le %f32 %f32 : f32 -> i32
+%f32_le = wasmssa.le %f32 %f32 : f32 -> i32
+// CHECK-NEXT: %f64_gt = wasmssa.gt %f64 %f64 : f64 -> i32
+%f64_gt = wasmssa.gt %f64 %f64 : f64 -> i32
+// CHECK-NEXT: %f64_ge = wasmssa.ge %f64 %f64 : f64 -> i32
+%f64_ge = wasmssa.ge %f64 %f64 : f64 -> i32
+// CHECK-NEXT: %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
+%i64_eqz = wasmssa.eqz %i64 : i64 -> i32
+
 // CHECK-GENERIC: "wasmssa.const"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC: "wasmssa.const"() <{value = 2 : i64}> : () -> i64
 // CHECK-GENERIC: "wasmssa.const"() <{value = 3.000000e+00 : f32}> : () -> f32
@@ -88,3 +119,18 @@
 // CHECK-GENERIC: "wasmssa.min"(%f32, %f32) : (f32, f32) -> f32
 // CHECK-GENERIC: "wasmssa.max"(%f32, %f32) : (f32, f32) -> f32
 // CHECK-GENERIC: "wasmssa.copysign"(%f32, %f32) : (f32, f32) -> f32
+// CHECK-GENERIC: "wasmssa.eq"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.ne"(%f32, %f32) : (f32, f32) -> i32
+// CHECK-GENERIC: "wasmssa.lt_si"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.lt_ui"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.le_si"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.le_ui"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.gt_si"(%i64, %i64) : (i64, i64) -> i32
+// CHECK-GENERIC: "wasmssa.gt_ui"(%i64, %i64) : (i64, i64) -> i32
+// CHECK-GENERIC: "wasmssa.ge_si"(%i64, %i64) : (i64, i64) -> i32
+// CHECK-GENERIC: "wasmssa.ge_ui"(%i64, %i64) : (i64, i64) -> i32
+// CHECK-GENERIC: "wasmssa.lt"(%f32, %f32) : (f32, f32) -> i32
+// CHECK-GENERIC: "wasmssa.le"(%f32, %f32) : (f32, f32) -> i32
+// CHECK-GENERIC: "wasmssa.gt"(%f64, %f64) : (f64, f64) -> i32
+// CHECK-GENERIC: "wasmssa.ge"(%f64, %f64) : (f64, f64) -> i32
+// CHECK-GENERIC: "wasmssa.eqz"(%i64) : (i64) -> i32

@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     NoneAttr,
     SymbolRefAttr,
+    i32,
 )
 from xdsl.ir import (
     Dialect,
@@ -30,7 +31,6 @@ from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     ParamAttrConstraint,
-    TypeVarConstraint,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -210,11 +210,7 @@ class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
     """Base class for binary WebAssembly numeric operations."""
 
     T: ClassVar = VarConstraint(
-        "T",
-        TypeVarConstraint(
-            _NumericTypeInvT,
-            irdl_to_attr_constraint(NumericType),
-        ),
+        "T", irdl_to_attr_constraint(_NumericTypeInvT, allow_type_var=True)
     )
 
     lhs = operand_def(T)
@@ -358,6 +354,170 @@ class CopySignOp(BinaryNumericalOperation[WasmFPType]):
     traits = traits_def(Pure())
 
 
+class BinaryComparisonOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
+    """Base class for binary WebAssembly comparison operations."""
+
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(_NumericTypeInvT, allow_type_var=True)
+    )
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(I32)
+
+    assembly_format = "$lhs $rhs `:` type($lhs) `->` type($result) attr-dict"
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+    ):
+        super().__init__(operands=[lhs, rhs], result_types=[i32])
+
+
+@irdl_op_definition
+class EqOp(BinaryComparisonOperation):
+    """Check if two numeric values are equal."""
+
+    name = "wasmssa.eq"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class NeOp(BinaryComparisonOperation):
+    """Check if two numeric values are different."""
+
+    name = "wasmssa.ne"
+
+    traits = traits_def(Pure(), Commutative())
+
+
+@irdl_op_definition
+class LtSIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if a signed integer is less than another."""
+
+    name = "wasmssa.lt_si"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class LtUIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if an unsigned integer is less than another."""
+
+    name = "wasmssa.lt_ui"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class LeSIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if a signed integer is less than or equal to another."""
+
+    name = "wasmssa.le_si"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class LeUIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if an unsigned integer is less than or equal to another."""
+
+    name = "wasmssa.le_ui"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GtSIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if a signed integer is greater than another."""
+
+    name = "wasmssa.gt_si"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GtUIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if an unsigned integer is greater than another."""
+
+    name = "wasmssa.gt_ui"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GeSIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if a signed integer is greater than or equal to another."""
+
+    name = "wasmssa.ge_si"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GeUIOp(BinaryComparisonOperation[WasmIntegerType]):
+    """Check if an unsigned integer is greater than or equal to another."""
+
+    name = "wasmssa.ge_ui"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class LtOp(BinaryComparisonOperation[WasmFPType]):
+    """Check if a floating-point value is less than another."""
+
+    name = "wasmssa.lt"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class LeOp(BinaryComparisonOperation[WasmFPType]):
+    """Check if a floating-point value is less than or equal to another."""
+
+    name = "wasmssa.le"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GtOp(BinaryComparisonOperation[WasmFPType]):
+    """Check if a floating-point value is greater than another."""
+
+    name = "wasmssa.gt"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class GeOp(BinaryComparisonOperation[WasmFPType]):
+    """Check if a floating-point value is greater than or equal to another."""
+
+    name = "wasmssa.ge"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class EqzOp(IRDLOperation):
+    """Check if an integer value is equal to zero."""
+
+    name = "wasmssa.eqz"
+
+    input = operand_def(WasmIntegerType)
+    result = result_def(I32)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$input `:` type($input) `->` type($result) attr-dict"
+
+    def __init__(self, input: SSAValue | Operation):
+        super().__init__(operands=[input], result_types=[i32])
+
+
 WasmSSA = Dialect(
     "wasmssa",
     [
@@ -368,10 +528,25 @@ WasmSSA = Dialect(
         DivOp,
         DivSIOp,
         DivUIOp,
+        EqOp,
+        EqzOp,
+        GeOp,
+        GeSIOp,
+        GeUIOp,
         GlobalGetOp,
+        GtOp,
+        GtSIOp,
+        GtUIOp,
+        LeOp,
+        LeSIOp,
+        LeUIOp,
+        LtOp,
+        LtSIOp,
+        LtUIOp,
         MaxOp,
         MinOp,
         MulOp,
+        NeOp,
         OrOp,
         RemSIOp,
         RemUIOp,
