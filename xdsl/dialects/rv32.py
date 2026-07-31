@@ -138,6 +138,97 @@ class SrliOp(RV32RdRsImmShiftOperation):
 
 
 @irdl_op_definition
+class BclrIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bclri).
+    """
+
+    name = "rv32.bclri"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data & (~(1 << self.immediate.value.data)), i32)
+
+
+@irdl_op_definition
+class BextIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bexti).
+    """
+
+    name = "rv32.bexti"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            1 if (rs1.value.data & (1 << self.immediate.value.data)) != 0 else 0, i32
+        )
+
+
+@irdl_op_definition
+class BinvIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit inverted at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-binvi).
+    """
+
+    name = "rv32.binvi"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data ^ (1 << self.immediate.value.data), i32)
+
+
+@irdl_op_definition
+class BsetIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bseti).
+    """
+
+    name = "rv32.bseti"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data | (1 << self.immediate.value.data), i32)
+
+
+@irdl_op_definition
+class RorIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant log2(XLEN)
+    bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-rori).
+    """
+
+    name = "rv32.rori"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        unsigned_rs1 = rs1.value.data % 0x100000000
+        shamt = self.immediate.value.data
+        return IntegerAttr(
+            (unsigned_rs1 >> shamt | unsigned_rs1 << (32 - shamt)) % 0x100000000,
+            i32,
+        )
+
+
+@irdl_op_definition
 class SraiOp(RV32RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
@@ -166,6 +257,11 @@ RV32 = Dialect(
         SlliOp,
         SrliOp,
         SraiOp,
+        BclrIOp,
+        BextIOp,
+        BinvIOp,
+        BsetIOp,
+        RorIOp,
         LiOp,
         GetRegisterOp,
     ],

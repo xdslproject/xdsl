@@ -165,3 +165,6 @@ xdsl/dialects/*.pyi
 # direnv
 .direnv
 .envrc
+
+# Marimo
+**/__marimo__/

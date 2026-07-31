@@ -7,7 +7,19 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
     from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.ir import Block, Region
     from xdsl.builder import Builder, InsertPoint
     from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func, rv32
@@ -25,12 +37,10 @@ def _():
         Printer,
         builtin,
         difflib,
-        mo,
         riscv,
         riscv_cf,
         riscv_func,
         rv32,
-        xmo,
     )
 
 

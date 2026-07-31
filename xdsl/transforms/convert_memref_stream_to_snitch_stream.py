@@ -92,7 +92,7 @@ class ReadOpLowering(RewritePattern):
             (value_type,),
         )
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (new_stream, new_op, *new_mv, new_res),
         )
@@ -131,7 +131,7 @@ class WriteOpLowering(RewritePattern):
             new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (new_stream, cast_op, *move_ops, new_write),
         )
@@ -166,7 +166,7 @@ class StreamOpLowering(RewritePattern):
         new_outputs = new_operands[len(op.inputs) :]
         freg = riscv.Registers.UNALLOCATED_FLOAT
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             new_op := snitch_stream.StreamingRegionOp(
                 new_inputs,
@@ -184,7 +184,7 @@ class StreamOpLowering(RewritePattern):
         for i in reversed(range(len(stream_types))):
             arg = new_body.args[i]
             stream_type = stream_types[i]
-            rewriter.insert_op(
+            rewriter.insert(
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
                 InsertPoint.at_start(new_body),
             )

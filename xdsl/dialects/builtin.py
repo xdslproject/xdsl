@@ -6,11 +6,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -340,6 +341,12 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
             )
         super().__init__(root, nested)
 
+    @staticmethod
+    def get(value: str | SymbolRefAttr) -> SymbolRefAttr:
+        if isinstance(value, str):
+            return SymbolRefAttr(value)
+        return value
+
     def string_value(self):
         root = self.root_reference.data
         for ref in self.nested_references.data:
@@ -379,18 +386,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
-IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
+_IntCovT = TypeVar("_IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
+class IntAttr(GenericData[_IntCovT], Generic[_IntCovT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> IntCovT:
+    def parse_parameter(cls, parser: AttrParser) -> _IntCovT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return cast(IntCovT, data)
+            return cast(_IntCovT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -406,7 +413,7 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
         constr: IntConstraint | int | TypeForm[int] | None = None,
     ) -> AttrConstraint[IntAttr]:
         return IntAttrConstraint.get(
-            IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
+            IntTypeVarConstraint(_IntCovT, AnyInt()) if constr is None else constr
         )
 
 
@@ -509,17 +516,17 @@ class Signedness(ConstraintConvertible, Enum):
         return EqAttrConstraint(SignednessAttr(self))
 
 
-SignednessCovT = TypeVar(
-    "SignednessCovT", bound=Signedness, default=Signedness, covariant=True
+_SignednessCovT = TypeVar(
+    "_SignednessCovT", bound=Signedness, default=Signedness, covariant=True
 )
 
 
 @irdl_attr_definition
-class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
+class SignednessAttr(GenericData[_SignednessCovT], Generic[_SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> SignednessCovT:
+    def parse_parameter(cls, parser: AttrParser) -> _SignednessCovT:
         with parser.in_angle_brackets():
             if parser.parse_optional_keyword("signless") is not None:
                 return Signedness.SIGNLESS  # pyright: ignore[reportReturnType]
@@ -543,7 +550,7 @@ class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
 
     @staticmethod
     def constr() -> AttrConstraint:
-        return TypeVarConstraint(SignednessCovT, BaseAttr(SignednessAttr))
+        return TypeVarConstraint(_SignednessCovT, BaseAttr(SignednessAttr))
 
 
 class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
@@ -557,7 +564,7 @@ class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
     @abstractmethod
     def compile_time_size(self) -> int:
         """
-        Contiguous memory footprint of the value during compilation.
+        Contiguous memory footprint in bytes of the value during compilation.
         """
         raise NotImplementedError()
 
@@ -597,6 +604,9 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
         """
         Yields unpacked values one at a time, starting at the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer)` is not divisible by
+        `self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -604,6 +614,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         """
         Unpack `num` values from the beginning of the buffer.
+
+        Raises `ValueError` if `len(buffer) != num * self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -611,6 +623,8 @@ class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
         """
         Pack a value at a given offset into a buffer.
+
+        Raises `ValueError` if `len(buffer) < offset + self.compile_time_size`.
         """
         raise NotImplementedError()
 
@@ -639,14 +653,48 @@ class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
         raise NotImplementedError()
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
-        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        try:
+            return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size % compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not multiple of {self.name} element "
+                    f"size {compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
         fmt = self.format[0] + str(num) + self.format[1:]
-        return struct.unpack(fmt, buffer)
+        try:
+            return struct.unpack(fmt, buffer)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size != num * compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} not product of {self.name} element "
+                    f"size {compile_time_size} and num {num}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
-        struct.pack_into(self.format, buffer, offset, value)
+        try:
+            struct.pack_into(self.format, buffer, offset, value)
+        except struct.error:
+            buffer_size = len(memoryview(buffer))
+            compile_time_size = self.compile_time_size
+            if buffer_size < offset + compile_time_size:
+                raise ValueError(
+                    f"Buffer length {buffer_size} too small for packing "
+                    f"{compile_time_size} bytes at offset {offset}, expected at least "
+                    f"{offset + compile_time_size}."
+                )
+            # Re-raise unexpected struct.error
+            raise
 
     def pack(self, values: Sequence[_PyT]) -> bytes:
         fmt = self.format[0] + str(len(values)) + self.format[1:]
@@ -675,17 +723,17 @@ class IntegerType(
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
-    Generic[IntCovT, SignednessCovT],
+    Generic[_IntCovT, _SignednessCovT],
 ):
     name = "integer_type"
-    width: IntAttr[IntCovT]
-    signedness: SignednessAttr[SignednessCovT]
+    width: IntAttr[_IntCovT]
+    signedness: SignednessAttr[_SignednessCovT]
 
     def __init__(
         self,
-        data: IntCovT | IntAttr[IntCovT],
-        signedness: SignednessCovT
-        | SignednessAttr[SignednessCovT] = Signedness.SIGNLESS,
+        data: _IntCovT | IntAttr[_IntCovT],
+        signedness: _SignednessCovT
+        | SignednessAttr[_SignednessCovT] = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
             data = IntAttr(data)
@@ -992,44 +1040,40 @@ class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]
 
 IndexTypeConstr = BaseAttr(IndexType)
 
-_IntegerAttrType = TypeVar(
-    "_IntegerAttrType",
+_IntegerAttrTypeCovT = TypeVar(
+    "_IntegerAttrTypeCovT",
     bound=IntegerType | IndexType,
     covariant=True,
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
-AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
-]
-"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
 class IntegerAttr(
     BuiltinAttribute,
     TypedAttribute,
-    Generic[_IntegerAttrType],
+    Generic[_IntegerAttrTypeCovT],
 ):
     name = "integer"
     value: IntAttr
-    type: _IntegerAttrType
+    type: _IntegerAttrTypeCovT
 
     @overload
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: _IntegerAttrType,
+        value_type: _IntegerAttrTypeCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]],
+        self: IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]],
         value: int | IntAttr,
-        value_type: IntCovT,
+        value_type: _IntCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
@@ -1037,7 +1081,7 @@ class IntegerAttr(
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: IntCovT | IntegerType[IntCovT] | IndexType,
+        value_type: _IntCovT | IntegerType[_IntCovT] | IndexType,
         *,
         truncate_bits: bool = False,
     ) -> None:
@@ -1052,13 +1096,6 @@ class IntegerAttr(
             if normalized_value is not None:
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
-
-    @deprecated("Please use IntegerAttr(value, width) instead")
-    @staticmethod
-    def from_int_and_width(
-        value: int, width: IntCovT
-    ) -> IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]]:
-        return IntegerAttr(value, width)
 
     @staticmethod
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
@@ -1097,14 +1134,14 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
-    ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
+    ) -> AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]]:
         if isinstance(value, IntConstraint):
             value = IntAttrConstraint.get(value)
         return cast(
-            AttrConstraint[IntegerAttr[_IntegerAttrType]],
+            AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]],
             ParamAttrConstraint.get(IntegerAttr, value, type),
         )
 
@@ -1146,6 +1183,318 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
         printer.print_string(self.name)
 
 
+class FloatNonfiniteBehavior(Enum):
+    """
+    How a reduced-precision float format represents infinities and NaNs.
+
+    Mirrors LLVM APFloat's `fltNonfiniteBehavior`.
+    """
+
+    IEEE = auto()
+    """The all-ones exponent encodes infinities (zero mantissa) and NaNs."""
+    NAN_ONLY = auto()
+    """No infinities; a NaN is present (see `FloatNanEncoding`)."""
+    FINITE_ONLY = auto()
+    """No infinities or NaNs; overflow saturates to the largest finite value."""
+
+
+class FloatNanEncoding(Enum):
+    """
+    Which bit pattern encodes NaN. Mirrors LLVM APFloat's `fltNanEncoding`.
+    """
+
+    IEEE = auto()
+    """All-ones exponent with a non-zero mantissa."""
+    ALL_ONES = auto()
+    """All-ones exponent and mantissa."""
+    NEGATIVE_ZERO = auto()
+    """The sign-bit-only pattern; the format has no negative zero."""
+
+
+@dataclass(frozen=True)
+class FloatSemantics:
+    """
+    The parameters that fully define a reduced-precision float format.
+
+    Modelled on LLVM's `fltSemantics`.
+    """
+
+    exponent_bits: int
+    mantissa_bits: int
+    exponent_bias: int
+    nonfinite: FloatNonfiniteBehavior = FloatNonfiniteBehavior.IEEE
+    nan_encoding: FloatNanEncoding = FloatNanEncoding.IEEE
+    has_zero: bool = True
+    has_sign: bool = True
+
+    @property
+    def bitwidth(self) -> int:
+        return int(self.has_sign) + self.exponent_bits + self.mantissa_bits
+
+    @property
+    def max_exponent(self) -> int:
+        """The all-ones exponent field."""
+        return (1 << self.exponent_bits) - 1
+
+    @property
+    def max_mantissa(self) -> int:
+        """The all-ones mantissa field."""
+        return (1 << self.mantissa_bits) - 1
+
+    @property
+    def sign_shift(self) -> int:
+        """Bit position of the sign bit."""
+        return self.exponent_bits + self.mantissa_bits
+
+    @staticmethod
+    def round_half_even(significand: int, shift: int) -> int:
+        """Round `significand >> shift` to nearest, ties to even, with exact integer math."""
+        if shift <= 0:
+            return significand << (-shift)
+        quotient = significand >> shift
+        dropped = significand & ((1 << shift) - 1)
+        halfway = 1 << (shift - 1)
+        if dropped > halfway or (dropped == halfway and quotient & 1):
+            quotient += 1
+        return quotient
+
+
+class ReducedPrecisionFloatType(_FloatType, PackableType[float], ABC):
+    """
+    Base for reduced-precision float types, described by a `FloatSemantics`.
+
+    Concrete subclasses set only `SEMANTICS`; all encoding, decoding, rounding and
+    special-value handling is shared here and parameterised by that `FloatSemantics`.
+    """
+
+    SEMANTICS: ClassVar[FloatSemantics]
+
+    @property
+    def bitwidth(self) -> int:
+        return self.SEMANTICS.bitwidth
+
+    @property
+    def compile_time_size(self) -> int:
+        return self.size
+
+    @staticmethod
+    def decode_significand_power(magnitude: float) -> tuple[int, int]:
+        """Return `(significand, power)` with `magnitude == significand * 2**power`, exact for positive finite floats."""
+        bits = struct.unpack("<Q", struct.pack("<d", magnitude))[0]
+        biased_exponent = (bits >> 52) & 0x7FF
+        fraction = bits & ((1 << 52) - 1)
+        if biased_exponent:
+            return fraction | (1 << 52), biased_exponent - 1075
+        return fraction, -1074
+
+    def _decode_special(
+        self, negative: bool, biased_exponent: int, mantissa: int
+    ) -> float | None:
+        """Value of a reserved infinity/NaN pattern, or None if the pattern is finite."""
+        semantics = self.SEMANTICS
+        match semantics:
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.FINITE_ONLY):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if (
+                biased_exponent != semantics.max_exponent
+            ):
+                return None
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if mantissa:
+                return math.nan
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE) if negative:
+                return -math.inf
+            case FloatSemantics(nonfinite=FloatNonfiniteBehavior.IEEE):
+                return math.inf
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES) if (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            ):
+                return math.nan
+            case FloatSemantics(nan_encoding=FloatNanEncoding.ALL_ONES):
+                return None
+            case _ if negative and biased_exponent == 0 and mantissa == 0:
+                return math.nan
+            case _:
+                return None
+
+    def decode_bits(self, bits: int) -> float:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        negative = bool(semantics.has_sign and (bits >> semantics.sign_shift) & 1)
+        biased_exponent = (bits >> mantissa_bits) & semantics.max_exponent
+        mantissa = bits & semantics.max_mantissa
+        special = self._decode_special(negative, biased_exponent, mantissa)
+        if special is not None:
+            return special
+        sign = -1.0 if negative else 1.0
+        if semantics.has_zero and biased_exponent == 0:
+            return sign * mantissa * 2.0 ** (1 - bias - mantissa_bits)
+        return (
+            sign * (1 + mantissa / 2.0**mantissa_bits) * 2.0 ** (biased_exponent - bias)
+        )
+
+    def _encode_overflow(self, sign: int) -> int:
+        """Bits a too-large magnitude maps to: infinity, NaN, or the largest finite value."""
+        semantics = self.SEMANTICS
+        match semantics.nonfinite:
+            case FloatNonfiniteBehavior.IEEE:
+                return (sign << semantics.sign_shift) | (
+                    semantics.max_exponent << semantics.mantissa_bits
+                )
+            case FloatNonfiniteBehavior.NAN_ONLY:
+                return self._encode_nan(sign)
+            case FloatNonfiniteBehavior.FINITE_ONLY:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << semantics.mantissa_bits)
+                    | semantics.max_mantissa
+                )
+
+    def _encode_nan(self, sign: int) -> int:
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        if semantics.nonfinite is FloatNonfiniteBehavior.FINITE_ONLY:
+            return self._encode_overflow(sign)
+        match semantics.nan_encoding:
+            case FloatNanEncoding.IEEE:
+                return (semantics.max_exponent << mantissa_bits) | (
+                    1 << (mantissa_bits - 1)
+                )
+            case FloatNanEncoding.ALL_ONES:
+                return (
+                    (sign << semantics.sign_shift)
+                    | (semantics.max_exponent << mantissa_bits)
+                    | semantics.max_mantissa
+                )
+            case FloatNanEncoding.NEGATIVE_ZERO:
+                return 1 << semantics.sign_shift
+
+    def _encode_zero(self, sign: int) -> int:
+        if self.SEMANTICS.nan_encoding is FloatNanEncoding.NEGATIVE_ZERO:
+            return 0  # no negative zero
+        return sign << self.SEMANTICS.sign_shift
+
+    def _overflows(self, biased_exponent: int, mantissa: int) -> bool:
+        semantics = self.SEMANTICS
+        if semantics.nonfinite is FloatNonfiniteBehavior.IEEE:
+            return biased_exponent >= semantics.max_exponent
+        if semantics.nan_encoding is FloatNanEncoding.ALL_ONES:
+            return biased_exponent > semantics.max_exponent or (
+                biased_exponent == semantics.max_exponent
+                and mantissa == semantics.max_mantissa
+            )
+        return biased_exponent > semantics.max_exponent
+
+    def _rounded_exponent_mantissa(self, magnitude: float) -> tuple[int, int] | None:
+        """
+        Round a positive, finite magnitude to `(biased_exponent, mantissa)`.
+
+        Returns `(0, 0)` on underflow to the smallest value and `None` on overflow.
+        """
+        semantics = self.SEMANTICS
+        mantissa_bits = semantics.mantissa_bits
+        bias = semantics.exponent_bias
+        implicit_bit = 1 << mantissa_bits
+        significand, power = self.decode_significand_power(magnitude)
+        exponent = math.frexp(magnitude)[1] - 1
+        smallest_normal_exponent = 1 - bias if semantics.has_zero else -bias
+        if exponent < smallest_normal_exponent:
+            if not semantics.has_zero:
+                return 0, 0  # no subnormals: underflow to the smallest value
+            quotient = semantics.round_half_even(
+                significand, (1 - bias - mantissa_bits) - power
+            )
+            if quotient < implicit_bit:
+                return 0, quotient
+            return 1, 0  # rounded up into the smallest normal
+        quotient = semantics.round_half_even(
+            significand, (exponent - mantissa_bits) - power
+        )
+        if quotient == implicit_bit << 1:
+            exponent += 1
+            quotient = implicit_bit
+        biased_exponent = exponent + bias
+        mantissa = quotient - implicit_bit
+        if self._overflows(biased_exponent, mantissa):
+            return None
+        return biased_exponent, mantissa
+
+    def encode_bits(self, value: float) -> int:
+        semantics = self.SEMANTICS
+        sign = 1 if semantics.has_sign and math.copysign(1.0, value) < 0 else 0
+        if math.isinf(value):
+            return self._encode_overflow(sign)
+        if math.isnan(value):
+            return self._encode_nan(sign)
+        if value == 0.0:
+            return self._encode_zero(sign)
+        if not semantics.has_sign and value < 0:
+            # Unsigned formats (e.g. f8E8M0FNU) reject signed finite values, as LLVM does,
+            # rather than silently dropping the sign. -0.0 is handled by the zero case above.
+            raise ValueError(f"{self.name} does not support signed values")
+        fields = self._rounded_exponent_mantissa(abs(value))
+        if fields is None:
+            return self._encode_overflow(sign)
+        biased_exponent, mantissa = fields
+        if semantics.has_zero and not biased_exponent and not mantissa:
+            return self._encode_zero(sign)
+        return (
+            (sign << semantics.sign_shift)
+            | (biased_exponent << semantics.mantissa_bits)
+            | mantissa
+        )
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        # `int` handles the odd byte widths `struct` can't (tf32's 19 bits -> 3 bytes).
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size % size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size {size}."
+            )
+        return (
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        size = self.size
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        if buffer_size != num * size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {size} and num {num}."
+            )
+        return tuple(
+            self.decode_bits(int.from_bytes(mv[i : i + size], "little"))
+            for i in range(0, buffer_size, size)
+        )
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        size = self.size
+        buffer_size = len(memoryview(buffer))
+        if buffer_size < offset + size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{size} bytes at offset {offset}, expected at least "
+                f"{offset + size}."
+            )
+        memoryview(buffer)[offset : offset + size] = self.encode_bits(value).to_bytes(
+            size, "little"
+        )
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        size = self.size
+        buffer = bytearray(size * len(values))
+        for index, value in enumerate(values):
+            self.pack_into(buffer, index * size, value)
+        return bytes(buffer)
+
+
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, _FloatType):
     name = "bf16"
@@ -1177,20 +1526,43 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return bits.to_bytes(2, "little")
 
     @staticmethod
-    def _decode(raw: bytes) -> float:
+    def _decode(raw: ReadableBuffer) -> float:
         # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
         # inverse is to zero-extend with two low bytes in little-endian.
         return struct.unpack("<f", b"\x00\x00" + raw)[0]
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
         mv = memoryview(buffer)
-        for i in range(0, len(mv), 2):
-            yield self._decode(bytes(mv[i : i + 2]))
+        buffer_size = len(mv)
+        if buffer_size % 2:
+            raise ValueError(
+                f"Buffer length {buffer_size} not multiple of {self.name} element "
+                f"size 2."
+            )
+        return (self._decode(mv[i : i + 2]) for i in range(0, len(mv), 2))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+        mv = memoryview(buffer)
+        buffer_size = len(mv)
+        compile_time_size = self.compile_time_size
+        if buffer_size != num * compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} not product of {self.name} element "
+                f"size {compile_time_size} and num {num}."
+            )
+
+        return tuple(self._decode(mv[i : i + 2]) for i in range(0, buffer_size, 2))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        buffer_size = len(memoryview(buffer))
+        compile_time_size = self.compile_time_size
+        if buffer_size < offset + compile_time_size:
+            raise ValueError(
+                f"Buffer length {buffer_size} too small for packing "
+                f"{compile_time_size} bytes at offset {offset}, expected at least "
+                f"{offset + compile_time_size}."
+            )
+
         memoryview(buffer)[offset : offset + 2] = self._encode(value)
 
     def pack(self, values: Sequence[float]) -> bytes:
@@ -1263,161 +1635,138 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
 
 
 @irdl_attr_definition
-class FloatTF32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class FloatTF32Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "tf32"
-
-    @property
-    def bitwidth(self) -> int:
-        return 19
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=10,
+        exponent_bias=127,
+    )
 
 
 @irdl_attr_definition
-class Float8E5M2Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E5M2Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=15,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=7,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+    )
 
 
 @irdl_attr_definition
-class Float8E5M2FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E5M2FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E5M2FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=5,
+        mantissa_bits=2,
+        exponent_bias=16,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3FNUZType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E4M3FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=8,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E4M3B11FNUZType(
-    ParametrizedAttribute, _FloatType, StructPackableType[float]
-):
+class Float8E4M3B11FNUZType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E4M3B11FNUZ"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=4,
+        mantissa_bits=3,
+        exponent_bias=11,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.NEGATIVE_ZERO,
+    )
 
 
 @irdl_attr_definition
-class Float8E3M4Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E3M4Type(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E3M4"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=4,
+        exponent_bias=3,
+    )
 
 
 @irdl_attr_definition
-class Float8E8M0FNUType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float8E8M0FNUType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f8E8M0FNU"
-
-    @property
-    def bitwidth(self) -> int:
-        return 8
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=8,
+        mantissa_bits=0,
+        exponent_bias=127,
+        nonfinite=FloatNonfiniteBehavior.NAN_ONLY,
+        nan_encoding=FloatNanEncoding.ALL_ONES,
+        has_zero=False,
+        has_sign=False,
+    )
 
 
 @irdl_attr_definition
-class Float6E2M3FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float6E2M3FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E2M3FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 6
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=3,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 @irdl_attr_definition
-class Float6E3M2FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float6E3M2FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f6E3M2FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 6
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=3,
+        mantissa_bits=2,
+        exponent_bias=3,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 @irdl_attr_definition
-class Float4E2M1FNType(ParametrizedAttribute, _FloatType, StructPackableType[float]):
+class Float4E2M1FNType(ParametrizedAttribute, ReducedPrecisionFloatType):
     name = "f4E2M1FN"
-
-    @property
-    def bitwidth(self) -> int:
-        return 4
-
-    @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    SEMANTICS = FloatSemantics(
+        exponent_bits=2,
+        mantissa_bits=1,
+        exponent_bias=1,
+        nonfinite=FloatNonfiniteBehavior.FINITE_ONLY,
+    )
 
 
 AnyFloat: TypeAlias = (
@@ -1486,27 +1835,27 @@ class FloatData(Data[float]):
         return hash(self.data)
 
 
-_FloatAttrType = TypeVar(
-    "_FloatAttrType", bound=AnyFloat, covariant=True, default=AnyFloat
+_FloatAttrTypeCovT = TypeVar(
+    "_FloatAttrTypeCovT", bound=AnyFloat, covariant=True, default=AnyFloat
 )
 _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
+class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
     name = "float"
 
     value: FloatData
-    type: _FloatAttrType
+    type: _FloatAttrTypeCovT
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
+    def __init__(self, data: float | FloatData, type: _FloatAttrTypeCovT) -> None: ...
 
     @overload
     def __init__(self, data: float | FloatData, type: int) -> None: ...
 
     def __init__(
-        self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
+        self, data: float | FloatData, type: int | _FloatAttrTypeCovT | AnyFloat
     ) -> None:
         if isinstance(type, int):
             if type == 16:
@@ -1525,7 +1874,14 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
+        if isinstance(
+            type,
+            Float64Type
+            | Float32Type
+            | Float16Type
+            | BFloat16Type
+            | ReducedPrecisionFloatType,
+        ):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)
@@ -1569,10 +1925,10 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
-    ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
+        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloatConstr,
+    ) -> AttrConstraint[FloatAttr[_FloatAttrTypeCovT]]:
         return cast(
-            AttrConstraint[FloatAttr[_FloatAttrType]],
+            AttrConstraint[FloatAttr[_FloatAttrTypeCovT]],
             ParamAttrConstraint.get(
                 FloatAttr,
                 None,
@@ -1581,8 +1937,8 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         )
 
 
-ComplexElementCovT = TypeVar(
-    "ComplexElementCovT",
+_ComplexElementCovT = TypeVar(
+    "_ComplexElementCovT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
     covariant=True,
@@ -1594,19 +1950,19 @@ class ComplexType(
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
-    ContainerType[ComplexElementCovT],
+    ContainerType[_ComplexElementCovT],
     TypeAttribute,
-    Generic[ComplexElementCovT],
+    Generic[_ComplexElementCovT],
 ):
     name = "complex"
-    element_type: ComplexElementCovT
+    element_type: _ComplexElementCovT
 
     def print_builtin(self, printer: Printer):
         printer.print_string("complex")
         with printer.in_angle_brackets():
             printer.print_attribute(self.element_type)
 
-    def get_element_type(self) -> ComplexElementCovT:
+    def get_element_type(self) -> _ComplexElementCovT:
         return self.element_type
 
     @property
@@ -1666,10 +2022,10 @@ class ComplexType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
-    ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
+        element_type: IRDLAttrConstraint[_ComplexElementCovT] | None = None,
+    ) -> AttrConstraint[ComplexType[_ComplexElementCovT]]:
         return cast(
-            AttrConstraint[ComplexType[ComplexElementCovT]],
+            AttrConstraint[ComplexType[_ComplexElementCovT]],
             ParamAttrConstraint.get(
                 ComplexType,
                 element_type,
@@ -1785,15 +2141,15 @@ class VectorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[AttributeCovT] | None = None,
+        element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         *,
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
-    ) -> AttrConstraint[VectorType[AttributeCovT]]:
+    ) -> AttrConstraint[VectorType[AttributeInvT]]:
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
         return cast(
-            AttrConstraint[VectorType[AttributeCovT]],
+            AttrConstraint[VectorType[AttributeInvT]],
             ParamAttrConstraint.get(
                 VectorType,
                 element_type,
@@ -1891,40 +2247,19 @@ AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
-@dataclass(frozen=True, init=False)
-class ContainerOf(
-    AttrConstraint[
-        AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
-    ],
-    Generic[AttributeCovT],
+def container_of(
+    constr: IRDLAttrConstraint[AttributeInvT],
+) -> AttrConstraint[
+    AttributeInvT | VectorType[AttributeInvT] | TensorType[AttributeInvT]
+]:
+    return AnyOf.get(constr, VectorType.constr(constr), TensorType.constr(constr))
+
+
+@deprecated("Please use `container_of` instead")
+def ContainerOf(
+    constr: IRDLAttrConstraint[AttributeInvT],
 ):
-    """A type constraint that can be nested once in a vector or a tensor."""
-
-    elem_constr: AttrConstraint[AttributeCovT]
-
-    def __init__(
-        self,
-        elem_constr: (
-            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
-        ),
-    ) -> None:
-        object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isa(attr, VectorType) or isa(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_context)
-        else:
-            self.elem_constr.verify(attr, constraint_context)
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        bases = self.elem_constr.get_bases()
-        if bases is not None:
-            return {*bases, TensorType, VectorType}
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> ContainerOf[AttributeCovT]:
-        return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
+    container_of(constr)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -2028,15 +2363,15 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
         return DenseResourceAttr(handle, type)
 
 
-DenseArrayT = TypeVar(
-    "DenseArrayT",
+_DenseArrayElementCovT = TypeVar(
+    "_DenseArrayElementCovT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
     covariant=True,
 )
 
-DenseArrayInvT = TypeVar(
-    "DenseArrayInvT",
+_DenseArrayElementInvT = TypeVar(
+    "_DenseArrayElementInvT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
 )
@@ -2044,14 +2379,14 @@ DenseArrayInvT = TypeVar(
 
 @irdl_attr_definition
 class DenseArrayBase(
-    ContainerType[DenseArrayT],
+    ContainerType[_DenseArrayElementCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
-    Generic[DenseArrayT],
+    Generic[_DenseArrayElementCovT],
 ):
     name = "array"
 
-    elt_type: DenseArrayT
+    elt_type: _DenseArrayElementCovT
     data: BytesAttr
 
     def print_builtin(self, printer: Printer):
@@ -2083,22 +2418,8 @@ class DenseArrayBase(
                 f"size {elt_size}"
             )
 
-    def get_element_type(self) -> DenseArrayT:
+    def get_element_type(self) -> _DenseArrayElementCovT:
         return self.elt_type
-
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_int(
-        data_type: _IntegerTypeInvT, data: Sequence[int]
-    ) -> DenseArrayBase[_IntegerTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
-
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_float(
-        data_type: _FloatAttrTypeInvT, data: Sequence[float]
-    ) -> DenseArrayBase[_FloatAttrTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
 
     @overload
     @staticmethod
@@ -2168,10 +2489,10 @@ class DenseArrayBase(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
-    ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
+        element_type: IRDLAttrConstraint[_DenseArrayElementInvT] | None = None,
+    ) -> AttrConstraint[DenseArrayBase[_DenseArrayElementInvT]]:
         return cast(
-            AttrConstraint[DenseArrayBase[DenseArrayInvT]],
+            AttrConstraint[DenseArrayBase[_DenseArrayElementInvT]],
             ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
         )
 
@@ -2704,15 +3025,6 @@ f6E3M2FN = Float6E3M2FNType()
 f4E2M1FN = Float4E2M1FNType()
 
 
-_MemRefTypeElement = TypeVar(
-    "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
-)
-_UnrankedMemRefTypeElems = TypeVar(
-    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True, default=Attribute
-)
-_UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
-
-
 @irdl_attr_definition
 class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "none_type"
@@ -2727,19 +3039,19 @@ class MemRefType(
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
-    ContainerType[_MemRefTypeElement],
-    Generic[_MemRefTypeElement],
+    ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "memref"
 
     shape: ArrayAttr[IntAttr]
-    element_type: _MemRefTypeElement
+    element_type: AttributeCovT
     layout: MemRefLayoutAttr | NoneAttr
     memory_space: Attribute
 
     def __init__(
         self,
-        element_type: _MemRefTypeElement,
+        element_type: AttributeCovT,
         shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
@@ -2761,7 +3073,7 @@ class MemRefType(
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape.data)
 
-    def get_element_type(self) -> _MemRefTypeElement:
+    def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
     @classmethod
@@ -2871,14 +3183,14 @@ class MemRefType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[AttributeCovT] = AnyAttr(),
         *,
         shape: IRDLAttrConstraint | None = None,
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
-    ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
+    ) -> AttrConstraint[MemRefType[AttributeCovT]]:
         return cast(
-            AttrConstraint[MemRefType[_MemRefTypeElement]],
+            AttrConstraint[MemRefType[AttributeCovT]],
             ParamAttrConstraint.get(
                 MemRefType, shape, element_type, layout, memory_space
             ),
@@ -2890,12 +3202,12 @@ class UnrankedMemRefType(
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
-    ContainerType[_UnrankedMemRefTypeElems],
-    Generic[_UnrankedMemRefTypeElems],
+    ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "unranked_memref"
 
-    element_type: _UnrankedMemRefTypeElems
+    element_type: AttributeCovT
     memory_space: Attribute
 
     def print_builtin(self, printer: Printer):
@@ -2908,12 +3220,12 @@ class UnrankedMemRefType(
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedMemRefTypeElemsInit,
+        referenced_type: AttributeInvT,
         memory_space: Attribute = NoneAttr(),
-    ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
+    ) -> UnrankedMemRefType[AttributeInvT]:
         return UnrankedMemRefType(referenced_type, memory_space)
 
-    def get_element_type(self) -> _UnrankedMemRefTypeElems:
+    def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
 
@@ -2924,29 +3236,27 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
-DenseElementCovT = TypeVar(
-    "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
+_DenseElementCovT = TypeVar(
+    "_DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
-
-DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDenseElement)
 
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
     TypedAttribute,
     BuiltinAttribute,
-    ContainerType[DenseElementCovT],
-    Generic[DenseElementCovT],
+    ContainerType[_DenseElementCovT],
+    Generic[_DenseElementCovT],
 ):
     name = "dense"
-    type: RankedStructure[DenseElementCovT]
+    type: RankedStructure[_DenseElementCovT]
     data: BytesAttr
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
-    def get_element_type(self) -> DenseElementCovT:
+    def get_element_type(self) -> _DenseElementCovT:
         return self.type.get_element_type()
 
     def __len__(self) -> int:
@@ -2973,47 +3283,6 @@ class DenseIntOrFPElementsAttr(
             raise VerifyException(
                 f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
             )
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_int(
-        type: RankedStructure[_IntegerAttrType], data: int | Sequence[int]
-    ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
-        if isinstance(data, int):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_float(
-        type: RankedStructure[_FloatAttrType],
-        data: float | Sequence[float],
-    ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
-        if isinstance(data, int | float):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
-        data: Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
-        data: Sequence[tuple[float, float]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_complex(
-        type: RankedStructure[ComplexType],
-        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType]:
-        return DenseIntOrFPElementsAttr.from_list(type, data)  # pyright: ignore[reportCallIssue, reportUnknownVariableType, reportArgumentType]
 
     @overload
     @staticmethod
@@ -3083,38 +3352,6 @@ class DenseIntOrFPElementsAttr(
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
         return self.get_element_type().iter_unpack(self.data.data)
-
-    @deprecated("Please use `get_values` instead")
-    def get_int_values(self) -> Sequence[int]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are integers.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, IntegerType | IndexType), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_float_values(self) -> Sequence[float]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are floats.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, AnyFloat), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_complex_values(
-        self,
-    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are complex.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, ComplexType), el_type
-        return el_type.unpack(self.data.data, len(self))
 
     @overload
     def get_values(
@@ -3196,15 +3433,16 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            assert isinstance(
-                element_type := self.get_element_type(), IntegerType | IndexType
-            )
+            element_type = self.get_element_type()
+            assert isinstance(element_type, IntegerType | IndexType)
             printer.print_int(val, element_type)
         elif isinstance(val, float):
-            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, AnyFloat)
             printer.print_float(val, element_type)
         else:  # complex
-            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            element_type = self.get_element_type()
+            assert isinstance(element_type, ComplexType)
             printer.print_complex(val, element_type)
 
     def _print_dense_list(

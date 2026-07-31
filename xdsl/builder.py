@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
@@ -110,6 +110,7 @@ class Builder(BuilderListener):
 
         return op
 
+    @deprecated("Use .insert(op, insertion_point) instead")
     def insert_op(
         self,
         op: InsertOpInvT,
@@ -290,14 +291,16 @@ class Builder(BuilderListener):
 # Implicit builders
 
 
-@dataclass
 class _ThreadLocalBuilder(threading.local):
     """
     Stores the implicit builder for use in ImplicitBuilder, None by default.
     There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    builder: Builder | None = None
+    builder: Builder | None
+
+    def __init__(self) -> None:
+        self.builder = None
 
 
 _current_builder = _ThreadLocalBuilder()

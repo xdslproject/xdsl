@@ -8,6 +8,18 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     # xDSL should be available in the environment
     from xdsl.dialects.arith import Arith
     from xdsl.dialects.builtin import Builtin
@@ -26,7 +38,7 @@ def _():
 
     # Printer used to pretty-print MLIR data structures
     printer = Printer()
-    return Printer, VerifyException, i32, mo, printer
+    return Printer, VerifyException, i32, printer
 
 
 @app.cell(hide_code=True)

@@ -7,12 +7,24 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.ir import Dialect
     from collections import defaultdict
     from xdsl.dialects import builtin, func, arith, scf
     from xdsl.context import Context
     from xdsl.parser import Parser
-    from xdsl.utils import marimo as xmo
     from collections import Counter
     from xdsl.ir import OpResult
     return (
@@ -25,9 +37,7 @@ def _():
         builtin,
         defaultdict,
         func,
-        mo,
         scf,
-        xmo,
     )
 
 

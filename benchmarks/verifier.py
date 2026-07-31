@@ -6,7 +6,8 @@ from benchmarks.workloads import WorkloadBuilder
 
 
 class Verifier(BenchmarkClass):
-    """Benchmark verification in xDSL.
+    """
+    Benchmark verification in xDSL.
 
     For a single rewriting pass, we verify with the input before the pass and
     the output after the pass.

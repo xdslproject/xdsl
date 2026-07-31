@@ -81,7 +81,8 @@ class TypeRegistry:
         self._mapping[annotation] = attribute
 
     def get_annotation(self, attribute: TypeAttribute) -> type | None:
-        """Get the Python type annotation from an IR type attribute.
+        """
+        Get the Python type annotation from an IR type attribute.
 
         This supports many-to-one mappings by resolving greedily on the first
         mapping inserted.

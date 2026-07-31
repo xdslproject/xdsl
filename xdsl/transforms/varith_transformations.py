@@ -52,11 +52,11 @@ class ArithToVarithPattern(RewritePattern):
         use_op = cast(Operation, use_op)
 
         other_operands = [o for o in use_op.operands if o != op.result]
-        rewriter.replace_op(
+        rewriter.replace(
             use_op,
             dest_type(op.lhs, op.rhs, *other_operands),
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class VarithToArithPattern(RewritePattern):
@@ -84,7 +84,7 @@ class VarithToArithPattern(RewritePattern):
         first_arg = op.operands[0]
 
         if len(op.operands) == 1:
-            rewriter.replace_op(op, [], new_results=[first_arg])
+            rewriter.replace(op, [], new_results=[first_arg])
             return
 
         for i in range(1, len(op.operands)):
@@ -92,7 +92,7 @@ class VarithToArithPattern(RewritePattern):
             arith_ops.append(newop)
             first_arg = newop.result
 
-        rewriter.replace_op(op, arith_ops)
+        rewriter.replace(op, arith_ops)
 
 
 # map (int|float)(add|mul) to an arith op type
@@ -162,12 +162,12 @@ class MergeVarithOpsPattern(RewritePattern):
         # instantiate a new varith op of the same type as the old op:
         # we can ignore the type error as we know that all VarithOps are instantiated
         # with an *arg of their operands
-        rewriter.replace_op(op, type(op)(*new_operands))
+        rewriter.replace(op, type(op)(*new_operands))
 
         # check all ops that may be erased later:
         for old_op in possibly_erased_ops:
             if not old_op.results[-1].uses:
-                rewriter.erase_op(old_op)
+                rewriter.erase(old_op)
 
 
 def is_integer_like_type(t: Attribute) -> bool:
@@ -208,8 +208,8 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
             else:
                 new_args.append(arg)
         if fusions:
-            rewriter.insert_op([*consts, *fusions], InsertPoint.before(op))
-            rewriter.replace_op(op, varith.VarithAddOp(*new_args))
+            rewriter.insert([*consts, *fusions], InsertPoint.before(op))
+            rewriter.replace(op, varith.VarithAddOp(*new_args))
 
     @staticmethod
     def fuse(

@@ -182,7 +182,7 @@ class EmatchFunctions(InterpreterFunctions):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
 
         eclass_op = equivalence.ClassOp(val)
-        rewriter.insert_op(eclass_op, insertpoint)
+        rewriter.insert(eclass_op, insertpoint)
         self.eclass_union_find.add(eclass_op)
 
         # Replace uses of val with the eclass result (except in the eclass itself)
@@ -198,7 +198,8 @@ class EmatchFunctions(InterpreterFunctions):
         a: equivalence.AnyClassOp,
         b: equivalence.AnyClassOp,
     ) -> bool:
-        """Unions two eclasses, merging their operands and results.
+        """
+        Unions two eclasses, merging their operands and results.
         Returns True if the eclasses were merged, False if they were already the same."""
         a = self.eclass_union_find.find(a)
         b = self.eclass_union_find.find(b)
@@ -242,7 +243,7 @@ class EmatchFunctions(InterpreterFunctions):
                 self.known_ops.pop(use.operation)
 
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        rewriter.replace(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
     def union_val(self, interpreter: Interpreter, a: SSAValue, b: SSAValue) -> None:
@@ -326,7 +327,7 @@ class EmatchFunctions(InterpreterFunctions):
         if existing is not None and existing is not input_op:
             # Deduplicate: erase the new op and return existing
             rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-            rewriter.erase_op(input_op)
+            rewriter.erase(input_op)
             return (existing,)
 
         # No duplicate found, insert into hashcons
@@ -384,7 +385,7 @@ class EmatchFunctions(InterpreterFunctions):
                 eclass_pairs.append((eclass1, eclass2))
 
             # Replace op1 with op2's results
-            rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+            rewriter.replace(op1, new_ops=(), new_results=op2.results)
 
             # Process each eclass pair
             for eclass1, eclass2 in eclass_pairs:

@@ -94,7 +94,8 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
-        constraint = irdl_to_attr_constraint(hint)
+        hint_type = cast(type[GenericData[Any] | ParametrizedAttribute], hint)
+        constraint = irdl_to_attr_constraint(hint_type)
         try:
             constraint.verify(arg, ConstraintContext())
             return True
@@ -203,6 +204,22 @@ def get_type_var_mapping(
             mapping[k] = v
 
     return args, mapping
+
+
+def get_type_var_mapping_with_defaults(cls: type[Any]) -> dict[TypeVar, Any]:
+    """
+    Given a Generic class, returns the mapping from the generic class type variables
+    to the specialized arguments for all type variables used in ancestor classes.
+    Maps unspecialized type variables to their defaults, if they exist.
+    """
+
+    args, mapping = get_type_var_mapping(cls)
+
+    for a in args:
+        if a.has_default():
+            mapping[a] = a.__default__
+
+    return mapping
 
 
 def type_repr(obj: Any) -> str:

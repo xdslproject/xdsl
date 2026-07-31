@@ -38,7 +38,7 @@ class ListLangInt(ListLangType):
         return builtin.IntegerType(32)
 
     def print(self, builder: Builder, value: SSAValue):
-        builder.insert_op(printf.PrintFormatOp("{}", value))
+        builder.insert(printf.PrintFormatOp("{}", value))
 
 
 @dataclass
@@ -50,7 +50,7 @@ class ListLangBool(ListLangType):
         return builtin.IntegerType(1)
 
     def print(self, builder: Builder, value: SSAValue):
-        builder.insert_op(printf.PrintFormatOp("{}", value))
+        builder.insert(printf.PrintFormatOp("{}", value))
 
 
 LIST_ELEMENT_TYPE = ListLangBool | ListLangInt
@@ -67,7 +67,7 @@ class ListLangList(ListLangType):
         return list_dialect.ListType(self.element_type.xdsl())
 
     def print(self, builder: Builder, value: SSAValue):
-        builder.insert_op(list_dialect.PrintOp(value))
+        builder.insert(list_dialect.PrintOp(value))
 
     def get_method(self, method: str) -> "Method | None":
         match method:
@@ -131,7 +131,7 @@ class ListLenMethod(Method):
         assert lambd is None
         assert isinstance(x.value.typ, ListLangList)
 
-        len_op = builder.insert_op(list_dialect.LengthOp(x.value.value))
+        len_op = builder.insert(list_dialect.LengthOp(x.value.value))
         return TypedExpression(len_op.result, ListLangInt())
 
 
@@ -154,7 +154,7 @@ class ListMapMethod(Method):
         if not isinstance(lambd.value[1], LIST_ELEMENT_TYPE):
             raise ParseError(lambd.loc.pos, "expected expression of list-element type")
 
-        map_op = builder.insert_op(
+        map_op = builder.insert(
             list_dialect.MapOp(
                 x.value.value, Region([lambd.value[0]]), lambd.value[1].xdsl()
             )

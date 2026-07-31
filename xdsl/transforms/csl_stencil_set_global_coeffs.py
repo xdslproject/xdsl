@@ -163,7 +163,7 @@ class GenerateCoeffAPICalls(RewritePattern):
         assert main_fn.sym_name == op.program_name, "Apply must be in the main function"
 
         coeffs_api_call_ops = get_coeff_api_ops(applies[0], op)
-        rewriter.insert_op(coeffs_api_call_ops, InsertPoint.before(op_in_main_fn))
+        rewriter.insert(coeffs_api_call_ops, InsertPoint.before(op_in_main_fn))
 
         # delete coefficients from apply ops
         for apply in applies:

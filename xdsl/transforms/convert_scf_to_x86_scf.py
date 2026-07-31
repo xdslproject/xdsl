@@ -23,7 +23,7 @@ def cast_block_args_to_regs(block: Block, arch: X86Arch, rewriter: PatternRewrit
     """
 
     for arg in block.args:
-        rewriter.insert_op(
+        rewriter.insert(
             cast_op := asm.FromRegOp.get(arg, arg.type),
             InsertPoint.at_start(block),
         )
@@ -49,13 +49,13 @@ class ScfForLowering(RewritePattern):
         cast_block_args_to_regs(new_region.block, self.arch, rewriter)
 
         values = tuple(
-            self.arch.move_value_to_unallocated(value, value_type, rewriter)
+            self.arch.move_value_to_unallocated(value, rewriter, value_type=value_type)
             for value, value_type in zip(args, op.iter_args.types)
         )
 
         cast_op_results(rewriter, op)
 
-        new_op = rewriter.insert_op(x86_scf.ForOp(lb, ub, step, values, new_region))
+        new_op = rewriter.insert(x86_scf.ForOp(lb, ub, step, values, new_region))
         rewriter.insertion_point = InsertPoint.after(op)
 
         res_values = tuple(
@@ -64,12 +64,12 @@ class ScfForLowering(RewritePattern):
         )
 
         for res, (cast_op, result) in zip(op.results, res_values):
-            rewriter.insert_op(cast_op)
+            rewriter.insert(cast_op)
             rewriter.replace_uses_with_if(
                 res, result, lambda use: use.operation is not cast_op
             )
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass
@@ -78,7 +78,7 @@ class ScfYieldLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(
+        rewriter.replace(
             op, x86_scf.YieldOp(*self.arch.cast_to_regs(op.operands, rewriter))
         )
 

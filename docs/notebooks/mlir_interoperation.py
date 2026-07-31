@@ -13,6 +13,13 @@ def _():
 
 
 @app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # xDSL-MLIR Interoperation Tutorial
@@ -48,7 +55,7 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(xmo):
     from xdsl.dialects.arith import AddiOp, ConstantOp
     from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
     from xdsl.dialects.vector import PrintOp

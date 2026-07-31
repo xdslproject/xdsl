@@ -5,9 +5,9 @@ from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, cast
+from typing import cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
@@ -86,34 +86,6 @@ class Printer(BasePrinter):
     @property
     def block_names(self):
         return self._block_names[-1]
-
-    @deprecated("Please use type-specific print methods")
-    def print(self, *argv: Any) -> None:
-        for arg in argv:
-            if isinstance(arg, str):
-                self.print_string(arg)
-                continue
-            if isinstance(arg, SSAValue):
-                arg = cast(SSAValue[Attribute], arg)
-                self.print_ssa_value(arg)
-                continue
-            if isinstance(arg, Attribute):
-                self.print_attribute(arg)
-                continue
-            if isinstance(arg, Region):
-                self.print_region(arg)
-                continue
-            if isinstance(arg, Block):
-                self.print_block(arg)
-                self._print_new_line()
-                continue
-            if isinstance(arg, Operation):
-                self.print_op(arg)
-                self._print_new_line()
-                continue
-
-            text = str(arg)
-            self.print_string(text)
 
     K = TypeVar("K")
     V = TypeVar("V")

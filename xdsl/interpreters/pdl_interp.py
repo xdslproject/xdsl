@@ -347,7 +347,7 @@ class PDLInterpFunctions(InterpreterFunctions):
                 "Number of replacement values should match number of results"
             )
         # Replace the operation with the replacement values
-        self.get_rewriter(interpreter).replace_op(
+        self.get_rewriter(interpreter).replace(
             input_op, new_ops=[], new_results=repl_values
         )
         return ()
@@ -458,7 +458,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         )
 
         rewriter = self.get_rewriter(interpreter)
-        rewriter.insert_op(result_op)
+        rewriter.insert(result_op)
 
         return (result_op,)
 

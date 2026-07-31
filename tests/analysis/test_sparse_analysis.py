@@ -530,12 +530,12 @@ def test_lattice_multiple_operations():
     other1 = TestLattice(anchor, value=TestLatticeValue(10))
     other2 = TestLattice(anchor, value=TestLatticeValue(3))
 
-    # First join: 5 ∨ 10 = 10
+    # First join: join(5, 10) = 10
     result1 = lattice.join(other1)
     assert result1 == ChangeResult.CHANGE
     assert lattice.value.value == 10
 
-    # Second join: 10 ∨ 3 = 10 (no change)
+    # Second join: join(10, 3) = 10 (no change)
     result2 = lattice.join(other2)
     assert result2 == ChangeResult.NO_CHANGE
     assert lattice.value.value == 10

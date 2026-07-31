@@ -483,7 +483,8 @@ class GlobalVariable(GlobalValue):
         ...
 
 class AttributeSet(set):
-    """A set of string attribute.
+    """
+    A set of string attribute.
     Only accept items listed in *_known*.
 
     Properties:
@@ -514,7 +515,8 @@ class FunctionAttributes(AttributeSet):
         ...
 
 class Function(GlobalValue):
-    """Represent a LLVM Function but does uses a Module as parent.
+    """
+    Represent a LLVM Function but does uses a Module as parent.
     Global Values are stored as a set of dependencies (attribute `depends`).
     """
 

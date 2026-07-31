@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal, cast
+from typing import IO, Literal
 
 from xdsl.context import Context
 from xdsl.dialects import arith, csl, memref, scf
@@ -394,9 +394,9 @@ class CslPrintContext:
             case IntegerType(
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
             ):
-                return f"u{cast(IntegerType, type_attr).width.data}"
+                return f"u{type_attr.width.data}"
             case IntegerType():
-                return f"i{cast(IntegerType, type_attr).width.data}"
+                return f"i{type_attr.width.data}"
             case MemRefType(element_type=Attribute() as elem_t, shape=shape):
                 if any(dim.data == DYNAMIC_INDEX for dim in shape):
                     raise ValueError(
@@ -441,7 +441,7 @@ class CslPrintContext:
         """
         match attr:
             case IntAttr():
-                return str(cast(IntAttr[int], attr).data)
+                return str(attr.data)
             case IntegerAttr(value=val, type=IntegerType(width=IntAttr(data=1))):
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):

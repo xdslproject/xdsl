@@ -17,7 +17,7 @@ from enum import Enum
 from types import NoneType, UnionType
 from typing import Any, ClassVar, TypeAlias, Union, get_args, get_origin, get_type_hints
 
-from typing_extensions import Self, deprecated
+from typing_extensions import Self
 
 from xdsl.utils.exceptions import ArgSpecParseError
 from xdsl.utils.lexer import Input, Span, Token
@@ -47,11 +47,6 @@ class ArgSpec:
     """
     The parameters of this argument.
     """
-
-    @property
-    @deprecated("Please use ArgSpec.parameters")
-    def args(self) -> dict[str, ParameterListType]:
-        return self.parameters
 
     def normalize_parameter_names(self) -> ArgSpec:
         """
