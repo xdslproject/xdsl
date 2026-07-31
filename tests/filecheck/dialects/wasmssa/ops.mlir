@@ -91,6 +91,17 @@
 // CHECK-NEXT: %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 
+// CHECK-NEXT: %i32_shl = wasmssa.shl %i32 by %i32 bits : i32
+%i32_shl = wasmssa.shl %i32 by %i32 bits : i32
+// CHECK-NEXT: %i32_shr_s = wasmssa.shr_s %i32 by %i32 bits : i32
+%i32_shr_s = wasmssa.shr_s %i32 by %i32 bits : i32
+// CHECK-NEXT: %i32_shr_u = wasmssa.shr_u %i32 by %i32 bits : i32
+%i32_shr_u = wasmssa.shr_u %i32 by %i32 bits : i32
+// CHECK-NEXT: %i64_rotl = wasmssa.rotl %i64 by %i64 bits : i64
+%i64_rotl = wasmssa.rotl %i64 by %i64 bits : i64
+// CHECK-NEXT: %i64_rotr = wasmssa.rotr %i64 by %i64 bits : i64
+%i64_rotr = wasmssa.rotr %i64 by %i64 bits : i64
+
 // CHECK-GENERIC: "wasmssa.const"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC: "wasmssa.const"() <{value = 2 : i64}> : () -> i64
 // CHECK-GENERIC: "wasmssa.const"() <{value = 3.000000e+00 : f32}> : () -> f32
@@ -134,3 +145,8 @@
 // CHECK-GENERIC: "wasmssa.gt"(%f64, %f64) : (f64, f64) -> i32
 // CHECK-GENERIC: "wasmssa.ge"(%f64, %f64) : (f64, f64) -> i32
 // CHECK-GENERIC: "wasmssa.eqz"(%i64) : (i64) -> i32
+// CHECK-GENERIC: "wasmssa.shl"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.shr_s"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.shr_u"(%i32, %i32) : (i32, i32) -> i32
+// CHECK-GENERIC: "wasmssa.rotl"(%i64, %i64) : (i64, i64) -> i64
+// CHECK-GENERIC: "wasmssa.rotr"(%i64, %i64) : (i64, i64) -> i64

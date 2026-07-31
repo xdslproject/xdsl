@@ -31,6 +31,12 @@ from xdsl.dialects.wasmssa import (
     OrOp,
     RemSIOp,
     RemUIOp,
+    RotlOp,
+    RotrOp,
+    ShiftRotateOperation,
+    ShLOp,
+    ShRSOp,
+    ShRUOp,
     SubOp,
     XOrOp,
 )
@@ -68,6 +74,11 @@ def _assert_traits(
         (MinOp, f32, [Pure(), Commutative()], []),
         (MaxOp, f32, [Pure(), Commutative()], []),
         (CopySignOp, f32, [Pure()], [Commutative()]),
+        (ShLOp, i32, [Pure()], [Commutative()]),
+        (ShRSOp, i32, [Pure()], [Commutative()]),
+        (ShRUOp, i32, [Pure()], [Commutative()]),
+        (RotlOp, i32, [Pure()], [Commutative()]),
+        (RotrOp, i32, [Pure()], [Commutative()]),
         (EqOp, i32, [Pure(), Commutative()], []),
         (NeOp, i32, [Pure(), Commutative()], []),
         (LtSIOp, i32, [Pure()], [Commutative()]),
@@ -85,7 +96,11 @@ def _assert_traits(
     ],
 )
 def test_binary_traits(
-    op_type: type[BinaryNumericalOperation] | type[BinaryComparisonOperation],
+    op_type: (
+        type[BinaryNumericalOperation]
+        | type[BinaryComparisonOperation]
+        | type[ShiftRotateOperation]
+    ),
     operand_type: Attribute,
     required_traits: list[OpTrait],
     forbidden_traits: list[OpTrait],
