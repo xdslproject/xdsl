@@ -84,3 +84,24 @@
 %comparison = "wasmssa.ne"(%lhs, %rhs) : (i32, i32) -> i64
 
 // CHECK: Expected attribute i32 but got i64
+
+// -----
+
+%src = "test.op"() : () -> i32
+%result = "wasmssa.abs"(%src) : (i32) -> i32
+
+// CHECK: Unexpected attribute i32
+
+// -----
+
+%src = "test.op"() : () -> f32
+%result = "wasmssa.clz"(%src) : (f32) -> f32
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%src = "test.op"() : () -> f32
+%result = "wasmssa.sqrt"(%src) : (f32) -> f64
+
+// CHECK: attribute f32 expected from variable 'T', but got f64

@@ -91,6 +91,25 @@
 // CHECK-NEXT: %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 
+// CHECK-NEXT: %f32_abs = wasmssa.abs %f32 : f32
+%f32_abs = wasmssa.abs %f32 : f32
+// CHECK-NEXT: %f32_ceil = wasmssa.ceil %f32 : f32
+%f32_ceil = wasmssa.ceil %f32 : f32
+// CHECK-NEXT: %f32_floor = wasmssa.floor %f32 : f32
+%f32_floor = wasmssa.floor %f32 : f32
+// CHECK-NEXT: %f32_neg = wasmssa.neg %f32 : f32
+%f32_neg = wasmssa.neg %f32 : f32
+// CHECK-NEXT: %f32_sqrt = wasmssa.sqrt %f32 : f32
+%f32_sqrt = wasmssa.sqrt %f32 : f32
+// CHECK-NEXT: %f32_trunc = wasmssa.trunc %f32 : f32
+%f32_trunc = wasmssa.trunc %f32 : f32
+// CHECK-NEXT: %i32_clz = wasmssa.clz %i32 : i32
+%i32_clz = wasmssa.clz %i32 : i32
+// CHECK-NEXT: %i32_ctz = wasmssa.ctz %i32 : i32
+%i32_ctz = wasmssa.ctz %i32 : i32
+// CHECK-NEXT: %i32_popcnt = wasmssa.popcnt %i32 : i32
+%i32_popcnt = wasmssa.popcnt %i32 : i32
+
 // CHECK-GENERIC: "wasmssa.const"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC: "wasmssa.const"() <{value = 2 : i64}> : () -> i64
 // CHECK-GENERIC: "wasmssa.const"() <{value = 3.000000e+00 : f32}> : () -> f32
@@ -134,3 +153,12 @@
 // CHECK-GENERIC: "wasmssa.gt"(%f64, %f64) : (f64, f64) -> i32
 // CHECK-GENERIC: "wasmssa.ge"(%f64, %f64) : (f64, f64) -> i32
 // CHECK-GENERIC: "wasmssa.eqz"(%i64) : (i64) -> i32
+// CHECK-GENERIC: "wasmssa.abs"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.ceil"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.floor"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.neg"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.sqrt"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.trunc"(%f32) : (f32) -> f32
+// CHECK-GENERIC: "wasmssa.clz"(%i32) : (i32) -> i32
+// CHECK-GENERIC: "wasmssa.ctz"(%i32) : (i32) -> i32
+// CHECK-GENERIC: "wasmssa.popcnt"(%i32) : (i32) -> i32

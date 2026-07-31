@@ -518,18 +518,121 @@ class EqzOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[i32])
 
 
+class UnaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
+    """Base class for unary WebAssembly numeric operations."""
+
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(_NumericTypeInvT, allow_type_var=True)
+    )
+
+    src = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$src `:` type($src) attr-dict"
+
+    def __init__(self, src: SSAValue | Operation):
+        src = SSAValue.get(src)
+        super().__init__(operands=[src], result_types=[src.type])
+
+
+@irdl_op_definition
+class AbsOp(UnaryNumericalOperation[WasmFPType]):
+    """Compute the absolute value of a floating-point value."""
+
+    name = "wasmssa.abs"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class CeilOp(UnaryNumericalOperation[WasmFPType]):
+    """Round a floating-point value toward positive infinity."""
+
+    name = "wasmssa.ceil"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class FloorOp(UnaryNumericalOperation[WasmFPType]):
+    """Round a floating-point value toward negative infinity."""
+
+    name = "wasmssa.floor"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class NegOp(UnaryNumericalOperation[WasmFPType]):
+    """Negate a floating-point value."""
+
+    name = "wasmssa.neg"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SqrtOp(UnaryNumericalOperation[WasmFPType]):
+    """Compute the square root of a floating-point value."""
+
+    name = "wasmssa.sqrt"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class TruncOp(UnaryNumericalOperation[WasmFPType]):
+    """Round a floating-point value toward zero."""
+
+    name = "wasmssa.trunc"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ClzOp(UnaryNumericalOperation[WasmIntegerType]):
+    """Count leading zeroes in an integer value."""
+
+    name = "wasmssa.clz"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class CtzOp(UnaryNumericalOperation[WasmIntegerType]):
+    """Count trailing zeroes in an integer value."""
+
+    name = "wasmssa.ctz"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class PopCntOp(UnaryNumericalOperation[WasmIntegerType]):
+    """Count set bits in an integer value."""
+
+    name = "wasmssa.popcnt"
+
+    traits = traits_def(Pure())
+
+
 WasmSSA = Dialect(
     "wasmssa",
     [
+        AbsOp,
         AddOp,
         AndOp,
+        CeilOp,
+        ClzOp,
         ConstOp,
         CopySignOp,
+        CtzOp,
         DivOp,
         DivSIOp,
         DivUIOp,
         EqOp,
         EqzOp,
+        FloorOp,
         GeOp,
         GeSIOp,
         GeUIOp,
@@ -547,10 +650,14 @@ WasmSSA = Dialect(
         MinOp,
         MulOp,
         NeOp,
+        NegOp,
         OrOp,
+        PopCntOp,
         RemSIOp,
         RemUIOp,
+        SqrtOp,
         SubOp,
+        TruncOp,
         XOrOp,
     ],
     [

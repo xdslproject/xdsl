@@ -2,16 +2,21 @@ import pytest
 
 from xdsl.dialects.builtin import f32, i32
 from xdsl.dialects.wasmssa import (
+    AbsOp,
     AddOp,
     AndOp,
     BinaryComparisonOperation,
     BinaryNumericalOperation,
+    CeilOp,
+    ClzOp,
     CopySignOp,
+    CtzOp,
     DivOp,
     DivSIOp,
     DivUIOp,
     EqOp,
     EqzOp,
+    FloorOp,
     GeOp,
     GeSIOp,
     GeUIOp,
@@ -27,11 +32,16 @@ from xdsl.dialects.wasmssa import (
     MaxOp,
     MinOp,
     MulOp,
+    NegOp,
     NeOp,
     OrOp,
+    PopCntOp,
     RemSIOp,
     RemUIOp,
+    SqrtOp,
     SubOp,
+    TruncOp,
+    UnaryNumericalOperation,
     XOrOp,
 )
 from xdsl.ir import Attribute
@@ -96,7 +106,24 @@ def test_binary_traits(
     _assert_traits(op_type(lhs, rhs), required_traits, forbidden_traits)
 
 
-def test_eqz_traits():
-    input = create_ssa_value(i32)
+@pytest.mark.parametrize(
+    "op_type, operand_type",
+    [
+        (AbsOp, f32),
+        (CeilOp, f32),
+        (FloorOp, f32),
+        (NegOp, f32),
+        (SqrtOp, f32),
+        (TruncOp, f32),
+        (ClzOp, i32),
+        (CtzOp, i32),
+        (EqzOp, i32),
+        (PopCntOp, i32),
+    ],
+)
+def test_unary_traits(
+    op_type: type[UnaryNumericalOperation] | type[EqzOp], operand_type: Attribute
+):
+    src = create_ssa_value(operand_type)
 
-    _assert_traits(EqzOp(input), [Pure()], [Commutative()])
+    _assert_traits(op_type(src), [Pure()], [Commutative()])
