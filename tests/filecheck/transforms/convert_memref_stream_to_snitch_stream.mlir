@@ -330,7 +330,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [64], strides = [8]>
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    } ins(%X_f32_1, %Y_f32_1 : !riscv.reg, !riscv.reg) outs(%Z_f32_1 : !riscv.reg) {
-// CHECK-NEXT:    ^bb7(%x_stream_2: !snitch.readable<!riscv.freg>, %y_stream: !snitch.readable<!riscv.freg>, %z_stream: !snitch.writable<!riscv.freg>):
+// CHECK-NEXT:    ^bb0(%x_stream_2: !snitch.readable<!riscv.freg>, %y_stream: !snitch.readable<!riscv.freg>, %z_stream: !snitch.writable<!riscv.freg>):
 // CHECK-NEXT:      %x_stream_3 = builtin.unrealized_conversion_cast %x_stream_2 : !snitch.readable<!riscv.freg> to !memref_stream.readable<vector<2xf32>>
 // CHECK-NEXT:      %y_stream_1 = builtin.unrealized_conversion_cast %y_stream : !snitch.readable<!riscv.freg> to !memref_stream.readable<vector<2xf32>>
 // CHECK-NEXT:      %z_stream_1 = builtin.unrealized_conversion_cast %z_stream : !snitch.writable<!riscv.freg> to !memref_stream.writable<vector<2xf32>>
@@ -343,7 +343,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:        ],
 // CHECK-NEXT:        iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:      } ins(%x_stream_3, %y_stream_1 : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%z_stream_1 : !memref_stream.writable<vector<2xf32>>) {
-// CHECK-NEXT:      ^bb8(%in: vector<2xf32>, %in_1: vector<2xf32>, %out: vector<2xf32>):
+// CHECK-NEXT:      ^bb0(%in: vector<2xf32>, %in_1: vector<2xf32>, %out: vector<2xf32>):
 // CHECK-NEXT:        %15 = arith.addf %in, %in_1 : vector<2xf32>
 // CHECK-NEXT:        memref_stream.yield %15 : vector<2xf32>
 // CHECK-NEXT:      }

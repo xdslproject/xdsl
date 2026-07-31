@@ -977,7 +977,7 @@ def test_block_argument_insertion():
   ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1066,7 +1066,7 @@ def test_inline_block_before():
     ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1157,10 +1157,10 @@ def test_inline_block_before_with_args():
     %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
-    ^bb1:
+    ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb2:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1213,7 +1213,7 @@ def test_inline_block_after():
     }) : () -> !test.type<"int">
     %3 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1263,7 +1263,7 @@ def test_inline_block_after_matched():
     ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
   %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
@@ -1431,11 +1431,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1478,11 +1478,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1525,11 +1525,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^bb0:
-  %1 = "test.op"() : () -> f64
 ^bb1:
-  %2 = "test.op"() : () -> i32
+  %1 = "test.op"() : () -> f64
 ^bb2:
+  %2 = "test.op"() : () -> i32
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1575,11 +1575,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> i64
 ^bb1:
-  %2 = "test.op"() : () -> f32
+  %1 = "test.op"() : () -> i64
 ^bb2:
+  %2 = "test.op"() : () -> f32
+^bb3:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """

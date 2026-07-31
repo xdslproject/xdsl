@@ -155,11 +155,11 @@ func.func @down_propagate() -> i32 {
 
 // CHECK:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      cf.cond_br %1, ^bb0, ^bb1(%0 : i32)
-// CHECK-NEXT:    ^bb0:
+// CHECK-NEXT:      cf.cond_br %1, ^bb1, ^bb2(%0 : i32)
+// CHECK-NEXT:    ^bb1:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      cf.br ^bb1(%2 : i32)
-// CHECK-NEXT:    ^bb1(%3: i32):
+// CHECK-NEXT:      cf.br ^bb2(%2 : i32)
+// CHECK-NEXT:    ^bb2(%3: i32):
 // CHECK-NEXT:      func.return %3 : i32
 // CHECK-NEXT:    }
 
@@ -202,11 +202,11 @@ func.func @up_propagate() -> i32 {
 
 // CHECK:      %0 = arith.constant 0 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      cf.cond_br %1, ^bb0, ^bb1(%0 : i32)
-// CHECK-NEXT:    ^bb0:
+// CHECK-NEXT:      cf.cond_br %1, ^bb1, ^bb2(%0 : i32)
+// CHECK-NEXT:    ^bb1:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      cf.br ^bb1(%2 : i32)
-// CHECK-NEXT:    ^bb1(%3: i32):
+// CHECK-NEXT:      cf.br ^bb2(%2 : i32)
+// CHECK-NEXT:    ^bb2(%3: i32):
 // CHECK-NEXT:      %4 = arith.constant 1 : i32
 // CHECK-NEXT:      %5 = arith.addi %3, %4 : i32
 // CHECK-NEXT:      func.return %5 : i32
@@ -234,11 +234,11 @@ func.func @up_propagate_region() -> i32 {
 // CHECK:      %0 = "foo.region"() ({
 // CHECK-NEXT:        %1 = arith.constant 0 : i32
 // CHECK-NEXT:        %2 = arith.constant true
-// CHECK-NEXT:        cf.cond_br %2, ^bb0, ^bb1(%1 : i32)
-// CHECK-NEXT:      ^bb0:
+// CHECK-NEXT:        cf.cond_br %2, ^bb1, ^bb2(%1 : i32)
+// CHECK-NEXT:      ^bb1:
 // CHECK-NEXT:        %3 = arith.constant 1 : i32
-// CHECK-NEXT:        cf.br ^bb1(%3 : i32)
-// CHECK-NEXT:      ^bb1(%4: i32):
+// CHECK-NEXT:        cf.br ^bb2(%3 : i32)
+// CHECK-NEXT:      ^bb2(%4: i32):
 // CHECK-NEXT:        %5 = arith.constant 1 : i32
 // CHECK-NEXT:        %6 = arith.addi %4, %5 : i32
 // CHECK-NEXT:        "foo.yield"(%6) : (i32) -> ()
@@ -392,7 +392,7 @@ func.func @no_cse_varied_bbargs(%arg0_6: tensor<?x?xf32>, %arg1_3: tensor<?x?xf3
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^bb1(%arg2_1: f32):
+// CHECK-NEXT:      ^bb0(%arg2_1: f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -416,7 +416,7 @@ func.func @no_cse_region_difference_simple(%arg0_7: tensor<?x?xf32>, %arg1_4: te
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^bb1(%arg2_1: f32, %arg3_1: f32):
+// CHECK-NEXT:      ^bb0(%arg2_1: f32, %arg3_1: f32):
 // CHECK-NEXT:        "test.region_yield"(%arg3_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -480,7 +480,7 @@ func.func @no_cse_single_block_ops_different_bodies(%arg0_9: tensor<?x?xf32>, %a
 // CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %4 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^bb1(%arg4_1: f32, %arg5_1: f32):
+// CHECK-NEXT:      ^bb0(%arg4_1: f32, %arg5_1: f32):
 // CHECK-NEXT:        %5 = arith.divf %arg4_1, %arg5_1 : f32
 // CHECK-NEXT:        %6 = "arith.remf"(%arg4_1, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %7 = arith.select %arg3, %6, %5 : f32

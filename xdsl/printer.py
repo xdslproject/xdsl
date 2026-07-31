@@ -149,6 +149,30 @@ class Printer(BasePrinter):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
+    def _populate_block_name(
+        self, block: Block, block_index: int | None = None
+    ) -> None:
+        """Assign a name to a block. The block must not already have one."""
+        assert block not in self._blocks
+        if block.name_hint:
+            curr_ind = self.block_names.get(block.name_hint, 0)
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{block.name_hint}{suffix}"
+            self.block_names[block.name_hint] = curr_ind + 1
+        elif block_index is not None:
+            name = f"bb{block_index}"
+        else:
+            name = f"bb{self._get_new_valid_block_id()}"
+        self._blocks[block] = name
+
+    def _get_block_name(self, block: Block) -> str:
+        """Fetch a block name, assigning one on a cache miss."""
+        try:
+            return self._blocks[block]
+        except KeyError:
+            self._populate_block_name(block)
+            return self._blocks[block]
+
     def print_block_name(self, block: Block) -> str:
         """
         Print a block name in the printer. This assigns a name to the block if the block
@@ -158,18 +182,7 @@ class Printer(BasePrinter):
 
         Returns the name used for printing the block.
         """
-        if block in self._blocks:
-            name = self._blocks[block]
-        elif block.name_hint:
-            curr_ind = self.block_names.get(block.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{block.name_hint}{suffix}"
-            self._blocks[block] = name
-            self.block_names[block.name_hint] = curr_ind + 1
-        else:
-            name = f"bb{self._get_new_valid_block_id()}"
-            self._blocks[block] = name
-
+        name = self._get_block_name(block)
         self.print_string(f"^{name}")
         return name
 
@@ -187,6 +200,10 @@ class Printer(BasePrinter):
 
         if print_block_args:
             self._print_new_line()
+            # A block printed on its own, outside a region, won't have been
+            # populated yet; region printing populates all names up front.
+            if block not in self._blocks:
+                self._populate_block_name(block)
             self.print_block_name(block)
             if len(block.args) != 0:
                 with self.in_parens():
@@ -229,6 +246,14 @@ class Printer(BasePrinter):
         * If `print_empty_block` is False, empty entry blocks are not printed.
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
+        # Match MLIR by assigning block names in region order before successors are
+        # printed.
+        # A printer may be reused to print the same region more than once, in which
+        # case the blocks already have names and must keep them.
+        for block_index, block in enumerate(region.blocks):
+            if block not in self._blocks:
+                self._populate_block_name(block, block_index)
+
         # Empty region
         with self.in_braces():
             if (entry_block := region.blocks.first) is None:
