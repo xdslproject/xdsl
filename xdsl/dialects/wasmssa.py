@@ -530,6 +530,8 @@ class UnaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
 
     assembly_format = "$src `:` type($src) attr-dict"
 
+    traits = traits_def(Pure())
+
     def __init__(self, src: SSAValue | Operation):
         src = SSAValue.get(src)
         super().__init__(operands=[src], result_types=[src.type])
@@ -541,16 +543,12 @@ class AbsOp(UnaryNumericalOperation[WasmFPType]):
 
     name = "wasmssa.abs"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class CeilOp(UnaryNumericalOperation[WasmFPType]):
     """Round a floating-point value toward positive infinity."""
 
     name = "wasmssa.ceil"
-
-    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -559,16 +557,12 @@ class FloorOp(UnaryNumericalOperation[WasmFPType]):
 
     name = "wasmssa.floor"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class NegOp(UnaryNumericalOperation[WasmFPType]):
     """Negate a floating-point value."""
 
     name = "wasmssa.neg"
-
-    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -577,16 +571,12 @@ class SqrtOp(UnaryNumericalOperation[WasmFPType]):
 
     name = "wasmssa.sqrt"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class TruncOp(UnaryNumericalOperation[WasmFPType]):
     """Round a floating-point value toward zero."""
 
     name = "wasmssa.trunc"
-
-    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -595,8 +585,6 @@ class ClzOp(UnaryNumericalOperation[WasmIntegerType]):
 
     name = "wasmssa.clz"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class CtzOp(UnaryNumericalOperation[WasmIntegerType]):
@@ -604,16 +592,12 @@ class CtzOp(UnaryNumericalOperation[WasmIntegerType]):
 
     name = "wasmssa.ctz"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class PopCntOp(UnaryNumericalOperation[WasmIntegerType]):
     """Count set bits in an integer value."""
 
     name = "wasmssa.popcnt"
-
-    traits = traits_def(Pure())
 
 
 WasmSSA = Dialect(
