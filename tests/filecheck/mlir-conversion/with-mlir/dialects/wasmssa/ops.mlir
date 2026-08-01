@@ -89,3 +89,22 @@
 %f64_ge = wasmssa.ge %f64 %f64 : f64 -> i32
 // CHECK-NEXT: %{{.*}} = wasmssa.eqz %[[I64]] : i64 -> i32
 %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
+
+// CHECK-NEXT: %{{.*}} = wasmssa.convert_s %[[I32]] : i32 to f32
+%f32_convert_s = wasmssa.convert_s %i32 : i32 to f32
+// CHECK-NEXT: %{{.*}} = wasmssa.convert_u %[[I64]] : i64 to f64
+%f64_convert_u = wasmssa.convert_u %i64 : i64 to f64
+// CHECK-NEXT: %{{.*}} = wasmssa.demote %[[F64]] : f64 to f32
+%f32_demote = wasmssa.demote %f64 : f64 to f32
+// CHECK-NEXT: %{{.*}} = wasmssa.extend_i32_s %[[I32]] to i64
+%i64_extend_i32_s = wasmssa.extend_i32_s %i32 to i64
+// CHECK-NEXT: %{{.*}} = wasmssa.extend_i32_u %[[I32]] to i64
+%i64_extend_i32_u = wasmssa.extend_i32_u %i32 to i64
+// CHECK-NEXT: %{{.*}} = wasmssa.extend 8 : i64 low bits from %[[I32]] : i32
+%i32_extend = wasmssa.extend 8 : i64 low bits from %i32 : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.promote %[[F32]] : f32 to f64
+%f64_promote = wasmssa.promote %f32 : f32 to f64
+// CHECK-NEXT: %{{.*}} = wasmssa.wrap %[[I64]] : i64 to i32
+%i32_wrap = wasmssa.wrap %i64 : i64 to i32
+// CHECK-NEXT: %{{.*}} = wasmssa.reinterpret %[[I32]] : i32 as f32
+%f32_reinterpret = wasmssa.reinterpret %i32 : i32 as f32

@@ -84,3 +84,66 @@
 %comparison = "wasmssa.ne"(%lhs, %rhs) : (i32, i32) -> i64
 
 // CHECK: Expected attribute i32 but got i64
+
+// -----
+
+%input = "test.op"() : () -> f32
+%result = "wasmssa.convert_s"(%input) : (f32) -> f64
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = "wasmssa.convert_u"(%input) : (i32) -> i64
+
+// CHECK: Unexpected attribute i64
+
+// -----
+
+%input = "test.op"() : () -> f32
+%result = "wasmssa.demote"(%input) : (f32) -> f32
+
+// CHECK: f32 should be of base attribute f64
+
+// -----
+
+%input = "test.op"() : () -> f32
+%result = "wasmssa.extend_i32_s"(%input) : (f32) -> i64
+
+// CHECK: Expected attribute i32 but got f32
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = wasmssa.extend 67 : i64 low bits from %input : i32
+
+// CHECK: extend op can only take 8, 16 or 32 bits. Got 67
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = wasmssa.extend 32 : i64 low bits from %input : i32
+
+// CHECK: trying to extend the 32 low bits from a i32 value is illegal
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = "wasmssa.extend"(%input) <{bitsToTake = 8 : i64}> : (i32) -> i64
+
+// CHECK: attribute i32 expected from variable 'T', but got i64
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = wasmssa.reinterpret %input : i32 as i32
+
+// CHECK: reinterpret input and output type should be distinct
+
+// -----
+
+%input = "test.op"() : () -> i32
+%result = wasmssa.reinterpret %input : i32 as f64
+
+// CHECK: input type (i32) and output type (f64) have incompatible bit widths
