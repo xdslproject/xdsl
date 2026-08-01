@@ -529,6 +529,8 @@ class ShiftRotateOperation(IRDLOperation, ABC):
 
     assembly_format = "$val `by` $bits `bits` `:` type($val) attr-dict"
 
+    traits = traits_def(Pure())
+
     def __init__(
         self,
         val: SSAValue | Operation,
@@ -544,16 +546,12 @@ class ShLOp(ShiftRotateOperation):
 
     name = "wasmssa.shl"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class ShRSOp(ShiftRotateOperation):
     """Shift a signed integer value right."""
 
     name = "wasmssa.shr_s"
-
-    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -562,8 +560,6 @@ class ShRUOp(ShiftRotateOperation):
 
     name = "wasmssa.shr_u"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class RotlOp(ShiftRotateOperation):
@@ -571,16 +567,12 @@ class RotlOp(ShiftRotateOperation):
 
     name = "wasmssa.rotl"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class RotrOp(ShiftRotateOperation):
     """Rotate an integer value right."""
 
     name = "wasmssa.rotr"
-
-    traits = traits_def(Pure())
 
 
 WasmSSA = Dialect(
