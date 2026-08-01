@@ -1,17 +1,24 @@
 import pytest
 
-from xdsl.dialects.builtin import f32, i32
+from xdsl.dialects.builtin import IntegerAttr, f32, f64, i32, i64
 from xdsl.dialects.wasmssa import (
     AddOp,
     AndOp,
     BinaryComparisonOperation,
     BinaryNumericalOperation,
+    ConversionOperation,
+    ConvertSOp,
+    ConvertUOp,
     CopySignOp,
+    DemoteOp,
     DivOp,
     DivSIOp,
     DivUIOp,
     EqOp,
     EqzOp,
+    ExtendLowBitsSOp,
+    ExtendSI32Op,
+    ExtendUI32Op,
     GeOp,
     GeSIOp,
     GeUIOp,
@@ -28,7 +35,10 @@ from xdsl.dialects.wasmssa import (
     MinOp,
     MulOp,
     NeOp,
+    NumericType,
     OrOp,
+    PromoteOp,
+    ReinterpretOp,
     RemSIOp,
     RemUIOp,
     RotlOp,
@@ -38,6 +48,7 @@ from xdsl.dialects.wasmssa import (
     ShRSOp,
     ShRUOp,
     SubOp,
+    WrapOp,
     XOrOp,
 )
 from xdsl.ir import Attribute
@@ -115,3 +126,40 @@ def test_eqz_traits():
     input = create_ssa_value(i32)
 
     _assert_traits(EqzOp(input), [Pure()], [Commutative()])
+
+
+@pytest.mark.parametrize(
+    "op_type, input_type, result_type, required_traits, forbidden_traits",
+    [
+        (ConvertSOp, i32, f32, [Pure()], [Commutative()]),
+        (ConvertUOp, i64, f64, [Pure()], [Commutative()]),
+        (DemoteOp, f64, f32, [Pure()], [Commutative()]),
+        (PromoteOp, f32, f64, [Pure()], [Commutative()]),
+        (WrapOp, i64, i32, [Pure()], [Commutative()]),
+        (ReinterpretOp, i32, f32, [Pure()], [Commutative()]),
+    ],
+)
+def test_conversion_traits(
+    op_type: type[ConversionOperation],
+    input_type: NumericType,
+    result_type: NumericType,
+    required_traits: list[OpTrait],
+    forbidden_traits: list[OpTrait],
+):
+    input = create_ssa_value(input_type)
+
+    _assert_traits(op_type(input, result_type), required_traits, forbidden_traits)
+
+
+@pytest.mark.parametrize("op_type", [ExtendSI32Op, ExtendUI32Op])
+def test_extend_i32_traits(op_type: type[ExtendSI32Op] | type[ExtendUI32Op]):
+    input = create_ssa_value(i32)
+
+    _assert_traits(op_type(input), [Pure()], [Commutative()])
+
+
+@pytest.mark.parametrize("bits_to_take", [8, IntegerAttr(8, i64)])
+def test_extend_low_bits_traits(bits_to_take: int | IntegerAttr):
+    input = create_ssa_value(i32)
+
+    _assert_traits(ExtendLowBitsSOp(input, bits_to_take), [Pure()], [Commutative()])

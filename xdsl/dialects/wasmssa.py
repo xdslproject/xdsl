@@ -14,9 +14,11 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IntAttr,
     IntegerAttr,
+    IntegerType,
     NoneAttr,
     SymbolRefAttr,
     i32,
+    i64,
 )
 from xdsl.ir import (
     Dialect,
@@ -43,6 +45,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import Commutative, ConstantLike, NoMemoryEffect, Pure
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -75,6 +78,9 @@ ValType: TypeAlias = I128 | NumericType | FuncRefType | ExternRefType
 """Type alias for value types that are supported by WebAssembly"""
 
 _NumericTypeInvT = TypeVar("_NumericTypeInvT", bound=NumericType, default=NumericType)
+_NumericResultTypeInvT = TypeVar(
+    "_NumericResultTypeInvT", bound=NumericType, default=NumericType
+)
 
 
 @irdl_attr_definition
@@ -575,18 +581,197 @@ class RotrOp(ShiftRotateOperation):
     name = "wasmssa.rotr"
 
 
+class ConversionOperation(
+    IRDLOperation,
+    ABC,
+    Generic[_NumericTypeInvT, _NumericResultTypeInvT],
+):
+    """Base class for WebAssembly conversion operations."""
+
+    input = operand_def(irdl_to_attr_constraint(_NumericTypeInvT, allow_type_var=True))
+    result = result_def(
+        irdl_to_attr_constraint(_NumericResultTypeInvT, allow_type_var=True)
+    )
+
+    assembly_format = "$input `:` type($input) `to` type($result) attr-dict"
+
+    def __init__(
+        self,
+        input: SSAValue | Operation,
+        result_type: NumericType,
+    ):
+        super().__init__(operands=[input], result_types=[result_type])
+
+
+@irdl_op_definition
+class ConvertUOp(ConversionOperation[WasmIntegerType, WasmFPType]):
+    """Convert an unsigned integer value to a floating-point value."""
+
+    name = "wasmssa.convert_u"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ConvertSOp(ConversionOperation[WasmIntegerType, WasmFPType]):
+    """Convert a signed integer value to a floating-point value."""
+
+    name = "wasmssa.convert_s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class DemoteOp(ConversionOperation[Float64Type, Float32Type]):
+    """Convert an f64 value to f32."""
+
+    name = "wasmssa.demote"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ExtendSI32Op(IRDLOperation):
+    """Sign-extend an i32 value to i64."""
+
+    name = "wasmssa.extend_i32_s"
+
+    input = operand_def(I32)
+    result = result_def(I64)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$input `to` type($result) attr-dict"
+
+    def __init__(self, input: SSAValue | Operation):
+        super().__init__(operands=[input], result_types=[i64])
+
+
+@irdl_op_definition
+class ExtendUI32Op(IRDLOperation):
+    """Zero-extend an i32 value to i64."""
+
+    name = "wasmssa.extend_i32_u"
+
+    input = operand_def(I32)
+    result = result_def(I64)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$input `to` type($result) attr-dict"
+
+    def __init__(self, input: SSAValue | Operation):
+        super().__init__(operands=[input], result_types=[i64])
+
+
+@irdl_op_definition
+class ExtendLowBitsSOp(IRDLOperation):
+    """Sign-extend the low bits of an integer value to its full width."""
+
+    name = "wasmssa.extend"
+
+    T: ClassVar = VarConstraint.get("T", WasmIntegerType)
+
+    input = operand_def(T)
+    bitsToTake = prop_def(IntegerAttr)
+    result = result_def(T)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$bitsToTake `low` `bits` `from` $input `:` type($input) attr-dict"
+    )
+
+    def __init__(
+        self,
+        input: SSAValue | Operation,
+        bits_to_take: int | IntegerAttr,
+    ):
+        input = SSAValue.get(input)
+        if isinstance(bits_to_take, int):
+            bits_to_take = IntegerAttr(bits_to_take, i64)
+        super().__init__(
+            operands=[input],
+            result_types=[input.type],
+            properties={"bitsToTake": bits_to_take},
+        )
+
+    def verify_(self) -> None:
+        bits_to_take = self.bitsToTake.value.data
+        if bits_to_take not in (8, 16, 32):
+            raise VerifyException(
+                f"extend op can only take 8, 16 or 32 bits. Got {bits_to_take}"
+            )
+
+        input_type = self.input.type
+        assert isinstance(input_type, IntegerType)
+        if bits_to_take >= input_type.bitwidth:
+            raise VerifyException(
+                f"trying to extend the {bits_to_take} low bits from a "
+                f"{input_type} value is illegal"
+            )
+
+
+@irdl_op_definition
+class PromoteOp(ConversionOperation[Float32Type, Float64Type]):
+    """Convert an f32 value to f64."""
+
+    name = "wasmssa.promote"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class WrapOp(ConversionOperation[I64, I32]):
+    """Wrap an i64 value to i32."""
+
+    name = "wasmssa.wrap"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ReinterpretOp(ConversionOperation):
+    """Reinterpret a numeric value as a different type of the same bit width."""
+
+    name = "wasmssa.reinterpret"
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$input `:` type($input) `as` type($result) attr-dict"
+
+    def verify_(self) -> None:
+        input_type = cast(NumericType, self.input.type)
+        result_type = cast(NumericType, self.result.type)
+        if input_type == result_type:
+            raise VerifyException(
+                "reinterpret input and output type should be distinct"
+            )
+        if input_type.bitwidth != result_type.bitwidth:
+            raise VerifyException(
+                f"input type ({input_type}) and output type ({result_type}) "
+                "have incompatible bit widths"
+            )
+
+
 WasmSSA = Dialect(
     "wasmssa",
     [
         AddOp,
         AndOp,
         ConstOp,
+        ConvertSOp,
+        ConvertUOp,
         CopySignOp,
+        DemoteOp,
         DivOp,
         DivSIOp,
         DivUIOp,
         EqOp,
         EqzOp,
+        ExtendLowBitsSOp,
+        ExtendSI32Op,
+        ExtendUI32Op,
         GeOp,
         GeSIOp,
         GeUIOp,
@@ -605,6 +790,7 @@ WasmSSA = Dialect(
         MulOp,
         NeOp,
         OrOp,
+        PromoteOp,
         RemSIOp,
         RemUIOp,
         RotlOp,
@@ -612,7 +798,9 @@ WasmSSA = Dialect(
         ShLOp,
         ShRSOp,
         ShRUOp,
+        ReinterpretOp,
         SubOp,
+        WrapOp,
         XOrOp,
     ],
     [
