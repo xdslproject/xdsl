@@ -109,6 +109,32 @@
 %i32_ctz = wasmssa.ctz %i32 : i32
 // CHECK-NEXT: %i32_popcnt = wasmssa.popcnt %i32 : i32
 %i32_popcnt = wasmssa.popcnt %i32 : i32
+// CHECK-NEXT: %f32_convert_s = wasmssa.convert_s %i32 : i32 to f32
+%f32_convert_s = wasmssa.convert_s %i32 : i32 to f32
+// CHECK-NEXT: %f64_convert_u = wasmssa.convert_u %i64 : i64 to f64
+%f64_convert_u = wasmssa.convert_u %i64 : i64 to f64
+// CHECK-NEXT: %f32_demote = wasmssa.demote %f64 : f64 to f32
+%f32_demote = wasmssa.demote %f64 : f64 to f32
+// CHECK-NEXT: %i64_extend_i32_s = wasmssa.extend_i32_s %i32 to i64
+%i64_extend_i32_s = wasmssa.extend_i32_s %i32 to i64
+// CHECK-NEXT: %i64_extend_i32_u = wasmssa.extend_i32_u %i32 to i64
+%i64_extend_i32_u = wasmssa.extend_i32_u %i32 to i64
+// CHECK-NEXT: %i32_extend_eight = wasmssa.extend 8 : i64 low bits from %i32 : i32
+%i32_extend_eight = wasmssa.extend 8 : i64 low bits from %i32 : i32
+// CHECK-NEXT: %i32_extend_sixteen = wasmssa.extend 16 : i64 low bits from %i32 : i32
+%i32_extend_sixteen = wasmssa.extend 16 : i64 low bits from %i32 : i32
+// CHECK-NEXT: %i64_extend_eight = wasmssa.extend 8 : i64 low bits from %i64 : i64
+%i64_extend_eight = wasmssa.extend 8 : i64 low bits from %i64 : i64
+// CHECK-NEXT: %i64_extend_sixteen = wasmssa.extend 16 : i64 low bits from %i64 : i64
+%i64_extend_sixteen = wasmssa.extend 16 : i64 low bits from %i64 : i64
+// CHECK-NEXT: %i64_extend_thirty_two = wasmssa.extend 32 : i64 low bits from %i64 : i64
+%i64_extend_thirty_two = wasmssa.extend 32 : i64 low bits from %i64 : i64
+// CHECK-NEXT: %f64_promote = wasmssa.promote %f32 : f32 to f64
+%f64_promote = wasmssa.promote %f32 : f32 to f64
+// CHECK-NEXT: %i32_wrap = wasmssa.wrap %i64 : i64 to i32
+%i32_wrap = wasmssa.wrap %i64 : i64 to i32
+// CHECK-NEXT: %f32_reinterpret = wasmssa.reinterpret %i32 : i32 as f32
+%f32_reinterpret = wasmssa.reinterpret %i32 : i32 as f32
 
 // CHECK-GENERIC: "wasmssa.const"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC: "wasmssa.const"() <{value = 2 : i64}> : () -> i64
@@ -162,3 +188,16 @@
 // CHECK-GENERIC: "wasmssa.clz"(%i32) : (i32) -> i32
 // CHECK-GENERIC: "wasmssa.ctz"(%i32) : (i32) -> i32
 // CHECK-GENERIC: "wasmssa.popcnt"(%i32) : (i32) -> i32
+// CHECK-GENERIC: "wasmssa.convert_s"(%i32) : (i32) -> f32
+// CHECK-GENERIC: "wasmssa.convert_u"(%i64) : (i64) -> f64
+// CHECK-GENERIC: "wasmssa.demote"(%f64) : (f64) -> f32
+// CHECK-GENERIC: "wasmssa.extend_i32_s"(%i32) : (i32) -> i64
+// CHECK-GENERIC: "wasmssa.extend_i32_u"(%i32) : (i32) -> i64
+// CHECK-GENERIC: "wasmssa.extend"(%i32) <{bitsToTake = 8 : i64}> : (i32) -> i32
+// CHECK-GENERIC: "wasmssa.extend"(%i32) <{bitsToTake = 16 : i64}> : (i32) -> i32
+// CHECK-GENERIC: "wasmssa.extend"(%i64) <{bitsToTake = 8 : i64}> : (i64) -> i64
+// CHECK-GENERIC: "wasmssa.extend"(%i64) <{bitsToTake = 16 : i64}> : (i64) -> i64
+// CHECK-GENERIC: "wasmssa.extend"(%i64) <{bitsToTake = 32 : i64}> : (i64) -> i64
+// CHECK-GENERIC: "wasmssa.promote"(%f32) : (f32) -> f64
+// CHECK-GENERIC: "wasmssa.wrap"(%i64) : (i64) -> i32
+// CHECK-GENERIC: "wasmssa.reinterpret"(%i32) : (i32) -> f32
