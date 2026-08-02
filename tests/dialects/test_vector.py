@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import pytest
@@ -127,7 +128,8 @@ def test_vector_load_verify_type_matching():
     load = LoadOp.build(operands=[memref_ssa_value, []], result_types=[res_vector_type])
 
     with pytest.raises(
-        Exception, match="MemRef element type should match the Vector element type."
+        Exception,
+        match=re.escape("MemRef element type should match the Vector element type."),
     ):
         load.verify()
 
@@ -137,7 +139,9 @@ def test_vector_load_verify_indexing_exception():
 
     load = LoadOp(memref_ssa_value, [], VectorType(i32, ()))
 
-    with pytest.raises(Exception, match="Expected an index for each dimension."):
+    with pytest.raises(
+        Exception, match=re.escape("Expected an index for each dimension.")
+    ):
         load.verify()
 
 
@@ -173,7 +177,8 @@ def test_vector_store_verify_type_matching():
     store = StoreOp(vector_ssa_value, memref_ssa_value, [])
 
     with pytest.raises(
-        Exception, match="MemRef element type should match the Vector element type."
+        Exception,
+        match=re.escape("MemRef element type should match the Vector element type."),
     ):
         store.verify()
 
@@ -184,7 +189,9 @@ def test_vector_store_verify_indexing_exception():
 
     store = StoreOp(vector_ssa_value, memref_ssa_value, [])
 
-    with pytest.raises(Exception, match="Expected an index for each dimension."):
+    with pytest.raises(
+        Exception, match=re.escape("Expected an index for each dimension.")
+    ):
         store.verify()
 
 
@@ -205,7 +212,9 @@ def test_vector_broadcast_verify_type_matching():
 
     with pytest.raises(
         Exception,
-        match="Source operand and result vector must have the same element type.",
+        match=re.escape(
+            "Source operand and result vector must have the same element type."
+        ),
     ):
         broadcast.verify()
 
@@ -337,7 +346,9 @@ def test_vector_masked_load_verify_indexing_exception():
         memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
     )
 
-    with pytest.raises(Exception, match="Expected an index for each memref dimension."):
+    with pytest.raises(
+        Exception, match=re.escape("Expected an index for each memref dimension.")
+    ):
         maskedload.verify()
 
 
@@ -404,7 +415,9 @@ def test_vector_masked_store_verify_indexing_exception():
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
-    with pytest.raises(Exception, match="Expected an index for each memref dimension."):
+    with pytest.raises(
+        Exception, match=re.escape("Expected an index for each memref dimension.")
+    ):
         maskedstore.verify()
 
 
@@ -443,7 +456,9 @@ def test_vector_create_mask_verify_indexing_exception():
 
     with pytest.raises(
         Exception,
-        match="Expected an operand value for each dimension of resultant mask.",
+        match=re.escape(
+            "Expected an operand value for each dimension of resultant mask."
+        ),
     ):
         create_mask.verify()
 

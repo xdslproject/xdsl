@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 
 import pytest
@@ -440,7 +441,9 @@ def test_overflow_attr_int_conversion():
     assert attr_both.to_int() == 3
 
     # verify out of bounds raises
-    with pytest.raises(ValueError, match="OverflowAttr given out of bounds integer."):
+    with pytest.raises(
+        ValueError, match=re.escape("OverflowAttr given out of bounds integer.")
+    ):
         llvm.OverflowAttr.from_int(4)
 
 

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
@@ -22,7 +24,7 @@ def test_func_too_many_inputs_failure():
             func.ReturnOp()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.func with more than 8 inputs"
+        ValueError, match=re.escape("Cannot lower func.func with more than 8 inputs")
     ):
         ConvertFuncToRiscvFuncPass().apply(Context(), non_empty_return)
 
@@ -35,7 +37,7 @@ def test_func_too_many_outputs_failure():
             func.ReturnOp()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.func with more than 2 outputs"
+        ValueError, match=re.escape("Cannot lower func.func with more than 2 outputs")
     ):
         ConvertFuncToRiscvFuncPass().apply(Context(), non_empty_return)
 
@@ -48,7 +50,8 @@ def test_return_too_many_values_failure():
             func.ReturnOp(*(create_ssa_value(t) for t in THREE_TYPES))
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.return with more than 2 arguments"
+        ValueError,
+        match=re.escape("Cannot lower func.return with more than 2 arguments"),
     ):
         ConvertFuncToRiscvFuncPass().apply(Context(), non_empty_return)
 
@@ -62,7 +65,7 @@ def test_call_too_many_operands_failure():
             func.ReturnOp()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.call with more than 8 operands"
+        ValueError, match=re.escape("Cannot lower func.call with more than 8 operands")
     ):
         ConvertFuncToRiscvFuncPass().apply(Context(), non_empty_return)
 
@@ -76,6 +79,6 @@ def test_call_too_many_results_failure():
             func.ReturnOp()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.call with more than 2 results"
+        ValueError, match=re.escape("Cannot lower func.call with more than 2 results")
     ):
         ConvertFuncToRiscvFuncPass().apply(Context(), non_empty_return)

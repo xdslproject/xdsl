@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -426,7 +427,8 @@ def test_eclass_union_two_different_constants_fails():
     ematch_funcs.eclass_union_find.add(const_eclass2)
 
     with pytest.raises(
-        AssertionError, match="Trying to union two different constant eclasses."
+        AssertionError,
+        match=re.escape("Trying to union two different constant eclasses."),
     ):
         ematch_funcs.eclass_union(interpreter, const_eclass1, const_eclass2)
 

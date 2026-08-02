@@ -193,7 +193,8 @@ class AttrOp(IRDLOperation):
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
     with pytest.raises(
-        VerifyException, match="#builtin.int<1> should be of base attribute string"
+        VerifyException,
+        match=re.escape("#builtin.int<1> should be of base attribute string"),
     ):
         op.verify()
 
@@ -350,14 +351,18 @@ def test_range_var_fail_not_satisfy_constraint():
     op = ConstraintRangeVarOp.create(
         operands=[test_operand], result_types=[TestType("foo")]
     )
-    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
+    with pytest.raises(
+        VerifyException, match=re.escape('Unexpected attribute !test.type<"foo">')
+    ):
         op.verify()
 
     op = ConstraintRangeVarOp.create(
         operands=[test_operand, test_operand],
         result_types=[TestType("foo"), TestType("foo")],
     )
-    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
+    with pytest.raises(
+        VerifyException, match=re.escape('Unexpected attribute !test.type<"foo">')
+    ):
         op.verify()
 
 
@@ -557,7 +562,7 @@ def test_attribute_missing():
 
     with pytest.raises(
         VerifyException,
-        match="attribute 'attr' expected in operation 'test.attribute_op'",
+        match=re.escape("attribute 'attr' expected in operation 'test.attribute_op'"),
     ):
         op.verify()
 
@@ -605,7 +610,7 @@ def test_property_missing():
 
     with pytest.raises(
         VerifyException,
-        match="property 'attr' expected in operation 'test.attribute_op'",
+        match=re.escape("property 'attr' expected in operation 'test.attribute_op'"),
     ):
         op.verify()
 
@@ -634,26 +639,34 @@ def test_op_accessor_assignment():
     new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.ops = new_operands
 
     new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.res = new_results
 
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.regs = (Region(),)
 
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.successor = [Block(), Block()]
 
@@ -695,26 +708,34 @@ def test_op_segmented_accessor_assignment():
     new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.operands1 = new_operands
 
     new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.results1 = new_results
 
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.regions1 = (Region(),)
 
     with pytest.raises(
         NotImplementedError,
-        match="Cannot write to named operands, regions, results, or successors.",
+        match=re.escape(
+            "Cannot write to named operands, regions, results, or successors."
+        ),
     ):
         op1.successors1 = [Block(), Block()]
 
@@ -756,7 +777,9 @@ def test_renamed_attributes_verify():
     )
     with pytest.raises(
         VerifyException,
-        match="attribute 'attr_name' expected in operation 'test.renamed_attribute_op'",
+        match=re.escape(
+            "attribute 'attr_name' expected in operation 'test.renamed_attribute_op'"
+        ),
     ):
         op.verify()
 
@@ -811,7 +834,9 @@ def test_renamed_properties_verify():
     )
     with pytest.raises(
         VerifyException,
-        match="property 'prop_name' expected in operation 'test.renamed_property_op'",
+        match=re.escape(
+            "property 'prop_name' expected in operation 'test.renamed_property_op'"
+        ),
     ):
         op.verify()
 
@@ -971,18 +996,18 @@ def test_entry_args_op():
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64]))])
     with pytest.raises(
         VerifyException,
-        match="""\
+        match=re.compile("""\
 Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
-.*Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64"""),
     ):
         op.verify()
 
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64, i32]))])
     with pytest.raises(
         VerifyException,
-        match="""\
+        match=re.compile("""\
 Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
-.*Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64"""),
     ):
         op.verify()
 
@@ -1036,9 +1061,11 @@ class OptionlessMultipleVarOp(IRDLOperation):
 def test_no_multiple_var_option():
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.multiple_var_op defines more than two variadic operands, "
-        "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
-        "PyRDL options.",
+        match=re.escape(
+            "Operation test.multiple_var_op defines more than two variadic operands, "
+            "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
+            "PyRDL options."
+        ),
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
 

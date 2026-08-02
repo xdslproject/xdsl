@@ -505,7 +505,7 @@ def test_fail_error_message():
 
 def test_out_of_registers():
     register_stack = RegisterStack()
-    with pytest.raises(OutOfRegisters, match="Out of registers."):
+    with pytest.raises(OutOfRegisters, match=re.escape("Out of registers.")):
         register_stack.pop(TestRegisterType)
 
 

@@ -4,6 +4,7 @@ Test the definition and usage of traits and interfaces.
 
 from __future__ import annotations
 
+import re
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -175,7 +176,8 @@ def test_verifier():
 
     op = TestOp.create(operands=[operand64], result_types=[i32])
     with pytest.raises(
-        VerifyException, match="Operation has a bitwidth sum greater or equal to 64."
+        VerifyException,
+        match=re.escape("Operation has a bitwidth sum greater or equal to 64."),
     ):
         op.verify()
 
@@ -235,8 +237,10 @@ def test_traits_wrong_type():
     with pytest.raises(
         PyRDLOpDefinitionError,
         match=(
-            "pyrdl operation definition 'WrongTraitsType' traits field should be an "
-            "instance of'OpTraits'."
+            re.escape(
+                "pyrdl operation definition 'WrongTraitsType' traits field should be an "
+                "instance of'OpTraits'."
+            )
         ),
     ):
         irdl_op_definition(WrongTraitsType)
@@ -496,7 +500,8 @@ def test_has_ancestor():
     assert op.has_trait(HasAncestor(TestOp))
 
     with pytest.raises(
-        VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"
+        VerifyException,
+        match=re.escape("'test.ancestor' expects ancestor op 'test.test'"),
     ):
         op.verify()
 
@@ -1063,7 +1068,9 @@ def test_return_like():
 
     terminator = TestReturnLikeOp(result_types=((),), successors=((),))
 
-    with pytest.raises(VerifyException, match="test.return_like is not a terminator"):
+    with pytest.raises(
+        VerifyException, match=re.escape("test.return_like is not a terminator")
+    ):
         terminator.verify()
 
     TestReturnLikeOp.traits.add_trait(IsTerminator())
@@ -1072,7 +1079,7 @@ def test_return_like():
     results = TestReturnLikeOp(result_types=((i32,),), successors=((),))
 
     with pytest.raises(
-        VerifyException, match="test.return_like does not have zero results"
+        VerifyException, match=re.escape("test.return_like does not have zero results")
     ):
         results.verify()
 
@@ -1082,6 +1089,7 @@ def test_return_like():
     a.add_op(successors)
 
     with pytest.raises(
-        VerifyException, match="test.return_like does not have zero successors"
+        VerifyException,
+        match=re.escape("test.return_like does not have zero successors"),
     ):
         successors.verify()

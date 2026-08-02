@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import textwrap
 from collections.abc import Callable
 from io import StringIO
@@ -2404,7 +2405,9 @@ def test_multiple_optional_regions():
     """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic region variable cannot be followed by another region variable.",
+        match=re.escape(
+            "An optional/variadic region variable cannot be followed by another region variable."
+        ),
     ):
 
         @irdl_op_definition
@@ -2489,7 +2492,9 @@ def test_attr_dict_directly_after_optional_group_with_first_region_variable():
     """Test that regions require an 'attr-dict' directive."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous.",
+        match=re.escape(
+            "An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous."
+        ),
     ):
 
         @irdl_op_definition
@@ -2913,7 +2918,7 @@ def test_non_verifying_inference():
     )
     with pytest.raises(
         VerifyException,
-        match="i32 should be of base attribute test.param_one",
+        match=re.escape("i32 should be of base attribute test.param_one"),
     ):
         parser = Parser(ctx, program)
         while (op := parser.parse_optional_operation()) is not None:
@@ -2993,7 +2998,7 @@ def test_variadic_comma_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic directive cannot be followed by a comma literal.",
+        match=re.escape("A variadic directive cannot be followed by a comma literal."),
     ):
 
         @irdl_op_definition
@@ -3036,7 +3041,9 @@ def test_chained_variadic_types_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic type directive cannot be followed by another type directive.",
+        match=re.escape(
+            "An optional/variadic type directive cannot be followed by another type directive."
+        ),
     ):
 
         @irdl_op_definition
@@ -3061,7 +3068,9 @@ def test_chained_variadic_operands_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic operand variable cannot be followed by another operand variable.",
+        match=re.escape(
+            "An optional/variadic operand variable cannot be followed by another operand variable."
+        ),
     ):
 
         @irdl_op_definition
@@ -3929,7 +3938,7 @@ def test_custom_directive_param(program: str):
 
 def test_non_upper_classvar():
     with pytest.raises(
-        PyRDLError, match='Invalid ClassVar name "bad", must be uppercase.'
+        PyRDLError, match=re.escape('Invalid ClassVar name "bad", must be uppercase.')
     ):
 
         @irdl_custom_directive
@@ -3948,7 +3957,9 @@ def test_non_upper_classvar():
 def test_bad_parameter():
     with pytest.raises(
         PyRDLError,
-        match="Custom directive BadParam has parameter int_param which is not a format directive.",
+        match=re.escape(
+            "Custom directive BadParam has parameter int_param which is not a format directive."
+        ),
     ):
 
         @irdl_custom_directive

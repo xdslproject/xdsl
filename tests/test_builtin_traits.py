@@ -2,6 +2,8 @@
 Test the usage of builtin traits.
 """
 
+import re
+
 import pytest
 
 from xdsl.dialects import arith, builtin
@@ -91,7 +93,8 @@ def test_has_parent_wrong_parent():
     """
     module = ModuleOp([HasParentOp()])
     with pytest.raises(
-        VerifyException, match="'test.has_parent' expects parent op 'test.parent'"
+        VerifyException,
+        match=re.escape("'test.has_parent' expects parent op 'test.parent'"),
     ):
         module.verify()
 
@@ -392,7 +395,7 @@ def test_single_block_implicit_terminator_with_correct_construction_fail():
 
     # test single-block region op with wrong terminator
     with pytest.raises(
-        VerifyException, match="terminates with operation test.is_terminator"
+        VerifyException, match=re.escape("terminates with operation test.is_terminator")
     ):
         HasSingleBlockImplicitTerminatorOp(
             regions=[Region(Block([IsTerminatorOp.create()])), Region()]
@@ -417,7 +420,7 @@ def test_single_block_implicit_terminator_with_wrong_construction_fail():
     )
     # test single-block region op with wrong terminator
     with pytest.raises(
-        VerifyException, match="terminates with operation test.is_terminator"
+        VerifyException, match=re.escape("terminates with operation test.is_terminator")
     ):
         op1.verify()
 

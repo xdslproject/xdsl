@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.builder import Builder
@@ -551,12 +553,15 @@ def test_memref_memory_space_cast():
 
     with pytest.raises(
         VerifyException,
-        match="Expected source and destination to have the same element type.",
+        match=re.escape(
+            "Expected source and destination to have the same element type."
+        ),
     ):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_type).verify()
 
     with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
+        VerifyException,
+        match=re.escape("Expected source and destination to have the same shape."),
     ):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_shape).verify()
 
@@ -672,7 +677,8 @@ def test_memref_copy():
     copy = CopyOp(source, destination)
 
     with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
+        VerifyException,
+        match=re.escape("Expected source and destination to have the same shape."),
     ):
         copy.verify()
 
@@ -682,7 +688,9 @@ def test_memref_copy():
 
     with pytest.raises(
         VerifyException,
-        match="Expected source and destination to have the same element type.",
+        match=re.escape(
+            "Expected source and destination to have the same element type."
+        ),
     ):
         copy.verify()
 
