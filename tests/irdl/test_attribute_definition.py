@@ -198,7 +198,8 @@ def test_enum_attribute():
 def test_indirect_enum_guard():
     EnumType = TypeVar("EnumType", bound=StrEnum)
     with pytest.raises(
-        TypeError, match="Only direct inheritance from EnumAttribute is allowed."
+        TypeError,
+        match=re.escape("Only direct inheritance from EnumAttribute is allowed."),
     ):
 
         class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
@@ -418,7 +419,7 @@ def test_bit_enum_illegal_subclass():
 def test_typed_attribute():
     with pytest.raises(
         PyRDLAttrDefinitionError,
-        match="TypedAttribute TypedAttr should have a 'type' parameter.",
+        match=re.escape("TypedAttribute TypedAttr should have a 'type' parameter."),
     ):
 
         @irdl_attr_definition
@@ -592,7 +593,8 @@ def test_bose_constraint():
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(
-        VerifyException, match="#test.str<foo> should be of base attribute test.bool"
+        VerifyException,
+        match=re.escape("#test.str<foo> should be of base attribute test.bool"),
     ):
         BoolWrapperAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
@@ -629,7 +631,9 @@ def test_union_constraint_right():
 
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
-    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+    ):
         BoolOrIntParamAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
 
@@ -671,7 +675,9 @@ def test_annotated_constraint():
 
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
-    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected positive integer, got -42.")
+    ):
         PositiveIntAttr(IntData(-42))
 
 
@@ -709,7 +715,9 @@ def test_typevar_attribute_bool():
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
-    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+    ):
         ParamWrapperAttr(StringData("foo"))  # pyright: ignore
 
 
@@ -738,7 +746,8 @@ def test_param_attr_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+        VerifyException,
+        match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         ParamConstrAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
 
@@ -774,7 +783,8 @@ def test_nested_generic_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+        VerifyException,
+        match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         NestedParamWrapperAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
 
@@ -804,7 +814,9 @@ def test_nested_param_attr_constraint_fail():
     """
     Test that the verifier of a nested parametric constraint can fail.
     """
-    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected positive integer, got -42.")
+    ):
         NestedParamConstrAttr(NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))))
 
 
@@ -831,7 +843,9 @@ def test_informative_attribute():
 
     with pytest.raises(
         VerifyException,
-        match="Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none",
+        match=re.escape(
+            "Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none"
+        ),
     ):
         InformativeAttr(IntData(42))
 
@@ -843,7 +857,9 @@ def test_informative_constraint():
     constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
     with pytest.raises(
         VerifyException,
-        match="User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>",
+        match=re.escape(
+            "User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>"
+        ),
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
@@ -1292,7 +1308,7 @@ def test_class_var_fail():
     """Test that lowercase ClassVar fields are not allowed."""
     with pytest.raises(
         PyRDLAttrDefinitionError,
-        match='Invalid ClassVar name "constant", must be uppercase.',
+        match=re.escape('Invalid ClassVar name "constant", must be uppercase.'),
     ):
 
         @irdl_attr_definition

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.builder import Builder
@@ -205,7 +207,9 @@ def test_builder_name_hint_listener():
     op.results[0].name_hint = "world"
     assert b.insert(op).results[0].name_hint == "world"
 
-    with pytest.raises(ValueError, match="Invalid SSAValue name format `1`."):
+    with pytest.raises(
+        ValueError, match=re.escape("Invalid SSAValue name format `1`.")
+    ):
         b.name_hint = "1"
 
 
@@ -341,7 +345,9 @@ def test_build_nested_implicit_region():
 def test_build_implicit_region_fail():
     with pytest.raises(
         ValueError,
-        match="Cannot insert operation explicitly when an implicit builder exists.",
+        match=re.escape(
+            "Cannot insert operation explicitly when an implicit builder exists."
+        ),
     ):
         one = IntAttr(1)
         two = IntAttr(2)

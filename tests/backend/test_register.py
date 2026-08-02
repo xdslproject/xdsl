@@ -51,42 +51,44 @@ def test_register_from_string():
     # Infinite prefix but not a number
     with pytest.raises(
         VerifyException,
-        match="Invalid register name yy for register type test.reg",
+        match=re.escape("Invalid register name yy for register type test.reg"),
     ):
         TestRegisterType.from_name("yy")
 
     # Incorrect name
     with pytest.raises(
-        VerifyException, match="Invalid register name z0 for register type test.reg"
+        VerifyException,
+        match=re.escape("Invalid register name z0 for register type test.reg"),
     ):
         TestRegisterType.from_name("z0")
 
 
 def test_invalid_register_name():
     with pytest.raises(
-        VerifyException, match="Invalid register name foo for register type test.reg."
+        VerifyException,
+        match=re.escape("Invalid register name foo for register type test.reg."),
     ):
         TestRegisterType.from_name("foo")
 
 
 def test_invalid_index():
     with pytest.raises(
-        AssertionError, match="Infinite index must be positive, got -1."
+        AssertionError, match=re.escape("Infinite index must be positive, got -1.")
     ):
         TestRegisterType.infinite_register(-1)
 
     with pytest.raises(
-        VerifyException, match="Invalid index 1 for unallocated register."
+        VerifyException, match=re.escape("Invalid index 1 for unallocated register.")
     ):
         TestRegisterType(IntAttr(1), StringAttr(""))
 
     with pytest.raises(
-        VerifyException, match="Missing index for register x1, expected 1."
+        VerifyException, match=re.escape("Missing index for register x1, expected 1.")
     ):
         TestRegisterType(NoneAttr(), StringAttr("x1"))
 
     with pytest.raises(
-        VerifyException, match="Invalid index 2 for register x1, expected 1."
+        VerifyException, match=re.escape("Invalid index 2 for register x1, expected 1.")
     ):
         TestRegisterType(IntAttr(2), StringAttr("x1"))
 

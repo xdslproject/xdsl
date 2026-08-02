@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 
 import pytest
@@ -146,7 +147,9 @@ def test_name_regex_single_char(name: str):
 
 
 def test_no_spaces_before_target():
-    with pytest.raises(StimParseError, match="Targets must be separated by spacing."):
+    with pytest.raises(
+        StimParseError, match=re.escape("Targets must be separated by spacing.")
+    ):
         program = "QUBIT_COORDS(1, 1)1"
         parser = StimParser(program)
         parser.parse_circuit()

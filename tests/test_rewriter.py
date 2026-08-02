@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from io import StringIO
 
@@ -666,14 +667,14 @@ def test_inline_region_at_end():
 def test_verify_inline_region():
     region = Region(Block())
 
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
+    with pytest.raises(ValueError, match=re.escape("Cannot move region into itself.")):
         Rewriter.inline_region(region, BlockInsertPoint.before(region.block))
 
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
+    with pytest.raises(ValueError, match=re.escape("Cannot move region into itself.")):
         Rewriter.inline_region(region, BlockInsertPoint.after(region.block))
 
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
+    with pytest.raises(ValueError, match=re.escape("Cannot move region into itself.")):
         Rewriter.inline_region(region, BlockInsertPoint.at_start(region))
 
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
+    with pytest.raises(ValueError, match=re.escape("Cannot move region into itself.")):
         Rewriter.inline_region(region, BlockInsertPoint.at_end(region))

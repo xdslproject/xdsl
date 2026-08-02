@@ -1,4 +1,5 @@
 import ast
+import re
 
 import pytest
 
@@ -70,7 +71,7 @@ a = 34
     stmts = ast.parse(src).body
     with pytest.raises(
         CodeGenerationException,
-        match="Constant 'a' is already defined and cannot be assigned to.",
+        match=re.escape("Constant 'a' is already defined and cannot be assigned to."),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
 
@@ -85,7 +86,7 @@ def foo():
     stmts = ast.parse(src).body
     with pytest.raises(
         CodeGenerationException,
-        match="Constant 'x' is already defined.",
+        match=re.escape("Constant 'x' is already defined."),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
 
@@ -102,7 +103,7 @@ bb0()
     stmts = ast.parse(src).body
     with pytest.raises(
         CodeGenerationException,
-        match="Constant 'y' is already defined and cannot be assigned to.",
+        match=re.escape("Constant 'y' is already defined and cannot be assigned to."),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
 
@@ -120,8 +121,10 @@ def foo(x: i32):
     with pytest.raises(
         CodeGenerationException,
         match=(
-            "Constant 'z' is already defined and cannot be used as a function/block "
-            "argument name."
+            re.escape(
+                "Constant 'z' is already defined and cannot be used as a function/block "
+                "argument name."
+            )
         ),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
@@ -135,7 +138,7 @@ z: Const[i32] = 2
     stmts = ast.parse(src).body
     with pytest.raises(
         CodeGenerationException,
-        match="Constant 'z' is already defined.",
+        match=re.escape("Constant 'z' is already defined."),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
 
@@ -148,8 +151,10 @@ z: Const[i32] = 23 / 0
     with pytest.raises(
         CodeGenerationException,
         match=(
-            "Non-constant expression cannot be assigned to constant variable 'z' or "
-            "cannot be evaluated."
+            re.escape(
+                "Non-constant expression cannot be assigned to constant variable 'z' or "
+                "cannot be evaluated."
+            )
         ),
     ):
         CheckAndInlineConstants.run(stmts, __file__)
@@ -163,8 +168,10 @@ a: Const[i32] = x + 12
     with pytest.raises(
         CodeGenerationException,
         match=(
-            "Non-constant expression cannot be assigned to constant variable 'a' or "
-            "cannot be evaluated."
+            re.escape(
+                "Non-constant expression cannot be assigned to constant variable 'a' or "
+                "cannot be evaluated."
+            )
         ),
     ):
         CheckAndInlineConstants.run(stmts, __file__)

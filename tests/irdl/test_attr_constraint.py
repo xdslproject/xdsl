@@ -55,7 +55,7 @@ from xdsl.utils.exceptions import PyRDLError, VerifyException
 
 def test_failing_inference():
     with pytest.raises(
-        ValueError, match="Cannot infer attribute from constraint AnyAttr()"
+        ValueError, match=re.escape("Cannot infer attribute from constraint AnyAttr()")
     ):
         AnyAttr().infer(ConstraintContext())
 
@@ -265,7 +265,9 @@ def test_sized_constraint_ops():
 def test_not_sized_constraint():
     constr = SizedConstraint(AnyInt())
 
-    with pytest.raises(VerifyException, match="Expected #test.attr_a to be sized"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected #test.attr_a to be sized")
+    ):
         constr.verify(AttrA(), ConstraintContext())
 
 
@@ -280,7 +282,9 @@ def test_attr_set_constraint():
 
     with pytest.raises(
         VerifyException,
-        match="Expected one of #test.attr_a, #test.attr_d<#test.attr_a>, #test.attr_d<#test.attr_c>, but got #test.attr_c",
+        match=re.escape(
+            "Expected one of #test.attr_a, #test.attr_d<#test.attr_a>, #test.attr_d<#test.attr_c>, but got #test.attr_c"
+        ),
     ):
         constr.verify(AttrC(), context)
 

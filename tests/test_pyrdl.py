@@ -1,5 +1,6 @@
 """Unit tests for IRDL."""
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
@@ -408,9 +409,11 @@ def test_data_with_generic_missing_generic_data_failure():
     with pytest.raises(
         PyRDLTypeError,
         match=(
-            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
-            "attribute constraint. Consider making it inherit from `GenericData` "
-            "instead of `Data`."
+            re.escape(
+                "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+                "attribute constraint. Consider making it inherit from `GenericData` "
+                "instead of `Data`."
+            )
         ),
     ):
         irdl_to_attr_constraint(MissingGenericDataData[int])

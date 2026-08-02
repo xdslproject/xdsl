@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 import xdsl.dialects.pdl as pdl
@@ -118,7 +120,8 @@ def test_build_pattern():
         traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
 
     with pytest.raises(
-        VerifyException, match="expected body to terminate with a `pdl.rewrite`"
+        VerifyException,
+        match=re.escape("expected body to terminate with a `pdl.rewrite`"),
     ):
 
         @Builder.implicit_region
@@ -129,7 +132,8 @@ def test_build_pattern():
         pattern.verify()
 
     with pytest.raises(
-        VerifyException, match="the pattern must contain at least one `pdl.operation`"
+        VerifyException,
+        match=re.escape("the pattern must contain at least one `pdl.operation`"),
     ):
         root = pdl.OperationOp("test.op")
 
@@ -215,6 +219,6 @@ def test_empty_range():
 
 def test_range_cannot_infer():
     with pytest.raises(
-        ValueError, match="Empty range constructions require a return type."
+        ValueError, match=re.escape("Empty range constructions require a return type.")
     ):
         pdl.RangeOp(())  # Cannot infer return type

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects import llvm
@@ -27,7 +29,8 @@ def test_convert_module_with_op_raises():
     module = ModuleOp([op])
 
     with pytest.raises(
-        NotImplementedError, match="Conversion not implemented for op: test.op"
+        NotImplementedError,
+        match=re.escape("Conversion not implemented for op: test.op"),
     ):
         convert_module(module, fallback_target_triple=None)
 
