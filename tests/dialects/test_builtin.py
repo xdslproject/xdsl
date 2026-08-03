@@ -702,7 +702,10 @@ def test_IntegerType_packing():
         i8.pack((255,))
     with pytest.raises(
         Exception,
-        match="format requires (-32768)|(\\(-0x7fff -1\\)|\\(-32767 -1\\)) <= number <= (32767)|(0x7fff)",
+        match=re.compile(
+            "format requires (-32768)|(\\(-0x7fff -1\\)|\\(-32767 -1\\)) "
+            "<= number <= (32767)|(0x7fff)"
+        ),
     ):
         i16.pack((32768,))
     with pytest.raises(
@@ -711,7 +714,10 @@ def test_IntegerType_packing():
         i32.pack((2147483648,))
     with pytest.raises(
         Exception,
-        match="argument out of range|format requires -9223372036854775808 <= number <= 9223372036854775807",
+        match=re.compile(
+            "argument out of range|format requires "
+            "-9223372036854775808 <= number <= 9223372036854775807"
+        ),
     ):
         i64.pack((9223372036854775808,))
 
@@ -808,7 +814,7 @@ def test_DenseIntOrFPElementsAttr_initialization():
     # illegal zero-rank tensor
     with pytest.raises(
         VerifyException,
-        match="A zero-rank tensor can only hold 1 value but 2 were given.",
+        match=re.escape("A zero-rank tensor can only hold 1 value but 2 were given."),
     ):
         DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5, 5.6])
 
@@ -1034,7 +1040,9 @@ def test_vector_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
-    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
+    ):
         constraint.verify(vector_type, ConstraintContext())
 
 
@@ -1043,7 +1051,8 @@ def test_vector_rank_constraint_attr_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(
-        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+        VerifyException,
+        match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
         constraint.verify(memref_type, ConstraintContext())
 
@@ -1060,7 +1069,7 @@ def test_vector_base_type_constraint_type_mismatch():
     constraint = VectorBaseTypeConstraint(i64)
 
     with pytest.raises(
-        VerifyException, match="Expected vector type to be i64, got i32."
+        VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
         constraint.verify(vector_type, ConstraintContext())
 
@@ -1070,7 +1079,8 @@ def test_vector_base_type_constraint_attr_mismatch():
     constraint = VectorBaseTypeConstraint(i32)
 
     with pytest.raises(
-        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+        VerifyException,
+        match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
         constraint.verify(memref_type, ConstraintContext())
 
@@ -1087,7 +1097,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
     with pytest.raises(
-        VerifyException, match="Expected vector type to be i64, got i32."
+        VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
         constraint.verify(vector_type, ConstraintContext())
 
@@ -1096,7 +1106,9 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
-    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
+    ):
         constraint.verify(vector_type, ConstraintContext())
 
 
@@ -1106,9 +1118,9 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
 
     with pytest.raises(
         VerifyException,
-        match="""The following constraints were not satisfied:
+        match=re.escape("""The following constraints were not satisfied:
 memref<1x2xi32> should be of type VectorType.
-memref<1x2xi32> should be of type VectorType.""",
+memref<1x2xi32> should be of type VectorType."""),
     ):
         constraint.verify(memref_type, ConstraintContext())
 

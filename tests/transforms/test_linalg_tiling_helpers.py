@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -135,7 +136,7 @@ def test_tiling_plan_rejects_tensor_results():
 def test_tiling_plan_rejects_linalg_index():
     op = _generic_2d_copy_op(use_index=True)
 
-    with pytest.raises(ValueError, match="using linalg.index"):
+    with pytest.raises(ValueError, match=re.escape("using linalg.index")):
         TilingPlan.analyze_generic_op(op, (2, 0))
 
 

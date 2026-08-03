@@ -46,7 +46,8 @@ class AnyRangeConstraint(RangeConstraint):
 
 def test_failing_inference():
     with pytest.raises(
-        ValueError, match="Cannot infer range from constraint AnyRangeConstraint()"
+        ValueError,
+        match=re.escape("Cannot infer range from constraint AnyRangeConstraint()"),
     ):
         AnyRangeConstraint().infer(ConstraintContext(), length=None)
 

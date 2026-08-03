@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.context import Context
@@ -127,25 +129,31 @@ def test_ops_accessor_III():
 
     with pytest.raises(
         ValueError,
-        match="'ops' property of Region class is only available for single-block regions.",
+        match=re.escape(
+            "'ops' property of Region class is only available for single-block regions."
+        ),
     ):
         region0.ops
 
     with pytest.raises(
         ValueError,
-        match="'op' property of Region class is only available for single-operation single-block regions.",
+        match=re.escape(
+            "'op' property of Region class is only available for single-operation single-block regions."
+        ),
     ):
         region0.op
 
     with pytest.raises(
         ValueError,
-        match="'op' property of Region class is only available for single-operation single-block regions.",
+        match=re.escape(
+            "'op' property of Region class is only available for single-operation single-block regions."
+        ),
     ):
         region1.op
 
     with pytest.raises(
         ValueError,
-        match="Block is not a child of the region.",
+        match=re.escape("Block is not a child of the region."),
     ):
         region1.detach_block(block0)
 
@@ -973,7 +981,9 @@ def test_region_index_fetch_region_unavailability():
     op = MultipleRegionsOp.build(regions=[[region0]])
 
     assert op.get_region_index(region0) == 0
-    with pytest.raises(ValueError, match="Region is not attached to the operation."):
+    with pytest.raises(
+        ValueError, match=re.escape("Region is not attached to the operation.")
+    ):
         op.get_region_index(region1)
 
 
@@ -997,7 +1007,9 @@ def test_detach_region():
 def test_detach_toplevel_opration():
     a = ConstantOp.from_int_and_width(1, 32)
     assert a.parent is None
-    with pytest.raises(ValueError, match="Cannot detach a toplevel operation."):
+    with pytest.raises(
+        ValueError, match=re.escape("Cannot detach a toplevel operation.")
+    ):
         a.detach()
 
 
@@ -1013,7 +1025,8 @@ def test_add_already_attached_region():
     assert region2.parent is op2
 
     with pytest.raises(
-        ValueError, match="Cannot add region that is already attached on an operation."
+        ValueError,
+        match=re.escape("Cannot add region that is already attached on an operation."),
     ):
         op1.add_region(region2)
 
@@ -1245,7 +1258,10 @@ def test_ssa_get_on_ssa():
 
     with pytest.raises(
         ValueError,
-        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+        match=re.escape(
+            "SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> "
+            "but got SSAValue with type i32"
+        ),
     ):
         SSAValue.get(ssa_value, type=IndexType)
 
@@ -1258,7 +1274,9 @@ def test_ssa_get_with_typeform():
 
     with pytest.raises(
         ValueError,
-        match="SSAValue.get: Expected xdsl.dialects.builtin.Float64Type | xdsl.dialects.builtin.IndexType but got SSAValue with type i32",
+        match=re.escape(
+            "SSAValue.get: Expected xdsl.dialects.builtin.Float64Type | xdsl.dialects.builtin.IndexType but got SSAValue with type i32"
+        ),
     ):
         SSAValue.get(ssa_value, type=Float64Type | IndexType)
 
@@ -1298,13 +1316,16 @@ def test_ssa_get_on_op():
 
     with pytest.raises(
         ValueError,
-        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+        match=re.escape(
+            "SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32"
+        ),
     ):
         SSAValue.get(op1, type=IndexType)
 
     op2 = test.TestOp(result_types=[i32, i32])
     with pytest.raises(
-        ValueError, match="SSAValue.get: expected operation with a single result."
+        ValueError,
+        match=re.escape("SSAValue.get: expected operation with a single result."),
     ):
         SSAValue.get(op2)
 
@@ -1414,7 +1435,9 @@ def test_get_operation_index_not_child():
     """Test that get_operation_index raises ValueError for non-child op."""
     op = test.TestOp.create()
     block = Block([test.TestOp.create()])
-    with pytest.raises(ValueError, match="Operation is not a child of the block."):
+    with pytest.raises(
+        ValueError, match=re.escape("Operation is not a child of the block.")
+    ):
         block.get_operation_index(op)
 
 
@@ -1424,7 +1447,7 @@ def test_detach_op_different_block():
     Block([op])
     block2 = Block()
     with pytest.raises(
-        ValueError, match="Cannot detach operation from a different block."
+        ValueError, match=re.escape("Cannot detach operation from a different block.")
     ):
         block2.detach_op(op)
 

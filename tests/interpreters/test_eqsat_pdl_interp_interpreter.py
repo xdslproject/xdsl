@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from typing import Any, cast
 
@@ -94,7 +95,9 @@ def test_run_get_result_error_case():
     # Test GetResultOp should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_result currently only supports operations with results that are used by a single eclass each.",
+        match=re.escape(
+            "pdl_interp.get_result currently only supports operations with results that are used by a single eclass each."
+        ),
     ):
         interpreter.run_op(
             eqsat_pdl_interp.GetResultOp(0, create_ssa_value(pdl.OperationType())),
@@ -208,7 +211,9 @@ def test_run_get_results_error_case_multiple_uses():
     # Test GetResultsOp should raise InterpretationError due to multiple uses
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_results only supports results that are used by a single eclass each.",
+        match=re.escape(
+            "pdl_interp.get_results only supports results that are used by a single eclass each."
+        ),
     ):
         interpreter.run_op(
             eqsat_pdl_interp.GetResultsOp(
@@ -234,7 +239,9 @@ def test_run_get_results_error_case_non_eclass_use():
     # Test GetResultsOp should raise InterpretationError due to multiple uses
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_results only supports results that are used by a single eclass each.",
+        match=re.escape(
+            "pdl_interp.get_results only supports results that are used by a single eclass each."
+        ),
     ):
         interpreter.run_op(
             eqsat_pdl_interp.GetResultsOp(
@@ -431,7 +438,9 @@ def test_run_get_defining_op_eclass_error_multiple_gdo():
     # Test should raise InterpretationError when using different gdo_op
     with pytest.raises(
         InterpretationError,
-        match="Case where a block contains multiple pdl_interp.get_defining_op is currently not supported",
+        match=re.escape(
+            "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported"
+        ),
     ):
         interpreter.run_op(gdo_op2, (eclass_op.results[0],))
 
@@ -1243,7 +1252,9 @@ def test_run_choose_error_wrong_op():
     # Test should raise InterpretationError when using different choose_op
     with pytest.raises(
         InterpretationError,
-        match="Expected this ChooseOp to be at the top of the backtrack stack.",
+        match=re.escape(
+            "Expected this ChooseOp to be at the top of the backtrack stack."
+        ),
     ):
         interp_functions.run_choose(interpreter, choose_op2, ())
 
@@ -1276,7 +1287,8 @@ def test_eclass_union_different_constants_fails():
 
     # Should raise assertion error when trying to union different constant eclasses
     with pytest.raises(
-        AssertionError, match="Trying to union two different constant eclasses."
+        AssertionError,
+        match=re.escape("Trying to union two different constant eclasses."),
     ):
         interp_functions.eclass_union(interpreter, const_eclass1, const_eclass2)
 
@@ -1376,7 +1388,9 @@ def test_run_replace_no_uses_returns_empty():
     # Call run_replace - should raise InterpretationError since input_op has no uses
     with pytest.raises(
         InterpretationError,
-        match="Operation's result can only be used once, by an eclass operation.",
+        match=re.escape(
+            "Operation's result can only be used once, by an eclass operation."
+        ),
     ):
         interp_functions.run_eqsat_replace(
             interpreter, replace_op, (input_op, replacement_eclass.results[0])

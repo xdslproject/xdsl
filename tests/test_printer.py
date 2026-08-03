@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from io import StringIO
 
 import pytest
@@ -1174,7 +1175,9 @@ def test_print_properties_as_attributes_safeguard():
     parsed = parser.parse_op()
     with pytest.raises(
         ValueError,
-        match="Properties sym_name would overwrite the attributes of the same names.",
+        match=re.escape(
+            "Properties sym_name would overwrite the attributes of the same names."
+        ),
     ):
         assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
