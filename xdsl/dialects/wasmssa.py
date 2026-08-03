@@ -524,6 +524,63 @@ class EqzOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[i32])
 
 
+class ShiftRotateOperation(IRDLOperation, ABC):
+    """Base class for WebAssembly integer shift and rotate operations."""
+
+    T: ClassVar = VarConstraint.get("T", WasmIntegerType)
+
+    val = operand_def(T)
+    bits = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$val `by` $bits `bits` `:` type($val) attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        val: SSAValue | Operation,
+        bits: SSAValue | Operation,
+    ):
+        val = SSAValue.get(val)
+        super().__init__(operands=[val, bits], result_types=[val.type])
+
+
+@irdl_op_definition
+class ShLOp(ShiftRotateOperation):
+    """Shift an integer value left."""
+
+    name = "wasmssa.shl"
+
+
+@irdl_op_definition
+class ShRSOp(ShiftRotateOperation):
+    """Shift a signed integer value right."""
+
+    name = "wasmssa.shr_s"
+
+
+@irdl_op_definition
+class ShRUOp(ShiftRotateOperation):
+    """Shift an unsigned integer value right."""
+
+    name = "wasmssa.shr_u"
+
+
+@irdl_op_definition
+class RotlOp(ShiftRotateOperation):
+    """Rotate an integer value left."""
+
+    name = "wasmssa.rotl"
+
+
+@irdl_op_definition
+class RotrOp(ShiftRotateOperation):
+    """Rotate an integer value right."""
+
+    name = "wasmssa.rotr"
+
+
 class UnaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
     """Base class for unary WebAssembly numeric operations."""
 
@@ -824,6 +881,11 @@ WasmSSA = Dialect(
         PopCntOp,
         RemSIOp,
         RemUIOp,
+        RotlOp,
+        RotrOp,
+        ShLOp,
+        ShRSOp,
+        ShRUOp,
         SqrtOp,
         SubOp,
         TruncOp,

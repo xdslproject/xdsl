@@ -90,6 +90,16 @@
 // CHECK-NEXT: %{{.*}} = wasmssa.eqz %[[I64]] : i64 -> i32
 %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 
+// CHECK-NEXT: %{{.*}} = wasmssa.shl %[[I32]] by %[[I32]] bits : i32
+%i32_shl = wasmssa.shl %i32 by %i32 bits : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.shr_s %[[I32]] by %[[I32]] bits : i32
+%i32_shr_s = wasmssa.shr_s %i32 by %i32 bits : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.shr_u %[[I32]] by %[[I32]] bits : i32
+%i32_shr_u = wasmssa.shr_u %i32 by %i32 bits : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.rotl %[[I64]] by %[[I64]] bits : i64
+%i64_rotl = wasmssa.rotl %i64 by %i64 bits : i64
+// CHECK-NEXT: %{{.*}} = wasmssa.rotr %[[I64]] by %[[I64]] bits : i64
+%i64_rotr = wasmssa.rotr %i64 by %i64 bits : i64
 // CHECK-NEXT: %{{.*}} = wasmssa.abs %[[F32]] : f32
 %f32_abs = wasmssa.abs %f32 : f32
 // CHECK-NEXT: %{{.*}} = wasmssa.ceil %[[F32]] : f32

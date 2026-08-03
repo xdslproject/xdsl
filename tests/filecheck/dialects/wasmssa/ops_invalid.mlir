@@ -101,6 +101,28 @@
 
 // -----
 
+%val, %bits = "test.op"() : () -> (f32, f32)
+%result = "wasmssa.shl"(%val, %bits) : (f32, f32) -> f32
+
+// CHECK: Expected one of i32, i64, but got f32
+
+// -----
+
+%val = "test.op"() : () -> i32
+%bits = "test.op"() : () -> i64
+%result = "wasmssa.rotl"(%val, %bits) : (i32, i64) -> i32
+
+// CHECK: attribute i32 expected from variable 'T', but got i64
+
+// -----
+
+%val, %bits = "test.op"() : () -> (i32, i32)
+%result = "wasmssa.rotr"(%val, %bits) : (i32, i32) -> i64
+
+// CHECK: attribute i32 expected from variable 'T', but got i64
+
+// -----
+
 %input = "test.op"() : () -> f32
 %result = "wasmssa.convert_s"(%input) : (f32) -> f64
 
