@@ -90,6 +90,24 @@
 // CHECK-NEXT: %{{.*}} = wasmssa.eqz %[[I64]] : i64 -> i32
 %i64_eqz = wasmssa.eqz %i64 : i64 -> i32
 
+// CHECK-NEXT: %{{.*}} = wasmssa.abs %[[F32]] : f32
+%f32_abs = wasmssa.abs %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.ceil %[[F32]] : f32
+%f32_ceil = wasmssa.ceil %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.floor %[[F32]] : f32
+%f32_floor = wasmssa.floor %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.neg %[[F32]] : f32
+%f32_neg = wasmssa.neg %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.sqrt %[[F32]] : f32
+%f32_sqrt = wasmssa.sqrt %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.trunc %[[F32]] : f32
+%f32_trunc = wasmssa.trunc %f32 : f32
+// CHECK-NEXT: %{{.*}} = wasmssa.clz %[[I32]] : i32
+%i32_clz = wasmssa.clz %i32 : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.ctz %[[I32]] : i32
+%i32_ctz = wasmssa.ctz %i32 : i32
+// CHECK-NEXT: %{{.*}} = wasmssa.popcnt %[[I32]] : i32
+%i32_popcnt = wasmssa.popcnt %i32 : i32
 // CHECK-NEXT: %{{.*}} = wasmssa.convert_s %[[I32]] : i32 to f32
 %f32_convert_s = wasmssa.convert_s %i32 : i32 to f32
 // CHECK-NEXT: %{{.*}} = wasmssa.convert_u %[[I64]] : i64 to f64
