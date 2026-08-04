@@ -256,7 +256,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The [`scf` dialect](https://mlir.llvm.org/docs/Dialects/Scf/) contains operations for structured control flow.""")
+    mo.md(r"""The [`scf` dialect](https://mlir.llvm.org/docs/Dialects/SCFDialect/) contains operations for structured control flow.""")
     return
 
 
