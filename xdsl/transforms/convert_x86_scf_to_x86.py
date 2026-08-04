@@ -138,28 +138,25 @@ class LowerX86ScfForPattern(RewritePattern):
 
         mv_op.destination.name_hint = iv.name_hint
         step_op.register_out.name_hint = iv.name_hint
-        end_block.args[0].name_hint = iv.name_hint
+        end_block.args[0].name_hint = op.lb_end.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
-        # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
+        # lb is the IV register (inout); legalization inserts a copy when needed.
         rewriter.insert(
             (
-                mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS),
+                cmp_op := x86.ops.SS_CmpOp(op.lb, ub, result=RFLAGS),
                 x86.ops.C_JgeOp(
                     cmp_op.result,
-                    (mv_op.destination, *op.iter_args),
-                    (mv_op.destination, *op.iter_args),
+                    (op.lb, *op.iter_args),
+                    (op.lb, *op.iter_args),
                     end_block,
                     first_body_block,
                 ),
             ),
             InsertPoint.at_end(init_block),
         )
-
-        mv_op.destination.name_hint = op.lb.name_hint
 
         # Insert label at the start of the first body block.
         rewriter.insert(
@@ -171,7 +168,7 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.replace(
             op,
             x86.ops.LabelOp(f"scf_body_end_{suffix}"),
-            end_block.args[1:],
+            end_block.args,
         )
 
 

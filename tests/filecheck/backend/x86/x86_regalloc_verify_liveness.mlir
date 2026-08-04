@@ -11,6 +11,18 @@ x86_func.func @inc(%ptr: !x86.reg64<rax>) {
   x86_func.ret
 }
 
+
+// -----
+
+// CHECK: lb should not be read after in/out usage
+x86_func.func @lb_live_after(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+    x86_scf.yield
+  }
+  "test.op"(%lb) : (!x86.reg64) -> ()
+  x86_func.ret
+}
+
 // -----
 
 // CHECK: Cannot yet verify register liveness for regions with multiple blocks.
@@ -45,10 +57,22 @@ x86_func.func @inc3(%ptr: !x86.reg64) {
 // CHECK: ptr should not be read after in/out usage
 x86_func.func @inc4(%ptr: !x86.reg64) {
   %init,%bound,%step = "test.op"(): () -> (!x86.reg64,!x86.reg64,!x86.reg64)
-  x86_scf.for %i : !x86.reg64  = %init to %bound step %step {
+  %init_1 = x86_scf.for %i : !x86.reg64  = %init to %bound step %step {
     %ptr2 = x86.r.inc %ptr : (!x86.reg64) -> !x86.reg64
     %ptr3 = x86.r.inc %ptr : (!x86.reg64) -> !x86.reg64
   }
+  x86_func.ret
+}
+
+
+// -----
+
+// CHECK: lb should not be read after in/out usage
+x86_func.func @lb_live_after(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+    x86_scf.yield
+  }
+  "test.op"(%lb) : (!x86.reg64) -> ()
   x86_func.ret
 }
 
@@ -60,6 +84,18 @@ x86_func.func @inc4(%ptr: !x86.reg64) {
   x86.fallthrough ^next()
 ^next:
   %ptr3 = x86.r.inc %ptr : (!x86.reg64) -> !x86.reg64
+  x86_func.ret
+}
+
+
+// -----
+
+// CHECK: lb should not be read after in/out usage
+x86_func.func @lb_live_after(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+    x86_scf.yield
+  }
+  "test.op"(%lb) : (!x86.reg64) -> ()
   x86_func.ret
 }
 
@@ -87,7 +123,7 @@ x86_func.func @inc6(%ptr: !x86.reg64<rax>)
 
 // CHECK: x should not be read after in/out usage
 x86_func.func @body_use_before_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     "test.op"(%x) : (!x86.reg64) -> ()
     %x2 = x86.r.inc %x : (!x86.reg64) -> !x86.reg64
   }
@@ -98,7 +134,7 @@ x86_func.func @body_use_before_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x8
 
 // CHECK: x should not be read after in/out usage
 x86_func.func @body_only_use_is_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     %x2 = x86.r.inc %x : (!x86.reg64) -> !x86.reg64
   }
   x86_func.ret
@@ -108,7 +144,7 @@ x86_func.func @body_only_use_is_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x
 
 // CHECK: i should not be read after in/out usage
 x86_func.func @iv_clobbered(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     %i2 = x86.r.inc %i : (!x86.reg64) -> !x86.reg64
   }
   x86_func.ret
@@ -118,7 +154,7 @@ x86_func.func @iv_clobbered(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64)
 
 // CHECK: ub should not be read after in/out usage
 x86_func.func @ub_clobbered(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     %u2 = x86.r.inc %ub : (!x86.reg64) -> !x86.reg64
   }
   x86_func.ret
@@ -129,7 +165,7 @@ x86_func.func @ub_clobbered(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64)
 // CHECK: x should not be read after in/out usage
 x86_func.func @clobber_before_loop(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
   %x2 = x86.r.inc %x : (!x86.reg64) -> !x86.reg64
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     "test.op"(%x) : (!x86.reg64) -> ()
   }
   x86_func.ret
@@ -139,7 +175,7 @@ x86_func.func @clobber_before_loop(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.re
 
 // CHECK: init should not be read after in/out usage
 x86_func.func @iter_arg_live_after(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
+  %lb_end, %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
     %a2 = x86.r.inc %a : (!x86.reg64) -> !x86.reg64
     x86_scf.yield %a2 : !x86.reg64
   }
@@ -151,7 +187,7 @@ x86_func.func @iter_arg_live_after(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86
 
 // CHECK: Value %v is used by more than one in/out operand
 x86_func.func @duplicate_iter_args(%v: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %v, %b = %v) -> (!x86.reg64, !x86.reg64) {
+  %lb_end, %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %v, %b = %v) -> (!x86.reg64, !x86.reg64) {
     x86_scf.yield %a, %b : !x86.reg64, !x86.reg64
   }
   x86_func.ret
@@ -162,7 +198,7 @@ x86_func.func @duplicate_iter_args(%v: !x86.reg64, %lb: !x86.reg64, %ub: !x86.re
 // CHECK: Value is used by more than one in/out operand
 x86_func.func @duplicate_iter_args(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
   %0 = x86.get_register : !x86.reg64
-  %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %0, %b = %0) -> (!x86.reg64, !x86.reg64) {
+  %lb_end, %r0, %r1 = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %0, %b = %0) -> (!x86.reg64, !x86.reg64) {
     x86_scf.yield %a, %b : !x86.reg64, !x86.reg64
   }
   x86_func.ret
@@ -172,8 +208,8 @@ x86_func.func @duplicate_iter_args(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86
 
 // CHECK: x should not be read after in/out usage
 x86_func.func @nested_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
-    x86_scf.for %j : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+    %lb_end_1 = x86_scf.for %j : !x86.reg64 = %lb to %ub step %step {
       %x2 = x86.r.inc %x : (!x86.reg64) -> !x86.reg64
     }
   }
@@ -184,7 +220,7 @@ x86_func.func @nested_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, 
 
 // CHECK-LABEL: @loop_live_in_untouched
 x86_func.func @loop_live_in_untouched(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     "test.op"(%x) : (!x86.reg64) -> ()
   }
   x86_func.ret
@@ -194,7 +230,7 @@ x86_func.func @loop_live_in_untouched(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86
 
 // CHECK-LABEL: @iter_arg_accumulate
 x86_func.func @iter_arg_accumulate(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
+  %lb_end, %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
     "test.op"(%a) : (!x86.reg64) -> ()
     %a2 = x86.r.inc %a : (!x86.reg64) -> !x86.reg64
     x86_scf.yield %a2 : !x86.reg64
@@ -207,7 +243,7 @@ x86_func.func @iter_arg_accumulate(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86
 
 // CHECK: a should not be read after in/out usage
 x86_func.func @iter_arg_read_after_clobber(%init: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
+  %lb_end, %res = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%a = %init) -> (!x86.reg64) {
     %a2 = x86.r.inc %a : (!x86.reg64) -> !x86.reg64
     "test.op"(%a) : (!x86.reg64) -> ()
     x86_scf.yield %a2 : !x86.reg64
@@ -219,9 +255,21 @@ x86_func.func @iter_arg_read_after_clobber(%init: !x86.reg64, %lb: !x86.reg64, %
 
 // CHECK: x should not be read after in/out usage
 x86_func.func @rof_body_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
-  x86_scf.rof %i : !x86.reg64 = %ub down to %lb step %step {
+  %lb_end = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step %step {
     %x2 = x86.r.inc %x : (!x86.reg64) -> !x86.reg64
   }
+  x86_func.ret
+}
+
+
+// -----
+
+// CHECK: lb should not be read after in/out usage
+x86_func.func @lb_live_after(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
+  %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
+    x86_scf.yield
+  }
+  "test.op"(%lb) : (!x86.reg64) -> ()
   x86_func.ret
 }
 
