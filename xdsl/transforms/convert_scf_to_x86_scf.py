@@ -56,11 +56,13 @@ class ScfForLowering(RewritePattern):
         cast_op_results(rewriter, op)
 
         new_op = rewriter.insert(x86_scf.ForOp(lb, ub, step, values, new_region))
+        if lb.name_hint is not None:
+            new_op.lb_end.name_hint = f"{lb.name_hint}_end"
         rewriter.insertion_point = InsertPoint.after(op)
 
         res_values = tuple(
             builtin.UnrealizedConversionCastOp.cast_one(res_value, res_value_type)
-            for res_value, res_value_type in zip(new_op.results, op.results.types)
+            for res_value, res_value_type in zip(new_op.res, op.results.types)
         )
 
         for res, (cast_op, result) in zip(op.results, res_values):

@@ -31,6 +31,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -69,6 +70,9 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     step_attr = opt_prop_def(IntegerAttr[SI32])
 
     iter_args = var_operand_def(X86RegisterType)
+
+    lb_end = result_def(GeneralRegisterType)
+    """Final value of the lower-bound / induction-variable register (inout with `lb`)."""
 
     res = var_result_def(X86RegisterType)
 
@@ -133,7 +137,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
         super().__init__(
             operands=[lb, ub_val, step_val, iter_args],
             properties={"ub_attr": ub_attr, "step_attr": step_attr},
-            result_types=[[SSAValue.get(a).type for a in iter_args]],
+            result_types=[lb.type, [SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
 
@@ -159,6 +163,16 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
                     " instead of x86 GeneralRegisterType"
+                )
+            if iter_var.type != self.lb.type:
+                raise VerifyException(
+                    f"Expected induction var to be same type as lb, "
+                    f"got {iter_var.type} and {self.lb.type}"
+                )
+            if iter_var.type != self.lb_end.type:
+                raise VerifyException(
+                    f"Expected induction var to be same type as lb_end result, "
+                    f"got {iter_var.type} and {self.lb_end.type}"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])
@@ -186,6 +200,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                     )
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
+        """Allocate loop-carried and IV registers, then the body under those reservations."""
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
         live_ins = allocator.live_ins_per_block[self.body.block]
@@ -201,14 +216,13 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
         for block_arg, operand, yield_operand, op_result in zip(
-            block_args[1:], self.iter_args, yield_op.operands, self.results
+            block_args[1:], self.iter_args, yield_op.operands, self.res, strict=True
         ):
             allocator.allocate_values_same_reg(
                 (block_arg, operand, yield_operand, op_result)
             )
 
-        # Induction variable
-        allocator.allocate_value(block_args[0])
+        allocator.allocate_values_same_reg((block_args[0], self.lb, self.lb_end))
 
         # ub and step are used throughout loop when dynamic
         if self.ub_val is not None:
@@ -223,18 +237,15 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
         with allocator.available_registers.reserve_registers(regs):
             allocator.allocate_block(self.body.block)
 
-        # lb is only used as an input to the loop, so free induction variable before
-        # allocating lb to it in case it's not yet allocated
-        allocator.free_value(self.body.block.args[0])
-        allocator.allocate_value(self.lb)
-
     def get_register_constraints(self) -> RegisterConstraints:
-        ins = [self.lb]
+        """`lb` and each iter_arg are inout; dynamic `ub`/`step` are in-only."""
+        ins: list[SSAValue] = []
         if self.ub_val is not None:
             ins.append(self.ub_val)
         if self.step_val is not None:
             ins.append(self.step_val)
-        return RegisterConstraints(ins, (), tuple(zip(self.iter_args, self.results)))
+        inouts = ((self.lb, self.lb_end), *zip(self.iter_args, self.res, strict=True))
+        return RegisterConstraints(ins, (), inouts)
 
     def _body_live_outs(self, live_after: AbstractSet[SSAValue]) -> set[SSAValue]:
         """

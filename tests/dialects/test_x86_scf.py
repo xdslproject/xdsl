@@ -46,6 +46,8 @@ def test_for_rof_init(
         body,
     )
     assert op.body.block.arg_types == (x86.registers.R12, *iter_arg_types)
+    assert len(op.results) == 1 + len(iter_arg_types)
+    assert op.lb_end.type == lb.type
     with ImplicitBuilder(op.body) as (_i, *args):
         x86_scf.YieldOp(*args)
     op.verify()
@@ -87,6 +89,8 @@ def test_for_rof_bounds_and_step(
 
     assert op.ub is (ub_attr if static_ub else ub_val)
     assert op.step is (step_attr if static_step else step_val)
+    assert len(op.results) == 1
+    assert op.lb_end.type == lb.type
 
 
 @pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
