@@ -1,6 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
-from xdsl.dialects.x86.registers import RFLAGS, GeneralRegisterType
+from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -118,7 +118,7 @@ class LowerX86ScfForPattern(RewritePattern):
         mv_op = x86.ops.DS_MovOp(iv, destination=iv_reg)
         step_op = x86.ops.RS_AddOp(mv_op.destination, step)
         new_iv = step_op.register_out
-        cmp_op = x86.ops.SS_CmpOp(new_iv, ub, result=RFLAGS)
+        cmp_op = x86.ops.SS_CmpOp(new_iv, ub)
 
         rewriter.replace(
             yield_op,
@@ -146,7 +146,7 @@ class LowerX86ScfForPattern(RewritePattern):
         # lb is the IV register (inout); legalization inserts a copy when needed.
         rewriter.insert(
             (
-                cmp_op := x86.ops.SS_CmpOp(op.lb, ub, result=RFLAGS),
+                cmp_op := x86.ops.SS_CmpOp(op.lb, ub),
                 x86.ops.C_JgeOp(
                     cmp_op.result,
                     (op.lb, *op.iter_args),
