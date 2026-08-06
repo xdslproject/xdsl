@@ -9,10 +9,19 @@
       "affine.yield"() : () -> ()
     }) : () -> ()
 
-    // CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    // CHECK-NEXT: ^bb0(%{{.*}}: index):
-    // CHECK-NEXT:   "affine.yield"() : () -> ()
-    // CHECK-NEXT: }) : () -> ()
+    // CHECK:      affine.for %{{.*}} = 0 to 256 {
+    // CHECK-NEXT: }
+
+
+    // For with a discardable attribute, which must survive custom syntax round-trip
+
+    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (4)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+    ^bb9(%i2: index):
+      "affine.yield"() : () -> ()
+    }) {"foo" = 1 : i32} : () -> ()
+
+    // CHECK:      affine.for %{{.*}} = 0 to 4 {
+    // CHECK-NEXT: } {foo = 1 : i32}
 
 
     // For with values being passed during iterations
@@ -35,14 +44,17 @@
       "affine.yield"() : () -> ()
     }) : (index) -> ()
 
-    // CHECK:      %res = "affine.for"(%{{.*}}) <{lowerBoundMap = affine_map<() -> (-10)>, upperBoundMap = affine_map<() -> (10)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-    // CHECK-NEXT: ^bb0(%{{.*}}: index, %{{.*}}: !test.type<"int">):
+    // CHECK:      %res = affine.for %{{.*}} = -10 to 10 iter_args(%{{.*}} = %{{.*}}) -> (!test.type<"int">) {
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !test.type<"int">
-    // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (!test.type<"int">) -> ()
-    // CHECK-NEXT: }) : (!test.type<"int">) -> !test.type<"int">
+    // CHECK-NEXT:   affine.yield %{{.*}} : !test.type<"int">
+    // CHECK-NEXT: }
+    // CHECK:      %res2 = affine.for %{{.*}} = affine_map<(d0) -> (d0)>(%{{.*}}) to %N iter_args(%{{.*}} = %{{.*}}) -> (!test.type<"int">) {
+    // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !test.type<"int">
+    // CHECK-NEXT:   affine.yield %{{.*}} : !test.type<"int">
+    // CHECK-NEXT: }
     // CHECK:      "affine.parallel"(%N) <{lowerBoundsMap = affine_map<() -> (0)>, lowerBoundsGroups = dense<1> : vector<1xi32>, upperBoundsMap = affine_map<()[s0] -> (s0)>, upperBoundsGroups = dense<1> : vector<1xi32>, steps = [1 : i64], reductions = []}> ({
     // CHECK-NEXT: ^{{.*}}(%{{.*}}: index):
-    // CHECK-NEXT:   "affine.yield"() : () -> ()
+    // CHECK-NEXT:   affine.yield
     // CHECK-NEXT: }) : (index) -> ()
 
 
@@ -96,18 +108,16 @@
     func.return
   }
 // CHECK:    func.func @empty() {
-// CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, step = 1 : index, upperBoundMap = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-// CHECK-NEXT:      ^{{.*}}(%{{.*}}: index):
-// CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      affine.for %{{.*}} = 0 to 10 {
+// CHECK-NEXT:      }
 // CHECK-NEXT:      "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-// CHECK-NEXT:        "affine.yield"() : () -> ()
+// CHECK-NEXT:        affine.yield
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-// CHECK-NEXT:        "affine.yield"() : () -> ()
+// CHECK-NEXT:        affine.yield
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        "affine.yield"() : () -> ()
+// CHECK-NEXT:        affine.yield
 // CHECK-NEXT:      }) : () -> ()
 
 // CHECK-NEXT:      func.return
@@ -124,9 +134,9 @@
 // CHECK:    func.func @affine_if() -> f32 {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:      %{{.*}} = "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-// CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
+// CHECK-NEXT:        affine.yield %{{.*}} : f32
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
+// CHECK-NEXT:        affine.yield %{{.*}} : f32
 // CHECK-NEXT:      }) : () -> f32
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }

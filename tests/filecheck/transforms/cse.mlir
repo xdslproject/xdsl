@@ -127,11 +127,9 @@ func.func @different_ops() -> (i32, i32) {
   }
 
 // CHECK:      %0 = arith.constant 1 : i32
-// CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^bb0(%arg0: index):
+// CHECK-NEXT:      affine.for %arg0 = 0 to 4 {
 // CHECK-NEXT:        "foo"(%0, %0) : (i32, i32) -> ()
-// CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -176,12 +174,10 @@ func.func @down_propagate() -> i32 {
     func.return %32 : i32
   }
 
-// CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^bb0(%arg0: index):
+// CHECK:      affine.for %arg0 = 0 to 4 {
 // CHECK-NEXT:        %0 = arith.constant 1 : i32
 // CHECK-NEXT:        "foo"(%0) : (i32) -> ()
-// CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:      %1 = arith.constant 1 : i32
 // CHECK-NEXT:      func.return %1 : i32
 // CHECK-NEXT:    }
