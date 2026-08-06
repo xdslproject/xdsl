@@ -596,7 +596,7 @@ def _(
 
                 rhs_region = Region([Block()])
                 builder3 = Builder(InsertPoint.at_end(rhs_region.block))
-                builder3.insert(YieldOp(neg))
+                builder3.insert(YieldOp(arg))
 
                 if_res = builder.insert(
                     IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
