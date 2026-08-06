@@ -1,4 +1,3 @@
-import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
 
@@ -127,18 +126,12 @@ def move_to_unallocated_regs(
 
 
 def cast_operands_to_regs(
-    rewriter: PatternRewriter, operation: Operation | None = None
+    rewriter: PatternRewriter, operation: Operation
 ) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers.
     """
-    if operation is None:
-        warnings.warn(
-            "Please provide use `cast_operands_to_regs(rewriter, rewriter.current_operation)`",
-            DeprecationWarning,
-        )
-        operation = rewriter.current_operation
     return cast_to_regs(operation.operands, register_type_for_type, rewriter)
 
 
