@@ -565,14 +565,14 @@ def _(
             if isinstance(expr, Mul):
                 lhs = emit_real_op(expr.args[0], builder, args)
                 rhs = emit_real_op(expr.args[1], builder, args)
-                add_op = builder.insert(MulfOp(lhs, rhs))
-                return add_op.result
+                mul_op = builder.insert(MulfOp(lhs, rhs))
+                return mul_op.result
 
             if isinstance(expr, Pow):
                 lhs = emit_real_op(expr.args[0], builder, args)
                 rhs = emit_real_op(expr.args[1], builder, args)
-                add_op = builder.insert(PowFOp(lhs, rhs))
-                return add_op.result
+                pow_op = builder.insert(PowFOp(lhs, rhs))
+                return pow_op.result
 
             if isinstance(expr, Abs):
                 # The arith.select solution
