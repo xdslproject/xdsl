@@ -225,6 +225,7 @@ def _make_interpreter_with_rewriter():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     return interpreter, ematch_funcs, block
 
@@ -281,6 +282,7 @@ def test_get_or_create_class_creates_new_class_for_block_arg():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     result = ematch_funcs.get_or_create_class(interpreter, block_arg)
     assert isinstance(result, equivalence.ClassOp)

@@ -478,7 +478,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         self.pending_rewrites.append(
             (
                 op.rewriter,
-                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                PDLInterpFunctions.get_root(interpreter),
                 args,
             )
         )
@@ -618,7 +618,6 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         """Execute all pending rewrites that were aggregated during matching."""
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         for rewriter_op, root, args in self.pending_rewrites:
-            rewriter.current_operation = root
             rewriter.insertion_point = InsertPoint.before(root)
 
             self.is_matching = False
