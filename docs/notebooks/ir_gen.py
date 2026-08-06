@@ -531,8 +531,6 @@ def _(
                 add_op = builder.insert(MuliOp(lhs, rhs))
                 return add_op.result
 
-            # Hint: Implement here support for Add and Mul
-
             raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
 
         def emit_real_op(
