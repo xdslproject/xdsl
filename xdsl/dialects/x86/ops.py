@@ -115,7 +115,6 @@ from .registers import (
     AVX512RegisterType,
     GeneralRegisterType,
     Reg32Type,
-    RFLAGSRegisterType,
     X86RegisterType,
     X86VectorRegisterType,
 )
@@ -2866,7 +2865,7 @@ class SS_CmpOp(X86Instruction):
     source1 = operand_def(X86RegisterType)
     source2 = operand_def(X86RegisterType)
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     assembly_format = (
         "$source1 `,` $source2 attr-dict `:` "
@@ -2879,7 +2878,6 @@ class SS_CmpOp(X86Instruction):
         source2: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -2889,7 +2887,7 @@ class SS_CmpOp(X86Instruction):
             attributes={
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2911,7 +2909,7 @@ class SM_CmpOp(X86Instruction):
     memory = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
@@ -2927,7 +2925,6 @@ class SM_CmpOp(X86Instruction):
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, i64)
@@ -2940,7 +2937,7 @@ class SM_CmpOp(X86Instruction):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -3008,7 +3005,7 @@ class MS_CmpOp(X86Instruction):
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(GeneralRegisterType)
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
@@ -3024,7 +3021,6 @@ class MS_CmpOp(X86Instruction):
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, i64)
@@ -3037,7 +3033,7 @@ class MS_CmpOp(X86Instruction):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -3060,7 +3056,7 @@ class MI_CmpOp(X86Instruction):
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     immediate = attr_def(IntegerAttr[SI32])
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
@@ -3076,7 +3072,6 @@ class MI_CmpOp(X86Instruction):
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si32)
@@ -3092,7 +3087,7 @@ class MI_CmpOp(X86Instruction):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
