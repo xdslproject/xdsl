@@ -465,6 +465,7 @@ def test_run_create_operation_new_operation():
         operand = equivalence.ClassOp(create_ssa_value(i32), res_type=i32).result
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     # Create operands and types for the operation
     result_type = i32
@@ -524,6 +525,7 @@ def test_run_create_operation_existing_operation_in_use_by_eclass():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     # Create a user for the existing operation to ensure it's "in use"
 
@@ -577,6 +579,7 @@ def test_run_create_operation_existing_operation_in_use():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     # Create a user for the existing operation to ensure it's "in use"
 
@@ -632,6 +635,7 @@ def test_run_create_operation_existing_operation_not_in_use():
         existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     # Verify the existing operation has no uses
     assert len(existing_op.results) > 0, "Existing operation must have results"
@@ -790,6 +794,7 @@ def test_run_replace():
 
     rewriter = PatternRewriter(original_op)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, original_op)
 
     # Call run_replace directly
     result = interp_functions.run_eqsat_replace(
@@ -944,6 +949,7 @@ def test_rebuilding():
     interp_functions = EqsatPDLInterpFunctions()
     ctx = PDLInterpFunctions.get_ctx(interpreter)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, c_b.owner)
 
     interp_functions.populate_known_ops(testmodule)
 
@@ -1320,6 +1326,7 @@ def test_eclass_union_constant_with_regular():
     rewriter = PatternRewriter(const_op)
     interpreter = Interpreter(ModuleOp(()))
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, const_op)
 
     # Add both to union-find
     interp_functions.eclass_union_find.add(const_eclass)
@@ -1384,6 +1391,7 @@ def test_run_replace_no_uses_returns_empty():
 
     rewriter = PatternRewriter(input_op)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, input_op)
 
     # Call run_replace - should raise InterpretationError since input_op has no uses
     with pytest.raises(
@@ -1431,6 +1439,7 @@ def test_run_replace_multi_results():
 
     rewriter = PatternRewriter(original_op)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, original_op)
 
     # Create ReplaceOp with RangeType to simulate multiple replacement values
     input_op_val = create_ssa_value(pdl.OperationType())
@@ -1507,6 +1516,7 @@ def test_run_replace_rangetype_mixed():
 
     rewriter = PatternRewriter(original_op)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, original_op)
 
     # Configure ReplaceOp with mixed types:
     # Structure: [Range (2 items), Value (1 item), Range (2 items)]
@@ -1578,6 +1588,7 @@ def test_run_replace_rangetype_full_coverage():
 
     rewriter = PatternRewriter(original_op)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, original_op)
 
     # ReplaceOp configuration: Single RangeType covering all results
     input_op_val = create_ssa_value(pdl.OperationType())
@@ -1653,6 +1664,8 @@ def test_run_create_operation_multiple_results():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
+
     interp_functions.populate_known_ops(testmodule)
     interp_functions.eclass_union_find.add(operand_eclass)
 
@@ -1782,6 +1795,8 @@ def test_run_create_operation_runs_analysis():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
+
     interp_functions.populate_known_ops(testmodule)
     interp_functions.eclass_union_find.add(operand_eclass)
 

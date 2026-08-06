@@ -158,7 +158,6 @@ class ApplyEqsatPDLPass(ModulePass):
             # Apply each pattern individually
             for matcher in matchers:
                 for root in op.body.walk():
-                    rewriter.current_operation = root
                     interpreter.call_op(matcher, (root,))
 
             # Execute all pending rewrites
@@ -205,7 +204,6 @@ class ApplyEqsatPDLPass(ModulePass):
 
         for _i in range(self.max_iterations):
             for root in op.body.walk():
-                rewriter.current_operation = root
                 interpreter.call_op(matcher, (root,))
             eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 

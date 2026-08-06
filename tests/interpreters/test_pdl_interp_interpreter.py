@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import pytest
@@ -36,6 +37,26 @@ from xdsl.irdl import (
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
+
+
+def test_get_root_requires_active_root():
+    interpreter = Interpreter(ModuleOp([]))
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape("Expected an active root when calling a pdl_interp function."),
+    ):
+        PDLInterpFunctions.get_root(interpreter)
+
+
+def test_get_rewriter_requires_active_rewriter():
+    interpreter = Interpreter(ModuleOp([]))
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Expected an active rewriter when calling a pdl_interp function."
+        ),
+    ):
+        PDLInterpFunctions.get_rewriter(interpreter)
 
 
 def test_getters():

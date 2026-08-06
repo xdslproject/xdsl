@@ -138,6 +138,7 @@ class LowerLinalgStructuredOpPattern(RewritePattern):
         insertion_point = InsertPoint.before(op)
         rewrite_linalg_structured_to_loops(
             rewriter,
+            op,
             insertion_point,
             create_loop_bounds(rewriter, insertion_point, op),
             op.get_indexing_maps().data,

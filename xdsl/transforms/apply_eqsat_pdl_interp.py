@@ -66,7 +66,6 @@ def apply_eqsat_pdl_interp(
     pdl_interp_functions.set_rewriter(interpreter, rewriter)
     for _i in range(max_iterations):
         for root in op.body.walk():
-            rewriter.current_operation = root
             interpreter.call_op(matcher, (root,))
         eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
