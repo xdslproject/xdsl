@@ -10,8 +10,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
-from xdsl.utils.exceptions import PassFailedException
-from xdsl.utils.hints import isa
 
 
 class LowerX86ScfForPattern(RewritePattern):
@@ -96,26 +94,26 @@ class LowerX86ScfForPattern(RewritePattern):
         last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
-        iv = first_body_block.args[0]
-        assert isa(iv, SSAValue[GeneralRegisterType])
+        iv = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
         ub = op.ub
-        if not isinstance(ub, SSAValue):
-            raise PassFailedException(
-                "convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue"
-            )
         step = op.step
-        if not isinstance(step, SSAValue):
-            raise PassFailedException(
-                "convert-x86-scf-to-x86 expects x86_scf.for step to be an SSAValue"
-            )
 
         # Append the induction variable stepping logic to the last body block, add
         # comparison with upper bound, and conditionally branch back into the body.
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
-        step_op = x86.ops.RS_AddOp(iv, step)
+
+        match step:
+            case SSAValue():
+                step_op = x86.ops.RS_AddOp(iv, step)
+            case builtin.IntegerAttr():
+                step_op = x86.ops.RI_AddOp(iv, step)
         new_iv = step_op.register_out
-        cmp_op = x86.ops.SS_CmpOp(new_iv, ub)
+        match ub:
+            case SSAValue():
+                cmp_op = x86.ops.SS_CmpOp(new_iv, ub)
+            case builtin.IntegerAttr():
+                cmp_op = x86.ops.SI_CmpOp(new_iv, ub)
 
         rewriter.replace(
             yield_op,
@@ -141,7 +139,11 @@ class LowerX86ScfForPattern(RewritePattern):
         # lb is the IV register (inout); legalization inserts a copy when needed.
         rewriter.insert(
             (
-                cmp_op := x86.ops.SS_CmpOp(op.lb, ub),
+                cmp_op := (
+                    x86.ops.SS_CmpOp(op.lb, ub)
+                    if isinstance(ub, SSAValue)
+                    else x86.ops.SI_CmpOp(op.lb, ub)
+                ),
                 x86.ops.C_JgeOp(
                     cmp_op.result,
                     (op.lb, *op.iter_args),
