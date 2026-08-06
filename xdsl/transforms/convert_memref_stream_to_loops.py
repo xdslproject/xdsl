@@ -178,6 +178,7 @@ class LowerGenericOpPattern(RewritePattern):
             # Imperfectly nested
             rewrite_generic_to_imperfect_loops(
                 rewriter,
+                op,
                 InsertPoint.before(op),
                 outer_ubs,
                 inner_ubs,
@@ -202,6 +203,7 @@ class LowerGenericOpPattern(RewritePattern):
 
             rewrite_linalg_structured_to_loops(
                 rewriter,
+                op,
                 insertion_point,
                 bound_values,
                 op.indexing_maps.data,
