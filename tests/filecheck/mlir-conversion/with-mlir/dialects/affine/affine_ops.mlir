@@ -132,4 +132,34 @@
   // CHECK: %{{.*}} = arith.constant 2 : index
   // CHECK-NEXT: %{{.*}} = affine.apply affine_map<()[{{.*}}] -> (({{.*}} * 4))> ()[%{{.*}}]
 
+  // For with a non-default step
+
+  affine.for %i3 = 0 to 10 step 2 {
+  }
+
+  // CHECK: affine.for %{{.*}} = 0 to 10 step 2 {
+  // CHECK-NEXT: }
+
+  // For with a single loop-carried value's type given without parentheses
+
+  %bare_init = "test.op"() : () -> index
+  %bare_res = affine.for %i4 = 0 to 10 iter_args(%bare_iv = %bare_init) -> index {
+    affine.yield %bare_iv : index
+  }
+
+  // CHECK: %{{.*}} = affine.for %{{.*}} = 0 to 10 iter_args(%{{.*}} = %{{.*}}) -> (index) {
+  // CHECK-NEXT:   affine.yield %{{.*}} : index
+  // CHECK-NEXT: }
+
+  // For with a multi-result bound requiring a `max`/`min` prefix, and a bound
+  // map with both dimension and symbol operands
+
+  %bound_d = "test.op"() : () -> index
+  %bound_s = "test.op"() : () -> index
+  affine.for %i5 = max affine_map<(d0)[s0] -> (d0, s0)>(%bound_d)[%bound_s] to 10 {
+  }
+
+  // CHECK:      affine.for %{{.*}} = max affine_map<(d0)[s0] -> (d0, s0)>(%{{.*}})[%{{.*}}] to 10 {
+  // CHECK-NEXT: }
+
 }) : () -> ()

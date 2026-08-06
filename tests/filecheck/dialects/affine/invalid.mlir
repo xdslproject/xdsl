@@ -77,3 +77,17 @@ affine.for %i = 0 to 10 step -2 {
 }
 
 // CHECK: expected step to be representable as a positive signed integer
+
+// -----
+
+affine.for %i = 0 to "foo" {
+}
+
+// CHECK: expected an affine map or an integer for loop bound
+
+// -----
+
+affine.for %i = 0 to affine_map<()[s0] -> (s0)>() {
+}
+
+// CHECK: symbol operand count and affine map symbol count must match
