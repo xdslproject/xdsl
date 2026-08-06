@@ -608,7 +608,7 @@ def _(
                 zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
                 lb = emit_integer_op(expr.args[1][1], builder, args)
                 ub = emit_integer_op(expr.args[1][2], builder, args)
-                step = builder.insert(ConstantOp(IntegerAttr(0, IntegerType(64))))
+                step = builder.insert(ConstantOp(IntegerAttr(1, IntegerType(64))))
                 region = Region([Block(arg_types=[IntegerType(64), Float64Type()])])
                 accumulator = region.block.args[1]
 
