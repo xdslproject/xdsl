@@ -117,12 +117,10 @@ func.func @different_ops() -> (i32, i32) {
 // CHECK-LABEL: @down_propagate_for
   func.func @down_propagate_for() {
     %25 = arith.constant 1 : i32
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-    ^bb0(%arg0_3: index):
+    affine.for %arg0_3 = 0 to 4 {
       %26 = arith.constant 1 : i32
       "foo"(%25, %26) : (i32, i32) -> ()
-      "affine.yield"() : () -> ()
-    }) : () -> ()
+    }
     func.return
   }
 
@@ -164,12 +162,10 @@ func.func @down_propagate() -> i32 {
 /// Check that operation definitions are NOT propagated up the dominance tree.
 // CHECK-LABEL: @up_propagate_for
  func.func @up_propagate_for() -> i32 {
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-    ^bb3(%arg0_4: index):
+    affine.for %arg0_4 = 0 to 4 {
       %31 = arith.constant 1 : i32
       "foo"(%31) : (i32) -> ()
-      "affine.yield"() : () -> ()
-    }) : () -> ()
+    }
     %32 = arith.constant 1 : i32
     func.return %32 : i32
   }

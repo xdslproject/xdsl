@@ -4,10 +4,8 @@
 
     // For without value being passed during iterations
 
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^bb0(%i: index):
-      "affine.yield"() : () -> ()
-    }) : () -> ()
+    affine.for %i = 0 to 256 {
+    }
 
     // CHECK:      affine.for %{{.*}} = 0 to 256 {
     // CHECK-NEXT: }
@@ -15,10 +13,8 @@
 
     // For with a discardable attribute, which must survive custom syntax round-trip
 
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (4)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^bb9(%i2: index):
-      "affine.yield"() : () -> ()
-    }) {"foo" = 1 : i32} : () -> ()
+    affine.for %i2 = 0 to 4 {
+    } {foo = 1 : i32}
 
     // CHECK:      affine.for %{{.*}} = 0 to 4 {
     // CHECK-NEXT: } {foo = 1 : i32}
@@ -27,21 +23,19 @@
     // For with values being passed during iterations
 
     %init_value = "test.op"() : () -> !test.type<"int">
-    %res = "affine.for"(%init_value) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-    ^bb1(%i: index, %step_value: !test.type<"int">):
+    %res = affine.for %i = -10 to 10 iter_args(%step_value = %init_value) -> (!test.type<"int">) {
       %next_value = "test.op"() : () -> !test.type<"int">
-      "affine.yield"(%next_value) : (!test.type<"int">) -> ()
-    }) : (!test.type<"int">) -> (!test.type<"int">)
+      affine.yield %next_value : !test.type<"int">
+    }
     %00 = "test.op"() : () -> index
     %N = "test.op"() : () -> index
-    %res2 = "affine.for"(%00, %N, %init_value) <{"lowerBoundMap" = affine_map<(d0) -> (d0)>, "upperBoundMap" = affine_map<()[s0] -> (s0)>, "step" = 1 : index, operandSegmentSizes = array<i32: 1, 1, 1>}> ({
-    ^bb1(%i: index, %step_value: !test.type<"int">):
+    %res2 = affine.for %i = affine_map<(d0) -> (d0)>(%00) to %N iter_args(%step_value = %init_value) -> (!test.type<"int">) {
       %next_value = "test.op"() : () -> !test.type<"int">
-      "affine.yield"(%next_value) : (!test.type<"int">) -> ()
-    }) : (index, index, !test.type<"int">) -> (!test.type<"int">)
+      affine.yield %next_value : !test.type<"int">
+    }
     "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<() -> (0)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
     ^bb1(%i: index):
-      "affine.yield"() : () -> ()
+      affine.yield
     }) : (index) -> ()
 
     // CHECK:      %res = affine.for %{{.*}} = -10 to 10 iter_args(%{{.*}} = %{{.*}}) -> (!test.type<"int">) {
@@ -91,18 +85,16 @@
     // CHECK-NEXT: %vnested = affine.vector_load %vmemref[%zero + 3, %zero * 2 + %zero * 5] : memref<2x3xf64>, vector<2xf64>
 
     func.func @empty() {
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^bb2(%arg0: index):
-      "affine.yield"() : () -> ()
-    }) : () -> ()
+    affine.for %arg0 = 0 to 10 {
+    }
     "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-      "affine.yield"() : () -> ()
+      affine.yield
     }, {
     })  : () -> ()
     "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-      "affine.yield"() : () -> ()
+      affine.yield
     }, {
-      "affine.yield"() : () -> ()
+      affine.yield
     }) : () -> ()
 
     func.return
@@ -125,9 +117,9 @@
   func.func @affine_if() -> f32 {
     %0 = arith.constant 0.000000e+00 : f32
     %1 = "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({
-      "affine.yield"(%0) : (f32) -> ()
+      affine.yield %0 : f32
     }, {
-      "affine.yield"(%0) : (f32) -> ()
+      affine.yield %0 : f32
     }) : () -> f32
     func.return %1 : f32
   }
