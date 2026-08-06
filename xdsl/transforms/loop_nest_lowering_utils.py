@@ -214,6 +214,7 @@ def _insert_store_ops(
 
 def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
+    op: Operation,
     insertion_point: InsertPoint,
     ubs: Sequence[SSAValue],
     load_indexing_maps: Sequence[AffineMapAttr],
@@ -288,12 +289,12 @@ def rewrite_linalg_structured_to_loops(
         (),
         make_body,
     )
-
-    rewriter.erase(rewriter.current_operation)
+    rewriter.erase(op)
 
 
 def rewrite_generic_to_imperfect_loops(
     rewriter: PatternRewriter,
+    op: Operation,
     insertion_point: InsertPoint,
     outer_ubs: Sequence[int],
     inner_ubs: Sequence[int],
@@ -426,4 +427,4 @@ def rewrite_generic_to_imperfect_loops(
         outer_make_body,
     )
 
-    rewriter.erase(rewriter.current_operation)
+    rewriter.erase(op)
