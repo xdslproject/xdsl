@@ -2197,3 +2197,18 @@ def test_replace_op_deprecated():
         op_removed=1,
         op_replaced=1,
     )
+
+
+def test_deprecated_current_operation_still_works():
+    module = ModuleOp([TestOp(), TestOp()])
+    op, other = module.body.block.ops
+    assert isinstance(op, TestOp)
+    assert isinstance(other, TestOp)
+
+    rewriter = PatternRewriter(op)
+    with pytest.deprecated_call():
+        assert rewriter.current_operation is op  # pyright: ignore[reportDeprecated]
+
+    rewriter.current_operation = other
+    with pytest.deprecated_call():
+        assert rewriter.current_operation is other  # pyright: ignore[reportDeprecated]
