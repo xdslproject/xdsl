@@ -162,4 +162,36 @@
   // CHECK:      affine.for %{{.*}} = max affine_map<(d0)[s0] -> (d0, s0)>(%{{.*}})[%{{.*}}] to 10 {
   // CHECK-NEXT: }
 
+  // For with a `min` prefix on the upper bound
+
+  affine.for %i6 = max affine_map<(d0)[s0] -> (d0, s0)>(%bound_d)[%bound_s] to min affine_map<(d0) -> (d0, 10)>(%bound_d) {
+  }
+
+  // CHECK:      affine.for %{{.*}} = max affine_map<(d0)[s0] -> (d0, s0)>(%{{.*}})[%{{.*}}] to min affine_map<(d0) -> (d0, 10)>(%{{.*}}) {
+  // CHECK-NEXT: }
+
+  // For with a plain (non-min/max) affine map as the upper bound
+
+  %ub_d = "test.op"() : () -> index
+  affine.for %i7 = 0 to affine_map<(d0) -> (4 * d0)>(%ub_d) {
+  }
+
+  // CHECK:      %ub_d = "test.op"() : () -> index
+  // CHECK-NEXT: affine.for %{{.*}} = 0 to affine_map<(d0) -> ((d0 * 4))>(%{{.*}}) {
+  // CHECK-NEXT: }
+
+  // For with multiple loop-carried values
+
+  %ia_init0 = "test.op"() : () -> index
+  %ia_init1 = "test.op"() : () -> index
+  %ia_res0, %ia_res1 = affine.for %i8 = 0 to 10 iter_args(%a = %ia_init0, %b = %ia_init1) -> (index, index) {
+    affine.yield %a, %b : index, index
+  }
+
+  // CHECK:      %ia_init0 = "test.op"() : () -> index
+  // CHECK-NEXT: %ia_init1 = "test.op"() : () -> index
+  // CHECK-NEXT: %ia_res0, %ia_res1 = affine.for %{{.*}} = 0 to 10 iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (index, index) {
+  // CHECK-NEXT:   affine.yield %{{.*}}, %{{.*}} : index, index
+  // CHECK-NEXT: }
+
 }) : () -> ()
