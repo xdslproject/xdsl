@@ -550,7 +550,7 @@ def _(
                 constant_op = builder.insert(
                     ConstantOp(FloatAttr(float(expr), Float64Type()))
                 )
-                return constant_op
+                return constant_op.result
 
             # Handle symbolic values
             if isinstance(expr, Symbol):
