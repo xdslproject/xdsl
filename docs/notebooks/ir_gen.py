@@ -599,7 +599,7 @@ def _(
                 builder3.insert(YieldOp(arg))
 
                 if_res = builder.insert(
-                    IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
+                    IfOp(is_neg, [Float64Type()], lhs_region, rhs_region)
                 ).results[0]
 
                 return if_res
