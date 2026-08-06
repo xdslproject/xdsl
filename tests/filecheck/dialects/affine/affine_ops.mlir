@@ -10,6 +10,18 @@
     // CHECK:      affine.for %{{.*}} = 0 to 256 {
     // CHECK-NEXT: }
 
+    // Discardable attribute, generic
+
+    "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+    ^bb0(%i: index):
+      "affine.yield"() : () -> ()
+    }) : () -> ()
+
+    // CHECK:     "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+    // CHECK-NEXT: ^bb0(%{{.*}}: index):
+    // CHECK-NEXT:   "affine.yield"() : () -> ()
+    // CHECK-NEXT: }) : () -> ()
+
 
     // For with a discardable attribute, which must survive custom syntax round-trip
 
