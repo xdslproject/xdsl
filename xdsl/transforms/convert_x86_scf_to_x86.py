@@ -98,7 +98,6 @@ class LowerX86ScfForPattern(RewritePattern):
         # Get the induction variable and its register
         iv = first_body_block.args[0]
         assert isa(iv, SSAValue[GeneralRegisterType])
-        iv_reg = iv.type
         ub = op.ub
         if not isinstance(ub, SSAValue):
             raise PassFailedException(
@@ -114,16 +113,13 @@ class LowerX86ScfForPattern(RewritePattern):
         # comparison with upper bound, and conditionally branch back into the body.
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
-
-        mv_op = x86.ops.DS_MovOp(iv, destination=iv_reg)
-        step_op = x86.ops.RS_AddOp(mv_op.destination, step)
+        step_op = x86.ops.RS_AddOp(iv, step)
         new_iv = step_op.register_out
         cmp_op = x86.ops.SS_CmpOp(new_iv, ub)
 
         rewriter.replace(
             yield_op,
             (
-                mv_op,
                 step_op,
                 cmp_op,
                 x86.ops.C_JlOp(
@@ -136,7 +132,6 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
         )
 
-        mv_op.destination.name_hint = iv.name_hint
         step_op.register_out.name_hint = iv.name_hint
         end_block.args[0].name_hint = op.lb_end.name_hint
 
