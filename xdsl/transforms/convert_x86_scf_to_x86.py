@@ -135,37 +135,60 @@ class LowerX86ScfForPattern(RewritePattern):
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
-        # Skip for loop if condition is not satisfied at start.
-        # lb is the IV register (inout); legalization inserts a copy when needed.
-        rewriter.insert(
-            (
-                cmp_op := (
-                    x86.ops.SS_CmpOp(op.lb, ub)
-                    if isinstance(ub, SSAValue)
-                    else x86.ops.SI_CmpOp(op.lb, ub)
+        if (
+            isinstance(lb_owner := op.lb.owner, x86.DI_MovOp)
+            and isinstance(ub, builtin.IntegerAttr)
+            and lb_owner.immediate.value.data < ub.value.data
+        ):
+            # Loop executes at least once, fallthrough directly into it without runtime checks
+            rewriter.insert(
+                (
+                    x86.ops.FallthroughOp(
+                        (op.lb, *op.iter_args),
+                        first_body_block,
+                    ),
                 ),
-                x86.ops.C_JgeOp(
-                    cmp_op.result,
-                    (op.lb, *op.iter_args),
-                    (op.lb, *op.iter_args),
-                    end_block,
-                    first_body_block,
+                InsertPoint.at_end(init_block),
+            )
+
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace(
+                op,
+                (),
+                end_block.args,
+            )
+        else:
+            # Skip for loop if condition is not satisfied at start.
+            # lb is the IV register (inout); legalization inserts a copy when needed.
+            rewriter.insert(
+                (
+                    cmp_op := (
+                        x86.ops.SS_CmpOp(op.lb, ub)
+                        if isinstance(ub, SSAValue)
+                        else x86.ops.SI_CmpOp(op.lb, ub)
+                    ),
+                    x86.ops.C_JgeOp(
+                        cmp_op.result,
+                        (op.lb, *op.iter_args),
+                        (op.lb, *op.iter_args),
+                        end_block,
+                        first_body_block,
+                    ),
                 ),
-            ),
-            InsertPoint.at_end(init_block),
-        )
+                InsertPoint.at_end(init_block),
+            )
+
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace(
+                op,
+                x86.ops.LabelOp(f"scf_body_end_{suffix}"),
+                end_block.args,
+            )
 
         # Insert label at the start of the first body block.
         rewriter.insert(
             x86.ops.LabelOp(f"scf_body_{suffix}"),
             InsertPoint.at_start(first_body_block),
-        )
-
-        # Replace operation by arguments to the newly end block.
-        rewriter.replace(
-            op,
-            x86.ops.LabelOp(f"scf_body_end_{suffix}"),
-            end_block.args,
         )
 
 
