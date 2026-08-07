@@ -3,6 +3,7 @@ from collections.abc import Sequence
 
 from typing_extensions import Self
 
+from xdsl.backend.block_naive_allocator import BlockAllocator
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.riscv import (
@@ -186,6 +187,26 @@ class ConditionalBranchOperation(
         )
 
         return (ElideConstantBranches(),)
+
+    def allocate_registers(self, allocator: BlockAllocator) -> None:
+        """
+        Allocates registers to the operands of this operation.
+        
+        The successors must already be allocated, else raises PassFailedException.
+        Allocates operands corresponding to block arguments to corresponding registers, then allocates rs1 and rs2.
+        """
+        for operand, arg in zip(self.then_arguments, self.then_block.args):
+            allocator.allocate_values_same_reg([operand, arg])
+            assert isinstance(operand.type, RISCVRegisterType)
+            allocator.available_registers.pop(type(operand.type))
+
+        for operand, arg in zip(self.else_arguments, self.else_block.args):
+            allocator.allocate_values_same_reg([operand, arg])
+            assert isinstance(operand.type, RISCVRegisterType)
+            allocator.available_registers.pop(type(operand.type))
+
+        for operand in (self.rs1, self.rs2):
+            allocator.allocate_value(operand)
 
 
 @irdl_op_definition
