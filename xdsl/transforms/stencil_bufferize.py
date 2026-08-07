@@ -330,9 +330,11 @@ class ApplyStoreFoldPattern(RewritePattern):
             rewriter.replace(
                 op,
                 [new_apply, load],
-                new_apply.results[:temp_index]
-                + (load.res,)
-                + new_apply.results[temp_index:],
+                (
+                    *new_apply.results[:temp_index],
+                    load.res,
+                    *new_apply.results[temp_index:],
+                ),
             )
             for store in stores:
                 rewriter.erase(store)
@@ -534,7 +536,7 @@ class CombineStoreFold(RewritePattern):
             rewriter.replace(
                 op,
                 new_combine,
-                new_results=new_combine.results[:i] + (None,) + new_combine.results[i:],
+                new_results=(*new_combine.results[:i], None, *new_combine.results[i:]),
             )
             return
 
