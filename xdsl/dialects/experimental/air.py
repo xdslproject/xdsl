@@ -628,7 +628,7 @@ class HerdPipelineOp(IRDLOperation):
 
     traits = traits_def(HasParent(HerdOp))
 
-    def __init__(self, body: None | Region):
+    def __init__(self, body: Region | None):
         super().__init__(regions=[body])
 
     @classmethod
@@ -694,7 +694,7 @@ class PipelineStageOp(IRDLOperation):
         self,
         opers: list[Operation | SSAValue],
         result_types: Sequence[Attribute],
-        body: None | Region,
+        body: Region | None,
     ):
         if not result_types:
             result_types = []
@@ -774,11 +774,11 @@ class SegmentOp(IRDLOperation):
 
     def __init__(
         self,
-        sym_name: None | StringAttr,
+        sym_name: StringAttr | None,
         async_dependencies: list[Operation | SSAValue],
         sizes: list[Operation | SSAValue],
         segment_operands: list[Operation | SSAValue],
-        body: None | Region,
+        body: Region | None,
     ):
         super().__init__(
             attributes={"sym_name": sym_name},

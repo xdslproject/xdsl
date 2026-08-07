@@ -2609,9 +2609,9 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
     def __init__(
         self,
         strides: (
-            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr]
+            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | IntAttr | NoneAttr | None]
         ),
-        offset: int | None | IntAttr | NoneAttr = 0,
+        offset: int | IntAttr | NoneAttr | None = 0,
     ) -> None:
         if not isinstance(strides, ArrayAttr):
             strides_values: list[IntAttr | NoneAttr] = []

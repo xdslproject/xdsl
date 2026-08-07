@@ -42,7 +42,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     separator_value: ClassVar[str] = ","
     delimiter_value: ClassVar[Parser.Delimiter] = Parser.Delimiter.ANGLE
 
-    def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
+    def __init__(self, flags: Iterable[EnumType] | str | None) -> None:
         flags_: frozenset[EnumType]
         match flags:
             case self.none_value | None:
