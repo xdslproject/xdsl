@@ -47,7 +47,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLError, VerifyException
+from xdsl.utils.exceptions import ParseError, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
@@ -1271,6 +1271,15 @@ class TypedAttributeVariable(UniqueBaseAttributeVariable):
     def parse_attr(self, parser: Parser) -> Attribute | None:
         unique_base = self.unique_base
         assert issubclass(unique_base, TypedAttribute)
+        if self.is_optional:
+            # `parse_with_type` has no optional counterpart, so backtrack to the
+            # start of the attribute if nothing parseable is there.
+            pos = parser.pos
+            try:
+                return unique_base.parse_with_type(parser, self.unique_type)
+            except ParseError:
+                parser._resume_from(pos)  # pyright: ignore[reportPrivateUsage]
+                return None
         return unique_base.parse_with_type(parser, self.unique_type)
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
