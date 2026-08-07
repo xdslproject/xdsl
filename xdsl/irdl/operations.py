@@ -102,10 +102,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -170,10 +170,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -1435,9 +1435,9 @@ def irdl_op_verify_regions(
 
     idx = 0
     for region_def_name, region_def in op_def.regions:
-        regions: None | Region | tuple[Region, ...] = getattr(op, region_def_name)
+        regions: Region | tuple[Region, ...] | None = getattr(op, region_def_name)
         block_counts: list[int] = []
-        entry_arg_types_list: list[None | Sequence[Attribute]] = []
+        entry_arg_types_list: list[Sequence[Attribute] | None] = []
         if isinstance(regions, tuple):
             for region in regions:
                 block_counts.append(len(region.blocks))
@@ -1484,7 +1484,7 @@ def irdl_op_verify_arg_list(
     idx = 0
 
     for arg_name, arg_def in defs:
-        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        args: SSAValue | SSAValues | None = getattr(op, arg_name)
         if args is None:
             arg_types = ()
         elif not isinstance(args, Sequence):

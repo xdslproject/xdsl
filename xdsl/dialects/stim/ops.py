@@ -139,7 +139,7 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     assembly_format = "(`qubitlayout` $qubitlayout^)? attr-dict-with-keyword $body"
 
-    def __init__(self, body: Region, qubitlayout: None | ArrayAttr[QubitMappingAttr]):
+    def __init__(self, body: Region, qubitlayout: ArrayAttr[QubitMappingAttr] | None):
         super().__init__(regions=[body], properties={"qubitlayout": qubitlayout})
 
     def verify(self, verify_nested_ops: bool = True) -> None:

@@ -1150,8 +1150,8 @@ def test_unrealized_conversion_cast():
     ],
 )
 def test_strided_constructor(
-    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr],
-    offset: int | None | IntAttr | NoneAttr,
+    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | IntAttr | NoneAttr | None],
+    offset: int | IntAttr | NoneAttr | None,
     expected_strides: ArrayAttr[IntAttr | NoneAttr],
     expected_offset: IntAttr | NoneAttr,
 ):
