@@ -11,6 +11,7 @@ from typing import IO, Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.pydialect.pyfrontend import PyFrontend
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
@@ -270,6 +271,16 @@ class xDSLOptMain(CommandLineTool):
         for target_name, target_factory in multiverse.all_targets.items():
             if target_name not in self.available_targets:
                 self.available_targets[target_name] = target_factory
+
+    def register_all_frontends(self):
+        super().register_all_frontends()
+
+        def parse_py(io: IO[str]):
+            return PyFrontend(
+                io.read(),
+            ).parse_py_module()
+
+        self.available_frontends["py"] = parse_py
 
     def setup_pipeline(self):
         """
