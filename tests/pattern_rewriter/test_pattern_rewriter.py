@@ -38,6 +38,15 @@ from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
+def test_init():
+    _module = ModuleOp([op := TestOp(), TestOp()])
+
+    assert PatternRewriter(op).insertion_point == InsertPoint.before(op)
+    assert PatternRewriter(InsertPoint.after(op)).insertion_point == InsertPoint.after(
+        op
+    )
+
+
 def rewrite_and_compare(
     prog: str,
     expected_prog: str,
@@ -2197,3 +2206,15 @@ def test_replace_op_deprecated():
         op_removed=1,
         op_replaced=1,
     )
+
+
+def test_deprecated_current_operation_still_works():
+    _module = ModuleOp([op0 := TestOp(), op1 := TestOp()])
+
+    rewriter = PatternRewriter(op0)
+    with pytest.deprecated_call():
+        assert rewriter.current_operation is op0  # pyright: ignore[reportDeprecated]
+
+    rewriter.current_operation = op1
+    with pytest.deprecated_call():
+        assert rewriter.current_operation is op1  # pyright: ignore[reportDeprecated]
