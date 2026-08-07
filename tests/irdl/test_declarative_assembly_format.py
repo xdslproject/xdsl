@@ -3151,6 +3151,39 @@ def test_optional_else_group(
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_typed_attr_group 5 of %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_typed_attr_group"(%0) <{index = 5 : i32}> : (i32) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_typed_attr_group of %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_typed_attr_group"(%0) : (i32) -> ()',
+        ),
+    ],
+)
+def test_optional_group_anchored_on_typed_attribute(program: str, generic_program: str):
+    """An optional group anchored on a typed attribute variable must be skippable."""
+
+    @irdl_op_definition
+    class OptionalTypedAttrGroupOp(IRDLOperation):
+        name = "test.optional_typed_attr_group"
+
+        index = opt_prop_def(IntegerAttr[I32])
+        input_op = operand_def(i32)
+
+        assembly_format = "($index^)? `of` $input_op attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalTypedAttrGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
 def test_impossible_optional_else_group():
     error = "property 'val' is already bound"
     with pytest.raises(
