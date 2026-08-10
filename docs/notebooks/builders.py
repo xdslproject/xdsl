@@ -7,8 +7,20 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    from xdsl.builder import Builder, InsertPoint
+
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
     from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
+    from xdsl.builder import Builder, InsertPoint
     from xdsl.dialects.arith import AddiOp
     from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
     from xdsl.dialects.arith import ConstantOp
@@ -21,8 +33,6 @@ def _():
         IntegerAttr,
         IntegerType,
         ModuleOp,
-        mo,
-        xmo,
     )
 
 

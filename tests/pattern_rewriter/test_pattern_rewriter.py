@@ -125,7 +125,7 @@ def test_non_recursive_rewrite():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, ConstantOp):
                 new_constant = ConstantOp.from_int_and_width(43, i32)
-                rewriter.replace_op(op, [new_constant])
+                rewriter.replace(op, [new_constant])
 
     rewrite_and_compare(
         prog,
@@ -155,7 +155,7 @@ def test_non_recursive_rewrite_reversed():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, ConstantOp):
                 new_constant = ConstantOp.from_int_and_width(43, i32)
-                rewriter.replace_op(op, [new_constant])
+                rewriter.replace(op, [new_constant])
 
     rewrite_and_compare(
         prog,
@@ -186,7 +186,7 @@ def test_op_type_rewrite_pattern_method_decorator():
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.replace_op(op, ConstantOp.from_int_and_width(43, i32))
+            rewriter.replace(op, ConstantOp.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog,
@@ -217,7 +217,7 @@ def test_op_type_rewrite_pattern_union_type():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp | AddiOp, rewriter: PatternRewriter):
-            rewriter.replace_op(op, ConstantOp.from_int_and_width(42, i32))
+            rewriter.replace(op, ConstantOp.from_int_and_width(42, i32))
 
     rewrite_and_compare(
         prog,
@@ -260,7 +260,7 @@ def test_recursive_rewriter():
             constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
             constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
-            rewriter.replace_op(op, [constant_op, constant_one, add_op])
+            rewriter.replace(op, [constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         prog,
@@ -303,7 +303,7 @@ def test_recursive_rewriter_reversed():
             constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
             constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
-            rewriter.replace_op(op, [constant_op, constant_one, add_op])
+            rewriter.replace(op, [constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         prog,
@@ -334,12 +334,12 @@ def test_greedy_rewrite_pattern_applier():
     class ConstantRewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.replace_op(op, [ConstantOp.from_int_and_width(43, i32)])
+            rewriter.replace(op, [ConstantOp.from_int_and_width(43, i32)])
 
     class AddiRewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: AddiOp, rewriter: PatternRewriter):
-            rewriter.replace_op(op, [MuliOp(op.lhs, op.rhs)])
+            rewriter.replace(op, [MuliOp(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog,
@@ -429,7 +429,7 @@ def test_insert_op_before_matched_op():
         def match_and_rewrite(self, cst: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst)
+            rewriter.insert(new_cst)
 
     rewrite_and_compare(
         prog,
@@ -460,7 +460,7 @@ def test_insert_op_at_start():
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.at_start(op.regions[0].blocks[0]))
+            rewriter.insert(new_cst, InsertPoint.at_start(op.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -493,7 +493,7 @@ def test_insert_op_before():
 
             first_op = op.regions[0].block.ops.first
             assert first_op is not None
-            rewriter.insert_op(new_cst, InsertPoint.before(first_op))
+            rewriter.insert(new_cst, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -526,7 +526,7 @@ def test_insert_op_after():
 
             first_op = op.regions[0].block.ops.first
             assert first_op is not None
-            rewriter.insert_op(new_cst, InsertPoint.after(first_op))
+            rewriter.insert(new_cst, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -553,7 +553,7 @@ def test_insert_op_after_matched_op():
         def match_and_rewrite(self, cst: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.after(cst))
+            rewriter.insert(new_cst, InsertPoint.after(cst))
 
     rewrite_and_compare(
         prog,
@@ -580,7 +580,7 @@ def test_insert_op_after_matched_op_reversed():
         def match_and_rewrite(self, cst: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.after(cst))
+            rewriter.insert(new_cst, InsertPoint.after(cst))
 
     rewrite_and_compare(
         prog,
@@ -604,7 +604,7 @@ def test_operation_deletion():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
 
@@ -627,7 +627,7 @@ def test_operation_deletion_reversed():
     class EraseAll(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if not isinstance(op, ModuleOp):
-                rewriter.erase_op(op)
+                rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -652,7 +652,7 @@ def test_operation_deletion_failure():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -687,7 +687,7 @@ def test_delete_inner_op():
             first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
-            rewriter.erase_op(first_op)
+            rewriter.erase(first_op)
 
     rewrite_and_compare(
         prog,
@@ -718,7 +718,7 @@ def test_replace_inner_op():
             first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
-            rewriter.replace_op(first_op, [ConstantOp.from_int_and_width(42, i32)])
+            rewriter.replace(first_op, [ConstantOp.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
         prog,
@@ -977,7 +977,7 @@ def test_block_argument_insertion():
   ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1066,7 +1066,7 @@ def test_inline_block_before():
     ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1157,10 +1157,10 @@ def test_inline_block_before_with_args():
     %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
-    ^bb1:
+    ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb2:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1213,7 +1213,7 @@ def test_inline_block_after():
     }) : () -> !test.type<"int">
     %3 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1263,7 +1263,7 @@ def test_inline_block_after_matched():
     ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^bb1:
+  ^bb0:
   }) : () -> !test.type<"int">
   %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
@@ -1331,7 +1331,7 @@ def test_move_region_contents_to_new_regions():
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
             res_types = old_op.result_types
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
-            rewriter.insert_op(new_op, InsertPoint.after(old_op))
+            rewriter.insert(new_op, InsertPoint.after(old_op))
 
     rewrite_and_compare(
         prog,
@@ -1397,11 +1397,11 @@ def test_insert_same_block():
             )
 
             # Allocate before first use
-            rewriter.insert_op(alloc, InsertPoint.at_start(block))
+            rewriter.insert(alloc, InsertPoint.at_start(block))
             # Deallocate after last use
-            rewriter.insert_op(dealloc, InsertPoint.before(last_op))
+            rewriter.insert(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
-            rewriter.replace_op(op, init, alloc.res)
+            rewriter.replace(op, init, alloc.res)
 
     rewrite_and_compare(
         prog,
@@ -1423,7 +1423,7 @@ def test_inline_region_before():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1431,11 +1431,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1443,13 +1443,13 @@ def test_inline_region_before():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             if op.parent is None:
                 return
 
             rewriter.inline_region(op.regions[0], BlockInsertPoint.before(op.parent))
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -1469,7 +1469,7 @@ def test_inline_region_after():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
 ^bb0:
   %2 = "test.op"() : () -> i64
 }) : () -> ()
@@ -1478,11 +1478,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> f32
 ^bb1:
-  %2 = "test.op"() : () -> f64
+  %1 = "test.op"() : () -> f32
 ^bb2:
+  %2 = "test.op"() : () -> f64
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1490,13 +1490,13 @@ def test_inline_region_after():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             if op.parent is None:
                 return
 
             rewriter.inline_region(op.regions[0], BlockInsertPoint.after(op.parent))
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -1517,7 +1517,7 @@ def test_inline_region_at_start():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1525,11 +1525,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^bb0:
-  %1 = "test.op"() : () -> f64
 ^bb1:
-  %2 = "test.op"() : () -> i32
+  %1 = "test.op"() : () -> f64
 ^bb2:
+  %2 = "test.op"() : () -> i32
+^bb3:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1537,7 +1537,7 @@ def test_inline_region_at_start():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             parent_region = op.parent_region()
             if parent_region is None:
@@ -1546,7 +1546,7 @@ def test_inline_region_at_start():
             rewriter.inline_region(
                 op.regions[0], BlockInsertPoint.at_start(parent_region)
             )
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -1567,7 +1567,7 @@ def test_inline_region_at_end():
     %1 = "test.op"() : () -> f32
     ^bb2:
     %2 = "test.op"() : () -> f64
-  }) {label = "а"} : () -> ()
+  }) {label = "a"} : () -> ()
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1575,11 +1575,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^bb0:
-  %1 = "test.op"() : () -> i64
 ^bb1:
-  %2 = "test.op"() : () -> f32
+  %1 = "test.op"() : () -> i64
 ^bb2:
+  %2 = "test.op"() : () -> f32
+^bb3:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """
@@ -1587,7 +1587,7 @@ def test_inline_region_at_end():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
-            if op.attributes.get("label") != StringAttr("а"):
+            if op.attributes.get("label") != StringAttr("a"):
                 return
             parent_region = op.parent_region()
             if parent_region is None:
@@ -1596,7 +1596,7 @@ def test_inline_region_at_end():
             rewriter.inline_region(
                 op.regions[0], BlockInsertPoint.at_end(parent_region)
             )
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -1629,7 +1629,7 @@ builtin.module {
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             if op.results or op.operands:
-                rewriter.erase_op(op, safe_erase=False)
+                rewriter.erase(op, safe_erase=False)
 
     rewrite_and_compare(
         prog,
@@ -1663,7 +1663,7 @@ def test_pattern_rewriter_as_op_builder():
                 return
             with ImplicitBuilder(rewriter):
                 test.TestOp.create(attributes={"inserted": UnitAttr()})
-            rewriter.replace_op(
+            rewriter.replace(
                 op, test.TestOp.create(attributes={"replaced": UnitAttr()})
             )
 
@@ -2062,7 +2062,7 @@ def test_pattern_rewriter_erase_op_with_region():
             if "error_if_matching" in op.attributes:
                 raise Exception("operation that is supposed to be deleted was matched")
             assert not op.attributes
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
     rewrite_and_compare(
         prog,
@@ -2125,6 +2125,69 @@ def test_replace_matched_op():
                 return
             with pytest.deprecated_call():
                 rewriter.replace_matched_op(TestOp())  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
+
+def test_erase_op_deprecated():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.erase_op(op)  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=1,
+    )
+
+
+def test_replace_op_deprecated():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.replace_op(op, TestOp())  # pyright: ignore[reportDeprecated]
 
     rewrite_and_compare(
         prog,

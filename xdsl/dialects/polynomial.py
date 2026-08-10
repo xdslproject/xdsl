@@ -17,11 +17,10 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyFloatConstr,
     ArrayAttr,
-    ContainerOf,
     FloatAttr,
     StringAttr,
+    container_of,
     f64,
 )
 from xdsl.ir import (
@@ -232,7 +231,7 @@ class EvalOp(IRDLOperation):
 
     name = "polynomial.eval"
 
-    T: ClassVar = VarConstraint("T", ContainerOf(AnyFloatConstr))
+    T: ClassVar = VarConstraint("T", container_of(AnyFloat))
 
     value = operand_def(T)
     result = result_def(T)

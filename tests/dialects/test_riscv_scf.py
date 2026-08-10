@@ -3,6 +3,7 @@ from collections.abc import Callable
 import pytest
 
 from xdsl import ir
+from xdsl.backend.liveness import VerifyLivenessContext
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_scf, test
 from xdsl.dialects.builtin import IntegerAttr
@@ -179,3 +180,14 @@ def test_effect_traits():
         riscv_scf.YieldOp,
         riscv_scf.ConditionOp,
     }
+
+
+def test_riscv_scf_for_update_liveness_not_implemented():
+    lb = create_ssa_value(riscv.Registers.A0)
+    ub = create_ssa_value(riscv.Registers.A1)
+    op = riscv_scf.ForOp(lb, ub, IntegerAttr(1, i12), ())
+    ctx = VerifyLivenessContext(set())
+    with pytest.raises(
+        NotImplementedError, match="does not yet implement update_liveness"
+    ):
+        ctx.process_op(op)

@@ -1,4 +1,5 @@
 import math
+import re
 from typing import cast
 
 import pytest
@@ -36,7 +37,7 @@ def test_unimplemented_inputs():
 
     with pytest.raises(
         NotImplementedError,
-        match="library_call not yet supported in linalg.generic interpreter",
+        match=re.escape("library_call not yet supported in linalg.generic interpreter"),
     ):
         op = linalg.ops.GenericOp(
             (),

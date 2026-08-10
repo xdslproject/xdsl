@@ -15,7 +15,7 @@ class ConvertGetResultOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.GetResultOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(op, eqsat_pdl_interp.GetResultOp(op.index, op.input_op))
+        rewriter.replace(op, eqsat_pdl_interp.GetResultOp(op.index, op.input_op))
 
 
 class ConvertGetResultsOp(RewritePattern):
@@ -23,7 +23,7 @@ class ConvertGetResultsOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.GetResultsOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op, eqsat_pdl_interp.GetResultsOp(op.index, op.input_op, op.value.type)
         )
 
@@ -33,13 +33,13 @@ class ConvertGetDefiningOpOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.GetDefiningOpOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(op, eqsat_pdl_interp.GetDefiningOpOp(op.value))
+        rewriter.replace(op, eqsat_pdl_interp.GetDefiningOpOp(op.value))
 
 
 class ConvertReplaceOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: pdl_interp.ReplaceOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(
+        rewriter.replace(
             op, eqsat_pdl_interp.ReplaceOp(op.input_op, list(op.repl_values))
         )
 
@@ -49,7 +49,7 @@ class ConvertCreateOperationOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.CreateOperationOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             eqsat_pdl_interp.CreateOperationOp(
                 op.constraint_name,
@@ -67,7 +67,7 @@ class ConvertRecordMatchOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.RecordMatchOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             eqsat_pdl_interp.RecordMatchOp(
                 op.rewriter,
@@ -86,7 +86,7 @@ class ConvertFinalizeOp(RewritePattern):
     def match_and_rewrite(
         self, op: pdl_interp.FinalizeOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_op(op, eqsat_pdl_interp.FinalizeOp())
+        rewriter.replace(op, eqsat_pdl_interp.FinalizeOp())
 
 
 class ConvertPDLInterpToEqsatPDLInterpPass(ModulePass):

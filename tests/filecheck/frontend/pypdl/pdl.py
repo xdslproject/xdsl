@@ -1,6 +1,7 @@
 # RUN: python %s | filecheck %s
 
-"""Tests for PDL rewriting Python DSL.
+"""
+Tests for PDL rewriting Python DSL.
 
 These tests exercise the API providing an evaluatable Python DSL for expressing
 the semantics of rewrites, which can then be lowered to the PDL dialect using

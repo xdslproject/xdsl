@@ -25,9 +25,9 @@ builtin.module {
     cf.br ^bb0
   }
   // CHECK:      func.func private @unconditional_br() {
-  // CHECK-NEXT:   cf.br ^bb0
-  // CHECK-NEXT: ^bb0:
-  // CHECK-NEXT:   cf.br ^bb0
+  // CHECK-NEXT:   cf.br ^bb1
+  // CHECK-NEXT: ^bb1:
+  // CHECK-NEXT:   cf.br ^bb1
   // CHECK-NEXT: }
 
   // CHECK-GENERIC:      "func.func"() <{sym_name = "unconditional_br", function_type = () -> (), sym_visibility = "private"}> ({
@@ -42,9 +42,9 @@ builtin.module {
     cf.br ^bb0(%1: i32)
   }
   // CHECK:      func.func private @br(%0: i32) {
-  // CHECK-NEXT:   cf.br ^bb0(%0 : i32)
-  // CHECK-NEXT: ^bb0(%1: i32):
-  // CHECK-NEXT:   cf.br ^bb0(%1 : i32)
+  // CHECK-NEXT:   cf.br ^bb1(%0 : i32)
+  // CHECK-NEXT: ^bb1(%1: i32):
+  // CHECK-NEXT:   cf.br ^bb1(%1 : i32)
   // CHECK-NEXT: }
 
   // CHECK-GENERIC:      "func.func"() <{sym_name = "br", function_type = (i32) -> (), sym_visibility = "private"}> ({
@@ -63,10 +63,10 @@ builtin.module {
     func.return %6 : i32
   }
   // CHECK:      func.func private @cond_br(%0: i1, %1: i32) -> i32 {
-  // CHECK-NEXT:   cf.br ^bb0(%0, %1 : i1, i32)
-  // CHECK-NEXT: ^bb0(%2: i1, %3: i32):
-  // CHECK-NEXT:   cf.cond_br %2, ^bb0(%2, %3 : i1, i32), ^bb1(%3, %3, %3 : i32, i32, i32)
-  // CHECK-NEXT: ^bb1(%4: i32, %5: i32, %6: i32):
+  // CHECK-NEXT:   cf.br ^bb1(%0, %1 : i1, i32)
+  // CHECK-NEXT: ^bb1(%2: i1, %3: i32):
+  // CHECK-NEXT:   cf.cond_br %2, ^bb1(%2, %3 : i1, i32), ^bb2(%3, %3, %3 : i32, i32, i32)
+  // CHECK-NEXT: ^bb2(%4: i32, %5: i32, %6: i32):
   // CHECK-NEXT:   func.return %4 : i32
   // CHECK-NEXT: }
 

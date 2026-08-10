@@ -85,7 +85,7 @@ def test_op_cast_utils():
     lowered_op = riscv.CustomAssemblyInstructionOp(
         "foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE)
     )
-    rewriter.replace_op(target_op, lowered_op)
+    rewriter.replace(target_op, lowered_op)
 
     # check that the lowered region is still valid
     input.verify()

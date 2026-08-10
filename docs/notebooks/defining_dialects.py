@@ -1,10 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "xdsl==0.27.0",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.23.6"
@@ -15,6 +8,18 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from sympy import (
         S,
         symbols,
@@ -134,7 +139,6 @@ def _():
         dce,
         irdl_attr_definition,
         irdl_op_definition,
-        mo,
         operand_def,
         result_def,
         symbols,
@@ -770,7 +774,7 @@ def _(
             if not isinstance(create := op.arg.owner, CreateOp):
                 return
 
-            rewriter.replace_op(op, [], new_results=[create.re])
+            rewriter.replace(op, [], new_results=[create.re])
 
     class FoldImCreateOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -803,7 +807,7 @@ def _(
 
             create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-            rewriter.replace_op(op, [], new_results=[create])
+            rewriter.replace(op, [], new_results=[create])
 
     class LowerNormOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -917,7 +921,7 @@ def _(
                 if not isinstance(create := op.arg.owner, CreateOp):
                     return
 
-                rewriter.replace_op(op, [], new_results=[create.re])
+                rewriter.replace(op, [], new_results=[create.re])
 
         class FoldImCreateOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -927,7 +931,7 @@ def _(
                 if not isinstance(create := op.arg.owner, CreateOp):
                     return
 
-                rewriter.replace_op(op, [], new_results=[create.im])
+                rewriter.replace(op, [], new_results=[create.im])
 
         class LowerAddOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -942,7 +946,7 @@ def _(
                 new_im = rewriter.insert(AddfOp(im_lhs, im_rhs)).result
                 create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-                rewriter.replace_op(op, [], new_results=[create])
+                rewriter.replace(op, [], new_results=[create])
 
         class LowerMulOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -964,7 +968,7 @@ def _(
 
                 create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-                rewriter.replace_op(op, [], new_results=[create])
+                rewriter.replace(op, [], new_results=[create])
 
         class LowerNormOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -982,7 +986,7 @@ def _(
                 half = rewriter.insert(ConstantOp(FloatAttr(0.5, Float64Type()))).result
                 pow = rewriter.insert(PowFOp(add, half)).result
 
-                rewriter.replace_op(op, [], new_results=[pow])
+                rewriter.replace(op, [], new_results=[pow])
 
     return
 

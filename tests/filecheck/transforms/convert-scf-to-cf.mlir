@@ -154,7 +154,7 @@ func.func @index_switch(%flag: index) -> i32 {
 // CHECK-NEXT: ^bb[[#b1]]:
 // CHECK-NEXT:   %[[#v1:]] = arith.constant 0 : i32
 // CHECK-NEXT:   %[[#v2:]] = arith.constant 1 : i32
-// CHECK-NEXT:   cf.br ^bb[[#b3]](%[[#v1]], %[[#v2]] : i32, i32)
+// CHECK-NEXT:   cf.br ^bb[[#b3:]](%[[#v1]], %[[#v2]] : i32, i32)
 // CHECK-NEXT: ^bb[[#b2]]:
 // CHECK-NEXT:   cf.br ^bb[[#b3]](%a, %a : i32, i32)
 // CHECK-NEXT: ^bb[[#b0]]:

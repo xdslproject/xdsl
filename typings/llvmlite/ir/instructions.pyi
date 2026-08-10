@@ -295,7 +295,8 @@ class AtomicRMW(Instruction):
         ...
 
 class CmpXchg(Instruction):
-    """This instruction has changed since llvm3.5.  It is not compatible with
+    """
+    This instruction has changed since llvm3.5.  It is not compatible with
     older llvm versions.
     """
     def __init__(self, parent, ptr, cmp, val, ordering, failordering, name) -> None: ...

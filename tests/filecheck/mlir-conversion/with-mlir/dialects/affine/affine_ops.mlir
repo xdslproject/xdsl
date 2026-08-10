@@ -36,7 +36,7 @@
     }) : (index) -> ()
 
     // CHECK:      %{{.*}} = "affine.for"(%{{.*}}) <{lowerBoundMap = affine_map<() -> (-10)>, operandSegmentSizes = array<i32: 0, 0, 1>, step = 1 : index, upperBoundMap = affine_map<() -> (10)>}> ({
-    // CHECK-NEXT: ^bb1(%{{.*}}: index, %{{.*}}: i32):
+    // CHECK-NEXT: ^bb0(%{{.*}}: index, %{{.*}}: i32):
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
     // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (i32) -> ()
     // CHECK-NEXT: }) : (i32) -> i32
@@ -52,7 +52,7 @@
 
     // CHECK:      %{{.*}} = "test.op"() : () -> memref<2x3xf64>
     // CHECK-NEXT: %{{.*}} = "test.op"() : () -> f64
-    // CHECK-NEXT: "affine.store"(%{{.*}}, %{{.*}}) <{map = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
+    // CHECK-NEXT: affine.store %{{.*}}, %{{.*}}[0, 0] : memref<2x3xf64>
 
     %zero = "test.op"() : () -> index
     %2 = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%zero)[%zero]
@@ -62,7 +62,21 @@
     // CHECK:      %{{.*}} = "test.op"() : () -> index
     // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
     // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
-    // CHECK-NEXT: %{{.*}} = "affine.load"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
+    // CHECK-NEXT: %{{.*}} = affine.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+
+    %vmemref = "test.op"() : () -> memref<2x3xf64>
+    %vvalue = "test.op"() : () -> vector<2xf64>
+    %one = "test.op"() : () -> index
+    affine.vector_store %vvalue, %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vloaded = affine.vector_load %vmemref[0, 0] : memref<2x3xf64>, vector<2xf64>
+    %vnested = affine.vector_load %vmemref[%zero + 3, %zero * 2 + %one * 5] : memref<2x3xf64>, vector<2xf64>
+
+    // CHECK:      %{{.*}} = "test.op"() : () -> memref<2x3xf64>
+    // CHECK-NEXT: %{{.*}} = "test.op"() : () -> vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = "test.op"() : () -> index
+    // CHECK-NEXT: affine.vector_store %{{.*}}, %{{.*}}[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[0, 0] : memref<2x3xf64>, vector<2xf64>
+    // CHECK-NEXT: %{{.*}} = affine.vector_load %{{.*}}[%{{.*}} + 3, %{{.*}} * 2 + %{{.*}} * 5] : memref<2x3xf64>, vector<2xf64>
 
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
@@ -116,6 +130,7 @@
 // CHECK-NEXT:      }) : () -> f32
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
+
 
   // Check that an affine.apply with an affine map is printed correctly.
 

@@ -1,10 +1,7 @@
 // RUN: xdsl-opt --split-input-file -p convert-pdl-to-pdl-interp %s | filecheck %s
 
 // copied from mlir/test/Conversion/PDLToPDLInterp/pdl-to-pdl-interp-matcher.mlir
-// TODO: https://github.com/xdslproject/xdsl/issues/5567
-// basic block numbering is slightly different, the following perl one-liner gets us far:
-// `perl -pe 's/\bbb(\d+)/"bb".($1==2 ? 0 : $1>2 ? $1-1 : $1)/ge'` (replace bb2 with bb0, and decrement all bb numbers > 2)
-// The argument list of functions also contains an extra space in xDSL compared to MLIR.
+// The argument list of functions contains an extra space in xDSL compared to MLIR.
 
 // CHECK-LABEL: module @empty_module
 module @empty_module {
@@ -17,14 +14,14 @@ module @empty_module {
 // CHECK-LABEL: module @simple
 module @simple {
   // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
-  // CHECK:   pdl_interp.check_operation_name of %[[ROOT]] is "foo.op" -> ^bb0, ^bb1
+  // CHECK:   pdl_interp.check_operation_name of %[[ROOT]] is "foo.op" -> ^bb2, ^bb1
   // CHECK: ^bb1:
   // CHECK:   pdl_interp.finalize
-  // CHECK: ^bb0:
-  // CHECK:   pdl_interp.check_operand_count of %[[ROOT]] is 0 -> ^bb2, ^bb1
   // CHECK: ^bb2:
-  // CHECK:   pdl_interp.check_result_count of %[[ROOT]] is 0 -> ^bb3, ^bb1
+  // CHECK:   pdl_interp.check_operand_count of %[[ROOT]] is 0 -> ^bb3, ^bb1
   // CHECK: ^bb3:
+  // CHECK:   pdl_interp.check_result_count of %[[ROOT]] is 0 -> ^bb4, ^bb1
+  // CHECK: ^bb4:
   // CHECK:   pdl_interp.record_match @rewriters::@pdl_generated_rewriter
   // CHECK-SAME: benefit(1), loc([]), root("foo.op") -> ^bb1
 

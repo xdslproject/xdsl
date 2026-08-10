@@ -49,9 +49,9 @@ For further information about canonicalization, please take a look at [MLIR's do
 
 We have a short series of notebooks describing the APIs necessary to build
 representations of code, and transformations on it.
-The notebooks in [docs/Toy](https://github.com/xdslproject/xdsl/tree/main/docs/Toy) are
-the best place to start, we recommend first looking at them, and then at the
-implementation of the Toy compiler itself: [Dialect](https://github.com/xdslproject/xdsl/tree/main/docs/Toy/toy/dialects/toy.py),
+The [Toy tutorial notebooks](notebooks/Toy/ch0.html) are the best place to start.
+We recommend first looking at them, and then at the implementation of the Toy compiler
+itself: [Dialect](https://github.com/xdslproject/xdsl/tree/main/docs/Toy/toy/dialects/toy.py),
 [Canonicalization](https://github.com/xdslproject/xdsl/tree/main/docs/Toy/toy/rewrites/optimise_toy.py).
 
 ## Adding Your Own Canonicalization Pattern
@@ -63,7 +63,7 @@ Here are some examples of first PRs from existing contributors:
 The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
-- `%y = xori %x, a; %z = xori %y, b`  to `%z = xori %x, a ^ b` ((x ^ a) ^ b = x ^ (a ^ b))
+- `%y = xori %x, -1; %z = and %x, %y`  to `%z = li 0` (x & ~x = 0)
 - `div 0, %x` to `li 0` (%x != 0)
 
 The patterns are defined in

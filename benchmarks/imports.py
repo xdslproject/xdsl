@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Benchmarks for the pipeline stages of the xDSL implementation.
+"""
+Benchmarks for the pipeline stages of the xDSL implementation.
 
 This should live in its own file to avoid clobbering other benchmarks by
 already having imported dependencies.
@@ -46,7 +47,8 @@ class ImportXDSL(BenchmarkClass):
 
 
 class ImportDialects(BenchmarkClass):
-    """Benchmark loading dialects in xDSL.
+    """
+    Benchmark loading dialects in xDSL.
 
     Note that this must be done with `importlib.reload` rather than just
     directly importing with `from xdsl.dialects.arith import Arith` to avoid

@@ -95,6 +95,21 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> None:
         interpreter.set_data(PDLInterpFunctions, "rewriter", rewriter)
 
+    @staticmethod
+    def get_root(interpreter: Interpreter) -> Operation:
+        root: Operation | None = interpreter.get_data(
+            PDLInterpFunctions, "root", lambda: None
+        )
+        if root is None:
+            raise InterpretationError(
+                "Expected an active root when calling a pdl_interp function."
+            )
+        return root
+
+    @staticmethod
+    def set_root(interpreter: Interpreter, root: Operation | None) -> None:
+        interpreter.set_data(PDLInterpFunctions, "root", root)
+
     @impl(pdl_interp.GetOperandOp)
     def run_get_operand(
         self,
@@ -347,7 +362,7 @@ class PDLInterpFunctions(InterpreterFunctions):
                 "Number of replacement values should match number of results"
             )
         # Replace the operation with the replacement values
-        self.get_rewriter(interpreter).replace_op(
+        self.get_rewriter(interpreter).replace(
             input_op, new_ops=[], new_results=repl_values
         )
         return ()
@@ -458,7 +473,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         )
 
         rewriter = self.get_rewriter(interpreter)
-        rewriter.insert_op(result_op)
+        rewriter.insert(result_op)
 
         return (result_op,)
 
@@ -470,8 +485,8 @@ class PDLInterpFunctions(InterpreterFunctions):
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
+            self.set_root(interpreter, root_op)
             rewriter = self.get_rewriter(interpreter)
-            rewriter.current_operation = root_op
             rewriter.insertion_point = InsertPoint.before(root_op)
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
@@ -504,7 +519,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         PDLInterpFunctions.get_pending_rewrites(interpreter).append(
             (
                 op.rewriter,
-                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                PDLInterpFunctions.get_root(interpreter),
                 args,
             )
         )
@@ -542,8 +557,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         pending_rewrites = PDLInterpFunctions.get_pending_rewrites(interpreter)
         for rewriter_op, root, args in pending_rewrites:
-            rewriter.current_operation = root
             rewriter.insertion_point = InsertPoint.before(root)
-
             interpreter.call_op(rewriter_op, args)
         pending_rewrites.clear()

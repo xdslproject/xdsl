@@ -18,7 +18,8 @@ from xdsl.ir import (
 
 @dataclass(frozen=True)
 class Position(ABC):
-    """The position class encodes a location in a pattern.
+    """
+    The position class encodes a location in a pattern.
     Each pattern has a root position. From there, other positions can be reached representing operands, results, and more.
     """
 
@@ -412,13 +413,15 @@ This is used to decide which question to branch on first when evaluating predica
 
 def get_position_cost(position: Position) -> int:
     """Get cost for a position type, with fallback for unknown types."""
-    assert (t := type(position)) in POSITION_COSTS
+    t = type(position)
+    assert t in POSITION_COSTS
     return POSITION_COSTS[t]
 
 
 def get_question_cost(question: Question) -> int:
     """Get cost for a question type, with fallback for unknown types."""
-    assert (t := type(question)) in QUESTION_COSTS
+    t = type(question)
+    assert t in QUESTION_COSTS
     return QUESTION_COSTS[t]
 
 

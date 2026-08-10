@@ -1,5 +1,6 @@
 """Unit tests for IRDL."""
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
@@ -23,8 +24,8 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyOf,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintConvertible,
@@ -408,9 +409,11 @@ def test_data_with_generic_missing_generic_data_failure():
     with pytest.raises(
         PyRDLTypeError,
         match=(
-            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
-            "attribute constraint. Consider making it inherit from `GenericData` "
-            "instead of `Data`."
+            re.escape(
+                "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+                "attribute constraint. Consider making it inherit from `GenericData` "
+                "instead of `Data`."
+            )
         ),
     ):
         irdl_to_attr_constraint(MissingGenericDataData[int])
@@ -453,11 +456,11 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert irdl_to_attr_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(  # pyright: ignore[reportArgumentType]
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert irdl_to_attr_constraint(
+        Literal[TestEnum.A, TestEnum.B]  # pyright: ignore[reportArgumentType]
+    ) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
     assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
     assert irdl_to_attr_constraint(IntAttr[int]) == BaseAttr(IntAttr)
@@ -539,11 +542,9 @@ def test_get_constraint():
     assert get_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
 
     with pytest.raises(

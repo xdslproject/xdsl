@@ -16,10 +16,11 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     BytesAttr,
     ComplexType,
-    ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatNonfiniteBehavior,
+    FloatSemantics,
     IndexType,
     IntAttr,
     IntAttrConstraint,
@@ -27,6 +28,8 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     NoneAttr,
+    PackableType,
+    ReducedPrecisionFloatType,
     ShapedType,
     Signedness,
     StaticShapeArrayConstr,
@@ -39,6 +42,7 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     bf16,
+    container_of,
     f4E2M1FN,
     f6E2M3FN,
     f6E3M2FN,
@@ -81,6 +85,61 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
+@pytest.mark.parametrize(
+    "e, m, s",
+    [
+        (5, 3, True),
+        (3, 0, True),
+        (0, 3, True),
+        (1, 3, True),
+        (5, 3, False),
+        (3, 0, False),
+        (0, 1, False),
+        (1, 7, False),
+    ],
+)
+def test_FloatSemantics_bitwidths(e: int, m: int, s: bool):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=12, has_sign=s)
+    expected = e + m + int(s)
+    assert fs.bitwidth == expected
+
+
+@pytest.mark.parametrize(
+    "e, m",
+    [
+        (5, 2),
+        (4, 3),
+        (2, 1),
+        (8, 0),
+        (0, 3),
+    ],
+)
+def test_FloatSemantics_field_layout_properties(e: int, m: int):
+    fs = FloatSemantics(exponent_bits=e, mantissa_bits=m, exponent_bias=0)
+    assert fs.max_exponent == (1 << e) - 1
+    assert fs.max_mantissa == (1 << m) - 1
+    assert fs.sign_shift == e + m
+
+
+@pytest.mark.parametrize(
+    "significand, shift, expected",
+    [
+        # shift <= 0 is a plain left shift, no rounding.
+        (5, 0, 5),
+        (3, -2, 12),
+        # Below the halfway point rounds down.
+        (5, 2, 1),
+        # Above the halfway point rounds up.
+        (7, 2, 2),
+        # Exact ties go to even: 2.5 -> 2, 3.5 -> 4.
+        (5, 1, 2),
+        (7, 1, 4),
+    ],
+)
+def test_FloatSemantics_round_half_even(significand: int, shift: int, expected: int):
+    assert FloatSemantics.round_half_even(significand, shift) == expected
+
+
 def test_FloatType_bitwidths():
     assert bf16.bitwidth == 16
     assert f16.bitwidth == 16
@@ -103,8 +162,10 @@ def test_FloatType_bitwidths():
 
 
 def test_FloatType_formats():
-    # bf16 subclasses PackableType directly (no struct format string).
+    # bf16 and the reduced-precision types implement PackableType directly, with no
+    # struct format string.
     assert not hasattr(bf16, "format")
+    assert not hasattr(tf32, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -112,23 +173,6 @@ def test_FloatType_formats():
         f80.format
     with pytest.raises(NotImplementedError):
         f128.format
-    reduced_precision_floats = (
-        tf32,
-        f8E5M2,
-        f8E4M3,
-        f8E4M3FN,
-        f8E5M2FNUZ,
-        f8E4M3FNUZ,
-        f8E4M3B11FNUZ,
-        f8E3M4,
-        f8E8M0FNU,
-        f6E2M3FN,
-        f6E3M2FN,
-        f4E2M1FN,
-    )
-    for float_type in reduced_precision_floats:
-        with pytest.raises(NotImplementedError):
-            float_type.format
 
 
 def test_IntegerType_verifier():
@@ -224,23 +268,10 @@ def test_bf16_pack_rounds_to_nearest_even():
 @pytest.mark.parametrize(
     "value, type_, tolerance",
     [
-        # f80/f128 and the reduced-precision types have no precision-normalisation
-        # path (their format raises NotImplementedError); FloatAttr stores the
-        # float as-is.
+        # f80/f128 have no precision-normalisation path (their format raises
+        # NotImplementedError); FloatAttr stores the float as-is.
         (0.1, f80, None),
         (0.1, f128, None),
-        (0.1, tf32, None),
-        (0.1, f8E5M2, None),
-        (0.1, f8E4M3, None),
-        (0.1, f8E4M3FN, None),
-        (0.1, f8E5M2FNUZ, None),
-        (0.1, f8E4M3FNUZ, None),
-        (0.1, f8E4M3B11FNUZ, None),
-        (0.1, f8E3M4, None),
-        (0.1, f8E8M0FNU, None),
-        (0.1, f6E2M3FN, None),
-        (0.1, f6E3M2FN, None),
-        (0.1, f4E2M1FN, None),
         # bf16 normalises through pack/unpack; 1.5 is exactly representable.
         (1.5, bf16, None),
         # 0.1 is not exactly representable in bf16; round-trip is within ULP.
@@ -256,6 +287,169 @@ def test_FloatAttr_normalisation(
     else:
         assert data != value
         assert abs(data - value) < tolerance
+
+
+# (value, type, expected narrowed value): each `value` is not exactly
+# representable in the target type, so FloatAttr must round it to `expected`.
+_REDUCED_NARROWING = [
+    (0.1, tf32, 0.0999755859375),
+    (0.1, f8E5M2, 0.09375),
+    (0.1, f8E4M3, 0.1015625),
+    (0.1, f8E4M3FN, 0.1015625),
+    (0.1, f8E5M2FNUZ, 0.09375),
+    (0.1, f8E4M3FNUZ, 0.1015625),
+    (0.1, f8E4M3B11FNUZ, 0.1015625),
+    (0.1, f8E3M4, 0.09375),
+    # e8m0 has no mantissa; it snaps to the nearest power of two.
+    (3.0, f8E8M0FNU, 4.0),
+    (0.1, f6E2M3FN, 0.125),
+    (0.1, f6E3M2FN, 0.125),
+    (0.1, f4E2M1FN, 0.0),
+]
+
+
+@pytest.mark.parametrize("value, type_, expected", _REDUCED_NARROWING)
+def test_reduced_float_narrowing(value: float, type_: AnyFloat, expected: float):
+    data = FloatAttr(value, type_).value.data
+    assert data != value
+    assert data == expected
+
+
+# (type, representable value): `value` is exactly representable, so pack/unpack
+# must round-trip it bit-exactly.
+_REDUCED_REPRESENTABLE = [
+    (tf32, 1.5),
+    (f8E5M2, 1.5),
+    (f8E4M3, 1.25),
+    (f8E4M3FN, 1.25),
+    (f8E5M2FNUZ, 0.5),
+    (f8E4M3FNUZ, 1.25),
+    (f8E4M3B11FNUZ, 1.25),
+    (f8E3M4, 1.0625),
+    (f8E8M0FNU, 4.0),
+    (f6E2M3FN, 1.375),
+    (f6E3M2FN, 1.5),
+    (f4E2M1FN, 1.5),
+]
+
+
+@pytest.mark.parametrize("type_, value", _REDUCED_REPRESENTABLE)
+def test_reduced_float_packing(type_: AnyFloat, value: float):
+    packed = type_.pack((value,))
+    assert len(packed) == type_.size
+    assert type_.unpack(packed, 1)[0] == value
+
+
+@pytest.mark.parametrize(
+    "type_, value, expected_raw",
+    [
+        # tf32: 19 bits -> 3 little-endian bytes. 1.5 = sign 0, biased exp 127,
+        # mantissa 0x200 -> 0x1FE00, packed low byte first as 00 fe 01.
+        (tf32, 1.5, b"\x00\xfe\x01"),
+        # f4E2M1FN: 1.5 = 1.1b, sign 0, exp_field bias(1)+0, mantissa 1 -> 0b011.
+        (f4E2M1FN, 1.5, b"\x03"),
+        # f8E4M3: 1.0 = sign 0, exp_field bias(7), mantissa 0 -> 0b0111000 = 0x38.
+        (f8E4M3, 1.0, b"\x38"),
+        # f8E8M0FNU: 4.0 = 2**2, biased exponent 127+2 = 129 = 0x81.
+        (f8E8M0FNU, 4.0, b"\x81"),
+    ],
+)
+def test_reduced_float_pack_bit_patterns(
+    type_: AnyFloat, value: float, expected_raw: bytes
+):
+    assert type_.pack((value,)) == expected_raw
+    assert type_.unpack(expected_raw, 1)[0] == value
+
+
+def test_f8e8m0fnu_rejects_signed_values():
+    """f8E8M0FNU is unsigned: -0.0 encodes like +0.0, negative finite values are rejected."""
+    assert f8E8M0FNU.pack((-0.0,)) == f8E8M0FNU.pack((0.0,)) == b"\x00"
+    with pytest.raises(ValueError, match="does not support signed values"):
+        f8E8M0FNU.pack((-4.0,))
+
+
+@pytest.mark.parametrize("type_", [f64, bf16, tf32])
+def test_float_rejects_truncated_buffer(type_: AnyFloat):
+    """
+    The struct-based (f64) and manual (bf16, tf32) float codecs all reject a truncated
+    buffer identically.
+    """
+    packed = type_.pack((1.5, 2.0))
+    assert type_.unpack(packed, 2) == (1.5, 2.0)
+    truncated = packed[:-1]  # ends part-way through the final element
+    with pytest.raises(ValueError, match="Buffer length"):
+        next(type_.iter_unpack(truncated))
+    with pytest.raises(ValueError, match="Buffer length"):
+        type_.unpack(truncated, 2)
+
+
+_REDUCED_TYPES = (
+    tf32,
+    f8E5M2,
+    f8E4M3,
+    f8E4M3FN,
+    f8E5M2FNUZ,
+    f8E4M3FNUZ,
+    f8E4M3B11FNUZ,
+    f8E3M4,
+    f8E8M0FNU,
+    f6E2M3FN,
+    f6E3M2FN,
+    f4E2M1FN,
+)
+
+
+@pytest.mark.parametrize("type_", [t for t in _REDUCED_TYPES if t.bitwidth <= 8])
+def test_reduced_float_bit_pattern_roundtrip(type_: AnyFloat):
+    """Every bit pattern decodes, and every finite value re-encodes to the same bits."""
+    for pattern in range(1 << type_.bitwidth):
+        raw = pattern.to_bytes(type_.size, "little")
+        value = type_.unpack(raw, 1)[0]
+        if math.isnan(value) or math.isinf(value):
+            continue
+        assert type_.pack((value,)) == raw
+
+
+@pytest.mark.parametrize("type_", _REDUCED_TYPES)
+def test_reduced_float_encode_nonfinite(type_: ReducedPrecisionFloatType):
+    """Infinities, NaNs and overflowing magnitudes encode per the format's semantics."""
+    behavior = type_.SEMANTICS.nonfinite
+    for magnitude in (math.inf, -math.inf, 1e40):
+        result = type_.unpack(type_.pack((magnitude,)), 1)[0]
+        if behavior is FloatNonfiniteBehavior.IEEE:
+            assert math.isinf(result)
+        elif behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+            assert math.isfinite(result)  # saturates to the largest finite value
+        else:
+            assert math.isnan(result)
+    nan_result = type_.unpack(type_.pack((math.nan,)), 1)[0]
+    if behavior is FloatNonfiniteBehavior.FINITE_ONLY:
+        assert math.isfinite(nan_result)
+    else:
+        assert math.isnan(nan_result)
+
+
+def test_reduced_float_encode_zero():
+    """Zero encodes to +0, honouring signed vs unsigned (FNUZ) zero."""
+    assert f8E5M2.pack((0.0,)) == b"\x00"
+    assert f8E5M2.pack((-0.0,)) == b"\x80"
+    assert f8E5M2FNUZ.pack((0.0,)) == b"\x00"
+    assert f8E5M2FNUZ.pack((-0.0,)) == b"\x00"  # FNUZ has no negative zero
+
+
+def test_reduced_float_codec_edge_cases():
+    assert f8E5M2.compile_time_size == 1
+    buffer = bytearray(2)
+    f8E5M2.pack_into(buffer, 1, 1.5)
+    assert bytes(buffer[1:]) == f8E5M2.pack((1.5,))
+    # a subnormal f64 input underflows to zero
+    assert f8E5M2.unpack(f8E5M2.pack((5e-324,)), 1)[0] == 0.0
+    # e8m0 has no subnormals; tiny magnitudes underflow to the smallest value
+    assert f8E8M0FNU.unpack(f8E8M0FNU.pack((1e-40,)), 1)[0] == 2.0**-127
+    # a subnormal that rounds up lands on the smallest normal
+    assert f8E5M2.unpack(f8E5M2.pack((0.95 * 2.0**-14,)), 1)[0] == 2.0**-14
+    # unpacking an empty buffer yields nothing
+    assert list(f8E5M2.iter_unpack(b"")) == []
 
 
 def test_IntegerType_size():
@@ -508,7 +702,10 @@ def test_IntegerType_packing():
         i8.pack((255,))
     with pytest.raises(
         Exception,
-        match="format requires (-32768)|(\\(-0x7fff -1\\)|\\(-32767 -1\\)) <= number <= (32767)|(0x7fff)",
+        match=re.compile(
+            "format requires (-32768)|(\\(-0x7fff -1\\)|\\(-32767 -1\\)) "
+            "<= number <= (32767)|(0x7fff)"
+        ),
     ):
         i16.pack((32768,))
     with pytest.raises(
@@ -517,7 +714,10 @@ def test_IntegerType_packing():
         i32.pack((2147483648,))
     with pytest.raises(
         Exception,
-        match="argument out of range|format requires -9223372036854775808 <= number <= 9223372036854775807",
+        match=re.compile(
+            "argument out of range|format requires "
+            "-9223372036854775808 <= number <= 9223372036854775807"
+        ),
     ):
         i64.pack((9223372036854775808,))
 
@@ -540,6 +740,44 @@ def test_IntegerType_packing():
         tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
         == nums_complex_f32
     )
+
+
+@pytest.mark.parametrize("ftype", [f64, bf16, tf32])
+def test_packing_errors(ftype: PackableType[object]):
+    size = ftype.compile_time_size
+
+    data = ftype.pack((1, 2, 3))
+    len_data = len(data)
+    assert ftype.unpack(data, 3) == (1, 2, 3)
+
+    # Drop a byte
+    prefix = bytearray(data[:-1])
+    len_prefix = len(prefix)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not product of {ftype.name} element size {size} and num 2.",
+    ):
+        ftype.unpack(prefix, 2)
+
+    with pytest.raises(
+        ValueError,
+        match=f"Buffer length {len_prefix} not multiple of {ftype.name} element size {size}.",
+    ):
+        ftype.iter_unpack(prefix)
+
+    # Only raise error if writing past the end.
+    ftype.pack_into(prefix, 0, 4)
+    assert next(ftype.iter_unpack(prefix[:size])) == 4
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"Buffer length {len_prefix} too small for packing {size} bytes at "
+            f"offset {size * 2}, expected at least {len_data}."
+        ),
+    ):
+        ftype.pack_into(prefix, size * 2, 4)
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -576,7 +814,7 @@ def test_DenseIntOrFPElementsAttr_initialization():
     # illegal zero-rank tensor
     with pytest.raises(
         VerifyException,
-        match="A zero-rank tensor can only hold 1 value but 2 were given.",
+        match=re.escape("A zero-rank tensor can only hold 1 value but 2 were given."),
     ):
         DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5, 5.6])
 
@@ -721,6 +959,16 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
+def test_symbol_ref_attr_get_from_string():
+    assert SymbolRefAttr.get("test") == SymbolRefAttr("test")
+
+
+def test_symbol_ref_attr_get_from_symbol_ref_attr():
+    ref = SymbolRefAttr("test", ["nested"])
+
+    assert SymbolRefAttr.get(ref) is ref
+
+
 def test_array_len_and_iter_attr():
     arr = ArrayAttr([IntAttr(i) for i in range(10)])
 
@@ -792,7 +1040,9 @@ def test_vector_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
-    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
+    ):
         constraint.verify(vector_type, ConstraintContext())
 
 
@@ -801,7 +1051,8 @@ def test_vector_rank_constraint_attr_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(
-        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+        VerifyException,
+        match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
         constraint.verify(memref_type, ConstraintContext())
 
@@ -818,7 +1069,7 @@ def test_vector_base_type_constraint_type_mismatch():
     constraint = VectorBaseTypeConstraint(i64)
 
     with pytest.raises(
-        VerifyException, match="Expected vector type to be i64, got i32."
+        VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
         constraint.verify(vector_type, ConstraintContext())
 
@@ -828,7 +1079,8 @@ def test_vector_base_type_constraint_attr_mismatch():
     constraint = VectorBaseTypeConstraint(i32)
 
     with pytest.raises(
-        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+        VerifyException,
+        match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
         constraint.verify(memref_type, ConstraintContext())
 
@@ -845,7 +1097,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
     with pytest.raises(
-        VerifyException, match="Expected vector type to be i64, got i32."
+        VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
         constraint.verify(vector_type, ConstraintContext())
 
@@ -854,7 +1106,9 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
-    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
+    ):
         constraint.verify(vector_type, ConstraintContext())
 
 
@@ -864,9 +1118,9 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
 
     with pytest.raises(
         VerifyException,
-        match="""The following constraints were not satisfied:
+        match=re.escape("""The following constraints were not satisfied:
 memref<1x2xi32> should be of type VectorType.
-memref<1x2xi32> should be of type VectorType.""",
+memref<1x2xi32> should be of type VectorType."""),
     ):
         constraint.verify(memref_type, ConstraintContext())
 
@@ -896,8 +1150,8 @@ def test_unrealized_conversion_cast():
     ],
 )
 def test_strided_constructor(
-    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr],
-    offset: int | None | IntAttr | NoneAttr,
+    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | IntAttr | NoneAttr | None],
+    offset: int | IntAttr | NoneAttr | None,
     expected_strides: ArrayAttr[IntAttr | NoneAttr],
     expected_offset: IntAttr | NoneAttr,
 ):
@@ -1114,9 +1368,13 @@ def test_array_of_constraint():
         BaseAttr(B)
     )
 
-    container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
 
-    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
+def test_container_of_constraint():
+    """Test mapping type variables in ContainerOf."""
+
+    container_constraint = container_of(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == container_of(
         BaseAttr(B)
     )
 

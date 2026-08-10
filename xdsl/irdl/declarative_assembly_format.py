@@ -60,11 +60,11 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[None | Sequence[UnresolvedOperand]]
-    operand_types: list[None | Sequence[Attribute]]
-    result_types: list[None | Sequence[Attribute]]
-    regions: list[None | Sequence[Region]]
-    successors: list[None | Sequence[Successor]]
+    operands: list[Sequence[UnresolvedOperand] | None]
+    operand_types: list[Sequence[Attribute] | None]
+    result_types: list[Sequence[Attribute] | None]
+    regions: list[Sequence[Region] | None]
+    successors: list[Sequence[Successor] | None]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     op_type: type[IRDLOperation]
@@ -703,7 +703,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
     def _set_using_variadic_index(
         self,
         op_type: type[IRDLOperation],
-        field: list[None | Sequence[_T]],
+        field: list[Sequence[_T] | None],
         construct: VarIRConstruct,
         field_name: str,
         set_to: Sequence[_T],

@@ -8,6 +8,18 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from xdsl.irdl import (
         irdl_op_definition,
         irdl_attr_definition,
@@ -25,7 +37,6 @@ def _():
         attr_def,
         irdl_attr_definition,
         irdl_op_definition,
-        mo,
         operand_def,
         region_def,
         result_def,
@@ -721,7 +732,7 @@ def _(arith):
                 op.rhs.op, arith.ConstantOp
             ):
                 # transform: replace the operation by calculating the sum of the constants at compile time
-                return rewriter.replace_op(op,
+                return rewriter.replace(op,
                     arith.ConstantOp.from_int_and_width(
                         op.lhs.op.value.value.data + op.rhs.op.value.value.data,
                         op.lhs.op.value.type.width.data,
@@ -781,7 +792,7 @@ def _(
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
             if not op.result.uses:
-                rewriter.erase_op(op)
+                rewriter.erase(op)
 
 
     walker2 = PatternRewriteWalker(

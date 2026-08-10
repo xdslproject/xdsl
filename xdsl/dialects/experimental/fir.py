@@ -143,7 +143,8 @@ class FortranVariableFlagsAttr(FortranVariableFlagsAttrBase):
 
 
 class FortranProcedureFlags(Enum):
-    """Fortran procedure attributes (F2023 15.6.2.1). BIND attribute (18.3.7)
+    """
+    Fortran procedure attributes (F2023 15.6.2.1). BIND attribute (18.3.7)
     is also tracked in the same enum."""
 
     NOATTRIBUTES = "none"
@@ -306,7 +307,8 @@ class PackArrayHeuristicsAttr(PackArrayHeuristicsAttrBase):
 
 
 class ReduceOperator(Enum):
-    """Intrinsic reduction operations for DO CONCURRENT REDUCE.
+    """
+    Intrinsic reduction operations for DO CONCURRENT REDUCE.
     Upstream this is an I32BitEnumAttr; in practice each reduction
     declaration selects a single operation, so a single value is stored."""
 

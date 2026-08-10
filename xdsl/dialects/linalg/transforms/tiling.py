@@ -204,7 +204,7 @@ def _build_tile_loops(
     tile_ops = {
         dim: arith.ConstantOp(IntegerAttr(tile_sizes[dim], index)) for dim in tiled_dims
     }
-    rewriter.insert_op(
+    rewriter.insert(
         [
             zero,
             *(ub_ops[dim] for dim in tiled_dims),
@@ -224,7 +224,7 @@ def _build_tile_loops(
             (),
             Region(Block(arg_types=(index,))),
         )
-        rewriter.insert_op(loop, current_insertion_point)
+        rewriter.insert(loop, current_insertion_point)
         loops.append(loop)
         tiled_loop_ivs[dim] = loop.body.block.args[0]
         current_insertion_point = InsertPoint.at_start(loop.body.block)
@@ -277,7 +277,7 @@ def _build_tiled_subview(
         result_type,
     )
 
-    rewriter.insert_op(subview, insertion_point)
+    rewriter.insert(subview, insertion_point)
 
     return subview
 
@@ -323,10 +323,10 @@ def tile_linalg_generic(
         op.get_indexing_maps(),
         op.get_iterator_types(),
     )
-    rewriter.insert_op(tiled_generic, inner_ip)
+    rewriter.insert(tiled_generic, inner_ip)
 
     for loop in reversed(loops):
-        rewriter.insert_op(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
+        rewriter.insert(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
 
-    rewriter.erase_op(op)
+    rewriter.erase(op)
     return True

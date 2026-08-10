@@ -43,7 +43,7 @@ class ConvertGenericOpPattern(RewritePattern):
 
         iterator_types = ArrayAttr(iterator_type_attr(t) for t in op.iterator_types)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             memref_stream.GenericOp(
                 op.inputs,
@@ -65,7 +65,7 @@ class ConvertYieldOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: linalg.ops.YieldOp, rewriter: PatternRewriter
     ) -> None:
-        rewriter.replace_op(op, memref_stream.YieldOp(*op.operands))
+        rewriter.replace(op, memref_stream.YieldOp(*op.operands))
 
 
 class ConvertLinalgToMemRefStreamPass(ModulePass):

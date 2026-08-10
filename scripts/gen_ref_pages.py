@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Literal
 
 import mkdocs_gen_files
 from mkdocs_gen_files.nav import Nav
@@ -60,44 +61,34 @@ with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
 
 
-NEW_MARIMO_NOTEBOOK_NAMES = [
-    "expressions.py",
-    "eqsat.py",
-    "mlir_introduction.py",
-    "pdl.py",
-]
+MarimoExportMode = Literal["run", "edit"]
 
-NEW_MARIMO_NOTEBOOKS = [
-    docs_root / "marimo" / name for name in NEW_MARIMO_NOTEBOOK_NAMES
-]
-"""
-Notebooks expected to be run inline in mkdocs-marimo.
-Some features are not supported so they have to be opted into it one by one.
-"""
+MARIMO_NOTEBOOK_MODES: dict[str, MarimoExportMode] = {
+    "expressions.py": "run",
+    "eqsat.py": "run",
+    "mlir_introduction.py": "run",
+    "pdl.py": "run",
+    "xdsl_introduction.py": "run",
+    "linalg_snitch.py": "run",
+    "mlir_interoperation.py": "run",
+    "mlir_ir.py": "run",
+    "riscv_dialects.py": "run",
+    "pattern_rewrites.py": "run",
+    # Exercises require editing raw Python cells
+    "irdl.py": "edit",
+    "builders.py": "edit",
+    "defining_dialects.py": "edit",
+    "ir_gen.py": "edit",
+    "rewrite_exercises.py": "edit",
+    "traversing_ir.py": "edit",
+    # Toy tutorial
+    "Toy/ch0.py": "edit",
+    "Toy/ch1.py": "edit",
+    "Toy/ch2.py": "edit",
+    "Toy/ch3.py": "edit",
+}
 
-
-def gen_marimo_old():
-    def create_marimo_app_url(code: str) -> str:
-        from lzstring2 import LZString
-
-        encoded_code = LZString.compress_to_encoded_URI_component(code)
-        return f"https://marimo.app/?embed=true&show-chrome=false#code/{encoded_code}"
-
-    for path in sorted((docs_root / "marimo").rglob("*.py")):
-        if path in NEW_MARIMO_NOTEBOOKS:
-            continue
-        doc_path = path.relative_to(docs_root).with_suffix(".html")
-
-        url = create_marimo_app_url(path.read_text())
-
-        with mkdocs_gen_files.open(doc_path, "w") as fd:
-            # Hide the header then inline the notebook
-            fd.write(
-                f"""\
-    <iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
-    """
-            )
-
+MARIMO_NOTEBOOKS_DOCS_DIR = docs_root / "notebooks"
 
 SYNC_XDSL_IMPORT = """\
 def _():
@@ -108,13 +99,19 @@ def _():
 
 
 def replace_xdsl_import(path: Path, destination_dir: Path):
-    # Copy over the original notebook, replacing SYNC_XDSL_IMPORT with the contents of ./marimo_import_xdsl_wheel.py
-
+    """
+    Copy over the original notebook, replacing SYNC_XDSL_IMPORT with the contents of
+    `./marimo_import_xdsl_wheel.py` or `./marimo_import_toy_wheel.py` for Toy notebooks.
+    """
     # Read the original notebook
     notebook_text = path.read_text(encoding="utf-8")
 
-    # Read the contents of marimo_import_xdsl_wheel.py
-    import_path = Path(__file__).parent / "marimo_import_xdsl_wheel.py"
+    script_name = (
+        "marimo_import_toy_wheel.py"
+        if path.is_relative_to(MARIMO_NOTEBOOKS_DOCS_DIR / "Toy")
+        else "marimo_import_xdsl_wheel.py"
+    )
+    import_path = Path(__file__).parent / script_name
     import_code = import_path.read_text(encoding="utf-8").rstrip()
 
     # Replace the SYNC_XDSL_IMPORT string with the import_code
@@ -130,11 +127,12 @@ def replace_xdsl_import(path: Path, destination_dir: Path):
     return modified_notebook_path
 
 
-def gen_marimo_new_marimo():
+def gen_marimo():
     import subprocess
     import tempfile
 
-    for path in NEW_MARIMO_NOTEBOOKS:
+    for name, mode in sorted(MARIMO_NOTEBOOK_MODES.items()):
+        path = MARIMO_NOTEBOOKS_DOCS_DIR / name
         # Create a temporary directory for marimo export
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -147,7 +145,8 @@ def gen_marimo_new_marimo():
                     "marimo",
                     "export",
                     "html-wasm",
-                    # "--no-show-code",
+                    "--mode",
+                    mode,
                     "--no-sandbox",
                     str(modified_notebook_path),
                     "-o",
@@ -165,7 +164,7 @@ def gen_marimo_new_marimo():
             index_html_path = temp_path / "index.html"
             if index_html_path.exists():
                 with mkdocs_gen_files.open(
-                    f"marimo/html/{notebook_name}/index.html", "w"
+                    f"notebooks/html/{notebook_name}/index.html", "w"
                 ) as fd:
                     fd.write(index_html_path.read_text())
 
@@ -176,7 +175,7 @@ def gen_marimo_new_marimo():
                     if asset_file.is_file():
                         relative_path = asset_file.relative_to(temp_path)
                         with mkdocs_gen_files.open(
-                            f"marimo/html/{notebook_name}/{relative_path}", "wb"
+                            f"notebooks/html/{notebook_name}/{relative_path}", "wb"
                         ) as fd:
                             fd.write(asset_file.read_bytes())
 
@@ -184,7 +183,7 @@ def gen_marimo_new_marimo():
             for file_path in temp_path.glob("*"):
                 if file_path.is_file() and file_path.name != "index.html":
                     with mkdocs_gen_files.open(
-                        f"marimo/html/{notebook_name}/{file_path.name}", "wb"
+                        f"notebooks/html/{notebook_name}/{file_path.name}", "wb"
                     ) as fd:
                         fd.write(file_path.read_bytes())
 
@@ -192,8 +191,10 @@ def gen_marimo_new_marimo():
         doc_path = path.relative_to(docs_root).with_suffix(".html")
 
         with mkdocs_gen_files.open(doc_path, "w") as fd:
-            # Create an HTML page that redirects to the generated marimo app
-            relative_path = f"html/{notebook_name}/index.html"
+            # Create an HTML page that redirects to the generated marimo app.
+            # Nested notebook paths (e.g. Toy/ch0.py) need to climb back to notebooks/.
+            depth = len(Path(name).parts) - 1
+            relative_path = ("../" * depth) + f"html/{notebook_name}/index.html"
             fd.write(
                 f"""<!DOCTYPE html>
 <html>
@@ -218,16 +219,16 @@ def gen_marimo_new_marimo():
             )
 
 
-gen_marimo_old()
-gen_marimo_new_marimo()
+gen_marimo()
 
 # Replace links in the marimo README
-with open("docs/marimo/README.md") as rf:
+with open(MARIMO_NOTEBOOKS_DOCS_DIR / "README.md") as rf:
     marimo_readme = rf.read()
 
-with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
-    for name in NEW_MARIMO_NOTEBOOK_NAMES:
-        # Replace occurrences of notebook names in NEW_MARIMO_NOTEBOOK_NAMES with
-        # readonly html versions.
-        marimo_readme = marimo_readme.replace(name, "html/" + name[:-3] + "/index.html")
+with mkdocs_gen_files.open("notebooks/index.md", "w") as fd:
+    for name in MARIMO_NOTEBOOK_MODES:
+        # Replace occurrences of notebook names with readonly html versions.
+        marimo_readme = marimo_readme.replace(
+            name, f"html/{Path(name).stem}/index.html"
+        )
     fd.write(marimo_readme.replace(".py", ".html"))

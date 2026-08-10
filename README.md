@@ -99,7 +99,7 @@ compilers construction, like a database compiler.
 There also exists a small documentation showing how to connect xDSL with MLIR
 for users interested in that use case.
 
-- [Tutorial notebooks](https://docs.xdsl.dev/marimo)
+- [Tutorial notebooks](https://docs.xdsl.dev/notebooks)
 - [Connecting xDSL with MLIR](docs/guides/mlir_interoperation.md)
 
 We provide a [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile)

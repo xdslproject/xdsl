@@ -324,7 +324,8 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         a: equivalence.AnyClassOp,
         b: equivalence.AnyClassOp,
     ) -> bool:
-        """Unions two eclasses, merging their operands and results.
+        """
+        Unions two eclasses, merging their operands and results.
         Returns True if the eclasses were merged, False if they were already the same."""
         a = self.eclass_union_find.find(a)
         b = self.eclass_union_find.find(b)
@@ -368,7 +369,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 self.known_ops.pop(use.operation)
 
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        rewriter.replace(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
     @impl(eqsat_pdl_interp.CreateOperationOp)
@@ -427,7 +428,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
         if should_insert_new_op:
-            rewriter.insert_op(new_op)
+            rewriter.insert(new_op)
 
         # No existing eclass for this operation yet
         new_eclasses: list[equivalence.AnyClassOp] = []
@@ -457,7 +458,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                     assert len(results) == 1
                     analysis.visit_operation_impl(x, operands, results)
 
-            rewriter.insert_op(
+            rewriter.insert(
                 eclass_op,
                 InsertPoint.after(new_op),
             )
@@ -477,7 +478,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         self.pending_rewrites.append(
             (
                 op.rewriter,
-                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                PDLInterpFunctions.get_root(interpreter),
                 args,
             )
         )
@@ -544,22 +545,26 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 # the corresponding eclasses need to be merged.
                 op2 = unique_parents[op1]
 
-                assert (op1_use := op1.results[0].first_use), (
+                op1_use = op1.results[0].first_use
+                assert op1_use, (
                     "Modification handler currently only supports operations with a single (ClassOp) use"
                 )
-                assert isinstance(eclass1 := op1_use.operation, equivalence.AnyClassOp)
+                eclass1 = op1_use.operation
+                assert isinstance(eclass1, equivalence.AnyClassOp)
 
                 assert len(op2.results) == 1, (
                     "Expected a single result for the operation being modified."
                 )
-                assert (op2_use := op2.results[0].first_use), (
+                op2_use = op2.results[0].first_use
+                assert op2_use, (
                     "Modification handler currently only supports operations with a single (ClassOp) use"
                 )
-                assert isinstance(eclass2 := op2_use.operation, equivalence.AnyClassOp)
+                eclass2 = op2_use.operation
+                assert isinstance(eclass2, equivalence.AnyClassOp)
 
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.
-                rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+                rewriter.replace(op1, new_ops=(), new_results=op2.results)
 
                 if eclass1 == eclass2:
                     eclass1.operands = OrderedSet(
@@ -594,12 +599,12 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
 
                 changed = result.meet(type(result)(result.anchor, original_state))
                 if changed == ChangeResult.CHANGE:
-                    assert (op_use := op.results[0].first_use), (
+                    op_use = op.results[0].first_use
+                    assert op_use, (
                         "Dataflow analysis currently only supports operations with a single (ClassOp) use"
                     )
-                    assert isinstance(
-                        eclass_op := op_use.operation, equivalence.AnyClassOp
-                    )
+                    eclass_op = op_use.operation
+                    assert isinstance(eclass_op, equivalence.AnyClassOp)
                     self.worklist.append(eclass_op)
 
     def rebuild(self, interpreter: Interpreter):
@@ -613,7 +618,6 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         """Execute all pending rewrites that were aggregated during matching."""
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         for rewriter_op, root, args in self.pending_rewrites:
-            rewriter.current_operation = root
             rewriter.insertion_point = InsertPoint.before(root)
 
             self.is_matching = False

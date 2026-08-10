@@ -33,6 +33,7 @@ from xdsl.irdl import (
     AnyOf,
     AtLeast,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
@@ -54,7 +55,7 @@ from xdsl.utils.exceptions import PyRDLError, VerifyException
 
 def test_failing_inference():
     with pytest.raises(
-        ValueError, match="Cannot infer attribute from constraint AnyAttr()"
+        ValueError, match=re.escape("Cannot infer attribute from constraint AnyAttr()")
     ):
         AnyAttr().infer(ConstraintContext())
 
@@ -264,8 +265,32 @@ def test_sized_constraint_ops():
 def test_not_sized_constraint():
     constr = SizedConstraint(AnyInt())
 
-    with pytest.raises(VerifyException, match="Expected #test.attr_a to be sized"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected #test.attr_a to be sized")
+    ):
         constr.verify(AttrA(), ConstraintContext())
+
+
+def test_attr_set_constraint():
+    constr = AttrSetConstraint.get(AttrA(), AttrD(AttrA()), AttrD(AttrC()))
+
+    context = ConstraintContext()
+
+    constr.verify(AttrA(), context)
+    constr.verify(AttrD(AttrA()), context)
+    constr.verify(AttrD(AttrC()), context)
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Expected one of #test.attr_a, #test.attr_d<#test.attr_a>, #test.attr_d<#test.attr_c>, but got #test.attr_c"
+        ),
+    ):
+        constr.verify(AttrC(), context)
+
+    assert constr.get_bases() == {AttrA, AttrD}
+    assert not constr.can_infer(set())
+    assert not constr.variables()
 
 
 @pytest.mark.parametrize(
@@ -292,6 +317,23 @@ def test_memref_to_tensor(
     input: MemRefType | UnrankedMemRefType, output: TensorType | UnrankedTensorType
 ):
     assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
+
+
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
 
 
 @pytest.mark.parametrize(
@@ -333,6 +375,31 @@ def test_memref_to_tensor(
                 )
             ),
         ),
+        (
+            ParamAttrConstraint(AttrD, (BaseAttr(AttrA),))
+            | BaseAttr(AttrA)
+            | ParamAttrConstraint(AttrD, (BaseAttr(AttrC),)),
+            AnyOf(
+                (
+                    ParamAttrConstraint(AttrD, (BaseAttr(AttrA) | BaseAttr(AttrC),)),
+                    BaseAttr(AttrA),
+                )
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrC))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA), BaseAttr(AttrA) | BaseAttr(AttrC))
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrC), BaseAttr(AttrA))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA) | BaseAttr(AttrC), BaseAttr(AttrA))
+            ),
+        ),
     ],
 )
 def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
@@ -362,21 +429,21 @@ def test_param_attr_merge_failure():
             BaseAttr(AttrA) | BaseAttr(AttrB),
             BaseAttr(AttrA),
             re.escape(
-                "Constraint BaseAttr(AttrA) shares a base with a non-equality constraint in {AnyOf(attr_constrs=(BaseAttr(AttrA), BaseAttr(AttrB)))} in `AnyOf` constraint."
+                "Constraint BaseAttr(AttrA) shares a base with a constraint in {AnyOf(attr_constrs=(BaseAttr(AttrA), BaseAttr(AttrB)))} in `AnyOf` constraint."
             ),
         ),
         (
             BaseAttr(AttrA),
             EqAttrConstraint(AttrA()),
             re.escape(
-                "Constraint EqAttrConstraint(attr=AttrA()) shares a base with a non-equality constraint in {BaseAttr(AttrA)} in `AnyOf` constraint."
+                "Constraint EqAttrConstraint(attr=AttrA()) shares a base with a constraint in {BaseAttr(AttrA)} in `AnyOf` constraint."
             ),
         ),
         (
             EqAttrConstraint(AttrA()),
             BaseAttr(AttrA),
             re.escape(
-                "Non-equality constraint BaseAttr(AttrA) shares a base with a constraint in {EqAttrConstraint(attr=AttrA())} in `AnyOf` constraint."
+                "Constraint BaseAttr(AttrA) shares a base with a constraint in {EqAttrConstraint(attr=AttrA())} in `AnyOf` constraint."
             ),
         ),
         (
@@ -390,14 +457,14 @@ def test_param_attr_merge_failure():
             BaseAttr(Base),
             BaseAttr(AttrA),
             re.escape(
-                "Non-equality constraint BaseAttr(AttrA) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
+                "Constraint BaseAttr(AttrA) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
         (
             BaseAttr(Base),
             EqAttrConstraint(AttrA()),
             re.escape(
-                "Equality constraint EqAttrConstraint(attr=AttrA()) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
+                "Constraint EqAttrConstraint(attr=AttrA()) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
     ],
@@ -415,14 +482,9 @@ def test_any_of_overlapping(c1: AttrConstraint, c2: AttrConstraint, msg: str):
             BaseAttr(AttrA),
         ),
         (
-            EqAttrConstraint(AttrD(AttrA())),
-            EqAttrConstraint(AttrD(AttrC())),
-        ),
-        (
-            EqAttrConstraint(AttrD(AttrA())),
+            BaseAttr(AttrD),
             BaseAttr(AttrA),
             BaseAttr(AttrC),
-            EqAttrConstraint(AttrD(AttrC())),
         ),
     ],
 )
@@ -442,23 +504,6 @@ def test_mapping_type_vars():
     assert int_attr_constr.mapping_type_vars({_IntT: my_constr_2}) == IntAttrConstraint(
         my_constr_2
     )
-
-
-_T = TypeVar("_T")
-
-
-class AttrE(ParametrizedAttribute, Generic[_T]):
-    param: _T
-
-
-def test_param_instantiated_generic():
-    with pytest.raises(PyRDLError):
-        ParamAttrConstraint.get(AttrE[AttrB])
-
-
-class AttrF(ParametrizedAttribute):
-    param1: Attribute
-    param2: Attribute
 
 
 @pytest.mark.parametrize(
@@ -505,6 +550,11 @@ class AttrF(ParametrizedAttribute):
         (AnyOf.get(), AnyOf(())),
         (AnyOf.get(AttrA), BaseAttr(AttrA)),
         (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            AttrSetConstraint(frozenset((AttrA(), AttrC()))),
+        ),
+        (AttrSetConstraint.get(AttrA()), EqAttrConstraint(AttrA())),
     ],
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
@@ -520,8 +570,8 @@ def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
         (VarConstraint("A", EqAttrConstraint(i32)), {}, i32),
         (EqAttrConstraint(i32), {}, i32),
         (BaseAttr(type(i32)), {}, None),
-        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i64))), {}, None),
-        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i32))), {}, None),
+        (AnyOf.get(EqAttrConstraint(i32), EqAttrConstraint(i64)), {}, None),
+        (AnyOf.get(EqAttrConstraint(i32), EqAttrConstraint(i32)), {}, i32),
         (
             AllOf(
                 (
@@ -565,3 +615,84 @@ def test_constraint_inference(
     else:
         assert constr.can_infer(var_dict.keys())
         assert constr.infer(ConstraintContext(var_dict)) == inferred
+
+
+@pytest.mark.parametrize(
+    "constr1, constr2, result",
+    [
+        (AnyAttr(), AnyAttr(), AnyAttr()),
+        (
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+            VarConstraint("A", AnyAttr()),
+        ),
+        (VarConstraint("A", AnyAttr()), VarConstraint("B", AnyAttr()), None),
+        (BaseAttr(AttrB), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (BaseAttr(AttrB), BaseAttr(AttrA), None),
+        (BaseAttr(AttrB), ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB)),
+        (ParamAttrConstraint(AttrB, (AnyAttr(),)), BaseAttr(AttrB), BaseAttr(AttrB)),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrB), None),
+        (BaseAttr(AttrB), ParamAttrConstraint.get(AttrD, AttrA), None),
+        (ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD), BaseAttr(AttrD)),
+        (BaseAttr(AttrD), ParamAttrConstraint.get(AttrD, AttrA), BaseAttr(AttrD)),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrD, AttrC),
+            ParamAttrConstraint.get(AttrD, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrC),
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA | AttrC),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrA | AttrC, AttrA),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            ParamAttrConstraint.get(AttrF, AttrC, AttrC),
+            None,
+        ),
+        (
+            ParamAttrConstraint.get(AttrD, AttrA),
+            VarConstraint("A", AnyAttr()),
+            None,
+        ),
+        (
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrA()),
+        ),
+        (
+            EqAttrConstraint(AttrA()),
+            EqAttrConstraint(AttrC()),
+            AttrSetConstraint.get(AttrA(), AttrC()),
+        ),
+        (
+            EqAttrConstraint(AttrA()),
+            AttrSetConstraint.get(AttrD(AttrA()), AttrD(AttrC())),
+            AttrSetConstraint.get(AttrA(), AttrD(AttrA()), AttrD(AttrC())),
+        ),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            EqAttrConstraint(AttrD(AttrA())),
+            AttrSetConstraint.get(AttrA(), AttrC(), AttrD(AttrA())),
+        ),
+        (
+            AttrSetConstraint.get(AttrA(), AttrC()),
+            AttrSetConstraint.get(AttrD(AttrA()), AttrD(AttrC())),
+            AttrSetConstraint.get(AttrA(), AttrC(), AttrD(AttrA()), AttrD(AttrC())),
+        ),
+    ],
+)
+def test_relax_constaint(
+    constr1: AttrConstraint, constr2: AttrConstraint, result: AttrConstraint | None
+):
+    assert constr1.relax_constraint(constr2) == result

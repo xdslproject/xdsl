@@ -30,7 +30,8 @@ class EqsatConstraintFunctions(InterpreterFunctions):
     def run_is_not_unsound(
         self, interp: Interpreter, _op: Operation, args: PythonValues
     ):
-        assert isinstance(op := args[0], Operation)
+        op = args[0]
+        assert isinstance(op, Operation)
         return "unsound" not in op.attributes, ()
 
 
@@ -65,7 +66,6 @@ def apply_eqsat_pdl_interp(
     pdl_interp_functions.set_rewriter(interpreter, rewriter)
     for _i in range(max_iterations):
         for root in op.body.walk():
-            rewriter.current_operation = root
             interpreter.call_op(matcher, (root,))
         eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 

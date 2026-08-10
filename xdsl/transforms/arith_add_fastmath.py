@@ -41,7 +41,8 @@ class AddArithFastMathFlags(RewritePattern):
 
 @dataclass(frozen=True)
 class AddArithFastMathFlagsPass(ModulePass):
-    """Module pass that adds fastmath flags to FP binary operations from arith dialect.
+    """
+    Module pass that adds fastmath flags to FP binary operations from arith dialect.
     It currently does not preserve any existing fastmath flags that may already be part
     of the operation.
     By default (no arguments) it adds the "fast" flag.

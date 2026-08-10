@@ -39,7 +39,11 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType, get_type_var_mapping, isa
+from xdsl.utils.hints import (
+    PropertyType,
+    get_type_var_mapping_with_defaults,
+    isa,
+)
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -98,10 +102,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -166,10 +170,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -919,7 +923,7 @@ class OpDef:
         if issubclass(pyrdl_def, Generic):
             type_var_mapping = {
                 k: irdl_to_attr_constraint(v)
-                for k, v in get_type_var_mapping(pyrdl_def)[1].items()
+                for k, v in get_type_var_mapping_with_defaults(pyrdl_def).items()
             }
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
@@ -986,19 +990,13 @@ class OpDef:
 
                 if field_name == "irdl_options":
                     if not isa(value, tuple[IRDLOption, ...]):
-                        if isa(value, list[IRDLOption]):
-                            import warnings
-
-                            warnings.warn(
-                                "Defining irdl_options as a `list` is deprecated, please use a "
-                                "`tuple`.",
-                                DeprecationWarning,
-                                stacklevel=2,
-                            )
-                        else:
+                        if not isinstance(value, tuple):
                             raise PyRDLOpDefinitionError(
-                                "All values in irdl_options should inherit IRDLOption"
+                                f"All values `irdl_options` must be a `tuple`, got `{type(value).__name__}`."
                             )
+                        raise PyRDLOpDefinitionError(
+                            "All values in irdl_options should inherit IRDLOption"
+                        )
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
@@ -1437,9 +1435,9 @@ def irdl_op_verify_regions(
 
     idx = 0
     for region_def_name, region_def in op_def.regions:
-        regions: None | Region | tuple[Region, ...] = getattr(op, region_def_name)
+        regions: Region | tuple[Region, ...] | None = getattr(op, region_def_name)
         block_counts: list[int] = []
-        entry_arg_types_list: list[None | Sequence[Attribute]] = []
+        entry_arg_types_list: list[Sequence[Attribute] | None] = []
         if isinstance(regions, tuple):
             for region in regions:
                 block_counts.append(len(region.blocks))
@@ -1486,7 +1484,7 @@ def irdl_op_verify_arg_list(
     idx = 0
 
     for arg_name, arg_def in defs:
-        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        args: SSAValue | SSAValues | None = getattr(op, arg_name)
         if args is None:
             arg_types = ()
         elif not isinstance(args, Sequence):
@@ -1816,7 +1814,8 @@ class BaseAccessor(ABC):
         return self.index(args)
 
     def __set__(self, instance, value) -> NoReturn:
-        """Writing to a named Operation construct is unsupported.
+        """
+        Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
         raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."
@@ -1949,7 +1948,8 @@ class BaseAttrAccessor(ABC):
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
     def __set__(self, instance, value) -> NoReturn:
-        """Writing to a named Operation construct is unsupported.
+        """
+        Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
         raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."

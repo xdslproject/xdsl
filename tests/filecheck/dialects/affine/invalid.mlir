@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
 
 %N = "test.op"() : () -> index
 "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<(i) -> (i)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
@@ -38,3 +38,18 @@
 }) : (index) -> ()
 
 // CHECK: Expected an upper bound group for each upper bound
+
+// -----
+
+%not_memref = "test.op"() : () -> tensor<2x3xf64>
+%value = "test.op"() : () -> f64
+affine.store %value, %not_memref[0, 0] : tensor<2x3xf64>
+
+// CHECK: Expected memref type
+
+// -----
+
+%memref = "test.op"() : () -> memref<2x3xf64>
+%vector = affine.vector_load %memref[0, 0] : memref<2x3xf64>, tensor<f64>
+
+// CHECK: Expected affine.vector_load to return a vector, but found: tensor<f64>

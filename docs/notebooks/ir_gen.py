@@ -1,12 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "marimo",
-#     "sympy==1.13.3",
-#     "xdsl==0.27.0",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.23.6"
@@ -17,6 +8,18 @@ app = marimo.App()
 def _():
     import marimo as mo
 
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
 
@@ -68,7 +71,6 @@ def _():
         Sum,
         Symbol,
         YieldOp,
-        mo,
         symbols,
     )
 
@@ -529,8 +531,6 @@ def _(
                 add_op = builder.insert(MuliOp(lhs, rhs))
                 return add_op.result
 
-            # Hint: Implement here support for Add and Mul
-
             raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
 
         def emit_real_op(
@@ -550,7 +550,7 @@ def _(
                 constant_op = builder.insert(
                     ConstantOp(FloatAttr(float(expr), Float64Type()))
                 )
-                return constant_op
+                return constant_op.result
 
             # Handle symbolic values
             if isinstance(expr, Symbol):
@@ -565,14 +565,14 @@ def _(
             if isinstance(expr, Mul):
                 lhs = emit_real_op(expr.args[0], builder, args)
                 rhs = emit_real_op(expr.args[1], builder, args)
-                add_op = builder.insert(MulfOp(lhs, rhs))
-                return add_op.result
+                mul_op = builder.insert(MulfOp(lhs, rhs))
+                return mul_op.result
 
             if isinstance(expr, Pow):
                 lhs = emit_real_op(expr.args[0], builder, args)
                 rhs = emit_real_op(expr.args[1], builder, args)
-                add_op = builder.insert(PowFOp(lhs, rhs))
-                return add_op.result
+                pow_op = builder.insert(PowFOp(lhs, rhs))
+                return pow_op.result
 
             if isinstance(expr, Abs):
                 # The arith.select solution
@@ -596,10 +596,10 @@ def _(
 
                 rhs_region = Region([Block()])
                 builder3 = Builder(InsertPoint.at_end(rhs_region.block))
-                builder3.insert(YieldOp(neg))
+                builder3.insert(YieldOp(arg))
 
                 if_res = builder.insert(
-                    IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
+                    IfOp(is_neg, [Float64Type()], lhs_region, rhs_region)
                 ).results[0]
 
                 return if_res
@@ -608,7 +608,7 @@ def _(
                 zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
                 lb = emit_integer_op(expr.args[1][1], builder, args)
                 ub = emit_integer_op(expr.args[1][2], builder, args)
-                step = builder.insert(ConstantOp(IntegerAttr(0, IntegerType(64))))
+                step = builder.insert(ConstantOp(IntegerAttr(1, IntegerType(64)))).result
                 region = Region([Block(arg_types=[IntegerType(64), Float64Type()])])
                 accumulator = region.block.args[1]
 

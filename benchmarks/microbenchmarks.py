@@ -72,7 +72,8 @@ class IRTraversal(BenchmarkClass):
 
     @safe_to_repeat
     def time_iterate_ops(self) -> None:
-        """Time directly iterating over a python list of operations.
+        """
+        Time directly iterating over a python list of operations.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/vectorTraveral`, implemented as:
@@ -96,7 +97,8 @@ class IRTraversal(BenchmarkClass):
 
     @safe_to_repeat
     def time_iterate_block_ops(self) -> None:
-        """Time directly iterating over the linked list of a block's operations.
+        """
+        Time directly iterating over the linked list of a block's operations.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/blockTraveral`, implemented as:
@@ -120,7 +122,8 @@ class IRTraversal(BenchmarkClass):
 
     @safe_to_repeat
     def time_walk_block_ops(self) -> None:
-        """Time walking a block's operations.
+        """
+        Time walking a block's operations.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/blockTraveral`, implemented as:
@@ -157,7 +160,8 @@ class Extensibility(BenchmarkClass):
 
     @safe_to_repeat
     def time_interface_check(self) -> None:
-        """Time checking the class hierarchy of an operation.
+        """
+        Time checking the class hierarchy of an operation.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/vectorTraveralOpCastSuccess`, implemented as:
@@ -181,7 +185,8 @@ class Extensibility(BenchmarkClass):
 
     @safe_to_repeat
     def time_trait_check(self) -> None:
-        """Time checking the trait of an operation.
+        """
+        Time checking the trait of an operation.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/vectorTraveralOpTraitSuccess`, implemented as:
@@ -217,7 +222,8 @@ class Extensibility(BenchmarkClass):
 
     @safe_to_repeat
     def time_trait_check_neg(self) -> None:
-        """Time checking the trait of an operation.
+        """
+        Time checking the trait of an operation.
 
         For comparison with the "How Slow is MLIR" testbench
         `IRWalk/vectorTraveralOpTraitFail`, implemented as:
@@ -257,7 +263,8 @@ class OpCreation(BenchmarkClass):
 
     @safe_to_repeat
     def time_operation_create(self) -> None:
-        """Time creating an empty operation.
+        """
+        Time creating an empty operation.
 
         For comparison with the "How Slow is MLIR" testbench
         `CreateOps/simple`, implemented as:
@@ -275,7 +282,8 @@ class OpCreation(BenchmarkClass):
 
     @safe_to_repeat
     def time_operation_build(self) -> None:
-        """Time building an empty operation.
+        """
+        Time building an empty operation.
 
         For comparison with the "How Slow is MLIR" testbench
         `CreateOps/simpleRegistered`, implemented as:
@@ -327,7 +335,8 @@ class OpCreation(BenchmarkClass):
 
     @safe_to_repeat
     def time_operation_clone(self) -> None:
-        """Time cloning an module of 100 empty operations.
+        """
+        Time cloning an module of 100 empty operations.
 
         For comparison with the "How Slow is MLIR" testbench `Cloning/cloneOps`,
         implemented as:

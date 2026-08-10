@@ -65,7 +65,7 @@ class InferFillPattern(RewritePattern):
         if yielded_vals[0] is not block.args[0]:
             return
 
-        rewriter.replace_op(op, memref_stream.FillOp(output, input))
+        rewriter.replace(op, memref_stream.FillOp(output, input))
 
 
 @dataclass(frozen=True)

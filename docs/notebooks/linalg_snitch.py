@@ -7,7 +7,19 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    import xdsl.utils.marimo as xmo
+
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(xmo):
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
 
@@ -68,10 +80,8 @@ def _():
         func,
         get_all_dialects,
         linalg,
-        mo,
         reconcile_unrealized_casts,
         riscv_code,
-        xmo,
     )
 
 

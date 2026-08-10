@@ -132,7 +132,7 @@ class LoopHoistMemRef(RewritePattern):
 
         # hoist new loads before the current loop
         new_loads = [load.clone() for load in load_store_pairs.keys()]
-        rewriter.insert_op(new_loads, InsertPoint.before(for_op))
+        rewriter.insert(new_loads, InsertPoint.before(for_op))
 
         new_body = Region()
         block_map: dict[Block, Block] = {}
@@ -173,7 +173,7 @@ class LoopHoistMemRef(RewritePattern):
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
-        rewriter.replace_op(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
+        rewriter.replace(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
 
         new_for_op = scf.ForOp(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
@@ -182,10 +182,10 @@ class LoopHoistMemRef(RewritePattern):
             memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices)
             for idx, store in enumerate(load_store_pairs.values())
         ]
-        rewriter.insert_op(new_stores, InsertPoint.after(for_op))
+        rewriter.insert(new_stores, InsertPoint.after(for_op))
 
-        rewriter.insert_op(new_for_op, InsertPoint.before(for_op))
-        rewriter.erase_op(for_op)
+        rewriter.insert(new_for_op, InsertPoint.before(for_op))
+        rewriter.erase(for_op)
 
 
 @dataclass(frozen=True)
