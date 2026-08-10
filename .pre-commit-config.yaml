@@ -30,6 +30,6 @@ repos:
       - id: prettier
         types_or: [yaml]
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: f073523dfd27b01ec7997cc970a2a7b36c303460 # frozen: v2.25.0
+    rev: d600c142bb19f521ae6a6a345f94a2efd7937759 # frozen: v2.26.0
     hooks:
       - id: pyproject-fmt
