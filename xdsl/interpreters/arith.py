@@ -261,6 +261,13 @@ class ArithFunctions(InterpreterFunctions):
         assert rhs != 0
         return (lhs // rhs,)
 
+    @impl(arith.SelectOp)
+    def run_select(
+        self, interpreter: Interpreter, op: arith.SelectOp, args: PythonValues
+    ):
+        assert len(args) == 3
+        return (args[1] if args[0] else args[2],)
+
     @impl(arith.IndexCastOp)
     def run_indexcast(
         self, interpreter: Interpreter, op: arith.IndexCastOp, args: PythonValues

@@ -19,13 +19,22 @@ from xdsl.dialects.arith import (
     MuliOp,
     OrIOp,
     RemSIOp,
+    SelectOp,
     ShLIOp,
     ShRSIOp,
     SubfOp,
     SubiOp,
     XOrIOp,
 )
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i8, i32
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+    i1,
+    i8,
+    i32,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 
@@ -369,6 +378,17 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
 
     assert len(ret) == 1
     assert ret[0] == result
+
+
+@pytest.mark.parametrize("cond_value", [1, 0])
+def test_select(cond_value: int):
+    cond_op = test.TestOp(result_types=[i1])
+    select = SelectOp(cond_op, lhs_op, rhs_op)
+
+    ret = interpreter.run_op(select, (cond_value, 1, 2))
+
+    assert len(ret) == 1
+    assert ret[0] == (1 if cond_value else 2)
 
 
 @pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
