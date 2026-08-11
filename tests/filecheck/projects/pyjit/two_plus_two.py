@@ -21,14 +21,6 @@ from xdsl.transforms.mlir_opt import MLIROptPass
 if TYPE_CHECKING:
     from ctypes import _CFunctionType  # pyright: ignore[reportPrivateUsage]
 
-# Lowering
-
-# TODO: add passes to xDSL
-convert_to_llvm = MLIROptPass(
-    arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
-    generic=True,
-)
-
 # Executable
 
 
@@ -81,23 +73,38 @@ class TypeMap(NamedTuple):
     from_ctype: Callable[[Any], Any]
 
 
-bla: dict[type[Any], TypeMap] = {float: TypeMap(float, c_double, c_double, float)}
-
-
 class FuncTypeMap(NamedTuple):
     arg_maps: tuple[TypeMap, ...]
     res_map: TypeMap
 
-    @staticmethod
-    def from_signature(signature: TypeForm[Callable[P, R]]) -> "FuncTypeMap":
-        param_types, return_type = get_args(signature)
-        return FuncTypeMap(
-            tuple(bla[py_type] for py_type in param_types), bla[return_type]
-        )
-
     def c_func_type(self):
         return CFUNCTYPE(
             self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
+        )
+
+
+class CTypesTypeConverter:
+    """
+    Helper class to convert Python types to their c_types representation.
+    Should be in sync with the conversion by the frontend.
+    """
+
+    _mapping: dict[type[Any], TypeMap]
+
+    def __init__(self):
+        self._mapping = {}
+
+    def extend(self, python_type: type[Any], type_map: TypeMap):
+        self._mapping[python_type] = type_map
+
+    def type_map(self, python_type: type[Any]) -> TypeMap:
+        return self._mapping[python_type]
+
+    def func_type_map(self, signature: TypeForm[Callable[P, R]]) -> FuncTypeMap:
+        param_types, return_type = get_args(signature)
+        return FuncTypeMap(
+            tuple(self._mapping[py_type] for py_type in param_types),
+            self._mapping[return_type],
         )
 
 
@@ -118,8 +125,9 @@ def wrapped(
     raw_func: RawJITFunc,
     original_func: Callable[P, R],
     signature: TypeForm[Callable[P, R]],
+    c_types_type_converter: CTypesTypeConverter,
 ) -> WrappedJITFunc[P, R]:
-    func_type_map = FuncTypeMap.from_signature(signature)
+    func_type_map = c_types_type_converter.func_type_map(signature)
     assert raw_func.c_func_type == func_type_map.c_func_type(), (
         f"CTypes signature inferred from frontend ({raw_func.c_func_type}) does not "
         f"match signature from JIT ({func_type_map.c_func_type()})."
@@ -167,10 +175,17 @@ def llvm_jit(
 
 # JIT
 
+# TODO: add passes to xDSL
+convert_to_llvm = MLIROptPass(
+    arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
+    generic=True,
+)
+
 
 # TODO: support extending the JIT with more functionality
 class JITContext:
     pyast_ctx: PyASTContext
+    c_types_type_converter: CTypesTypeConverter
 
     def __init__(self):
         ctx = PyASTContext(post_transforms=[FrontendDesymrefyPass(), convert_to_llvm])
@@ -181,6 +196,10 @@ class JITContext:
         ctx.register_dialect(builtin.Builtin)
         ctx.register_dialect(func.Func)
         self.pyast_ctx = ctx
+        self.c_types_type_converter = CTypesTypeConverter()
+        self.c_types_type_converter.extend(
+            float, TypeMap(float, c_double, c_double, float)
+        )
 
     def jit(
         self, signature: TypeForm[Callable[P, R]]
@@ -196,7 +215,9 @@ class JITContext:
             )
             llvm_module = convert_module(mlir_module, fallback_target_triple=None)
             raw_func = llvm_jit(llvm_module, parsed_program.name, c_func_type)
-            wrapped_func = wrapped(raw_func, func, signature)
+            wrapped_func = wrapped(
+                raw_func, func, signature, self.c_types_type_converter
+            )
             return wrapped_func
 
         return inner
