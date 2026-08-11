@@ -15,8 +15,8 @@ from xdsl import ir
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
-from xdsl.transforms.desymref import FrontendDesymrefyPass
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 if TYPE_CHECKING:
@@ -158,6 +158,7 @@ class JITBackend(abc.ABC):
 
 class JITContext:
     pyast_ctx: PyASTContext
+    lowering_pipeline: list[ModulePass]
     c_types_type_converter: CTypesTypeConverter
     c_types_attribute_converter: CTypesAttributeConverter
     jit_backend: JITBackend
@@ -165,6 +166,7 @@ class JITContext:
     def __init__(self, jit_backend: JITBackend):
         ctx = PyASTContext()
         self.pyast_ctx = ctx
+        self.lowering_pipeline = []
         self.c_types_type_converter = CTypesTypeConverter()
         self.c_types_attribute_converter = CTypesAttributeConverter()
         self.jit_backend = jit_backend
@@ -173,12 +175,19 @@ class JITContext:
         self, signature: TypeForm[Callable[P, R]]
     ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
         def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
+            # Parse program
             parsed_program = self.pyast_ctx.parse_program(func)
+            # Construct lowering pipeline
+            pass_pipeline = PassPipeline(tuple(self.lowering_pipeline))
+            # Lower module, modifying it in place
+            pass_pipeline.apply(self.pyast_ctx.ir_context, parsed_program.module)
+            # JIT lowered module
             raw = self.jit_backend.jit(
                 parsed_program.module,
                 parsed_program.name,
                 self.c_types_attribute_converter,
             )
+            # Wrap it to preserve Python function signature
             return wrap_jit_func(raw, func, signature, self.c_types_type_converter)
 
         return inner
@@ -278,7 +287,7 @@ convert_to_llvm = MLIROptPass(
 
 ctx = JITContext(LLVMJITBackend())
 
-ctx.pyast_ctx.post_transforms = [FrontendDesymrefyPass(), convert_to_llvm]
+ctx.lowering_pipeline.append(convert_to_llvm)
 ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
 ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
