@@ -94,8 +94,8 @@ class CTypesTypeConverter:
     def __init__(self):
         self._mapping = {}
 
-    def extend(self, python_type: type[Any], type_map: TypeMap):
-        self._mapping[python_type] = type_map
+    def extend(self, type_map: TypeMap):
+        self._mapping[type_map.python_type] = type_map
 
     def type_map(self, python_type: type[Any]) -> TypeMap:
         return self._mapping[python_type]
@@ -197,9 +197,7 @@ class JITContext:
         ctx.register_dialect(func.Func)
         self.pyast_ctx = ctx
         self.c_types_type_converter = CTypesTypeConverter()
-        self.c_types_type_converter.extend(
-            float, TypeMap(float, c_double, c_double, float)
-        )
+        self.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
 
     def jit(
         self, signature: TypeForm[Callable[P, R]]
