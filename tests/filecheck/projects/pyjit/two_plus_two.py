@@ -21,7 +21,7 @@ from xdsl.transforms.mlir_opt import MLIROptPass
 if TYPE_CHECKING:
     from ctypes import _CFunctionType  # pyright: ignore[reportPrivateUsage]
 
-# Executable
+# --- Core JIT callables (xdsl.jit) ---
 
 
 @dataclass(slots=True)
@@ -142,7 +142,7 @@ def wrap_jit_func(
     return WrappedJITFunc(raw_func, original_func, fn)
 
 
-# Backend
+# --- Driver / backend interface (xdsl.jit) ---
 
 
 class JITBackend:
@@ -155,9 +155,6 @@ class JITBackend:
         c_types_attribute_converter: CTypesAttributeConverter,
         signature: TypeForm[Callable[P, R]],
     ) -> WrappedJITFunc[P, R]: ...
-
-
-# Overall driver
 
 
 class JITContext:
@@ -190,7 +187,7 @@ class JITContext:
         return inner
 
 
-# LLVM-specific things
+# --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
 
 
 @dataclass(slots=True, init=False)
@@ -269,33 +266,30 @@ class LLVMJITBackend(JITBackend):
         return wrapped_func
 
 
-# JIT
+# --- Example: library-author configuration ---
 
-# TODO: add passes to xDSL
+# Lower arith/func to the LLVM dialect (mlir-opt). Replace with in-tree passes
+# when available.
 convert_to_llvm = MLIROptPass(
     arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
     generic=True,
 )
 
-
-# Test
-
 ctx = JITContext(LLVMJITBackend())
 
-# Register lowering to llvm
 ctx.pyast_ctx.post_transforms = [FrontendDesymrefyPass(), convert_to_llvm]
-ctx.pyast_ctx.register_type(float, builtin.f64)
 ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
 ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(llvm.LLVM)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-# Register Python and IR type conversion
+# Python <-> ctypes, Python -> IR, and IR <-> ctypes for the same logical type.
+ctx.pyast_ctx.register_type(float, builtin.f64)
 ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
 ctx.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
 
-# Use
+# --- Example: end-user code ---
 
 
 @ctx.jit(Callable[[float, float], float])
