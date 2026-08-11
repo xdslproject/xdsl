@@ -258,6 +258,15 @@ class LLVMJITBackend(JITBackend):
         return llvm_jit(llvm_module, symbol, c_func_type)
 
 
+def register_llvm_defaults(ctx: JITContext) -> None:
+    ctx.pyast_ctx.register_dialect(llvm.LLVM)
+
+    # Python <-> ctypes, Python -> IR, and IR <-> ctypes for the same logical type.
+    ctx.pyast_ctx.register_type(float, builtin.f64)
+    ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+    ctx.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
+
+
 # --- Example: library-author configuration ---
 
 # Lower arith/func to the LLVM dialect (mlir-opt). Replace with in-tree passes
@@ -272,14 +281,10 @@ ctx = JITContext(LLVMJITBackend())
 ctx.pyast_ctx.post_transforms = [FrontendDesymrefyPass(), convert_to_llvm]
 ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
 ctx.pyast_ctx.register_dialect(arith.Arith)
-ctx.pyast_ctx.register_dialect(llvm.LLVM)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-# Python <-> ctypes, Python -> IR, and IR <-> ctypes for the same logical type.
-ctx.pyast_ctx.register_type(float, builtin.f64)
-ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
-ctx.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
+register_llvm_defaults(ctx)
 
 # --- Example: end-user code ---
 
