@@ -41,31 +41,6 @@ class WrappedJITFunc(Generic[P, R]):
     __call__: Callable[P, R]
 
 
-@dataclass(slots=True, init=False)
-class LLVMRawJITFunc(RawJITFunc):
-    """Holds LLVM MCJIT-owned objects so jitted code is not unmapped by GC."""
-
-    target: object
-    target_machine: object
-    backing_mod: object
-    engine: object
-
-    def __init__(
-        self,
-        c_func_type: "type[_CFunctionType]",
-        c_func: "_CFunctionType",
-        target: object,
-        target_machine: object,
-        backing_mod: object,
-        engine: object,
-    ):
-        super(LLVMRawJITFunc, self).__init__(c_func_type, c_func)
-        self.target = target
-        self.target_machine = target_machine
-        self.backing_mod = backing_mod
-        self.engine = engine
-
-
 class TypeMap(NamedTuple):
     python_type: type[Any]
     ctype_type: type[Any]
@@ -142,6 +117,34 @@ def wrapped(
         return func_type_map.res_map.from_ctype(ctype_res)
 
     return WrappedJITFunc(raw_func, original_func, fn)
+
+
+# LLVM-specific things
+
+
+@dataclass(slots=True, init=False)
+class LLVMRawJITFunc(RawJITFunc):
+    """Holds LLVM MCJIT-owned objects so jitted code is not unmapped by GC."""
+
+    target: object
+    target_machine: object
+    backing_mod: object
+    engine: object
+
+    def __init__(
+        self,
+        c_func_type: "type[_CFunctionType]",
+        c_func: "_CFunctionType",
+        target: object,
+        target_machine: object,
+        backing_mod: object,
+        engine: object,
+    ):
+        super(LLVMRawJITFunc, self).__init__(c_func_type, c_func)
+        self.target = target
+        self.target_machine = target_machine
+        self.backing_mod = backing_mod
+        self.engine = engine
 
 
 def llvm_jit(
