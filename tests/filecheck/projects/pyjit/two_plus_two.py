@@ -89,10 +89,27 @@ class CTypesTypeConverter:
         )
 
 
-class CTypeConverter:
-    def convert_type(self, attribute: ir.Attribute) -> Any:
-        assert attribute == builtin.f64
-        return c_double
+class CTypesAttributeConverter:
+    """
+    Helper class to convert Attributes in the IR to their c_types representation.
+    The Python ->(frontend) IR ->(lowering) IR ->(this) ctypes conversion should be in
+    sync with the CTypesTypeConverter used in the JIT.
+    """
+
+    _mapping: dict[type[ir.Attribute], Callable[[ir.Attribute], type[Any]]]
+
+    def __init__(self):
+        self._mapping = {}
+
+    def extend(
+        self,
+        attribute_class: type[ir.Attribute],
+        python_type_converter: Callable[[ir.Attribute], type[Any]],
+    ):
+        self._mapping[attribute_class] = python_type_converter
+
+    def convert_type(self, attribute: ir.Attribute) -> type[Any]:
+        return self._mapping[type(attribute)](attribute)
 
     def c_func_type_from_func_type(
         self, arg_types: tuple[ir.Attribute, ...], res_type: ir.Attribute
@@ -195,6 +212,7 @@ convert_to_llvm = MLIROptPass(
 class JITContext:
     pyast_ctx: PyASTContext
     c_types_type_converter: CTypesTypeConverter
+    c_types_attribute_converter: CTypesAttributeConverter
 
     def __init__(self):
         ctx = PyASTContext(post_transforms=[FrontendDesymrefyPass(), convert_to_llvm])
@@ -207,6 +225,8 @@ class JITContext:
         self.pyast_ctx = ctx
         self.c_types_type_converter = CTypesTypeConverter()
         self.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+        self.c_types_attribute_converter = CTypesAttributeConverter()
+        self.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
 
     def jit(
         self, signature: TypeForm[Callable[P, R]]
@@ -217,7 +237,7 @@ class JITContext:
             func_op = SymbolTable.lookup_symbol(mlir_module, parsed_program.name)
             assert isinstance(func_op, llvm.FuncOp)
             xdsl_func_type = func_op.function_type
-            c_func_type = CTypeConverter().c_func_type_from_func_type(
+            c_func_type = self.c_types_attribute_converter.c_func_type_from_func_type(
                 xdsl_func_type.inputs.data, xdsl_func_type.output
             )
             llvm_module = convert_module(mlir_module, fallback_target_triple=None)
