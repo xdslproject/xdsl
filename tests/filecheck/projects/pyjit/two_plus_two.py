@@ -215,18 +215,10 @@ class JITContext:
     c_types_attribute_converter: CTypesAttributeConverter
 
     def __init__(self):
-        ctx = PyASTContext(post_transforms=[FrontendDesymrefyPass(), convert_to_llvm])
-        ctx.register_type(float, builtin.f64)
-        ctx.register_function(float.__add__, arith.AddfOp)
-        ctx.register_dialect(arith.Arith)
-        ctx.register_dialect(llvm.LLVM)
-        ctx.register_dialect(builtin.Builtin)
-        ctx.register_dialect(func.Func)
+        ctx = PyASTContext()
         self.pyast_ctx = ctx
         self.c_types_type_converter = CTypesTypeConverter()
-        self.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
         self.c_types_attribute_converter = CTypesAttributeConverter()
-        self.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
 
     def jit(
         self, signature: TypeForm[Callable[P, R]]
@@ -253,6 +245,21 @@ class JITContext:
 # Test
 
 ctx = JITContext()
+
+# Register lowering to llvm
+ctx.pyast_ctx.post_transforms = [FrontendDesymrefyPass(), convert_to_llvm]
+ctx.pyast_ctx.register_type(float, builtin.f64)
+ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
+ctx.pyast_ctx.register_dialect(arith.Arith)
+ctx.pyast_ctx.register_dialect(llvm.LLVM)
+ctx.pyast_ctx.register_dialect(builtin.Builtin)
+ctx.pyast_ctx.register_dialect(func.Func)
+
+# Register Python and IR type conversion
+ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+ctx.c_types_attribute_converter.extend(builtin.Float64Type, lambda _: c_double)
+
+# Use
 
 
 @ctx.jit(Callable[[float, float], float])
