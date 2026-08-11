@@ -278,6 +278,7 @@ class LLVMJITBackend(JITBackend):
         symbol: str,
         ir_context: Context,
     ) -> RawJITFunc:
+        ir_context.load_dialect(llvm.LLVM)
         PassPipeline(self.lowering).apply(ir_context, mlir_module)
         func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
         assert isinstance(func_op, llvm.FuncOp)
@@ -287,10 +288,6 @@ class LLVMJITBackend(JITBackend):
         )
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
         return llvm_jit(llvm_module, symbol, c_func_type)
-
-
-def register_llvm_dialects(ctx: JITContext) -> None:
-    ctx.pyast_ctx.register_dialect(llvm.LLVM)
 
 
 def register_llvm_default_abi(ctx: JITContext) -> None:
@@ -310,7 +307,6 @@ ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-register_llvm_dialects(ctx)
 register_llvm_default_abi(ctx)
 
 # --- Example: end-user code ---
