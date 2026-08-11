@@ -200,6 +200,14 @@ class JITContext:
         return inner
 
 
+def register_default_type_conversion(ctx: JITContext) -> None:
+    ctx.pyast_ctx.register_type(float, builtin.f64)
+    ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+    ctx.jit_backend.c_types_attribute_converter.extend(
+        builtin.Float64Type, lambda _: c_double
+    )
+
+
 # --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
 
 
@@ -290,14 +298,6 @@ class LLVMJITBackend(JITBackend):
         return llvm_jit(llvm_module, symbol, c_func_type)
 
 
-def register_llvm_default_abi(ctx: JITContext) -> None:
-    ctx.pyast_ctx.register_type(float, builtin.f64)
-    ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
-    ctx.jit_backend.c_types_attribute_converter.extend(
-        builtin.Float64Type, lambda _: c_double
-    )
-
-
 # --- Example: library-author configuration ---
 
 ctx = JITContext(LLVMJITBackend())
@@ -307,7 +307,7 @@ ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-register_llvm_default_abi(ctx)
+register_default_type_conversion(ctx)
 
 # --- Example: end-user code ---
 
