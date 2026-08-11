@@ -1,5 +1,6 @@
 # RUN: python %s | filecheck %s
 
+import abc
 from collections.abc import Callable
 from ctypes import CFUNCTYPE, c_double
 from dataclasses import dataclass
@@ -145,16 +146,14 @@ def wrap_jit_func(
 # --- Driver / backend interface (xdsl.jit) ---
 
 
-class JITBackend:
-    def wrap(
+class JITBackend(abc.ABC):
+    @abc.abstractmethod
+    def jit(
         self,
-        func: Callable[P, R],
         mlir_module: builtin.ModuleOp,
         symbol: str,
-        c_types_type_converter: CTypesTypeConverter,
         c_types_attribute_converter: CTypesAttributeConverter,
-        signature: TypeForm[Callable[P, R]],
-    ) -> WrappedJITFunc[P, R]: ...
+    ) -> RawJITFunc: ...
 
 
 class JITContext:
@@ -175,14 +174,12 @@ class JITContext:
     ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
         def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
             parsed_program = self.pyast_ctx.parse_program(func)
-            return self.jit_backend.wrap(
-                func,
+            raw = self.jit_backend.jit(
                 parsed_program.module,
                 parsed_program.name,
-                self.c_types_type_converter,
                 self.c_types_attribute_converter,
-                signature,
             )
+            return wrap_jit_func(raw, func, signature, self.c_types_type_converter)
 
         return inner
 
@@ -245,15 +242,12 @@ def llvm_jit(
 
 
 class LLVMJITBackend(JITBackend):
-    def wrap(
+    def jit(
         self,
-        func: Callable[P, R],
         mlir_module: builtin.ModuleOp,
         symbol: str,
-        c_types_type_converter: CTypesTypeConverter,
         c_types_attribute_converter: CTypesAttributeConverter,
-        signature: TypeForm[Callable[P, R]],
-    ) -> WrappedJITFunc[P, R]:
+    ) -> RawJITFunc:
         func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
         assert isinstance(func_op, llvm.FuncOp)
         xdsl_func_type = func_op.function_type
@@ -261,9 +255,7 @@ class LLVMJITBackend(JITBackend):
             xdsl_func_type.inputs.data, xdsl_func_type.output
         )
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
-        raw_func = llvm_jit(llvm_module, symbol, c_func_type)
-        wrapped_func = wrap_jit_func(raw_func, func, signature, c_types_type_converter)
-        return wrapped_func
+        return llvm_jit(llvm_module, symbol, c_func_type)
 
 
 # --- Example: library-author configuration ---
