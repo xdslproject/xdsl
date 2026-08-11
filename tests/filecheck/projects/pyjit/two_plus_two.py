@@ -1,5 +1,17 @@
 # RUN: python %s | filecheck %s
 
+"""
+JIT compilation of Python functions via xDSL IR.
+
+Frontend builds mid-level IR. Backend lowers to its dialect and binds ctypes
+from IR types. Context only parses, delegates, and wraps Python values.
+
+Library authors configure a :class:`JITContext` with a frontend
+(:class:`~xdsl.frontend.pyast.context.PyASTContext`), ctypes bridges, and a
+:class:`JITBackend`. End users apply :meth:`JITContext.jit` without knowing
+about compilers.
+"""
+
 import abc
 from collections.abc import Callable
 from ctypes import CFUNCTYPE, c_double
@@ -13,6 +25,7 @@ from typing_extensions import TypeForm, TypeVar
 
 from xdsl import ir
 from xdsl.backend.llvm.convert import convert_module
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.passes import ModulePass, PassPipeline
@@ -149,32 +162,26 @@ def wrap_jit_func(
 class JITBackend(abc.ABC):
     c_types_attribute_converter: CTypesAttributeConverter
 
-    def __init__(
-        self, c_types_attribute_converter: CTypesAttributeConverter | None = None
-    ):
+    def __init__(self):
         super().__init__()
-        if c_types_attribute_converter is None:
-            c_types_attribute_converter = CTypesAttributeConverter()
-        self.c_types_attribute_converter = c_types_attribute_converter
+        self.c_types_attribute_converter = CTypesAttributeConverter()
 
     @abc.abstractmethod
     def jit(
         self,
         mlir_module: builtin.ModuleOp,
         symbol: str,
+        ir_context: Context,
     ) -> RawJITFunc: ...
 
 
 class JITContext:
     pyast_ctx: PyASTContext
-    lowering_pipeline: list[ModulePass]
     c_types_type_converter: CTypesTypeConverter
     jit_backend: JITBackend
 
     def __init__(self, jit_backend: JITBackend):
-        ctx = PyASTContext()
-        self.pyast_ctx = ctx
-        self.lowering_pipeline = []
+        self.pyast_ctx = PyASTContext()
         self.c_types_type_converter = CTypesTypeConverter()
         self.jit_backend = jit_backend
 
@@ -182,15 +189,12 @@ class JITContext:
         self, signature: TypeForm[Callable[P, R]]
     ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
         def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
-            # Parse program
             parsed_program = self.pyast_ctx.parse_program(func)
-            # Construct lowering pipeline
-            pass_pipeline = PassPipeline(tuple(self.lowering_pipeline))
-            # Lower module, modifying it in place
-            pass_pipeline.apply(self.pyast_ctx.ir_context, parsed_program.module)
-            # JIT lowered module
-            raw = self.jit_backend.jit(parsed_program.module, parsed_program.name)
-            # Wrap it to preserve Python function signature
+            raw = self.jit_backend.jit(
+                parsed_program.module,
+                parsed_program.name,
+                self.pyast_ctx.ir_context,
+            )
             return wrap_jit_func(raw, func, signature, self.c_types_type_converter)
 
         return inner
@@ -254,11 +258,27 @@ def llvm_jit(
 
 
 class LLVMJITBackend(JITBackend):
+    lowering: tuple[ModulePass, ...]
+
+    def __init__(
+        self,
+        lowering: tuple[ModulePass, ...] = (
+            MLIROptPass(
+                arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
+                generic=True,
+            ),
+        ),
+    ):
+        super().__init__()
+        self.lowering = lowering
+
     def jit(
         self,
         mlir_module: builtin.ModuleOp,
         symbol: str,
+        ir_context: Context,
     ) -> RawJITFunc:
+        PassPipeline(self.lowering).apply(ir_context, mlir_module)
         func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
         assert isinstance(func_op, llvm.FuncOp)
         xdsl_func_type = func_op.function_type
@@ -269,15 +289,11 @@ class LLVMJITBackend(JITBackend):
         return llvm_jit(llvm_module, symbol, c_func_type)
 
 
-def register_llvm_defaults(ctx: JITContext) -> None:
-    # Lowering pipeline from arith/func/builtin to llvm, and registering the dialect
-    # Would be interesting to find a more robust/automated way of doing this in the
-    # future, as this lowering pipeline is kind of coupled to the frontend, or at least
-    # to the set of dialects that the frontend can generate.
-    ctx.lowering_pipeline.append(convert_to_llvm)
+def register_llvm_dialects(ctx: JITContext) -> None:
     ctx.pyast_ctx.register_dialect(llvm.LLVM)
 
-    # Python <-> ctypes, Python -> IR, and IR <-> ctypes for the same logical type.
+
+def register_llvm_default_abi(ctx: JITContext) -> None:
     ctx.pyast_ctx.register_type(float, builtin.f64)
     ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
     ctx.jit_backend.c_types_attribute_converter.extend(
@@ -287,13 +303,6 @@ def register_llvm_defaults(ctx: JITContext) -> None:
 
 # --- Example: library-author configuration ---
 
-# Lower arith/func to the LLVM dialect (mlir-opt). Replace with in-tree passes
-# when available.
-convert_to_llvm = MLIROptPass(
-    arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
-    generic=True,
-)
-
 ctx = JITContext(LLVMJITBackend())
 
 ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
@@ -301,7 +310,8 @@ ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-register_llvm_defaults(ctx)
+register_llvm_dialects(ctx)
+register_llvm_default_abi(ctx)
 
 # --- Example: end-user code ---
 
