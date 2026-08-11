@@ -142,6 +142,54 @@ def wrapped(
     return WrappedJITFunc(raw_func, original_func, fn)
 
 
+# Backend
+
+
+class JITBackend:
+    def wrap(
+        self,
+        func: Callable[P, R],
+        mlir_module: builtin.ModuleOp,
+        symbol: str,
+        c_types_type_converter: CTypesTypeConverter,
+        c_types_attribute_converter: CTypesAttributeConverter,
+        signature: TypeForm[Callable[P, R]],
+    ) -> WrappedJITFunc[P, R]: ...
+
+
+# Overall driver
+
+
+class JITContext:
+    pyast_ctx: PyASTContext
+    c_types_type_converter: CTypesTypeConverter
+    c_types_attribute_converter: CTypesAttributeConverter
+    jit_backend: JITBackend
+
+    def __init__(self, jit_backend: JITBackend):
+        ctx = PyASTContext()
+        self.pyast_ctx = ctx
+        self.c_types_type_converter = CTypesTypeConverter()
+        self.c_types_attribute_converter = CTypesAttributeConverter()
+        self.jit_backend = jit_backend
+
+    def jit(
+        self, signature: TypeForm[Callable[P, R]]
+    ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
+        def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
+            parsed_program = self.pyast_ctx.parse_program(func)
+            return self.jit_backend.wrap(
+                func,
+                parsed_program.module,
+                parsed_program.name,
+                self.c_types_type_converter,
+                self.c_types_attribute_converter,
+                signature,
+            )
+
+        return inner
+
+
 # LLVM-specific things
 
 
@@ -199,6 +247,28 @@ def llvm_jit(
     return keepalive
 
 
+class LLVMJITBackend(JITBackend):
+    def wrap(
+        self,
+        func: Callable[P, R],
+        mlir_module: builtin.ModuleOp,
+        symbol: str,
+        c_types_type_converter: CTypesTypeConverter,
+        c_types_attribute_converter: CTypesAttributeConverter,
+        signature: TypeForm[Callable[P, R]],
+    ) -> WrappedJITFunc[P, R]:
+        func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
+        assert isinstance(func_op, llvm.FuncOp)
+        xdsl_func_type = func_op.function_type
+        c_func_type = c_types_attribute_converter.c_func_type_from_func_type(
+            xdsl_func_type.inputs.data, xdsl_func_type.output
+        )
+        llvm_module = convert_module(mlir_module, fallback_target_triple=None)
+        raw_func = llvm_jit(llvm_module, symbol, c_func_type)
+        wrapped_func = wrapped(raw_func, func, signature, c_types_type_converter)
+        return wrapped_func
+
+
 # JIT
 
 # TODO: add passes to xDSL
@@ -208,43 +278,9 @@ convert_to_llvm = MLIROptPass(
 )
 
 
-# TODO: support extending the JIT with more functionality
-class JITContext:
-    pyast_ctx: PyASTContext
-    c_types_type_converter: CTypesTypeConverter
-    c_types_attribute_converter: CTypesAttributeConverter
-
-    def __init__(self):
-        ctx = PyASTContext()
-        self.pyast_ctx = ctx
-        self.c_types_type_converter = CTypesTypeConverter()
-        self.c_types_attribute_converter = CTypesAttributeConverter()
-
-    def jit(
-        self, signature: TypeForm[Callable[P, R]]
-    ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
-        def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
-            parsed_program = self.pyast_ctx.parse_program(func)
-            mlir_module = parsed_program.module
-            func_op = SymbolTable.lookup_symbol(mlir_module, parsed_program.name)
-            assert isinstance(func_op, llvm.FuncOp)
-            xdsl_func_type = func_op.function_type
-            c_func_type = self.c_types_attribute_converter.c_func_type_from_func_type(
-                xdsl_func_type.inputs.data, xdsl_func_type.output
-            )
-            llvm_module = convert_module(mlir_module, fallback_target_triple=None)
-            raw_func = llvm_jit(llvm_module, parsed_program.name, c_func_type)
-            wrapped_func = wrapped(
-                raw_func, func, signature, self.c_types_type_converter
-            )
-            return wrapped_func
-
-        return inner
-
-
 # Test
 
-ctx = JITContext()
+ctx = JITContext(LLVMJITBackend())
 
 # Register lowering to llvm
 ctx.pyast_ctx.post_transforms = [FrontendDesymrefyPass(), convert_to_llvm]
