@@ -117,16 +117,31 @@ class PatternRewriter(Builder, PatternRewriterListener):
     modification to the operation and its children.
     """
 
-    current_operation: Operation
+    _current_operation: Operation | None
     """The matched operation."""
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def __init__(self, current_operation: Operation):
+    def __init__(self, insert_point: Operation | InsertPoint):
         PatternRewriterListener.__init__(self)
-        self.current_operation = current_operation
-        Builder.__init__(self, InsertPoint.before(current_operation))
+        if isinstance(insert_point, Operation):
+            self._current_operation = insert_point
+            insert_point = InsertPoint.before(insert_point)
+        else:
+            self._current_operation = None
+        Builder.__init__(self, insert_point)
+
+    @property
+    @deprecated("PatternRewriter.current_operation is deprecated")
+    def current_operation(self) -> Operation:
+        """The matched operation."""
+        assert self._current_operation is not None
+        return self._current_operation
+
+    @current_operation.setter
+    def current_operation(self, current_operation: Operation) -> None:
+        self._current_operation = current_operation
 
     def insert(
         self,
@@ -202,8 +217,9 @@ class PatternRewriter(Builder, PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
+        assert self._current_operation is not None
         self.replace(
-            self.current_operation, new_ops, new_results, safe_erase=safe_erase
+            self._current_operation, new_ops, new_results, safe_erase=safe_erase
         )
 
     def replace(
@@ -780,7 +796,6 @@ class PatternRewriteWalker:
             return rewriter_has_done_action
         op = self._worklist.pop()
 
-        # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
         rewriter.extend_from_listener(listener)
 
