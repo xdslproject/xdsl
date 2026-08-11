@@ -42,6 +42,11 @@ class WrappedJITFunc(Generic[P, R]):
 
 
 class TypeMap(NamedTuple):
+    """
+    A helper containing the Python class, the corresponding ctypes class, and converter
+    functions for instances of the Python class to ctypes and vice versa.
+    """
+
     python_type: type[Any]
     ctype_type: type[Any]
     to_ctype: Callable[[Any], Any]
@@ -60,7 +65,8 @@ class FuncTypeMap(NamedTuple):
 
 class CTypesTypeConverter:
     """
-    Helper class to convert Python types to their c_types representation.
+    Helper class to convert Python types and values to and from their c_types
+    representation.
     Should be in sync with the conversion by the frontend.
     """
 
