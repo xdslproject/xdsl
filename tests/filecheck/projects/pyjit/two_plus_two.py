@@ -57,7 +57,7 @@ class FuncTypeMap(NamedTuple):
     arg_maps: tuple[TypeMap, ...]
     res_map: TypeMap
 
-    def c_func_type(self):
+    def c_func_type(self) -> "type[_CFunctionType]":
         return CFUNCTYPE(
             self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
         )
@@ -104,9 +104,9 @@ class CTypesAttributeConverter:
     def extend(
         self,
         attribute_class: type[ir.Attribute],
-        python_type_converter: Callable[[ir.Attribute], type[Any]],
-    ):
-        self._mapping[attribute_class] = python_type_converter
+        to_ctype: Callable[[ir.Attribute], type[Any]],
+    ) -> None:
+        self._mapping[attribute_class] = to_ctype
 
     def convert_type(self, attribute: ir.Attribute) -> type[Any]:
         return self._mapping[type(attribute)](attribute)
@@ -119,7 +119,7 @@ class CTypesAttributeConverter:
         )
 
 
-def wrapped(
+def wrap_jit_func(
     raw_func: RawJITFunc,
     original_func: Callable[P, R],
     signature: TypeForm[Callable[P, R]],
@@ -265,7 +265,7 @@ class LLVMJITBackend(JITBackend):
         )
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
         raw_func = llvm_jit(llvm_module, symbol, c_func_type)
-        wrapped_func = wrapped(raw_func, func, signature, c_types_type_converter)
+        wrapped_func = wrap_jit_func(raw_func, func, signature, c_types_type_converter)
         return wrapped_func
 
 
