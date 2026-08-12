@@ -192,15 +192,19 @@ SKIP_BUILD_WHEEL ?= 0
 docs-wheels: uv-installed
 	if [ "$(SKIP_BUILD_WHEEL)" = "1" ]; then echo "Skipping docs wheel builds (SKIP_BUILD_WHEEL=1)"; else SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --package xdsl --no-build-logs --no-verify-hashes -o docs; SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --directory docs/Toy --no-build-logs --no-verify-hashes -o docs; fi
 
+.PHONY: docs-notebooks
+docs-notebooks: uv-installed
+	uv run python scripts/gen_notebooks.py
+
 
 .PHONY: docs-serve
-docs-serve: docs-wheels
+docs-serve: docs-wheels docs-notebooks
 	uv run mkdocs serve
 
 .PHONY: docs-serve-fast
-docs-serve-fast: docs-wheels
+docs-serve-fast: docs-wheels docs-notebooks
 	SKIP_GEN_PAGES=1 uv run mkdocs serve
 
 .PHONY: docs-build
-docs-build: docs-wheels
+docs-build: docs-wheels docs-notebooks
 	uv run mkdocs build

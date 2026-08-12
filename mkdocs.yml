@@ -7,6 +7,7 @@ repo_name: xdslproject/xdsl
 repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
+exclude_docs: notebooks/README.md
 
 theme:
   name: "material"
