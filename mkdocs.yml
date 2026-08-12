@@ -45,7 +45,6 @@ extra_css:
 plugins:
   - search
   - awesome-nav
-  - marimo
   - mkdocstrings:
       handlers:
         python:
