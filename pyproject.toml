@@ -58,7 +58,6 @@ docs = [
   "micropip>=0.7",
   "mkdocs>=1.6.1",
   "mkdocs-awesome-nav>=3.1.2",
-  "mkdocs-gen-files>=0.5",
   "mkdocs-marimo>=0.2.1",
   "mkdocs-material>=9.5.49",
   "mkdocstrings[python]>=0.27",
