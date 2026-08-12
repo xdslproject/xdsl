@@ -1,53 +1,347 @@
 # RUN: python %s | filecheck %s
 
+"""
+JIT compilation of Python functions via xDSL IR.
+
+Frontend builds mid-level IR. Backend lowers to its dialect and binds ctypes
+from IR types. Context only parses, delegates, and wraps Python values.
+
+Library authors configure a :class:`JITContext` with a frontend
+(:class:`~xdsl.frontend.pyast.context.PyASTContext`), ctypes bridges, and a
+:class:`JITBackend`. End users apply :meth:`JITContext.jit` without knowing
+about compilers::
+
+    @ctx.jit(Callable[[float, float], float])
+    def plus(a: float, b: float) -> float:
+        return a + b
+
+Pipeline:
+
+1. Parse the Python function to a ``ModuleOp`` (PyAST), applying frontend
+   post-transforms.
+2. Hand the module to the backend, which lowers to its dialect and produces a
+   :class:`RawJITFunc`.
+3. Wrap it as a :class:`WrappedJITFunc` that marshals Python values through ctypes.
+
+The ``Callable[...]`` argument to :meth:`JITContext.jit` is the ABI signature used
+for marshalling. It is passed explicitly so annotations need not be evaluated.
+"""
+
+import abc
 from collections.abc import Callable
 from ctypes import CFUNCTYPE, c_double
 from dataclasses import dataclass
-from typing import Generic, ParamSpec
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, ParamSpec, get_args
 
 import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
-from typing_extensions import TypeVar
+from typing_extensions import TypeForm, TypeVar
 
+from xdsl import ir
 from xdsl.backend.llvm.convert import convert_module
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.transforms.desymref import FrontendDesymrefyPass
+from xdsl.passes import ModulePass, PassPipeline
+from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
 
-# Lowering
+if TYPE_CHECKING:
+    from ctypes import _CFunctionType  # pyright: ignore[reportPrivateUsage]
 
-# TODO: add passes to xDSL
-convert_to_llvm = MLIROptPass(
-    arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
-    generic=True,
-)
+# --- Core JIT callables (xdsl.jit) ---
 
-# Executable
+
+@dataclass(slots=True)
+class RawJITFunc:
+    """
+    A jitted function exposed as a ctypes callable.
+
+    Backends may subclass this to retain native runtime state that must outlive
+    calls through ``c_func``.
+    """
+
+    c_func_type: "type[_CFunctionType]"
+    """The ``CFUNCTYPE`` describing the native calling convention."""
+
+    c_func: "_CFunctionType"
+    """Bound ctypes function object for the native entry point."""
+
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 @dataclass(slots=True)
-class McJitKeepalive(Generic[P, R]):
-    """Holds LLVM MCJIT-owned objects so jitted code is not unmapped by GC."""
+class WrappedJITFunc(Generic[P, R]):
+    """
+    A Python-callable wrapper around a :class:`RawJITFunc`.
+
+    Invoking the instance marshals arguments to ctypes, calls the native function,
+    and converts the result back to a Python value.
+    """
+
+    raw_func: RawJITFunc
+    """Underlying ctypes binding."""
+
+    original_func: Callable[P, R]
+    """The undecorated Python function."""
+
+    __call__: Callable[P, R]
+    """Marshaling entry point for calls."""
+
+
+class TypeMap(NamedTuple):
+    """
+    Correspondence between a Python type and its ctypes representation.
+
+    ``to_ctype`` / ``from_ctype`` convert values at call boundaries.
+    """
+
+    python_type: type[Any]
+    """Python type on the wrapped-function boundary."""
+
+    ctype_type: type[Any]
+    """ctypes type used in the native ``CFUNCTYPE``."""
+
+    to_ctype: Callable[[Any], Any]
+    """Convert a Python argument to a ctypes-compatible value."""
+
+    from_ctype: Callable[[Any], Any]
+    """Convert a ctypes result back to a Python value."""
+
+
+class FuncTypeMap(NamedTuple):
+    """Per-argument and result :class:`TypeMap` entries for a function signature."""
+
+    arg_maps: tuple[TypeMap, ...]
+    res_map: TypeMap
+
+    def c_func_type(self) -> "type[_CFunctionType]":
+        """Return the ``CFUNCTYPE`` for this signature."""
+        return CFUNCTYPE(
+            self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
+        )
+
+
+class CTypesTypeConverter:
+    """
+    Registry of Python types to :class:`TypeMap` entries.
+
+    Used to marshal values when wrapping a :class:`RawJITFunc`. Registrations must
+    agree with the frontend type mapping and with
+    :class:`CTypesAttributeConverter` for the same logical types.
+    """
+
+    _mapping: dict[type[Any], TypeMap]
+
+    def __init__(self):
+        self._mapping = {}
+
+    def extend(self, type_map: TypeMap):
+        """Register a :class:`TypeMap` for its ``python_type``."""
+        self._mapping[type_map.python_type] = type_map
+
+    def type_map(self, python_type: type[Any]) -> TypeMap:
+        """Return the :class:`TypeMap` for ``python_type``."""
+        return self._mapping[python_type]
+
+    def func_type_map(self, signature: TypeForm[Callable[P, R]]) -> FuncTypeMap:
+        """Build a :class:`FuncTypeMap` from a ``Callable`` signature."""
+        param_types, return_type = get_args(signature)
+        return FuncTypeMap(
+            tuple(self._mapping[py_type] for py_type in param_types),
+            self._mapping[return_type],
+        )
+
+
+class CTypesAttributeConverter:
+    """
+    Registry mapping IR type attributes to ctypes type classes.
+
+    Backends use this to build a ``CFUNCTYPE`` from a lowered function type.
+    Registrations must agree with :class:`CTypesTypeConverter` and the frontend
+    type mapping for the same logical types.
+    """
+
+    _mapping: dict[type[ir.Attribute], Callable[[ir.Attribute], type[Any]]]
+
+    def __init__(self):
+        self._mapping = {}
+
+    def extend(
+        self,
+        attribute_class: type[ir.Attribute],
+        to_ctype: Callable[[ir.Attribute], type[Any]],
+    ) -> None:
+        """Register how ``attribute_class`` instances map to a ctypes type."""
+        self._mapping[attribute_class] = to_ctype
+
+    def convert_type(self, attribute: ir.Attribute) -> type[Any]:
+        """Return the ctypes type class for ``attribute``."""
+        return self._mapping[type(attribute)](attribute)
+
+    def c_func_type_from_func_type(
+        self, arg_types: tuple[ir.Attribute, ...], res_type: ir.Attribute
+    ) -> "type[_CFunctionType]":
+        """Build a ``CFUNCTYPE`` from IR argument and result types."""
+        return CFUNCTYPE(
+            self.convert_type(res_type), *(self.convert_type(arg) for arg in arg_types)
+        )
+
+
+def wrap_jit_func(
+    raw_func: RawJITFunc,
+    original_func: Callable[P, R],
+    signature: TypeForm[Callable[P, R]],
+    c_types_type_converter: CTypesTypeConverter,
+) -> WrappedJITFunc[P, R]:
+    """
+    Wrap a :class:`RawJITFunc` as a :class:`WrappedJITFunc`.
+
+    Builds argument/result converters from ``signature`` and checks that the
+    resulting ``CFUNCTYPE`` matches ``raw_func.c_func_type``.
+    """
+    func_type_map = c_types_type_converter.func_type_map(signature)
+    assert raw_func.c_func_type == func_type_map.c_func_type(), (
+        f"CTypes signature from IR ({raw_func.c_func_type}) does not "
+        f"match signature from Python TypeMaps ({func_type_map.c_func_type()})."
+    )
+
+    def fn(*args: P.args, **kwargs: P.kwargs) -> R:
+        assert not kwargs
+        ctype_args = tuple(
+            m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, args, strict=True)
+        )
+        ctype_res = raw_func.c_func(*ctype_args)
+        return func_type_map.res_map.from_ctype(ctype_res)
+
+    return WrappedJITFunc(raw_func, original_func, fn)
+
+
+# --- Driver / backend interface (xdsl.jit) ---
+
+
+class JITBackend(abc.ABC):
+    """
+    Compile a module symbol to a :class:`RawJITFunc`.
+
+    Implementations receive the module produced by the frontend, lower it to the
+    backend’s dialect, and bind ``symbol`` for native calls.
+    """
+
+    c_types_attribute_converter: CTypesAttributeConverter
+    """IR type attribute to ctypes type registry."""
+
+    def __init__(self):
+        """Initialize an empty :class:`CTypesAttributeConverter`."""
+        super().__init__()
+        self.c_types_attribute_converter = CTypesAttributeConverter()
+
+    @abc.abstractmethod
+    def jit(
+        self,
+        mlir_module: builtin.ModuleOp,
+        symbol: str,
+        ir_context: Context,
+    ) -> RawJITFunc:
+        """Lower ``mlir_module`` and JIT-compile ``symbol``."""
+        ...
+
+
+class JITContext:
+    """
+    Configure frontend, Python ctypes bridges, and backend into a ``@jit`` decorator.
+
+    Authors register types, operations, and dialects on :attr:`pyast_ctx`, extend
+    type converters for ABI types, and supply a :class:`JITBackend`. End users apply
+    :meth:`jit`.
+    """
+
+    pyast_ctx: PyASTContext
+    """Frontend used to parse Python functions into IR."""
+
+    c_types_type_converter: CTypesTypeConverter
+    """Python value to ctypes marshalling registry."""
+
+    jit_backend: JITBackend
+    """Backend that lowers IR and produces a :class:`RawJITFunc`."""
+
+    def __init__(self, jit_backend: JITBackend):
+        """Create empty frontend and type-converter state around ``jit_backend``."""
+        self.pyast_ctx = PyASTContext()
+        self.c_types_type_converter = CTypesTypeConverter()
+        self.jit_backend = jit_backend
+
+    def jit(
+        self, signature: TypeForm[Callable[P, R]]
+    ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
+        """Return a decorator that JIT-compiles a function with ``signature``."""
+
+        def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
+            parsed_program = self.pyast_ctx.parse_program(func)
+            raw = self.jit_backend.jit(
+                parsed_program.module,
+                parsed_program.name,
+                self.pyast_ctx.ir_context,
+            )
+            return wrap_jit_func(raw, func, signature, self.c_types_type_converter)
+
+        return inner
+
+
+def register_default_type_conversion(ctx: JITContext) -> None:
+    """
+    Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
+
+    Updates the frontend type map, :class:`CTypesTypeConverter`, and the backend’s
+    :class:`CTypesAttributeConverter` together.
+    """
+    ctx.pyast_ctx.register_type(float, builtin.f64)
+    ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+    ctx.jit_backend.c_types_attribute_converter.extend(
+        builtin.Float64Type, lambda _: c_double
+    )
+
+
+# --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
+
+
+@dataclass(slots=True, init=False)
+class LLVMRawJITFunc(RawJITFunc):
+    """
+    :class:`RawJITFunc` that retains LLVM MCJIT runtime objects.
+
+    The engine and related objects must remain referenced for as long as
+    ``c_func`` may be called.
+    """
 
     target: object
     target_machine: object
     backing_mod: object
     engine: object
-    func: Callable[P, R]
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
-        return self.func(*args, **kwargs)
+    def __init__(
+        self,
+        c_func_type: "type[_CFunctionType]",
+        c_func: "_CFunctionType",
+        target: object,
+        target_machine: object,
+        backing_mod: object,
+        engine: object,
+    ):
+        super(LLVMRawJITFunc, self).__init__(c_func_type, c_func)
+        self.target = target
+        self.target_machine = target_machine
+        self.backing_mod = backing_mod
+        self.engine = engine
 
 
-# TODO: support automatic conversion of types
-def mcjit_f64_f64_f64_binary(
-    llvm_module: llvm_ir.Module, symbol: str
-) -> McJitKeepalive[[float, float], float]:
+def llvm_jit(
+    llvm_module: llvm_ir.Module, symbol: str, c_func_type: "type[_CFunctionType]"
+) -> LLVMRawJITFunc:
+    """Compile ``llvm_module`` with MCJIT and bind ``symbol`` to ``c_func_type``."""
     llvm_ir_text = str(llvm_module)
     llvmlite.binding.initialize_native_target()  # pyright: ignore
     llvmlite.binding.initialize_native_asmprinter()  # pyright: ignore
@@ -60,51 +354,78 @@ def mcjit_f64_f64_f64_binary(
     engine.run_static_constructors()  # pyright: ignore
 
     func_ptr = engine.get_function_address(symbol)  # pyright: ignore
-    fn_type = CFUNCTYPE(c_double, c_double, c_double)
-    fn = fn_type(func_ptr)  # pyright: ignore
+    c_types_fn = c_func_type(func_ptr)  # pyright: ignore
 
-    keepalive = McJitKeepalive(
+    keepalive = LLVMRawJITFunc(
+        c_func_type,
+        c_types_fn,
         target=target,  # pyright: ignore
         target_machine=target_machine,  # pyright: ignore
         backing_mod=backing_mod,  # pyright: ignore
         engine=engine,  # pyright: ignore
-        func=fn,
     )
 
     return keepalive
 
 
-# JIT
+class LLVMJITBackend(JITBackend):
+    """
+    :class:`JITBackend` using xDSL’s LLVM converter and llvmlite MCJIT.
 
+    Runs :attr:`lowering`, requires ``symbol`` to name an ``llvm.FuncOp``, then
+    converts the module and JITs it.
+    """
 
-# TODO: support extending the JIT with more functionality
-class JITContext:
-    pyast_ctx: PyASTContext
+    lowering: tuple[ModulePass, ...]
+    """Pass pipeline applied before resolving ``symbol``."""
 
-    def __init__(self):
-        ctx = PyASTContext(post_transforms=[FrontendDesymrefyPass(), convert_to_llvm])
-        ctx.register_type(float, builtin.f64)
-        ctx.register_function(float.__add__, arith.AddfOp)
-        ctx.register_dialect(arith.Arith)
-        ctx.register_dialect(llvm.LLVM)
-        ctx.register_dialect(builtin.Builtin)
-        ctx.register_dialect(func.Func)
-        self.pyast_ctx = ctx
+    def __init__(
+        self,
+        lowering: tuple[ModulePass, ...] = (
+            MLIROptPass(
+                arguments=("--convert-arith-to-llvm", "--convert-func-to-llvm"),
+                generic=True,
+            ),
+        ),
+    ):
+        """Construct the backend with the given ``lowering`` pipeline."""
+        super().__init__()
+        self.lowering = lowering
 
     def jit(
-        self, func: Callable[[float, float], float]
-    ) -> McJitKeepalive[[float, float], float]:
-        parsed_program = self.pyast_ctx.parse_program(func)
-        module = convert_module(parsed_program.module, fallback_target_triple=None)
-        return mcjit_f64_f64_f64_binary(module, parsed_program.name)
+        self,
+        mlir_module: builtin.ModuleOp,
+        symbol: str,
+        ir_context: Context,
+    ) -> RawJITFunc:
+        """Lower ``mlir_module``, bind ``symbol``, and return an :class:`LLVMRawJITFunc`."""
+        ir_context.load_dialect(llvm.LLVM)
+        PassPipeline(self.lowering).apply(ir_context, mlir_module)
+        func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
+        assert isinstance(func_op, llvm.FuncOp)
+        xdsl_func_type = func_op.function_type
+        c_func_type = self.c_types_attribute_converter.c_func_type_from_func_type(
+            xdsl_func_type.inputs.data, xdsl_func_type.output
+        )
+        llvm_module = convert_module(mlir_module, fallback_target_triple=None)
+        return llvm_jit(llvm_module, symbol, c_func_type)
 
 
-# Test
+# --- Example: library-author configuration ---
 
-ctx = JITContext()
+ctx = JITContext(LLVMJITBackend())
+
+ctx.pyast_ctx.register_function(float.__add__, arith.AddfOp)
+ctx.pyast_ctx.register_dialect(arith.Arith)
+ctx.pyast_ctx.register_dialect(builtin.Builtin)
+ctx.pyast_ctx.register_dialect(func.Func)
+
+register_default_type_conversion(ctx)
+
+# --- Example: end-user code ---
 
 
-@ctx.jit
+@ctx.jit(Callable[[float, float], float])
 def plus(a: float, b: float) -> float:
     return a + b
 
@@ -114,7 +435,12 @@ def plus(a: float, b: float) -> float:
 print(f"{plus(2.0, 2.0) = }")
 print(f"{plus(3.0, 4.0) = }")
 
-# CHECK: plus.func(2.0, 2.0) = 4.0
-# CHECK: plus.func(3.0, 4.0) = 7.0
-print(f"{plus.func(2.0, 2.0) = }")
-print(f"{plus.func(3.0, 4.0) = }")
+# CHECK: plus.original_func(2.0, 2.0) = 4.0
+# CHECK: plus.original_func(3.0, 4.0) = 7.0
+print(f"{plus.original_func(2.0, 2.0) = }")
+print(f"{plus.original_func(3.0, 4.0) = }")
+
+# CHECK: plus.raw_func.c_func(2.0, 2.0) = 4.0
+# CHECK: plus.raw_func.c_func(3.0, 4.0) = 7.0
+print(f"{plus.raw_func.c_func(2.0, 2.0) = }")
+print(f"{plus.raw_func.c_func(3.0, 4.0) = }")
