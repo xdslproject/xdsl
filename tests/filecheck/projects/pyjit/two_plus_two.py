@@ -42,7 +42,8 @@ from xdsl.backend.llvm.convert import convert_module
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.jit.llvm.c_type_context import CTypeContext
+from xdsl.jit.c_type_context import CTypeContext, register_builtin_ctypes
+from xdsl.jit.llvm.c_type_context import register_llvm_ctypes, to_c_func_type
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -131,7 +132,7 @@ class CTypesTypeConverter:
 
     Used to marshal values when wrapping a :class:`RawJITFunc`. Registrations must
     agree with the frontend type mapping and with
-    :class:`~xdsl.jit.llvm.c_type_context.CTypeContext` for the same logical types.
+    :class:`~xdsl.jit.c_type_context.CTypeContext` for the same logical types.
     """
 
     _mapping: dict[type[Any], TypeMap]
@@ -260,14 +261,11 @@ def register_default_type_conversion(ctx: JITContext) -> None:
     """
     Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
 
-    Updates the frontend type map, :class:`CTypesTypeConverter`, and the backend’s
-    :class:`CTypeContext` together.
+    Updates the frontend type map and the :class:`CTypesTypeConverter` together. The
+    backend registers the IR side on its own :class:`CTypeContext`.
     """
     ctx.pyast_ctx.register_type(float, builtin.f64)
     ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
-    ctx.jit_backend.c_type_context.register_ctype(
-        builtin.Float64Type, lambda _: c_double
-    )
 
 
 # --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
@@ -355,6 +353,8 @@ class LLVMJITBackend(JITBackend):
     ):
         """Construct the backend with the given ``lowering`` pipeline."""
         super().__init__()
+        register_builtin_ctypes(self.c_type_context)
+        register_llvm_ctypes(self.c_type_context)
         self.lowering = lowering
 
     def jit(
@@ -368,7 +368,7 @@ class LLVMJITBackend(JITBackend):
         PassPipeline(self.lowering).apply(ir_context, mlir_module)
         func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
         assert isinstance(func_op, llvm.FuncOp)
-        c_func_type = self.c_type_context.to_c_func_type(func_op.function_type)
+        c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
         return llvm_jit(llvm_module, symbol, c_func_type)
 
