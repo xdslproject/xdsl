@@ -5,7 +5,7 @@ from typing import Any
 from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, NoneType
 from xdsl.dialects.llvm import LLVMFunctionType, LLVMPointerType, LLVMVoidType
 from xdsl.ir import Attribute
-from xdsl.utils.exceptions import LLVMTranslationException
+from xdsl.utils.exceptions import JITException
 
 
 class CTypeContext:
@@ -28,12 +28,12 @@ class CTypeContext:
         try:
             converter = self.registry[type(type_attr)]
         except KeyError:
-            raise LLVMTranslationException(f"No ctypes mapping for type: {type_attr}")
+            raise JITException(f"No ctypes mapping for type: {type_attr}")
         return converter(type_attr)
 
     def to_c_func_type(self, func_type: LLVMFunctionType):
         if func_type.is_variadic:
-            raise LLVMTranslationException(
+            raise JITException(
                 f"No ctypes mapping for variadic function type: {func_type}"
             )
         return ctypes.CFUNCTYPE(
@@ -56,9 +56,7 @@ def _int_to_ctype(type_attr: IntegerType) -> Any:
     try:
         return _INT_CTYPE_BY_WIDTH[width]
     except KeyError:
-        raise LLVMTranslationException(
-            f"No ctypes mapping for integer of width {width}"
-        )
+        raise JITException(f"No ctypes mapping for integer of width {width}")
 
 
 def register_builtin_ctypes(ctx: CTypeContext) -> None:

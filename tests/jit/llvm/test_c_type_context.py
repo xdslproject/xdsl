@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.llvm import LLVMPointerType, LLVMVoidType
 from xdsl.ir import Attribute
 from xdsl.jit.llvm.c_type_context import CTypeContext, register_builtin_ctypes
-from xdsl.utils.exceptions import LLVMTranslationException
+from xdsl.utils.exceptions import JITException
 
 
 def test_register_and_resolve():
@@ -40,7 +40,7 @@ def test_converter_receives_the_attribute():
 
 def test_resolve_unregistered_raises():
     ctx = CTypeContext()
-    with pytest.raises(LLVMTranslationException, match="No ctypes mapping"):
+    with pytest.raises(JITException, match="No ctypes mapping"):
         ctx.to_ctype(Float32Type())
 
 
@@ -55,7 +55,7 @@ def test_two_contexts_are_independent():
     a = CTypeContext()
     b = CTypeContext()
     a.register_ctype(Float32Type, lambda _: ctypes.c_float)
-    with pytest.raises(LLVMTranslationException):
+    with pytest.raises(JITException):
         b.to_ctype(Float32Type())
 
 
@@ -99,5 +99,5 @@ def test_builtin_resolve(ctx: CTypeContext, type_attr: Attribute, expected: obje
     ],
 )
 def test_builtin_unsupported(ctx: CTypeContext, type_attr: Attribute, match: str):
-    with pytest.raises(LLVMTranslationException, match=match):
+    with pytest.raises(JITException, match=match):
         ctx.to_ctype(type_attr)
