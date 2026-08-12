@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, NoneType
-from xdsl.dialects.llvm import LLVMPointerType, LLVMVoidType
+from xdsl.dialects.llvm import LLVMFunctionType, LLVMPointerType, LLVMVoidType
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import LLVMTranslationException
 
@@ -30,6 +30,16 @@ class CTypeContext:
         except KeyError:
             raise LLVMTranslationException(f"No ctypes mapping for type: {type_attr}")
         return converter(type_attr)
+
+    def to_c_func_type(self, func_type: LLVMFunctionType):
+        if func_type.is_variadic:
+            raise LLVMTranslationException(
+                f"No ctypes mapping for variadic function type: {func_type}"
+            )
+        return ctypes.CFUNCTYPE(
+            self.to_ctype(func_type.output),
+            *(self.to_ctype(arg) for arg in func_type.inputs),
+        )
 
 
 _INT_CTYPE_BY_WIDTH: dict[int, Any] = {

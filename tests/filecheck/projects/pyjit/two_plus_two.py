@@ -38,11 +38,11 @@ import llvmlite.binding
 import llvmlite.ir as llvm_ir
 from typing_extensions import TypeForm, TypeVar
 
-from xdsl import ir
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
+from xdsl.jit.llvm.c_type_context import CTypeContext
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -131,7 +131,7 @@ class CTypesTypeConverter:
 
     Used to marshal values when wrapping a :class:`RawJITFunc`. Registrations must
     agree with the frontend type mapping and with
-    :class:`CTypesAttributeConverter` for the same logical types.
+    :class:`~xdsl.jit.llvm.c_type_context.CTypeContext` for the same logical types.
     """
 
     _mapping: dict[type[Any], TypeMap]
@@ -153,41 +153,6 @@ class CTypesTypeConverter:
         return FuncTypeMap(
             tuple(self._mapping[py_type] for py_type in param_types),
             self._mapping[return_type],
-        )
-
-
-class CTypesAttributeConverter:
-    """
-    Registry mapping IR type attributes to ctypes type classes.
-
-    Backends use this to build a ``CFUNCTYPE`` from a lowered function type.
-    Registrations must agree with :class:`CTypesTypeConverter` and the frontend
-    type mapping for the same logical types.
-    """
-
-    _mapping: dict[type[ir.Attribute], Callable[[ir.Attribute], type[Any]]]
-
-    def __init__(self):
-        self._mapping = {}
-
-    def extend(
-        self,
-        attribute_class: type[ir.Attribute],
-        to_ctype: Callable[[ir.Attribute], type[Any]],
-    ) -> None:
-        """Register how ``attribute_class`` instances map to a ctypes type."""
-        self._mapping[attribute_class] = to_ctype
-
-    def convert_type(self, attribute: ir.Attribute) -> type[Any]:
-        """Return the ctypes type class for ``attribute``."""
-        return self._mapping[type(attribute)](attribute)
-
-    def c_func_type_from_func_type(
-        self, arg_types: tuple[ir.Attribute, ...], res_type: ir.Attribute
-    ) -> "type[_CFunctionType]":
-        """Build a ``CFUNCTYPE`` from IR argument and result types."""
-        return CFUNCTYPE(
-            self.convert_type(res_type), *(self.convert_type(arg) for arg in arg_types)
         )
 
 
@@ -231,13 +196,13 @@ class JITBackend(abc.ABC):
     backend’s dialect, and bind ``symbol`` for native calls.
     """
 
-    c_types_attribute_converter: CTypesAttributeConverter
+    c_type_context: CTypeContext
     """IR type attribute to ctypes type registry."""
 
     def __init__(self):
-        """Initialize an empty :class:`CTypesAttributeConverter`."""
+        """Initialize an empty :class:`CTypeContext`."""
         super().__init__()
-        self.c_types_attribute_converter = CTypesAttributeConverter()
+        self.c_type_context = CTypeContext()
 
     @abc.abstractmethod
     def jit(
@@ -296,11 +261,11 @@ def register_default_type_conversion(ctx: JITContext) -> None:
     Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
 
     Updates the frontend type map, :class:`CTypesTypeConverter`, and the backend’s
-    :class:`CTypesAttributeConverter` together.
+    :class:`CTypeContext` together.
     """
     ctx.pyast_ctx.register_type(float, builtin.f64)
     ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
-    ctx.jit_backend.c_types_attribute_converter.extend(
+    ctx.jit_backend.c_type_context.register_ctype(
         builtin.Float64Type, lambda _: c_double
     )
 
@@ -403,10 +368,7 @@ class LLVMJITBackend(JITBackend):
         PassPipeline(self.lowering).apply(ir_context, mlir_module)
         func_op = SymbolTable.lookup_symbol(mlir_module, symbol)
         assert isinstance(func_op, llvm.FuncOp)
-        xdsl_func_type = func_op.function_type
-        c_func_type = self.c_types_attribute_converter.c_func_type_from_func_type(
-            xdsl_func_type.inputs.data, xdsl_func_type.output
-        )
+        c_func_type = self.c_type_context.to_c_func_type(func_op.function_type)
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
         return llvm_jit(llvm_module, symbol, c_func_type)
 
