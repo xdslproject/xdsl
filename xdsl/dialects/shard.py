@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IndexTypeConstr,
     IntegerAttr,
+    MemRefType,
     SymbolNameConstraint,
     TensorType,
     UnitAttr,
@@ -169,6 +170,36 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
     grid = prop_def(FlatSymbolRefAttr)
     grid_axes = prop_def(
         ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b""))
+    )
+
+
+@irdl_op_definition
+class AllReduceOp(CollectiveCommunicationOp):
+    """
+    All-reduce over a device grid.
+
+    Within each device group reduce the input using the `reduction` method.
+    Each device in a group receives a replicated copy of the reduction result.
+    The accumulation element type is determined by the result type.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardall_reduce-shardallreduceop).
+    """
+
+    name = "shard.all_reduce"
+
+    input = operand_def(MemRefType.constr() | TensorType.constr())
+    reduction = prop_def(
+        ReductionKindAttr, default_value=ReductionKindAttr(ReductionKind.SUM)
+    )
+
+    result = result_def(MemRefType.constr() | TensorType.constr())
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
+        + "(`reduction` `=` $reduction^)? "
+        + "attr-dict `:` type($input) `->` type($result)"
     )
 
 
@@ -505,6 +536,7 @@ class ShardOp(IRDLOperation):
 Shard = Dialect(
     "shard",
     [
+        AllReduceOp,
         BroadcastOp,
         GatherOp,
         RecvOp,
