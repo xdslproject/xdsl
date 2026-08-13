@@ -2,11 +2,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.dialects import arith, linalg, memref, scf
+from xdsl.dialects import arith, linalg, memref, scf, tensor
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     MemRefType,
+    TensorType,
 )
 from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
@@ -22,17 +23,17 @@ class OperandTileInfo:
     This records how one operand should be sliced when we enter a tile.
     - `source_type` keeps the original type.
     - `loop_dims` the loop dimension that comes from each indexing-map.
-    - `result_shape` the shape that tiled subview should have.
+    - `result_shape` the shape that tiled slice should have.
     """
 
-    source_type: MemRefType[Attribute]
+    source_type: MemRefType[Attribute] | TensorType[Attribute]
     loop_dims: tuple[int, ...]
     result_shape: tuple[int, ...]
 
     @staticmethod
     def analyze(
         indexing_map: AffineMap,
-        source_type: MemRefType[Attribute],
+        source_type: MemRefType[Attribute] | TensorType[Attribute],
         tile_sizes: Sequence[int],
     ) -> "OperandTileInfo":
         """
@@ -104,7 +105,7 @@ class TilingPlan:
             op.operands, op.get_indexing_maps(), strict=True
         ):
             source_type = operand.type
-            assert isa(source_type, MemRefType)
+            assert isa(source_type, MemRefType) or isa(source_type, TensorType)
             operand_infos_list.append(
                 OperandTileInfo.analyze(
                     indexing_map.data,
@@ -243,16 +244,25 @@ def _build_tile_loops(
     return loops, tiled_loop_ivs, current_insertion_point
 
 
-def _build_tiled_subview(
+def _build_tiled_slice(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     operand: SSAValue,
     indexing_map: AffineMap,
     operand_info: OperandTileInfo,
     tiled_loop_ivs: dict[int, SSAValue],
-) -> memref.SubviewOp:
+) -> SSAValue:
     """
-    Build `the subview` for one operand at the current tile position.
+    Build the slice of `operand` at the current tile position.
+
+    Memrefs are sliced with a `memref.subview`, which views the source memory,
+    and tensors with a `tensor.extract_slice`, which produces a new value. The
+    offsets, sizes and strides are the same either way, so only the op that
+    materializes the slice differs.
+
+    `operand` is the value to slice, which is not always the operand the tile
+    info was analyzed from: an output tensor is sliced from the value carried by
+    the enclosing loops rather than from the original.
     """
 
     source_shape = operand_info.source_type.get_shape()
@@ -270,27 +280,37 @@ def _build_tiled_subview(
             sizes.append(source_shape[result_index])
 
     strides = (1,) * len(source_shape)
+    source_type = operand_info.source_type
     try:
-        result_type = memref.SubviewOp.infer_result_type(
-            operand_info.source_type,
-            offsets,
-            sizes,
-            strides,
-        )
+        if isa(source_type, MemRefType):
+            slice_op = memref.SubviewOp.get(
+                operand,
+                offsets,
+                sizes,
+                strides,
+                memref.SubviewOp.infer_result_type(
+                    source_type,
+                    offsets,
+                    sizes,
+                    strides,
+                ),
+            )
+        elif isa(source_type, TensorType):
+            slice_op = tensor.ExtractSliceOp(
+                operand,
+                offsets,
+                sizes,
+                strides,
+                tensor.ExtractSliceOp.infer_result_type(source_type, sizes),
+            )
+        else:
+            raise ValueError(f"cannot tile an operand of type {source_type}")
     except ValueError as e:
         raise PassFailedException(str(e)) from e
 
-    subview = memref.SubviewOp.get(
-        operand,
-        offsets,
-        sizes,
-        strides,
-        result_type,
-    )
+    rewriter.insert(slice_op, insertion_point)
 
-    rewriter.insert(subview, insertion_point)
-
-    return subview
+    return slice_op.result
 
 
 def tile_linalg_generic(
@@ -321,10 +341,16 @@ def tile_linalg_generic(
     for operand, operand_info, indexing_map in zip(
         op.operands, plan.operand_infos, op.get_indexing_maps(), strict=True
     ):
-        subview = _build_tiled_subview(
-            rewriter, inner_ip, operand, indexing_map.data, operand_info, tiled_loop_ivs
+        tiled_operands.append(
+            _build_tiled_slice(
+                rewriter,
+                inner_ip,
+                operand,
+                indexing_map.data,
+                operand_info,
+                tiled_loop_ivs,
+            )
         )
-        tiled_operands.append(subview.result)
 
     num_inputs = len(op.inputs)
     tiled_generic = linalg.ops.GenericOp(

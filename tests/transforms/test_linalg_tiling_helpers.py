@@ -5,25 +5,30 @@ from typing import Any
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects import linalg
+from xdsl.dialects import linalg, memref, tensor
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
+    DenseArrayBase,
+    IndexType,
     MemRefType,
     ModuleOp,
     TensorType,
     f32,
+    i64,
 )
 from xdsl.dialects.linalg.transforms.tiling import (
     OperandTileInfo,
     TilingPlan,
     _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
+    _build_tiled_slice,  # pyright: ignore[reportPrivateUsage]
     tile_linalg_generic,
 )
 from xdsl.ir import Attribute
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -189,6 +194,47 @@ def test_tiling_plan_rejects_partial_tiles():
 
     with pytest.raises(ValueError, match="partial tiles"):
         TilingPlan.analyze_generic_op(op, (3, 0))
+
+
+def _tiled_slice_for(source_type: MemRefType[Attribute] | TensorType[Attribute]):
+    """Slice dim 0 of a 2d operand at a loop induction variable, tile size 2."""
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    operand = create_ssa_value(source_type)
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    operand_info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+
+    result = _build_tiled_slice(
+        rewriter, InsertPoint.before(op), operand, indexing_map, operand_info, {0: iv}
+    )
+    return result.owner
+
+
+def test_build_tiled_slice_memref_emits_subview():
+    slice_op = _tiled_slice_for(MemRefType(f32, [4, 5]))
+
+    assert isinstance(slice_op, memref.SubviewOp)
+    assert slice_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert slice_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert len(slice_op.offsets) == 1
+    assert isa(slice_op.result.type, MemRefType)
+    assert slice_op.result.type.get_shape() == (2, 5)
+
+
+def test_build_tiled_slice_tensor_emits_extract_slice():
+    slice_op = _tiled_slice_for(TensorType(f32, [4, 5]))
+
+    assert isinstance(slice_op, tensor.ExtractSliceOp)
+    # Dim 0 is tiled, so its offset is the induction variable and its size the
+    # tile size; dim 1 is untiled, so it takes the whole extent at offset 0.
+    assert slice_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert slice_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert slice_op.static_strides == DenseArrayBase.from_list(i64, [1, 1])
+    assert len(slice_op.offsets) == 1
+    assert slice_op.result.type == TensorType(f32, [2, 5])
 
 
 def test_build_tile_loops_without_iter_args():
