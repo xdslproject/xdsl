@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from typing_extensions import override
 
@@ -325,7 +325,7 @@ how many names exist (e.g. 8, 16, or 32) via
 """
 
 
-class X86VectorRegisterType(X86RegisterType):
+class X86VectorRegisterType(X86RegisterType, ABC):
     """
     The abstract class for all x86 vector register types.
     """
@@ -336,11 +336,12 @@ class X86VectorRegisterType(X86RegisterType):
         return X86_VECTOR_POOL_KEY
 
     @classmethod
+    @abstractmethod
     def bitwidth(cls) -> int:
         """
         The width of this register bank in bits.
         """
-        raise NotImplementedError()
+        ...
 
 
 SSE_INDEX_BY_NAME = {f"xmm{i}": i for i in range(32)}
