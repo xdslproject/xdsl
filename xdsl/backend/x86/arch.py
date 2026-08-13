@@ -65,9 +65,13 @@ class X86Arch(Arch):
         try:
             return self.VECTOR_TYPES_BY_BITWIDTH[vector_size]
         except KeyError:
+            # `from None` keeps the raw `KeyError: 512` out of the traceback, so
+            # the reported cause is the diagnostic rather than a dict lookup.
             raise DiagnosticException(
-                f"The vector size ({vector_size} bits) and target architecture `{self.name()}` are inconsistent."
-            )
+                f"The vector size ({vector_size} bits) and target architecture "
+                f"`{self.name()}` are inconsistent. Supported vector sizes are "
+                f"{sorted(self.VECTOR_TYPES_BY_BITWIDTH)}."
+            ) from None
 
     def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
         if isinstance(value_type, FixedBitwidthType):

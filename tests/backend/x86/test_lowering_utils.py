@@ -12,6 +12,7 @@ from xdsl.dialects.x86.registers import (
 )
 from xdsl.ir import Attribute, Block
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -93,3 +94,30 @@ def test_move_value_to_unallocated_insertion_point():
 )
 def test_register_type_for_ptr_type(arch: arch.X86Arch):
     assert arch.register_type_for_type(ptr.PtrType()) == Reg64Type
+
+
+@pytest.mark.parametrize(
+    "target, vector_type, supported",
+    [
+        (arch.AVX2, VectorType(f64, (8,)), "[128, 256]"),
+        (arch.AVX512, VectorType(f64, (16,)), "[128, 256, 512]"),
+        (arch.UNKNOWN, VectorType(f64, (4,)), "[128]"),
+    ],
+)
+def test_register_type_for_oversized_vector(
+    target: arch.X86Arch, vector_type: VectorType, supported: str
+):
+    """
+    A vector too wide for the target reports a diagnostic naming the sizes the
+    target does support, and does not surface the underlying dict lookup.
+    """
+    with pytest.raises(DiagnosticException) as exc_info:
+        target.register_type_for_type(vector_type)
+
+    message = str(exc_info.value)
+    assert "are inconsistent" in message
+    assert f"Supported vector sizes are {supported}" in message
+    # The KeyError must not be chained onto the diagnostic, otherwise the
+    # traceback leads with `KeyError: 512` instead of the explanation.
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__
