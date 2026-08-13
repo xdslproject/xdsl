@@ -287,6 +287,41 @@ class RecvOp(CollectiveCommunicationOp):
 
 
 @irdl_op_definition
+class ReduceOp(CollectiveCommunicationOp):
+    """
+    Reduce over a device grid.
+
+    Within each device group reduce the input tensor using the `reduction`
+    method. The result is returned on the `root` device of each group and is
+    undefined on all other devices.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardreduce-shardreduceop).
+    """
+
+    name = "shard.reduce"
+
+    input = operand_def(TensorType)
+    reduction = prop_def(
+        ReductionKindAttr, default_value=ReductionKindAttr(ReductionKind.SUM)
+    )
+    root = prop_def(DenseArrayBase[I64])
+    root_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
+        + "(`reduction` `=` $reduction^)? "
+        + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
 class SendOp(CollectiveCommunicationOp):
     """
     Send from one device to another within a device group.
@@ -473,6 +508,7 @@ Shard = Dialect(
         BroadcastOp,
         GatherOp,
         RecvOp,
+        ReduceOp,
         SendOp,
         ScatterOp,
         ShiftOp,

@@ -46,13 +46,19 @@ shard.grid @mesh5(shape = ?)
 // CHECK-NEXT: {{%.*}} = shard.scatter {{%.*}} on @mesh0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
 %17 = shard.recv %t on @mesh0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: {{%.*}} = shard.recv {{%.*}} on @mesh0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%18 = shard.send %t on @mesh0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%18 = shard.reduce %t on @mesh0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: {{%.*}} = shard.reduce {{%.*}} on @mesh0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%i = "test.op"() : () -> index
+// CHECK-NEXT: {{%.*}} = "test.op"() : () -> index
+%19 = shard.reduce %t on @mesh0 grid_axes = [0, 2] reduction = max root = [1, %i] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
+// CHECK-NEXT: {{%.*}} = shard.reduce {{%.*}} on @mesh0 grid_axes = [0, 2] reduction = max root = [1, {{%.*}}] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
+%20 = shard.send %t on @mesh0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: {{%.*}} = shard.send {{%.*}} on @mesh0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%19 = shard.shift %t on @mesh0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
+%21 = shard.shift %t on @mesh0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 // CHECK-NEXT: {{%.*}} = shard.shift {{%.*}} on @mesh0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 
 // Sharding
-%20 = shard.shard %t to %11 : tensor<2x2xi8>
+%22 = shard.shard %t to %11 : tensor<2x2xi8>
 // CHECK-NEXT: %{{.*}} = shard.shard %{{.*}} to %{{.*}} : tensor<2x2xi8>
-%21 = shard.shard %t to %11 annotate_for_users : tensor<2x2xi8>
+%23 = shard.shard %t to %11 annotate_for_users : tensor<2x2xi8>
 // CHECK-NEXT: %{{.*}} = shard.shard %{{.*}} to %{{.*}} annotate_for_users : tensor<2x2xi8>
