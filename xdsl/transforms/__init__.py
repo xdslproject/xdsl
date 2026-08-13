@@ -657,6 +657,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_allocate_registers.X86AllocateRegisters
 
+    def get_x86_fold_memory_operands():
+        from xdsl.transforms import x86_fold_memory_operands
+
+        return x86_fold_memory_operands.X86FoldMemoryOperands
+
     def get_x86_infer_broadcast():
         from xdsl.transforms import x86_infer_broadcast
 
@@ -809,6 +814,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
+        "x86-fold-memory-operands": get_x86_fold_memory_operands,
         "x86-infer-broadcast": get_x86_infer_broadcast,
         "x86-regalloc-legalize": get_x86_regalloc_legalize,
         "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
