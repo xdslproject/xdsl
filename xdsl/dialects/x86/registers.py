@@ -335,6 +335,13 @@ class X86VectorRegisterType(X86RegisterType):
     def register_pool_key(cls) -> str:
         return X86_VECTOR_POOL_KEY
 
+    @classmethod
+    def bitwidth(cls) -> int:
+        """
+        The width of this register bank in bits.
+        """
+        raise NotImplementedError()
+
 
 SSE_INDEX_BY_NAME = {f"xmm{i}": i for i in range(32)}
 """
@@ -351,6 +358,10 @@ class SSERegisterType(X86VectorRegisterType):
     """
 
     name = "x86.ssereg"
+
+    @classmethod
+    def bitwidth(cls) -> int:
+        return 128
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
@@ -420,6 +431,10 @@ class AVX2RegisterType(X86VectorRegisterType):
     name = "x86.avx2reg"
 
     @classmethod
+    def bitwidth(cls) -> int:
+        return 256
+
+    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
 
@@ -485,6 +500,10 @@ class AVX512RegisterType(X86VectorRegisterType):
     """
 
     name = "x86.avx512reg"
+
+    @classmethod
+    def bitwidth(cls) -> int:
+        return 512
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
