@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     TensorType,
+    VectorType,
     f32,
     i64,
 )
@@ -135,11 +136,19 @@ def test_tiling_plan_rejects_negative_tile_size():
         TilingPlan.analyze_generic_op(op, (-1, 0))
 
 
-def test_tiling_plan_rejects_tensor_results():
-    op = _generic_2d_copy_op(result_types=(TensorType(f32, [4, 5]),))
+def test_tiling_plan_accepts_tensor_operands():
+    op = _generic_2d_copy_op(
+        input_type=TensorType(f32, [4, 5]),
+        output_type=TensorType(f32, [4, 5]),
+        result_types=(TensorType(f32, [4, 5]),),
+    )
 
-    with pytest.raises(NotImplementedError, match="tensor results"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+
+    assert plan.loop_ranges == (4, 5)
+    assert plan.tiled_dims == (0,)
+    assert plan.operand_infos[0].source_type == TensorType(f32, [4, 5])
+    assert plan.operand_infos[0].result_shape == (2, 5)
 
 
 def test_tiling_plan_rejects_linalg_index():
@@ -161,10 +170,48 @@ def test_tiling_plan_rejects_non_parallel_tiled_iterator():
         TilingPlan.analyze_generic_op(op, (0, 2))
 
 
-def test_tiling_plan_rejects_non_memref_operand():
-    op = _generic_2d_copy_op(input_type=TensorType(f32, [4, 5]))
+def test_tiling_plan_rejects_operand_that_is_neither_memref_nor_tensor():
+    op = _generic_2d_copy_op(input_type=VectorType(f32, [4, 5]))
 
-    with pytest.raises(NotImplementedError, match="non-memref operands"):
+    with pytest.raises(NotImplementedError, match="neither memrefs nor tensors"):
+        TilingPlan.analyze_generic_op(op, (2, 0))
+
+
+def test_tiling_plan_rejects_mixed_memref_and_tensor_operands():
+    # A tensor input written into a memref output. MLIR does not consider this
+    # valid either, requiring pure tensor or pure buffer semantics.
+    op = _generic_2d_copy_op(
+        input_type=TensorType(f32, [4, 5]),
+        output_type=MemRefType(f32, [4, 5]),
+    )
+
+    with pytest.raises(ValueError, match="mix of memref and tensor operands"):
+        TilingPlan.analyze_generic_op(op, (2, 0))
+
+
+def test_tiling_plan_rejects_mixed_memref_and_tensor_outputs():
+    tensor_type = TensorType(f32, [4, 5])
+    lhs = create_ssa_value(tensor_type)
+    tensor_out = create_ssa_value(tensor_type)
+    memref_out = create_ssa_value(MemRefType(f32, [4, 5]))
+
+    @Builder.implicit_region((f32, f32, f32))
+    def body(args: tuple[Any, ...]):
+        linalg.ops.YieldOp(args[0])
+
+    identity = AffineMapAttr(AffineMap.from_callable(lambda i, j: (i, j)))
+    parallel = linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL)
+
+    op = linalg.ops.GenericOp(
+        [lhs],
+        [tensor_out, memref_out],
+        body,
+        [identity, identity, identity],
+        [parallel, parallel],
+        (tensor_type,),
+    )
+
+    with pytest.raises(ValueError, match="mix of memref and tensor operands"):
         TilingPlan.analyze_generic_op(op, (2, 0))
 
 

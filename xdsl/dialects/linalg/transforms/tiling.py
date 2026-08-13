@@ -139,9 +139,16 @@ def _verify_generic_is_tileable(
     if any(tile_sizes[dim] < 0 for dim in tiled_dims):
         raise ValueError("negative tile sizes are not supported")
 
-    if op.res:
-        raise NotImplementedError(
-            "tiling linalg.generic with tensor results is not supported yet"
+    # Operands that mix the two are rejected outright rather than tiled, since
+    # each kind is written back a different way. MLIR does not consider such an
+    # op valid either, requiring pure tensor or pure buffer semantics.
+    operand_types = tuple(operand.type for operand in op.operands)
+    if any(isa(operand_type, MemRefType) for operand_type in operand_types) and any(
+        isa(operand_type, TensorType) for operand_type in operand_types
+    ):
+        raise ValueError(
+            "tiling linalg.generic with a mix of memref and tensor operands is "
+            "not supported"
         )
 
     if any(isa(body_op, linalg.ops.IndexOp) for body_op in op.body.walk()):
@@ -161,9 +168,12 @@ def _verify_generic_is_tileable(
     for operand, indexing_map in zip(op.operands, indexing_maps, strict=True):
         raw_operand_type = operand.type
 
-        if not isa(raw_operand_type, MemRefType):
+        if not isa(raw_operand_type, MemRefType) and not isa(
+            raw_operand_type, TensorType
+        ):
             raise NotImplementedError(
-                "tiling linalg.generic with non-memref operands is not supported yet"
+                "tiling linalg.generic with operands that are neither memrefs nor "
+                "tensors is not supported yet"
             )
         operand_type = raw_operand_type
 
