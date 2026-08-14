@@ -71,7 +71,7 @@ def test_extract_slice_dynamic():
     size = create_ssa_value(IndexType())
 
     result_type = ExtractSliceOp.infer_result_type(source_t, [size, 5, 6])
-    extract_slice = ExtractSliceOp.get(
+    extract_slice = ExtractSliceOp(
         source_v, [offset, 0, 0], [size, 5, 6], [1, 1, 1], result_type
     )
     extract_slice.verify()
@@ -97,7 +97,7 @@ def test_extract_slice_get_all_static():
     source_v = create_ssa_value(source_t)
 
     result_type = ExtractSliceOp.infer_result_type(source_t, [4, 5, 6])
-    extract_slice = ExtractSliceOp.get(
+    extract_slice = ExtractSliceOp(
         source_v, [1, 2, 3], [4, 5, 6], [1, 1, 1], result_type
     )
     extract_slice.verify()

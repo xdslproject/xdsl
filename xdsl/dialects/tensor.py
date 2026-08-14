@@ -565,14 +565,14 @@ class ExtractSliceOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
         offsets: Sequence[SSAValue | int],
         sizes: Sequence[SSAValue | int],
         strides: Sequence[SSAValue | int],
         result_type: Attribute,
-    ) -> ExtractSliceOp:
+    ):
         """
         Build a tensor.extract_slice from offsets, sizes, and strides that may each
         be a static integer or a dynamic SSA value.
@@ -581,7 +581,7 @@ class ExtractSliceOp(IRDLOperation):
         static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
         static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
 
-        return ExtractSliceOp.build(
+        super().__init__(
             operands=[source, dyn_offsets, dyn_sizes, dyn_strides],
             result_types=[result_type],
             properties={
