@@ -48,7 +48,12 @@ class X86Arch(Arch):
         try:
             return _ARCH_BY_NAME[name]
         except KeyError:
-            raise DiagnosticException(f"Unsupported arch {name}")
+            # Same reason as below: without `from None` the traceback leads with
+            # `KeyError: 'sse9'` rather than with the diagnostic.
+            raise DiagnosticException(
+                f"Unsupported arch {name}. Supported arches are "
+                f"{sorted(_ARCH_BY_NAME)}."
+            ) from None
 
     def _register_type_for_vector_type(
         self, value_type: VectorType
