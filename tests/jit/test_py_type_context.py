@@ -8,20 +8,16 @@ from typing_extensions import TypeForm
 from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.utils.exceptions import JITException
 
-
-def _convert(_: Any) -> Any: ...
-
-
-FLOAT_MAP = TypeMap(float, ctypes.c_double, _convert, _convert)
-INT_MAP = TypeMap(int, ctypes.c_int32, _convert, _convert)
-BOOL_MAP = TypeMap(bool, ctypes.c_bool, _convert, _convert)
+FLOAT_MAP = TypeMap(float, ctypes.c_double, ctypes.c_double, float)
+INT_MAP = TypeMap(int, ctypes.c_int32, ctypes.c_int32, int)
+BOOL_MAP = TypeMap(bool, ctypes.c_bool, ctypes.c_bool, bool)
 
 
 @pytest.fixture
 def ctx() -> PyTypeContext:
     c = PyTypeContext()
     for type_map in (FLOAT_MAP, INT_MAP, BOOL_MAP):
-        c.extend(type_map)
+        c.register_type_map(type_map)
     return c
 
 
@@ -58,6 +54,18 @@ def test_c_func_type(
     expected: tuple[type[Any], ...],
 ):
     assert ctx.func_type_map(signature).c_func_type() is ctypes.CFUNCTYPE(*expected)
+
+
+def test_marshals_call(ctx: PyTypeContext):
+    def scale(value: float, count: int) -> float:
+        return value * count
+
+    func_type_map = ctx.func_type_map(Callable[[float, int], float])
+    c_func = func_type_map.c_func_type()(scale)
+    ctype_args = tuple(
+        m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, (1.5, 3), strict=True)
+    )
+    assert func_type_map.res_map.from_ctype(c_func(*ctype_args)) == 4.5
 
 
 @pytest.mark.parametrize(

@@ -202,7 +202,7 @@ def register_default_type_conversion(ctx: JITContext) -> None:
     backend registers the IR side on its own :class:`CTypeContext`.
     """
     ctx.pyast_ctx.register_type(float, builtin.f64)
-    ctx.py_type_context.extend(TypeMap(float, c_double, c_double, float))
+    ctx.py_type_context.register_type_map(TypeMap(float, c_double, c_double, float))
 
 
 # --- LLVM / llvmlite backend (xdsl.jit.llvm) ---

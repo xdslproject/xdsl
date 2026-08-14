@@ -54,7 +54,7 @@ class PyTypeContext:
     def __init__(self):
         self._mapping = {}
 
-    def extend(self, type_map: TypeMap):
+    def register_type_map(self, type_map: TypeMap):
         """Register a :class:`TypeMap` for its ``python_type``."""
         self._mapping[type_map.python_type] = type_map
 
