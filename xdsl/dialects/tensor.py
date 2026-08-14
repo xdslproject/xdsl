@@ -27,6 +27,7 @@ from xdsl.dialects.utils import (
     DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
+    split_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
@@ -563,6 +564,58 @@ class ExtractSliceOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ):
+        """
+        Build a tensor.extract_slice from offsets, sizes, and strides that may each
+        be a static integer or a dynamic SSA value.
+        """
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
+
+        super().__init__(
+            operands=[source, dyn_offsets, dyn_sizes, dyn_strides],
+            result_types=[result_type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, static_offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, static_sizes),
+                "static_strides": DenseArrayBase.from_list(i64, static_strides),
+            },
+        )
+
+    @staticmethod
+    def infer_result_type(
+        source_type: TensorType[Attribute],
+        sizes: Sequence[SSAValue | int],
+    ) -> TensorType[Attribute]:
+        """
+        Infer the result type of a tensor.extract_slice from its source type and
+        sizes. Offsets and strides do not affect the result shape.
+
+        Raises:
+            ValueError: If sizes do not match the source rank.
+        """
+        rank = source_type.get_num_dims()
+        if len(sizes) != rank:
+            raise ValueError("expected sizes to match source rank")
+
+        result_shape = tuple(
+            size if isinstance(size, int) else DYNAMIC_INDEX for size in sizes
+        )
+
+        return TensorType(
+            source_type.get_element_type(),
+            result_shape,
+            source_type.encoding,
+        )
 
     @staticmethod
     def from_static_parameters(
