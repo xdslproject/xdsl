@@ -91,5 +91,5 @@ def test_wrapped_jit_func_rejects_keyword_arguments(
         int_type_context,
     )
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError, match="unexpected keyword argument"):
         cast(Callable[..., int], wrapped_func)(lhs=1, rhs=2)

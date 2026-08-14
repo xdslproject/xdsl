@@ -86,5 +86,5 @@ def test_unregistered_type_raises(
     "signature", [Callable, Callable[..., float]], ids=["bare", "ellipsis"]
 )
 def test_unenumerable_signature_raises(signature: TypeForm[Callable[..., Any]]):
-    with pytest.raises(JITException, match="Unsupported signature"):
+    with pytest.raises(NotImplementedError, match="Unsupported signature"):
         PyTypeContext().func_type_map(signature)

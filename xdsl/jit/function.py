@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, ParamSpec, Protocol, overload
+from typing import Any, Generic, ParamSpec, Protocol, cast, overload
 
 from typing_extensions import TypeForm, TypeVar
 
@@ -83,12 +83,11 @@ def wrap_jit_func(
         f"match signature from Python TypeMaps ({func_type_map.c_func_type()})."
     )
 
-    def fn(*args: P.args, **kwargs: P.kwargs) -> R:
-        assert not kwargs
+    def fn(*args: Any) -> R:
         ctype_args = tuple(
             m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, args, strict=True)
         )
         ctype_res = raw_func.c_func(*ctype_args)
         return func_type_map.res_map.from_ctype(ctype_res)
 
-    return WrappedJITFunc(raw_func, original_func, fn)
+    return WrappedJITFunc(raw_func, original_func, cast(Callable[P, R], fn))
