@@ -135,3 +135,20 @@ def test_register_type_for_oversized_vector(
     # traceback leads with `KeyError: 512` instead of the explanation above.
     assert exc_info.value.__cause__ is None
     assert exc_info.value.__suppress_context__
+
+
+def test_unsupported_arch_name():
+    """
+    The same chaining problem as above, one function up: a bad arch name should
+    report the name and the alternatives, not a dict lookup.
+    """
+    with pytest.raises(
+        DiagnosticException,
+        match=re.escape(
+            "Unsupported arch sse9. Supported arches are ['avx2', 'avx512', 'unknown']."
+        ),
+    ) as exc_info:
+        arch.X86Arch.arch_for_name("sse9")
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__
