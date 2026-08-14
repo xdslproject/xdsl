@@ -9,6 +9,8 @@ from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
+    ModuleOp,
+    StringAttr,
     VectorType,
 )
 from xdsl.dialects.x86.registers import (
@@ -28,6 +30,14 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
+ARCH_ATTR_NAME = "x86.arch"
+"""
+Name of the module attribute recording the target this module is compiled for.
+
+Set once at the top of a pipeline, so that passes downstream do not each need
+their own `arch` option.
+"""
+
 
 class X86Arch(Arch):
     VECTOR_TYPES_BY_BITWIDTH: ClassVar[dict[int, type[X86VectorRegisterType]]] = {
@@ -35,6 +45,15 @@ class X86Arch(Arch):
     }
     """
     Supported vector type for a given vector size.
+    """
+
+    VECTOR_REGISTER_COUNT: ClassVar[int] = 16
+    """
+    Number of vector registers this target can encode.
+
+    VEX encoding reaches xmm0-15 and ymm0-15. The upper half of each bank needs
+    EVEX, so it is only available on AVX-512 targets. All the vector banks share
+    one allocation pool, so this is the number of indices in that pool.
     """
 
     @staticmethod
@@ -49,6 +68,37 @@ class X86Arch(Arch):
             return _ARCH_BY_NAME[name]
         except KeyError:
             raise DiagnosticException(f"Unsupported arch {name}")
+
+    @staticmethod
+    def from_module(module: ModuleOp) -> X86Arch:
+        """
+        Read the target from the module, defaulting to the conservative
+        `unknown` target when it is not recorded.
+        """
+        attr = module.attributes.get(ARCH_ATTR_NAME)
+        if attr is None:
+            return UNKNOWN
+        if not isinstance(attr, StringAttr):
+            raise DiagnosticException(
+                f"`{ARCH_ATTR_NAME}` must be a string attribute, got {attr}."
+            )
+        return X86Arch.arch_for_name(attr.data)
+
+    def set_on_module(self, module: ModuleOp) -> None:
+        """
+        Record this target on the module.
+        """
+        module.attributes[ARCH_ATTR_NAME] = StringAttr(self.name())
+
+    def allocatable_vector_registers(self) -> tuple[X86VectorRegisterType, ...]:
+        """
+        The vector registers the allocator may use on this target.
+
+        Indexed off AVX2RegisterType because every vector bank shares a single
+        allocation pool, so what matters is which indices are available rather
+        than which bank names them.
+        """
+        return AVX2RegisterType.allocatable_registers()[: self.VECTOR_REGISTER_COUNT]
 
     def _register_type_for_vector_type(
         self, value_type: VectorType
@@ -191,6 +241,8 @@ class AVX512Arch(X86Arch):
         256: AVX2RegisterType,
         512: AVX512RegisterType,
     }
+
+    VECTOR_REGISTER_COUNT = 32
 
 
 AVX512 = AVX512Arch()
