@@ -408,6 +408,18 @@ x86_func.func @funcyasm() {
 %rrm_vfmadd231ps_avx512_broadcast = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_avx512_broadcast, %zmm1, [%1 + 4] {broadcast} : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK: vfmadd231ps zmm0, zmm1, [rdx+4]{1to16}
 
+// The broadcast lane count follows the register bank, not the instruction:
+// AVX512VL allows EVEX broadcast on ymm and xmm operands too, where the same
+// instruction broadcasts to fewer lanes.
+%rrm_vfmadd231pd_ymm_broadcast = x86.rsm.vfmadd231pd %rrr_vfmadd231pd_avx2, %ymm1, [%1] {broadcast} : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.reg64<rdx>) -> !x86.avx2reg<ymm0>
+// CHECK: vfmadd231pd ymm0, ymm1, [rdx]{1to4}
+%rrm_vfmadd231ps_ymm_broadcast = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_ymm_broadcast, %ymm1, [%1] {broadcast} : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.reg64<rdx>) -> !x86.avx2reg<ymm0>
+// CHECK: vfmadd231ps ymm0, ymm1, [rdx]{1to8}
+%rrm_vfmadd231pd_xmm_broadcast = x86.rsm.vfmadd231pd %rrr_vfmadd231pd_sse, %xmm1, [%1] {broadcast} : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>, !x86.reg64<rdx>) -> !x86.ssereg<xmm0>
+// CHECK: vfmadd231pd xmm0, xmm1, [rdx]{1to2}
+%rrm_vfmadd231ps_xmm_broadcast = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_xmm_broadcast, %xmm1, [%1] {broadcast} : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>, !x86.reg64<rdx>) -> !x86.ssereg<xmm0>
+// CHECK: vfmadd231ps xmm0, xmm1, [rdx]{1to4}
+
 %dss_addpd_avx512 = x86.dss.addpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: addpd zmm0, zmm1, zmm2
 %dss_addps_avx512 = x86.dss.addps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
