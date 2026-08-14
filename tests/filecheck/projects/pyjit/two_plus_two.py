@@ -29,9 +29,9 @@ for marshalling. It is passed explicitly so annotations need not be evaluated.
 
 import abc
 from collections.abc import Callable
-from ctypes import CFUNCTYPE, c_double
+from ctypes import c_double
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, ParamSpec, get_args
+from typing import TYPE_CHECKING, Generic, ParamSpec
 
 import llvmlite
 import llvmlite.binding
@@ -44,6 +44,7 @@ from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.jit.c_type_context import CTypeContext, register_builtin_ctypes
 from xdsl.jit.llvm.c_type_context import register_llvm_ctypes, to_c_func_type
+from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -93,75 +94,11 @@ class WrappedJITFunc(Generic[P, R]):
     """Marshaling entry point for calls."""
 
 
-class TypeMap(NamedTuple):
-    """
-    Correspondence between a Python type and its ctypes representation.
-
-    ``to_ctype`` / ``from_ctype`` convert values at call boundaries.
-    """
-
-    python_type: type[Any]
-    """Python type on the wrapped-function boundary."""
-
-    ctype_type: type[Any]
-    """ctypes type used in the native ``CFUNCTYPE``."""
-
-    to_ctype: Callable[[Any], Any]
-    """Convert a Python argument to a ctypes-compatible value."""
-
-    from_ctype: Callable[[Any], Any]
-    """Convert a ctypes result back to a Python value."""
-
-
-class FuncTypeMap(NamedTuple):
-    """Per-argument and result :class:`TypeMap` entries for a function signature."""
-
-    arg_maps: tuple[TypeMap, ...]
-    res_map: TypeMap
-
-    def c_func_type(self) -> "type[_CFunctionType]":
-        """Return the ``CFUNCTYPE`` for this signature."""
-        return CFUNCTYPE(
-            self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
-        )
-
-
-class CTypesTypeConverter:
-    """
-    Registry of Python types to :class:`TypeMap` entries.
-
-    Used to marshal values when wrapping a :class:`RawJITFunc`. Registrations must
-    agree with the frontend type mapping and with
-    :class:`~xdsl.jit.c_type_context.CTypeContext` for the same logical types.
-    """
-
-    _mapping: dict[type[Any], TypeMap]
-
-    def __init__(self):
-        self._mapping = {}
-
-    def extend(self, type_map: TypeMap):
-        """Register a :class:`TypeMap` for its ``python_type``."""
-        self._mapping[type_map.python_type] = type_map
-
-    def type_map(self, python_type: type[Any]) -> TypeMap:
-        """Return the :class:`TypeMap` for ``python_type``."""
-        return self._mapping[python_type]
-
-    def func_type_map(self, signature: TypeForm[Callable[P, R]]) -> FuncTypeMap:
-        """Build a :class:`FuncTypeMap` from a ``Callable`` signature."""
-        param_types, return_type = get_args(signature)
-        return FuncTypeMap(
-            tuple(self._mapping[py_type] for py_type in param_types),
-            self._mapping[return_type],
-        )
-
-
 def wrap_jit_func(
     raw_func: RawJITFunc,
     original_func: Callable[P, R],
     signature: TypeForm[Callable[P, R]],
-    c_types_type_converter: CTypesTypeConverter,
+    py_type_context: PyTypeContext,
 ) -> WrappedJITFunc[P, R]:
     """
     Wrap a :class:`RawJITFunc` as a :class:`WrappedJITFunc`.
@@ -169,7 +106,7 @@ def wrap_jit_func(
     Builds argument/result converters from ``signature`` and checks that the
     resulting ``CFUNCTYPE`` matches ``raw_func.c_func_type``.
     """
-    func_type_map = c_types_type_converter.func_type_map(signature)
+    func_type_map = py_type_context.func_type_map(signature)
     assert raw_func.c_func_type == func_type_map.c_func_type(), (
         f"CTypes signature from IR ({raw_func.c_func_type}) does not "
         f"match signature from Python TypeMaps ({func_type_map.c_func_type()})."
@@ -228,7 +165,7 @@ class JITContext:
     pyast_ctx: PyASTContext
     """Frontend used to parse Python functions into IR."""
 
-    c_types_type_converter: CTypesTypeConverter
+    py_type_context: PyTypeContext
     """Python value to ctypes marshalling registry."""
 
     jit_backend: JITBackend
@@ -237,7 +174,7 @@ class JITContext:
     def __init__(self, jit_backend: JITBackend):
         """Create empty frontend and type-converter state around ``jit_backend``."""
         self.pyast_ctx = PyASTContext()
-        self.c_types_type_converter = CTypesTypeConverter()
+        self.py_type_context = PyTypeContext()
         self.jit_backend = jit_backend
 
     def jit(
@@ -252,7 +189,7 @@ class JITContext:
                 parsed_program.name,
                 self.pyast_ctx.ir_context,
             )
-            return wrap_jit_func(raw, func, signature, self.c_types_type_converter)
+            return wrap_jit_func(raw, func, signature, self.py_type_context)
 
         return inner
 
@@ -261,11 +198,11 @@ def register_default_type_conversion(ctx: JITContext) -> None:
     """
     Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
 
-    Updates the frontend type map and the :class:`CTypesTypeConverter` together. The
+    Updates the frontend type map and the :class:`PyTypeContext` together. The
     backend registers the IR side on its own :class:`CTypeContext`.
     """
     ctx.pyast_ctx.register_type(float, builtin.f64)
-    ctx.c_types_type_converter.extend(TypeMap(float, c_double, c_double, float))
+    ctx.py_type_context.register_type_map(TypeMap(float, c_double, c_double, float))
 
 
 # --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
