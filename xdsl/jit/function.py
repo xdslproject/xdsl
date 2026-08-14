@@ -1,10 +1,13 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, ParamSpec, Protocol, cast, overload
+from inspect import Parameter
+from inspect import signature as inspect_signature
+from typing import Any, Generic, ParamSpec, Protocol, overload
 
 from typing_extensions import TypeForm, TypeVar
 
 from xdsl.jit.py_type_context import PyTypeContext
+from xdsl.utils.exceptions import JITException
 
 
 class CFunc(Protocol):
@@ -77,17 +80,30 @@ def wrap_jit_func(
     Builds argument/result converters from ``signature`` and checks that the
     resulting ``CFUNCTYPE`` matches ``raw_func.c_func_type``.
     """
-    func_type_map = py_type_context.func_type_map(signature)
-    assert raw_func.c_func_type == func_type_map.c_func_type(), (
-        f"CTypes signature from IR ({raw_func.c_func_type}) does not "
-        f"match signature from Python TypeMaps ({func_type_map.c_func_type()})."
+    unsupported_keyword_params = any(
+        parameter.kind in (Parameter.KEYWORD_ONLY, Parameter.VAR_KEYWORD)
+        for parameter in inspect_signature(original_func).parameters.values()
     )
+    if unsupported_keyword_params:
+        raise NotImplementedError(
+            "JIT functions with keyword-only or variadic-keyword parameters are "
+            "not supported"
+        )
 
-    def fn(*args: Any) -> R:
+    func_type_map = py_type_context.func_type_map(signature)
+    expected_c_func_type = func_type_map.c_func_type()
+    mismatched_type = raw_func.c_func_type != expected_c_func_type
+    if mismatched_type:
+        raise JITException(
+            f"CTypes signature from IR ({raw_func.c_func_type}) does not "
+            f"match signature from Python TypeMaps ({expected_c_func_type})."
+        )
+
+    def fn(*args: P.args, **kwargs: P.kwargs) -> R:
         ctype_args = tuple(
             m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, args, strict=True)
         )
         ctype_res = raw_func.c_func(*ctype_args)
         return func_type_map.res_map.from_ctype(ctype_res)
 
-    return WrappedJITFunc(raw_func, original_func, cast(Callable[P, R], fn))
+    return WrappedJITFunc(raw_func, original_func, fn)

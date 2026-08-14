@@ -6,10 +6,19 @@ import pytest
 
 from xdsl.jit.function import RawJITFunc, wrap_jit_func
 from xdsl.jit.py_type_context import PyTypeContext, TypeMap
+from xdsl.utils.exceptions import JITException
 
 
 def add(lhs: int, rhs: int, /) -> int:
     return lhs + rhs
+
+
+def add_with_keyword_only_parameter(lhs: int, *, rhs: int) -> int:
+    return lhs + rhs
+
+
+def add_with_variadic_keywords(lhs: int, rhs: int, **kwargs: int) -> int:
+    return lhs + rhs + sum(kwargs.values())
 
 
 @pytest.fixture
@@ -72,7 +81,7 @@ def test_wrap_jit_func_rejects_mismatched_c_signature():
     c_func_type = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)
     raw_func = RawJITFunc(c_func_type, c_func_type(native_func))
 
-    with pytest.raises(AssertionError, match="does not match signature"):
+    with pytest.raises(JITException, match="does not match signature"):
         wrap_jit_func(
             raw_func,
             original_func,
@@ -81,15 +90,20 @@ def test_wrap_jit_func_rejects_mismatched_c_signature():
         )
 
 
-def test_wrapped_jit_func_rejects_keyword_arguments(
-    raw_add_func: RawJITFunc, int_type_context: PyTypeContext
+@pytest.mark.parametrize(
+    "original_func",
+    [add_with_keyword_only_parameter, add_with_variadic_keywords],
+    ids=["keyword-only", "variadic-keyword"],
+)
+def test_wrap_jit_func_rejects_keyword_parameters(
+    raw_add_func: RawJITFunc,
+    int_type_context: PyTypeContext,
+    original_func: Callable[..., int],
 ):
-    wrapped_func = wrap_jit_func(
-        raw_add_func,
-        add,
-        Callable[[int, int], int],
-        int_type_context,
-    )
-
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        cast(Callable[..., int], wrapped_func)(lhs=1, rhs=2)
+    with pytest.raises(NotImplementedError, match="keyword-only or variadic-keyword"):
+        wrap_jit_func(
+            raw_add_func,
+            cast(Callable[[int, int], int], original_func),
+            Callable[[int, int], int],
+            int_type_context,
+        )
