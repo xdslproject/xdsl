@@ -39,29 +39,37 @@ shard.grid @grid5(shape = ?)
 // Collective communications
 %t = "test.op"() : () -> tensor<2x2xi8>
 // CHECK-NEXT: %t = "test.op"() : () -> tensor<2x2xi8>
-%10 = shard.broadcast %t on @grid0 grid_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-// CHECK-NEXT: %10 = shard.broadcast %t on @grid0 grid_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%11 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
-// CHECK-NEXT: %11 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
-%12 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
-// CHECK-NEXT: %12 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
-%13 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-// CHECK-NEXT: %13 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%14 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-// CHECK-NEXT: %14 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%m = "test.op"() : () -> memref<2x2xf32>
+// CHECK-NEXT: %m = "test.op"() : () -> memref<2x2xf32>
+%10 = shard.all_reduce %t on @grid0 grid_axes = [1, 0] reduction = max : tensor<2x2xi8> -> tensor<2x2xi64>
+// CHECK-NEXT: %10 = shard.all_reduce %t on @grid0 grid_axes = [1, 0] reduction = max : tensor<2x2xi8> -> tensor<2x2xi64>
+%11 = shard.all_reduce %m on @grid0 reduction = min : memref<2x2xf32> -> memref<2x2xf32>
+// CHECK-NEXT: %11 = shard.all_reduce %m on @grid0 reduction = min : memref<2x2xf32> -> memref<2x2xf32>
+%12 = shard.all_reduce %t on @grid0 grid_axes = [0] reduction = sum : tensor<2x2xi8> -> tensor<2x2xi8>
+// CHECK-NEXT: %12 = shard.all_reduce %t on @grid0 grid_axes = [0] : tensor<2x2xi8> -> tensor<2x2xi8>
+%13 = shard.broadcast %t on @grid0 grid_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %13 = shard.broadcast %t on @grid0 grid_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%14 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
+// CHECK-NEXT: %14 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
+%15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+// CHECK-NEXT: %15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+%16 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %16 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%17 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %17 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %i = "test.op"() : () -> index
 // CHECK-NEXT: %i = "test.op"() : () -> index
-%15 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = max root = [1, %i] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
-// CHECK-NEXT: %15 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = max root = [1, %i] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
-%16 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = sum root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-// CHECK-NEXT: %16 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%17 = shard.send %t on @grid0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-// CHECK-NEXT: %17 = shard.send %t on @grid0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
-%18 = shard.shift %t on @grid0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
-// CHECK-NEXT: %18 = shard.shift %t on @grid0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
+%18 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = max root = [1, %i] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
+// CHECK-NEXT: %18 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = max root = [1, %i] : (tensor<2x2xi8>, index) -> tensor<2x2xi64>
+%19 = shard.reduce %t on @grid0 grid_axes = [0, 2] reduction = sum root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %19 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%20 = shard.send %t on @grid0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %20 = shard.send %t on @grid0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%21 = shard.shift %t on @grid0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
+// CHECK-NEXT: %21 = shard.shift %t on @grid0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 
 // Sharding
-%19 = shard.shard %t to %7 : tensor<2x2xi8>
-// CHECK-NEXT: %19 = shard.shard %t to %7 : tensor<2x2xi8>
-%20 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
-// CHECK-NEXT: %20 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
+%22 = shard.shard %t to %7 : tensor<2x2xi8>
+// CHECK-NEXT: %22 = shard.shard %t to %7 : tensor<2x2xi8>
+%23 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
+// CHECK-NEXT: %23 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
