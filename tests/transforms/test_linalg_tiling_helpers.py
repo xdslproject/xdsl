@@ -17,11 +17,13 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.linalg.transforms.tiling import (
     OperandTileInfo,
     TilingPlan,
+    _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
     tile_linalg_generic,
 )
 from xdsl.ir import Attribute
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -187,6 +189,51 @@ def test_tiling_plan_rejects_partial_tiles():
 
     with pytest.raises(ValueError, match="partial tiles"):
         TilingPlan.analyze_generic_op(op, (3, 0))
+
+
+def test_build_tile_loops_without_iter_args():
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    loops, tiled_loop_ivs, _ = _build_tile_loops(
+        rewriter, InsertPoint.before(op), (4, 5), (2, 0), (0,)
+    )
+
+    (loop,) = loops
+    assert loop.iter_args == ()
+    assert loop.results == ()
+    assert loop.body.block.args == (tiled_loop_ivs[0],)
+
+
+def test_build_tile_loops_threads_iter_args():
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    init = create_ssa_value(TensorType(f32, [4, 5]))
+
+    loops, tiled_loop_ivs, _ = _build_tile_loops(
+        rewriter, InsertPoint.before(op), (4, 5), (2, 2), (0, 1), (init,)
+    )
+
+    outer, inner = loops
+
+    # The outermost loop initialises the carried value from the original value,
+    # and every nested loop from the enclosing loop's block argument. Initialising
+    # a nested loop from the original would discard the surrounding iterations.
+    assert outer.iter_args == (init,)
+    assert inner.iter_args == (outer.body.block.args[1],)
+
+    # Each loop carries the value back out as a result.
+    assert outer.result_types == (init.type,)
+    assert inner.result_types == (init.type,)
+
+    # Body blocks gain one argument per carried value, after the induction variable.
+    for loop, iv in ((outer, tiled_loop_ivs[0]), (inner, tiled_loop_ivs[1])):
+        assert len(loop.body.block.args) == 2
+        assert loop.body.block.args[0] is iv
+        assert loop.body.block.args[1].type == init.type
 
 
 def test_tile_linalg_generic_returns_false_without_tiled_dims():

@@ -185,12 +185,20 @@ def _build_tile_loops(
     loop_ranges: Sequence[int],
     tile_sizes: Sequence[int],
     tiled_dims: Sequence[int],
+    iter_args: Sequence[SSAValue] = (),
 ) -> tuple[list[scf.ForOp], dict[int, SSAValue], InsertPoint]:
     """
     Build the outer tiled loops.
 
+    `iter_args` are threaded through the nest as loop-carried values, as needed
+    when tiling operands with value semantics. The outermost loop initialises
+    them from `iter_args` itself, and every nested loop initialises them from the
+    enclosing loop's block arguments, so the innermost body sees the values
+    accumulated by the surrounding iterations. Tiling memrefs carries nothing,
+    which leaves the loops without block arguments or results.
+
     Return:
-        - `loops`: the outer `scf.for` ops
+        - `loops`: the outer `scf.for` ops, outermost first
         - `tiled_loop_ivs`: a map from loop dimensions to induction variables
         - `current_insertion_point`: the place to insert `tiled subview` and the `tiled generic`
     """
@@ -216,17 +224,20 @@ def _build_tile_loops(
     current_insertion_point = insertion_point
     loops: list[scf.ForOp] = []
     tiled_loop_ivs: dict[int, SSAValue] = {}
+    carried_types = tuple(value.type for value in iter_args)
+    carried: Sequence[SSAValue] = iter_args
     for dim in tiled_dims:
         loop = scf.ForOp(
             zero.result,
             ub_ops[dim].result,
             tile_ops[dim].result,
-            (),
-            Region(Block(arg_types=(index,))),
+            carried,
+            Region(Block(arg_types=(index, *carried_types))),
         )
         rewriter.insert(loop, current_insertion_point)
         loops.append(loop)
         tiled_loop_ivs[dim] = loop.body.block.args[0]
+        carried = loop.body.block.args[1:]
         current_insertion_point = InsertPoint.at_start(loop.body.block)
 
     return loops, tiled_loop_ivs, current_insertion_point
