@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.backend.x86 import arch
@@ -97,27 +99,39 @@ def test_register_type_for_ptr_type(arch: arch.X86Arch):
 
 
 @pytest.mark.parametrize(
-    "target, vector_type, supported",
+    "target, vector_type, message",
     [
-        (arch.AVX2, VectorType(f64, (8,)), "[128, 256]"),
-        (arch.AVX512, VectorType(f64, (16,)), "[128, 256, 512]"),
-        (arch.UNKNOWN, VectorType(f64, (4,)), "[128]"),
+        (
+            arch.AVX2,
+            VectorType(f64, (8,)),
+            "The vector size (512 bits) and target architecture `avx2` are "
+            "inconsistent. Supported vector sizes are [128, 256].",
+        ),
+        (
+            arch.AVX512,
+            VectorType(f64, (16,)),
+            "The vector size (1024 bits) and target architecture `avx512` are "
+            "inconsistent. Supported vector sizes are [128, 256, 512].",
+        ),
+        (
+            arch.UNKNOWN,
+            VectorType(f64, (4,)),
+            "The vector size (256 bits) and target architecture `unknown` are "
+            "inconsistent. Supported vector sizes are [128].",
+        ),
     ],
 )
 def test_register_type_for_oversized_vector(
-    target: arch.X86Arch, vector_type: VectorType, supported: str
+    target: arch.X86Arch, vector_type: VectorType, message: str
 ):
     """
     A vector too wide for the target reports a diagnostic naming the sizes the
     target does support, and does not surface the underlying dict lookup.
     """
-    with pytest.raises(DiagnosticException) as exc_info:
+    with pytest.raises(DiagnosticException, match=re.escape(message)) as exc_info:
         target.register_type_for_type(vector_type)
 
-    message = str(exc_info.value)
-    assert "are inconsistent" in message
-    assert f"Supported vector sizes are {supported}" in message
     # The KeyError must not be chained onto the diagnostic, otherwise the
-    # traceback leads with `KeyError: 512` instead of the explanation.
+    # traceback leads with `KeyError: 512` instead of the explanation above.
     assert exc_info.value.__cause__ is None
     assert exc_info.value.__suppress_context__
