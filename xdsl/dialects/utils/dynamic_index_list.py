@@ -230,13 +230,12 @@ class DynamicIndexList(CustomDirective):
     dynamic_position: VariadicOperandVariable
     static_position: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         dynamic, static = parse_dynamic_index_list_without_types(
             parser, self.DYNAMIC_INDEX
         )
         self.dynamic_position.set(state, dynamic)
         self.static_position.set(state, DenseArrayBase.from_list(i64, static))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)

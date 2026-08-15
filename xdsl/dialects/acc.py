@@ -922,7 +922,7 @@ class DeviceTypeOperands(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         triples = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
         )
@@ -930,7 +930,6 @@ class DeviceTypeOperands(CustomDirective):
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -1060,7 +1059,7 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         operands, types, device_types, keyword_only = _parse_dt_kw_only_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1068,7 +1067,6 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
             self.device_types.set(state, device_types)
         if keyword_only is not None:
             self.keyword_only.set(state, keyword_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_dt_kw_only_body(
@@ -1105,7 +1103,7 @@ class NumGangs(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1114,7 +1112,6 @@ class NumGangs(CustomDirective):
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -1286,7 +1283,7 @@ class WaitClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         operands, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1298,7 +1295,6 @@ class WaitClause(CustomDirective):
             self.has_devnum.set(state, devnum)
         if kw_only is not None:
             self.keyword_only.set(state, kw_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_wait_body(
@@ -1349,7 +1345,7 @@ class KernelEnvironmentClauses(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait")
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1386,7 +1382,6 @@ class KernelEnvironmentClauses(CustomDirective):
                     self.wait_has_devnum.set(state, devnum)
                 if kw_only is not None:
                     self.wait_only.set(state, kw_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if data_operands := self.data_clause_operands.get(op):
@@ -1446,17 +1441,16 @@ class OperandWithKeywordOnly(CustomDirective):
         self.operand.set(state, None)
         self.operand_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operand.set(state, None)
             self.operand_type.set(state, ())
-            return True
+            return
         operand, ty = _parse_typed_operand(parser)
         parser.parse_punctuation(")")
         self.operand.set(state, operand)
         self.operand_type.set(state, (ty,))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # Mirror upstream's `if (attr) return;`: when the bare-keyword
@@ -1497,12 +1491,12 @@ class OperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
+            return
         operands = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
@@ -1513,7 +1507,6 @@ class OperandsWithKeywordOnly(CustomDirective):
         parser.parse_punctuation(")")
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.attr.get(op) is not None:
@@ -1549,16 +1542,15 @@ class AtomicIfClause(CustomDirective):
         self.if_cond.set(state, None)
         self.if_cond_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         self.set_empty(state)
         if parser.parse_optional_keyword("if") is None:
-            return True
+            return
         parser.parse_punctuation("(")
         operand = parser.parse_unresolved_operand()
         parser.parse_punctuation(")")
         self.if_cond.set(state, operand)
         self.if_cond_type.set(state, (i1,))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if_cond = self.if_cond.get(op)
@@ -1599,7 +1591,7 @@ class AccVar(CustomDirective):
     acc_var: OperandVariable
     acc_var_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if parser.parse_optional_keyword("accPtr") is None:
             parser.parse_keyword("accVar")
         with parser.in_parens():
@@ -1608,7 +1600,6 @@ class AccVar(CustomDirective):
             ty = parser.parse_type()
         self.acc_var.set(state, operand)
         self.acc_var_type.set(state, (ty,))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -1638,7 +1629,7 @@ class Var(CustomDirective):
     var_type: TypeDirective
     var_type_attr: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if parser.parse_optional_keyword("varPtr") is None:
             parser.parse_keyword("var")
         with parser.in_parens():
@@ -1653,7 +1644,6 @@ class Var(CustomDirective):
                 self.var_type_attr.set(state, parser.parse_type())
         else:
             self.var_type_attr.set(state, _default_var_type(ty))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -1704,7 +1694,7 @@ class DataEntryOilist(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("varPtrPtr", "bounds", "async", "recipe")
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1737,7 +1727,6 @@ class DataEntryOilist(CustomDirective):
             else:  # recipe
                 with parser.in_parens():
                     self.recipe.set(state, parser.parse_attribute())
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         var_ptr_ptr = self.var_ptr_ptr.get(op)
@@ -1820,13 +1809,13 @@ class CombinedConstructsLoop(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.combined.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         for kw in self._KEYWORDS:
             if parser.parse_optional_keyword(kw) is not None:
                 self.combined.set(
                     state, CombinedConstructsTypeAttr(self._BY_KEYWORD[kw])
                 )
-                return True
+                return
         parser.raise_error("expected compute construct name")
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -1862,7 +1851,7 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1871,7 +1860,7 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
+        return
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # `is_present = bool(self.operands.get(op))` — when this `print` is
@@ -1987,12 +1976,12 @@ class GangClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if not parser.parse_optional_punctuation("("):
             self.gang_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
+            return
 
         kw_only = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -2003,7 +1992,7 @@ class GangClause(CustomDirective):
         if parser.parse_optional_punctuation(")"):
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
+            return
 
         if kw_only is not None:
             parser.parse_punctuation(",")
@@ -2030,7 +2019,6 @@ class GangClause(CustomDirective):
         self.gang_arg_types.set(state, ArrayAttr(arg_types))
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -2124,7 +2112,7 @@ class LoopControl(CustomDirective):
     step: VariadicOperandVariable
     step_types: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if parser.parse_optional_keyword("control") is None:
             self.lowerbound.set(state, ())
             self.lowerbound_types.set(state, ())
@@ -2133,7 +2121,7 @@ class LoopControl(CustomDirective):
             self.step.set(state, ())
             self.step_types.set(state, ())
             self.region.set(state, parser.parse_region())
-            return True
+            return
 
         with parser.in_parens():
             args = parser.parse_comma_separated_list(
@@ -2153,7 +2141,6 @@ class LoopControl(CustomDirective):
         self.step.set(state, st_ops)
         self.step_types.set(state, st_types)
         self.region.set(state, parser.parse_region(args))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         region = self.region.get(op)
@@ -2238,7 +2225,7 @@ class BindName(CustomDirective):
             or self.bind_str_name.get(op) is not None
         )
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         id_names: list[SymbolRefAttr] = []
         str_names: list[StringAttr] = []
         id_dts: list[DeviceTypeAttr] = []
@@ -2266,7 +2253,6 @@ class BindName(CustomDirective):
         if str_names:
             self.bind_str_name.set(state, ArrayAttr(str_names))
             self.bind_str_name_device_type.set(state, ArrayAttr(str_dts))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # Concatenate the (id-name, dt) and (str-name, dt) sequences in that
@@ -2320,10 +2306,10 @@ class RoutineGangClause(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.gang.get(op) is not None or self.gang_dim.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if not parser.parse_optional_punctuation("("):
             self.gang.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            return True
+            return
 
         kw_only = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -2331,7 +2317,7 @@ class RoutineGangClause(CustomDirective):
         if kw_only is not None:
             self.gang.set(state, ArrayAttr(kw_only))
             if parser.parse_optional_punctuation(")"):
-                return True
+                return
             parser.parse_punctuation(",")
 
         gang_dim_attrs: list[Attribute] = []
@@ -2350,7 +2336,6 @@ class RoutineGangClause(CustomDirective):
         # one element, so `gang_dim_attrs` is always non-empty here.
         self.gang_dim.set(state, ArrayAttr(gang_dim_attrs))
         self.gang_dim_device_type.set(state, ArrayAttr(gang_dim_dt_attrs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         gang = self.gang.get(op)
@@ -2416,10 +2401,10 @@ class DeviceTypeArrayClause(CustomDirective):
         # `hasDeviceTypeValues`-gated emission.
         return isa(attr := self.device_types.get(op), ArrayAttr) and bool(attr.data)
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         if not parser.parse_optional_punctuation("("):
             self.device_types.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            return True
+            return
 
         attrs = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -2428,7 +2413,6 @@ class DeviceTypeArrayClause(CustomDirective):
         self.device_types.set(
             state, ArrayAttr(attrs) if attrs is not None else ArrayAttr(())
         )
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # `is_present` guarantees a non-empty ArrayAttr.

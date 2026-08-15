@@ -74,6 +74,7 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     CustomDirective,
+    OptionalFormatDirective,
     ParsingState,
     PrintingState,
     TypeDirective,
@@ -952,7 +953,7 @@ class CreateOperationOp(IRDLOperation):
 
 
 @irdl_custom_directive
-class RangeTypeDirective(CustomDirective):
+class RangeTypeDirective(CustomDirective, OptionalFormatDirective):
     """
     Custom directive for parsing/printing range types in CreateRangeOp.
     """
@@ -960,7 +961,7 @@ class RangeTypeDirective(CustomDirective):
     arguments_type: TypeDirective
     result_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         args_inner = self.arguments_type.inner
         assert isinstance(args_inner, VariadicOperandVariable)
 
