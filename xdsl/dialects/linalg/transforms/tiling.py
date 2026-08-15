@@ -2,6 +2,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
+from typing_extensions import assert_never
+
 from xdsl.dialects import arith, linalg, memref, scf, tensor
 from xdsl.dialects.builtin import (
     IndexType,
@@ -282,29 +284,30 @@ def _build_tiled_slice(
     strides = (1,) * len(source_shape)
     source_type = operand_info.source_type
     try:
-        if isa(source_type, MemRefType):
-            slice_op = memref.SubviewOp.get(
-                operand,
-                offsets,
-                sizes,
-                strides,
-                memref.SubviewOp.infer_result_type(
-                    source_type,
+        match source_type:
+            case MemRefType():
+                slice_op = memref.SubviewOp.get(
+                    operand,
                     offsets,
                     sizes,
                     strides,
-                ),
-            )
-        elif isa(source_type, TensorType):
-            slice_op = tensor.ExtractSliceOp(
-                operand,
-                offsets,
-                sizes,
-                strides,
-                tensor.ExtractSliceOp.infer_result_type(source_type, sizes),
-            )
-        else:
-            raise ValueError(f"cannot tile an operand of type {source_type}")
+                    memref.SubviewOp.infer_result_type(
+                        source_type,
+                        offsets,
+                        sizes,
+                        strides,
+                    ),
+                )
+            case TensorType():
+                slice_op = tensor.ExtractSliceOp(
+                    operand,
+                    offsets,
+                    sizes,
+                    strides,
+                    tensor.ExtractSliceOp.infer_result_type(source_type, sizes),
+                )
+            case _:
+                assert_never(source_type)
     except ValueError as e:
         raise PassFailedException(str(e)) from e
 
