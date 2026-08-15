@@ -35,6 +35,7 @@ def raw_add_func() -> RawJITFunc:
 
 
 def test_wrap_jit_func_marshals_arguments_and_result():
+    # record conversions to check their order
     conversions: list[tuple[str, int]] = []
 
     def to_ctype(value: int) -> ctypes.c_int64:
@@ -50,6 +51,7 @@ def test_wrap_jit_func_marshals_arguments_and_result():
         TypeMap(int, ctypes.c_int64, to_ctype, from_ctype)
     )
 
+    # differ from `add` to prove this native function is called
     def native_func(lhs: int, rhs: int) -> int:
         return lhs - rhs
 
