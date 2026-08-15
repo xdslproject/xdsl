@@ -105,7 +105,7 @@ class TilingPlan:
             op.operands, op.get_indexing_maps(), strict=True
         ):
             source_type = operand.type
-            assert isa(source_type, MemRefType) or isa(source_type, TensorType)
+            assert isa(source_type, MemRefType | TensorType)
             operand_infos_list.append(
                 OperandTileInfo.analyze(
                     indexing_map.data,
