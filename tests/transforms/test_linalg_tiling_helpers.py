@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.linalg.transforms.tiling import (
     OperandTileInfo,
+    SliceParameters,
     TilingPlan,
     _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
     _build_tiled_slice,  # pyright: ignore[reportPrivateUsage]
@@ -196,6 +197,47 @@ def test_tiling_plan_rejects_partial_tiles():
         TilingPlan.analyze_generic_op(op, (3, 0))
 
 
+def test_slice_parameters_compute_tiled_and_untiled_dims():
+    source_type = MemRefType(f32, [4, 5])
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    operand_info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+
+    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv})
+
+    # Dim 0's loop is tiled, so it starts at the induction variable and spans one
+    # tile; dim 1's loop is not, so it starts at zero and spans the whole operand.
+    assert parameters.offsets == (iv, 0)
+    assert parameters.sizes == (2, 5)
+    assert parameters.strides == (1, 1)
+
+
+def test_slice_parameters_compute_without_tiled_dims():
+    source_type = MemRefType(f32, [4, 5])
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    operand_info = OperandTileInfo.analyze(indexing_map, source_type, (0, 0))
+
+    parameters = SliceParameters.compute(indexing_map, operand_info, {})
+
+    # Nothing is tiled, so the slice covers the whole operand.
+    assert parameters.offsets == (0, 0)
+    assert parameters.sizes == (4, 5)
+
+
+def test_slice_parameters_compute_follows_indexing_map():
+    # The operand is indexed transposed, so loop dim 0 addresses the operand's
+    # second dimension. The induction variable has to land there, not first.
+    source_type = MemRefType(f32, [5, 4])
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (j, i))
+    operand_info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+
+    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv})
+
+    assert parameters.offsets == (0, iv)
+    assert parameters.sizes == (5, 2)
+
+
 def _tiled_slice_for(source_type: MemRefType[Attribute] | TensorType[Attribute]):
     """Slice dim 0 of a 2d operand at a loop induction variable, tile size 2."""
     op = _generic_2d_copy_op()
@@ -206,9 +248,10 @@ def _tiled_slice_for(source_type: MemRefType[Attribute] | TensorType[Attribute])
     iv = create_ssa_value(IndexType())
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
     operand_info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv})
 
     result = _build_tiled_slice(
-        rewriter, InsertPoint.before(op), operand, indexing_map, operand_info, {0: iv}
+        rewriter, InsertPoint.before(op), operand, source_type, parameters
     )
     return result.owner
 

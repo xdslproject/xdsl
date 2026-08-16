@@ -246,43 +246,74 @@ def _build_tile_loops(
     return loops, tiled_loop_ivs, current_insertion_point
 
 
+@dataclass(frozen=True)
+class SliceParameters:
+    """
+    Where one operand's tile sits within that operand.
+
+    This is the geometry of the tile, which is the same whether the operand is a
+    memref or a tensor, and so does not depend on which op ends up materializing
+    the slice.
+    """
+
+    offsets: tuple[SSAValue | int, ...]
+    sizes: tuple[SSAValue | int, ...]
+    strides: tuple[SSAValue | int, ...]
+
+    @staticmethod
+    def compute(
+        indexing_map: AffineMap,
+        operand_info: OperandTileInfo,
+        tiled_loop_ivs: dict[int, SSAValue],
+    ) -> "SliceParameters":
+        """
+        Compute where the current tile sits within one operand.
+
+        Each result of the indexing map addresses one dimension of the operand.
+        A dimension whose loop is tiled starts at that loop's induction variable
+        and spans one tile, and a dimension whose loop is not tiled starts at
+        zero and spans the whole operand.
+        """
+
+        source_shape = operand_info.source_type.get_shape()
+
+        offsets: list[SSAValue | int] = []
+        sizes: list[SSAValue | int] = []
+        for result_index, expr in enumerate(indexing_map.results):
+            assert isinstance(expr, AffineDimExpr)
+            loop_dim = operand_info.loop_dims[result_index]
+            if loop_dim in tiled_loop_ivs:
+                offsets.append(tiled_loop_ivs[loop_dim])
+                sizes.append(operand_info.result_shape[result_index])
+            else:
+                offsets.append(0)
+                sizes.append(source_shape[result_index])
+
+        return SliceParameters(tuple(offsets), tuple(sizes), (1,) * len(source_shape))
+
+
 def _build_tiled_slice(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     operand: SSAValue,
-    indexing_map: AffineMap,
-    operand_info: OperandTileInfo,
-    tiled_loop_ivs: dict[int, SSAValue],
+    source_type: MemRefType[Attribute] | TensorType[Attribute],
+    parameters: SliceParameters,
 ) -> SSAValue:
     """
     Build the slice of `operand` at the current tile position.
 
     Memrefs are sliced with a `memref.subview`, which views the source memory,
-    and tensors with a `tensor.extract_slice`, which produces a new value. The
-    offsets, sizes and strides are the same either way, so only the op that
-    materializes the slice differs.
+    and tensors with a `tensor.extract_slice`, which produces a new value. Only
+    the op that materializes the slice differs.
 
     `operand` is the value to slice, which is not always the operand the tile
     info was analyzed from: an output tensor is sliced from the value carried by
     the enclosing loops rather than from the original.
     """
 
-    source_shape = operand_info.source_type.get_shape()
-
-    offsets: list[SSAValue | int] = []
-    sizes: list[int] = []
-    for result_index, expr in enumerate(indexing_map.results):
-        assert isinstance(expr, AffineDimExpr)
-        loop_dim = operand_info.loop_dims[result_index]
-        if loop_dim in tiled_loop_ivs:
-            offsets.append(tiled_loop_ivs[loop_dim])
-            sizes.append(operand_info.result_shape[result_index])
-        else:
-            offsets.append(0)
-            sizes.append(source_shape[result_index])
-
-    strides = (1,) * len(source_shape)
-    source_type = operand_info.source_type
+    offsets = parameters.offsets
+    sizes = parameters.sizes
+    strides = parameters.strides
     try:
         match source_type:
             case MemRefType():
@@ -344,14 +375,16 @@ def tile_linalg_generic(
     for operand, operand_info, indexing_map in zip(
         op.operands, plan.operand_infos, op.get_indexing_maps(), strict=True
     ):
+        parameters = SliceParameters.compute(
+            indexing_map.data, operand_info, tiled_loop_ivs
+        )
         tiled_operands.append(
             _build_tiled_slice(
                 rewriter,
                 inner_ip,
                 operand,
-                indexing_map.data,
-                operand_info,
-                tiled_loop_ivs,
+                operand_info.source_type,
+                parameters,
             )
         )
 
