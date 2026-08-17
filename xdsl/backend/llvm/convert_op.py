@@ -126,7 +126,7 @@ class CastInstrWithFlags(instructions.CastInstr):
         )
 
     def descr(self, buf: list[str]) -> None:
-        opname = " ".join([self.opname, *self.flags]) if self.flags else self.opname
+        opname = " ".join((self.opname, *self.flags))
         op = self.operands[0]
         buf.append(
             f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
