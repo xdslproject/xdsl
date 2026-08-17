@@ -475,8 +475,8 @@ def tile_linalg_generic(
         rewriter.insert(scf.YieldOp(*yielded), InsertPoint.at_end(loop.body.block))
         yielded = loop.results
 
-    if has_tensor_outputs:
-        rewriter.replace(op, [], loops[0].results)
-    else:
-        rewriter.erase(op)
+    # The outermost loop carries out the fully updated tensors. An op tiling
+    # memrefs carries nothing and has no results, so this replaces it with
+    # nothing, which is the erase that case needs.
+    rewriter.replace(op, [], loops[0].results)
     return True
