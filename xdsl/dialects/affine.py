@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import ClassVar, cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -18,6 +20,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.utils import print_assignment
 from xdsl.ir import (
     Attribute,
     Block,
@@ -128,6 +131,109 @@ class ApplyOp(IRDLOperation):
             printer.print_string("]")
 
 
+def _parse_affine_for_bound(
+    parser: Parser, keyword: str
+) -> tuple[AffineMapAttr, Sequence[SSAValue]]:
+    """
+    Parses one `affine.for` loop bound:
+    ```
+    affine-for-bound ::= `max`|`min`)? affine-map `(` ssa-use-list `)`
+                          (`[` ssa-use-list `]`)?
+                        | ssa-id
+                        | integer-literal
+    ```
+    The `max`/`min` keyword is mandatory only when the map has multiple results,
+    since it otherwise has no effect on a single-result map.
+
+    Mirrors MLIR's [`parseBound`](https://github.com/llvm/llvm-project/blob/99f7018958ed3daf2abf8d49178c24fbf1eb1010/mlir/lib/Dialect/Affine/IR/AffineOps.cpp#L2255).
+    """
+    used_min_max = parser.parse_optional_keyword(keyword) is not None
+
+    if (operand := parser.parse_optional_operand()) is not None:
+        # A bare SSA value is sugar for a single-symbol identity map.
+        return (
+            AffineMapAttr(AffineMap(0, 1, (AffineExpr.symbol(0),))),
+            (operand,),
+        )
+
+    pos = parser.pos
+    if (value := parser.parse_optional_integer()) is not None:
+        return AffineMapAttr(AffineMap.constant_map(value)), ()
+
+    map_attr = parser.parse_attribute()
+    if not isinstance(map_attr, AffineMapAttr):
+        parser.raise_error("expected an affine map or an integer for loop bound", pos)
+    m = map_attr.data
+
+    dims = parser.parse_comma_separated_list(
+        Parser.Delimiter.PAREN, parser.parse_operand
+    )
+    syms = parser.parse_optional_comma_separated_list(
+        Parser.Delimiter.SQUARE, parser.parse_operand
+    )
+    if syms is None:
+        syms = []
+
+    if len(dims) != m.num_dims:
+        parser.raise_error("dim operand count and affine map dim count must match", pos)
+    if len(syms) != m.num_symbols:
+        parser.raise_error(
+            "symbol operand count and affine map symbol count must match", pos
+        )
+    if len(m.results) > 1 and not used_min_max:
+        parser.raise_error(
+            f"loop bound affine map with multiple results requires '{keyword}' prefix",
+            pos,
+        )
+
+    return map_attr, (*dims, *syms)
+
+
+def _print_affine_for_bound(
+    printer: Printer,
+    bound_map: AffineMapAttr,
+    bound_operands: Sequence[SSAValue],
+    prefix: str,
+) -> None:
+    """
+    Prints one `affine.for` loop bound. Bounds that are a single constant,
+    or a single-symbol identity map, are printed in their short forms,
+    everything else falls back to the full affine map + operand list,
+    with a `max`/`min` prefix when the map has multiple results.
+
+    Mirror's MLIR's [`printBound`](https://github.com/llvm/llvm-project/blob/99f7018958ed3daf2abf8d49178c24fbf1eb1010/mlir/lib/Dialect/Affine/IR/AffineOps.cpp#L2430).
+    """
+    m = bound_map.data
+
+    if len(m.results) == 1:
+        expr = m.results[0]
+
+        no_dims = m.num_dims == 0
+        no_syms = m.num_symbols == 0
+
+        # just a constant
+        if no_dims and no_syms and isinstance(expr, AffineConstantExpr):
+            printer.print_string(str(expr.value))
+            return
+
+        # just a symbol
+        if no_dims and m.num_symbols == 1 and isinstance(expr, AffineSymExpr):
+            printer.print_ssa_value(bound_operands[0])
+            return
+
+    else:
+        printer.print_string(f"{prefix} ")
+
+    printer.print_attribute(bound_map)
+
+    with printer.in_parens():
+        printer.print_list(bound_operands[: m.num_dims], printer.print_ssa_value)
+
+    if m.num_symbols:
+        with printer.in_square_brackets():
+            printer.print_list(bound_operands[m.num_dims :], printer.print_ssa_value)
+
+
 @irdl_op_definition
 class ForOp(IRDLOperation):
     name = "affine.for"
@@ -209,6 +315,129 @@ class ForOp(IRDLOperation):
             properties=properties,
             regions=[region],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        unresolved_indvar = parser.parse_argument(expect_type=False)
+        parser.parse_characters("=")
+
+        lower_bound_map, lower_bound_operands = _parse_affine_for_bound(parser, "max")
+        parser.parse_characters("to")
+        upper_bound_map, upper_bound_operands = _parse_affine_for_bound(parser, "min")
+
+        if parser.parse_optional_characters("step") is not None:
+            step_pos = parser.pos
+            step = parser.parse_integer(allow_boolean=False)
+            if step < 0:
+                parser.raise_error(
+                    "expected step to be representable as a positive signed integer",
+                    step_pos,
+                )
+        else:
+            step = 1
+
+        unresolved_iter_args: Sequence[Parser.UnresolvedArgument] = ()
+        iter_arg_operands: Sequence[SSAValue] = ()
+        iter_arg_types: Sequence[Attribute] = ()
+
+        if parser.parse_optional_characters("iter_args") is not None:
+
+            def parse_iter_arg() -> tuple[Parser.UnresolvedArgument, SSAValue]:
+                arg = parser.parse_argument(expect_type=False)
+                parser.parse_characters("=")
+                return arg, parser.parse_operand()
+
+            pairs = parser.parse_comma_separated_list(
+                Parser.Delimiter.PAREN, parse_iter_arg
+            )
+            unresolved_iter_args = tuple(arg for arg, _ in pairs)
+            iter_arg_operands = tuple(val for _, val in pairs)
+            parser.parse_characters("->")
+
+            # MLIR's `parseArrowTypeList` also accepts a single bare type
+            # (no parens) when there is only one loop-carried value.
+            if parser.parse_optional_punctuation("(") is not None:
+                iter_arg_types = parser.parse_comma_separated_list(
+                    Parser.Delimiter.NONE, parser.parse_type
+                )
+                parser.parse_punctuation(")")
+            else:
+                iter_arg_types = (parser.parse_type(),)
+
+        iter_args = tuple(
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        )
+        indvar = unresolved_indvar.resolve(IndexType())
+        body = parser.parse_region((indvar, *iter_args))
+
+        # affine.for has no implicit-terminator trait (see TODO above), so the
+        # terminator omitted from the printed form when there are no iter_args
+        # must be re-inserted by hand here, mirroring `ensureTerminator`
+        block = body.block
+        if block.last_op is None or not isinstance(block.last_op, YieldOp):
+            block.add_op(YieldOp.get())
+
+        attributes = parser.parse_optional_attr_dict()
+
+        for_op = cast(
+            Self,
+            cls.from_region(
+                lower_bound_operands,
+                upper_bound_operands,
+                iter_arg_operands,
+                iter_arg_types,
+                lower_bound_map,
+                upper_bound_map,
+                body,
+                step,
+            ),
+        )
+        for_op.attributes |= attributes
+        return for_op
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        indvar, *block_iter_args = self.body.block.args
+        printer.print_block_argument(indvar, print_type=False)
+        printer.print_string(" = ")
+
+        _print_affine_for_bound(
+            printer, self.lowerBoundMap, self.lowerBoundOperands, "max"
+        )
+        printer.print_string(" to ")
+        _print_affine_for_bound(
+            printer, self.upperBoundMap, self.upperBoundOperands, "min"
+        )
+
+        if self.step.value.data != 1:
+            printer.print_string(f" step {self.step.value.data}")
+
+        print_block_terminators = False
+
+        if self.inits:
+            printer.print_string(" iter_args")
+
+            with printer.in_parens():
+                printer.print_list(
+                    zip(block_iter_args, self.inits),
+                    lambda pair: print_assignment(printer, *pair),
+                )
+
+            printer.print_string(" -> ")
+
+            with printer.in_parens():
+                printer.print_list(self.result_types, printer.print_attribute)
+
+            print_block_terminators = True
+
+        printer.print_string(" ")
+        printer.print_region(
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=print_block_terminators,
+        )
+        printer.print_op_attributes(self.attributes)
 
 
 @irdl_op_definition
@@ -516,6 +745,8 @@ class YieldOp(IRDLOperation):
     arguments = var_operand_def()
 
     traits = traits_def(IsTerminator(), Pure())
+
+    assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> YieldOp:
