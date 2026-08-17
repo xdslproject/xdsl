@@ -1,7 +1,5 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from inspect import Parameter
-from inspect import signature as inspect_signature
 from typing import Any, Generic, ParamSpec, Protocol, overload
 
 from typing_extensions import TypeForm, TypeVar
@@ -80,16 +78,6 @@ def wrap_jit_func(
     Builds argument/result converters from ``signature`` and checks that the
     resulting ``CFUNCTYPE`` matches ``raw_func.c_func_type``.
     """
-    unsupported_keyword_params = any(
-        parameter.kind in (Parameter.KEYWORD_ONLY, Parameter.VAR_KEYWORD)
-        for parameter in inspect_signature(original_func).parameters.values()
-    )
-    if unsupported_keyword_params:
-        raise NotImplementedError(
-            "JIT functions with keyword-only or variadic-keyword parameters are "
-            "not supported"
-        )
-
     func_type_map = py_type_context.func_type_map(signature)
     expected_c_func_type = func_type_map.c_func_type()
     mismatched_type = raw_func.c_func_type != expected_c_func_type
@@ -100,6 +88,8 @@ def wrap_jit_func(
         )
 
     def fn(*args: P.args, **kwargs: P.kwargs) -> R:
+        if kwargs:
+            raise JITException("JIT functions do not support keyword arguments.")
         ctype_args = tuple(
             m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, args, strict=True)
         )

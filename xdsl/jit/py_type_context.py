@@ -74,4 +74,4 @@ class PyTypeContext:
                     self.type_map(return_type),
                 )
             case _:
-                raise NotImplementedError(f"Unsupported signature: {signature}")
+                raise JITException(f"Unsupported signature: {signature}")
