@@ -22,10 +22,11 @@ from xdsl.dialects.linalg.transforms.tiling import (
     SliceParameters,
     TilingPlan,
     _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
+    _build_tiled_insert,  # pyright: ignore[reportPrivateUsage]
     _build_tiled_slice,  # pyright: ignore[reportPrivateUsage]
     tile_linalg_generic,
 )
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -278,6 +279,59 @@ def test_build_tiled_slice_tensor_emits_extract_slice():
     assert slice_op.static_strides == DenseArrayBase.from_list(i64, [1, 1])
     assert len(slice_op.offsets) == 1
     assert slice_op.result.type == TensorType(f32, [2, 5])
+
+
+def _tiled_insert_for(
+    destination_type: TensorType[Attribute], tile_shape: Sequence[int]
+) -> tuple[tensor.InsertSliceOp, SSAValue, SSAValue]:
+    """Write a tile of dim 0 back at a loop induction variable, tile size 2."""
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    operand_info = OperandTileInfo.analyze(indexing_map, destination_type, (2, 0))
+    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv})
+
+    destination = create_ssa_value(destination_type)
+    tiled_value = create_ssa_value(
+        TensorType(destination_type.get_element_type(), tile_shape)
+    )
+
+    result = _build_tiled_insert(
+        rewriter, InsertPoint.before(op), tiled_value, destination, parameters
+    )
+    insert_op = result.owner
+    assert isinstance(insert_op, tensor.InsertSliceOp)
+    return insert_op, tiled_value, destination
+
+
+def test_build_tiled_insert_writes_tile_back_where_it_came_from():
+    insert_op, tiled_value, destination = _tiled_insert_for(
+        TensorType(f32, [4, 5]), [2, 5]
+    )
+
+    assert insert_op.source is tiled_value
+    # The tile goes back into the destination it was extracted from, which during
+    # tiling is the value carried by the enclosing loops rather than the original.
+    assert insert_op.dest is destination
+
+    # The same parameters the tile was extracted with, so it lands where it came
+    # from: dim 0 at the induction variable spanning one tile, dim 1 whole.
+    assert insert_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert insert_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert insert_op.static_strides == DenseArrayBase.from_list(i64, [1, 1])
+    assert len(insert_op.offsets) == 1
+
+
+def test_build_tiled_insert_result_is_the_whole_updated_tensor():
+    destination_type = TensorType(f32, [4, 5])
+    insert_op, _, _ = _tiled_insert_for(destination_type, [2, 5])
+
+    # Inserting a tile yields the whole tensor updated, not the tile, which is
+    # what lets the enclosing loops carry it on to the next iteration.
+    assert insert_op.result.type == destination_type
 
 
 def test_build_tile_loops_without_iter_args():
