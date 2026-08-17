@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, TypeAlias
+from typing import TypeAlias
 
 from xdsl.backend.assembly_printer import reg
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, UnitAttr
@@ -32,9 +32,15 @@ def memory_access_str(register: SSAValue, offset: IntegerAttr) -> str:
 def broadcast_memory_access_str(
     register: SSAValue,
     offset: IntegerAttr,
-    broadcast: Literal["1to8", "1to16"],
+    broadcast: str,
 ) -> str:
-    """e.g. ``[rsi+512]{1to8}``"""
+    """
+    e.g. ``[rsi+512]{1to8}``
+
+    The lane count depends on both the element width and the width of the
+    register bank the instruction is allocated to, so it is computed by the
+    operation rather than drawn from a fixed set.
+    """
     return f"{memory_access_str(register, offset)}{{{broadcast}}}"
 
 

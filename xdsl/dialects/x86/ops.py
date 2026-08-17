@@ -1459,13 +1459,23 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
 
     @classmethod
     @abstractmethod
-    def broadcast_modifier(cls) -> Literal["1to8", "1to16"]:
+    def lane_bitwidth(cls) -> int:
         """
-        If broadcasting, specifies whether the operation broadcasts to 8 or 16 lanes.
-        This will be determined by the bitwidth of the lanes of the vector this
-        operation operates on.
+        The bitwidth of a single lane of the vector this operation operates on.
         """
         raise NotImplementedError()
+
+    def broadcast_modifier(self) -> str:
+        """
+        The EVEX broadcast modifier for this operation, e.g. `1to8`.
+
+        The lane count is the register width divided by the lane width, so it
+        depends on the register bank this operation is allocated to: vfmadd231pd
+        broadcasts `1to2` on xmm, `1to4` on ymm and `1to8` on zmm.
+        """
+        register_type = self.register_in.type
+        assert isinstance(register_type, X86VectorRegisterType)
+        return f"1to{register_type.bitwidth() // self.lane_bitwidth()}"
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         if self.broadcast:
@@ -3466,8 +3476,8 @@ class RSM_Vfmadd231pdOp(
     name = "x86.rsm.vfmadd231pd"
 
     @classmethod
-    def broadcast_modifier(cls) -> Literal["1to8"]:
-        return "1to8"
+    def lane_bitwidth(cls) -> int:
+        return 64
 
 
 @irdl_op_definition
@@ -3498,8 +3508,8 @@ class RSM_Vfmadd231psOp(
     name = "x86.rsm.vfmadd231ps"
 
     @classmethod
-    def broadcast_modifier(cls) -> Literal["1to16"]:
-        return "1to16"
+    def lane_bitwidth(cls) -> int:
+        return 32
 
 
 @irdl_op_definition

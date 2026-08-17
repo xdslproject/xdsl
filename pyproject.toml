@@ -33,13 +33,13 @@ optional-dependencies.dev = [
   "pytest<9.2",
   "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.15.22",
+  "ruff==0.16.2",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.7.1" ]
+optional-dependencies.heir = [ "heir-py==2026.8.1" ]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
@@ -102,7 +102,7 @@ lint.ignore = [
   # Help welcome removing ignores below
   # https://github.com/xdslproject/xdsl/issues/5927
   "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
-  "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
+  "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]

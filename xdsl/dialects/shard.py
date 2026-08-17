@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IndexTypeConstr,
     IntegerAttr,
+    MemRefType,
     SymbolNameConstraint,
     TensorType,
     UnitAttr,
@@ -173,6 +174,36 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
+class AllReduceOp(CollectiveCommunicationOp):
+    """
+    All-reduce over a device grid.
+
+    Within each device group reduce the input using the `reduction` method.
+    Each device in a group receives a replicated copy of the reduction result.
+    The accumulation element type is determined by the result type.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardall_reduce-shardallreduceop).
+    """
+
+    name = "shard.all_reduce"
+
+    input = operand_def(MemRefType.constr() | TensorType.constr())
+    reduction = prop_def(
+        ReductionKindAttr, default_value=ReductionKindAttr(ReductionKind.SUM)
+    )
+
+    result = result_def(MemRefType.constr() | TensorType.constr())
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
+        + "(`reduction` `=` $reduction^)? "
+        + "attr-dict `:` type($input) `->` type($result)"
+    )
+
+
+@irdl_op_definition
 class BroadcastOp(CollectiveCommunicationOp):
     """
     Broadcast tensor from one device to many devices.
@@ -280,6 +311,41 @@ class RecvOp(CollectiveCommunicationOp):
     assembly_format = (
         "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "(`source` `=` custom<DynamicIndexList>($source_dynamic, $source)^)? "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class ReduceOp(CollectiveCommunicationOp):
+    """
+    Reduce over a device grid.
+
+    Within each device group reduce the input tensor using the `reduction`
+    method. The result is returned on the `root` device of each group and is
+    undefined on all other devices.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardreduce-shardreduceop).
+    """
+
+    name = "shard.reduce"
+
+    input = operand_def(TensorType)
+    reduction = prop_def(
+        ReductionKindAttr, default_value=ReductionKindAttr(ReductionKind.SUM)
+    )
+    root = prop_def(DenseArrayBase[I64])
+    root_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
+        + "(`reduction` `=` $reduction^)? "
+        + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
         + "attr-dict `:` functional-type(operands, results)"
     )
 
@@ -470,9 +536,11 @@ class ShardOp(IRDLOperation):
 Shard = Dialect(
     "shard",
     [
+        AllReduceOp,
         BroadcastOp,
         GatherOp,
         RecvOp,
+        ReduceOp,
         SendOp,
         ScatterOp,
         ShiftOp,
