@@ -4,9 +4,10 @@ from typing import cast
 
 from typing_extensions import assert_never
 
-from xdsl.dialects import arith, linalg, memref, scf, tensor
+from xdsl.dialects import affine, arith, linalg, memref, scf, tensor
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    AffineMapAttr,
     IndexType,
     IntegerAttr,
     MemRefType,
@@ -14,11 +15,23 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Region, SSAValue
-from xdsl.ir.affine import AffineDimExpr, AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
+
+# min(tile, ub - iv), the size of a tile that may run past the end of its loop.
+_PARTIAL_TILE_MIN_MAP = AffineMapAttr(
+    AffineMap(
+        3,
+        0,
+        (
+            AffineExpr.dimension(0),
+            AffineExpr.dimension(1) - AffineExpr.dimension(2),
+        ),
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -53,12 +66,15 @@ class TilingPlan:
     This stores the information needed to turn one op into tiled loop and tiled subview.
     - `loop_ranges` are original static loop ranges.
     - `tiled_dims` the dimensions that really get tiled.
+    - `partial_tiled_dims` the tiled dimensions whose loop range is not divisible
+      by the tile size, so that their last tile is smaller than the rest.
     - `operand_infos` stores one `OperandTileInfo` per operand.
     - `tile_sizes` are the normalized tile sizes, padded to match the op loop count.
     """
 
     loop_ranges: tuple[int, ...]
     tiled_dims: tuple[int, ...]
+    partial_tiled_dims: frozenset[int]
     operand_infos: tuple[OperandTileInfo, ...]
     tile_sizes: tuple[int, ...]
 
@@ -84,6 +100,7 @@ class TilingPlan:
             return TilingPlan(
                 loop_ranges=(),
                 tiled_dims=(),
+                partial_tiled_dims=frozenset(),
                 operand_infos=(),
                 tile_sizes=normalized_tile_sizes,
             )
@@ -92,6 +109,12 @@ class TilingPlan:
             op,
             normalized_tile_sizes,
             tiled_dims,
+        )
+
+        partial_tiled_dims = frozenset(
+            dim
+            for dim in tiled_dims
+            if loop_ranges[dim] % normalized_tile_sizes[dim] != 0
         )
 
         operand_infos_list: list[OperandTileInfo] = []
@@ -108,6 +131,7 @@ class TilingPlan:
         return TilingPlan(
             loop_ranges=loop_ranges,
             tiled_dims=tiled_dims,
+            partial_tiled_dims=partial_tiled_dims,
             operand_infos=operand_infos,
             tile_sizes=normalized_tile_sizes,
         )
@@ -173,11 +197,7 @@ def _verify_generic_is_tileable(
                 "tiling linalg.generic with non-projected-permutation indexing maps is not supported yet"
             )
 
-    loop_ranges = op.get_static_loop_ranges()
-    if any(loop_ranges[dim] % tile_sizes[dim] for dim in tiled_dims):
-        raise ValueError("partial tiles are not supported yet")
-
-    return loop_ranges
+    return op.get_static_loop_ranges()
 
 
 def _build_tile_loops(
@@ -244,6 +264,38 @@ def _build_tile_loops(
     return loops, tiled_loop_ivs, current_insertion_point
 
 
+def _build_effective_tile_sizes(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    plan: TilingPlan,
+    loops: Sequence[scf.ForOp],
+) -> dict[int, SSAValue | int]:
+    """
+    Give the size of the current tile for each tiled dimension.
+
+    A dimension whose loop range divides by its tile size always gets a whole
+    tile, so its size stays the tile size. One that does not has a smaller tile
+    on its last iteration, so its size becomes `min(tile, ub - iv)`, which is
+    the tile size everywhere except at the end.
+    """
+
+    effective: dict[int, SSAValue | int] = {}
+    for dim, loop in zip(plan.tiled_dims, loops, strict=True):
+        if dim not in plan.partial_tiled_dims:
+            effective[dim] = plan.tile_sizes[dim]
+            continue
+
+        min_op = affine.MinOp(
+            operands=[[loop.step, loop.ub, loop.body.block.args[0]]],
+            properties={"map": _PARTIAL_TILE_MIN_MAP},
+            result_types=[IndexType()],
+        )
+        rewriter.insert(min_op, insertion_point)
+        effective[dim] = min_op.result
+
+    return effective
+
+
 @dataclass(frozen=True)
 class SliceParameters:
     """
@@ -263,14 +315,14 @@ class SliceParameters:
         indexing_map: AffineMap,
         operand_info: OperandTileInfo,
         tiled_loop_ivs: dict[int, SSAValue],
-        tile_sizes: dict[int, SSAValue | int],
+        effective_tile_sizes: dict[int, SSAValue | int],
     ) -> "SliceParameters":
         """
         Compute where the current tile sits within one operand.
 
         Each result of the indexing map addresses one dimension of the operand.
         A dimension whose loop is tiled starts at that loop's induction variable
-        and spans that loop's tile, and a dimension whose loop is not tiled
+        and spans the current tile, and a dimension whose loop is not tiled
         starts at zero and spans the whole operand.
         """
 
@@ -283,7 +335,7 @@ class SliceParameters:
             loop_dim = operand_info.loop_dims[result_index]
             if loop_dim in tiled_loop_ivs:
                 offsets.append(tiled_loop_ivs[loop_dim])
-                sizes.append(tile_sizes[loop_dim])
+                sizes.append(effective_tile_sizes[loop_dim])
             else:
                 offsets.append(0)
                 sizes.append(source_shape[result_index])
@@ -417,13 +469,11 @@ def tile_linalg_generic(
     )
 
     num_inputs = len(op.inputs)
-    tile_sizes_by_dim: dict[int, SSAValue | int] = {
-        dim: plan.tile_sizes[dim] for dim in plan.tiled_dims
-    }
+    effective_tile_sizes = _build_effective_tile_sizes(rewriter, inner_ip, plan, loops)
 
     slice_parameters = tuple(
         SliceParameters.compute(
-            indexing_map.data, operand_info, tiled_loop_ivs, tile_sizes_by_dim
+            indexing_map.data, operand_info, tiled_loop_ivs, effective_tile_sizes
         )
         for operand_info, indexing_map in zip(
             plan.operand_infos, op.get_indexing_maps(), strict=True

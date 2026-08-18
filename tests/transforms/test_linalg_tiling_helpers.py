@@ -233,11 +233,33 @@ def test_tiling_plan_rejects_non_projected_permutation_map():
         TilingPlan.analyze_generic_op(op, (2, 0))
 
 
-def test_tiling_plan_rejects_partial_tiles():
+def test_tiling_plan_marks_dims_with_a_leftover_tile():
     op = _generic_2d_copy_op()
 
-    with pytest.raises(ValueError, match="partial tiles"):
-        TilingPlan.analyze_generic_op(op, (3, 0))
+    # Dim 0 has range 4 and tile size 3, so its last tile holds one element.
+    plan = TilingPlan.analyze_generic_op(op, (3, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
+
+
+def test_tiling_plan_marks_no_dims_partial_when_tiles_divide():
+    op = _generic_2d_copy_op()
+
+    # Range 4 divides by tile size 2, so every tile is whole.
+    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset()
+
+
+def test_tiling_plan_marks_a_tile_larger_than_its_range_partial():
+    op = _generic_2d_copy_op()
+
+    # A tile bigger than the range gives one iteration covering the whole range.
+    plan = TilingPlan.analyze_generic_op(op, (8, 0))
+
+    assert plan.partial_tiled_dims == frozenset({0})
 
 
 def test_slice_parameters_compute_tiled_and_untiled_dims():
