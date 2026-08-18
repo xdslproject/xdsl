@@ -6,11 +6,13 @@ from typing_extensions import assert_never
 
 from xdsl.dialects import arith, linalg, memref, scf, tensor
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     IndexType,
     IntegerAttr,
     MemRefType,
     TensorType,
 )
+from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
@@ -347,6 +349,46 @@ def _build_tiled_slice(
     return slice_op.result
 
 
+def _build_tiled_insert(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    tiled_value: SSAValue,
+    destination: SSAValue,
+    parameters: SliceParameters,
+) -> SSAValue:
+    """
+    Write one computed tile back into `destination`, giving the updated tensor.
+
+    Tensors have value semantics, so a tile cannot be written through its slice
+    the way a `memref.subview` writes through to the memory it views. The
+    parameters are the ones the tile was extracted with, so that the tile is
+    written back exactly where it came from.
+    """
+
+    static_offsets, offsets = split_dynamic_index_list(
+        parameters.offsets, DYNAMIC_INDEX
+    )
+    static_sizes, sizes = split_dynamic_index_list(parameters.sizes, DYNAMIC_INDEX)
+    static_strides, strides = split_dynamic_index_list(
+        parameters.strides, DYNAMIC_INDEX
+    )
+
+    insert_op = tensor.InsertSliceOp.get(
+        source=tiled_value,
+        dest=destination,
+        static_sizes=static_sizes,
+        static_offsets=static_offsets,
+        static_strides=static_strides,
+        offsets=offsets,
+        sizes=sizes,
+        strides=strides,
+        result_type=destination.type,
+    )
+    rewriter.insert(insert_op, insertion_point)
+
+    return insert_op.result
+
+
 def tile_linalg_generic(
     rewriter: PatternRewriter,
     op: linalg.ops.GenericOp,
@@ -363,43 +405,78 @@ def tile_linalg_generic(
     if not plan.tiled_dims:
         return False
 
+    # Outputs with value semantics are threaded through the loops, since each
+    # tile produces a new value instead of writing through a view.
+    has_tensor_outputs = bool(op.res)
+    iter_args = tuple(op.outputs) if has_tensor_outputs else ()
+
     loops, tiled_loop_ivs, inner_ip = _build_tile_loops(
         rewriter,
         InsertPoint.before(op),
         plan.loop_ranges,
         plan.tile_sizes,
         plan.tiled_dims,
+        iter_args,
     )
-    tiled_operands: list[SSAValue] = []
-
-    for operand, operand_info, indexing_map in zip(
-        op.operands, plan.operand_infos, op.get_indexing_maps(), strict=True
-    ):
-        parameters = SliceParameters.compute(
-            indexing_map.data, operand_info, tiled_loop_ivs
-        )
-        tiled_operands.append(
-            _build_tiled_slice(
-                rewriter,
-                inner_ip,
-                operand,
-                operand_info.source_type,
-                parameters,
-            )
-        )
 
     num_inputs = len(op.inputs)
+    slice_parameters = tuple(
+        SliceParameters.compute(indexing_map.data, operand_info, tiled_loop_ivs)
+        for operand_info, indexing_map in zip(
+            plan.operand_infos, op.get_indexing_maps(), strict=True
+        )
+    )
+
+    # Output tensors are sliced from the values the innermost loop carries, so
+    # that each tile builds on the tiles the surrounding iterations wrote back.
+    # Slicing the originals instead would discard their work.
+    carried = loops[-1].body.block.args[1:]
+    slice_sources = list(op.operands)
+    slice_sources[num_inputs:] = carried if has_tensor_outputs else op.outputs
+
+    tiled_operands = [
+        _build_tiled_slice(
+            rewriter, inner_ip, source, operand_info.source_type, parameters
+        )
+        for source, operand_info, parameters in zip(
+            slice_sources, plan.operand_infos, slice_parameters, strict=True
+        )
+    ]
+
+    tiled_outputs = tiled_operands[num_inputs:]
     tiled_generic = linalg.ops.GenericOp(
         tiled_operands[:num_inputs],
-        tiled_operands[num_inputs:],
+        tiled_outputs,
         op.body.clone(),
         op.get_indexing_maps(),
         op.get_iterator_types(),
+        tuple(value.type for value in tiled_outputs) if has_tensor_outputs else (),
     )
     rewriter.insert(tiled_generic, inner_ip)
 
-    for loop in reversed(loops):
-        rewriter.insert(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
+    # Memref outputs are written through their subview, so only tensor outputs
+    # need their computed tile written back into the value being carried.
+    yielded: Sequence[SSAValue] = (
+        tuple(
+            _build_tiled_insert(
+                rewriter, inner_ip, tiled_result, destination, parameters
+            )
+            for tiled_result, destination, parameters in zip(
+                tiled_generic.res, carried, slice_parameters[num_inputs:], strict=True
+            )
+        )
+        if has_tensor_outputs
+        else ()
+    )
 
-    rewriter.erase(op)
+    # The innermost loop yields the updated tensors, and each enclosing loop
+    # yields the results of the loop nested inside it.
+    for loop in reversed(loops):
+        rewriter.insert(scf.YieldOp(*yielded), InsertPoint.at_end(loop.body.block))
+        yielded = loop.results
+
+    # The outermost loop carries out the fully updated tensors. An op tiling
+    # memrefs carries nothing and has no results, so this replaces it with
+    # nothing, which is the erase that case needs.
+    rewriter.replace(op, [], loops[0].results)
     return True
