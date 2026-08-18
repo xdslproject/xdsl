@@ -150,3 +150,9 @@ class LLVMTranslationException(DiagnosticException):
     """
     Exception raised during LLVM translation.
     """
+
+
+class JITException(DiagnosticException):
+    """
+    Exception raised during JIT compilation.
+    """

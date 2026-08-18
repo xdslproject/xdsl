@@ -13,17 +13,14 @@ from xdsl.dialects import (
     tensor,
 )
 from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
     AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
-    DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
     MemRefType,
     ModuleOp,
     TensorType,
-    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -237,17 +234,11 @@ class ApplyOpBufferize(RewritePattern):
             linalg_op,
             [
                 extract_slice_op := tensor.ExtractSliceOp(
-                    operands=[iter_arg, [op.receive_chunk.block.args[1]], [], []],
-                    result_types=[chunk_type],
-                    properties={
-                        "static_offsets": DenseArrayBase.from_list(
-                            i64, (DYNAMIC_INDEX,)
-                        ),
-                        "static_sizes": DenseArrayBase.from_list(
-                            i64, chunk_type.get_shape()
-                        ),
-                        "static_strides": DenseArrayBase.from_list(i64, (1,)),
-                    },
+                    iter_arg,
+                    (op.receive_chunk.block.args[1],),
+                    chunk_type.get_shape(),
+                    (1,),
+                    chunk_type,
                 ),
                 type(linalg_op).build(
                     operands=[linalg_op.inputs, extract_slice_op.results],
@@ -272,13 +263,11 @@ class ApplyOpBufferize(RewritePattern):
         assert isa(typ, TensorType[Attribute])
 
         return tensor.ExtractSliceOp(
-            operands=[to_tensor.tensor, [offset], [], []],
-            result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
-            properties={
-                "static_offsets": DenseArrayBase.from_list(i64, (DYNAMIC_INDEX,)),
-                "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
-                "static_strides": DenseArrayBase.from_list(i64, (1,)),
-            },
+            to_tensor.tensor,
+            (offset,),
+            typ.get_shape()[1:],
+            (1,),
+            TensorType(typ.get_element_type(), typ.get_shape()[1:]),
         )
 
 
@@ -459,15 +448,11 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
             )
 
             extract_slice_op = tensor.ExtractSliceOp(
-                operands=[arg_to_tensor, [], [], []],
-                result_types=[yld_arg.op.tensor.type],
-                properties={
-                    "static_offsets": DenseArrayBase.from_list(i64, offsets),
-                    "static_sizes": DenseArrayBase.from_list(
-                        i64, yld_arg.type.get_shape()
-                    ),
-                    "static_strides": DenseArrayBase.from_list(i64, (1,)),
-                },
+                arg_to_tensor,
+                offsets,
+                yld_arg.type.get_shape(),
+                (1,),
+                yld_arg.op.tensor.type,
             )
             rewriter.insert(
                 [arg_to_tensor, extract_slice_op], InsertPoint.before(linalg_op)
