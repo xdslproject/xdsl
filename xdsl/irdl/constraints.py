@@ -1187,6 +1187,26 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
 
 
 @dataclass(frozen=True)
+class AnyRange(RangeConstraint):
+    """
+    A constraint allowing any range.
+    """
+
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
+    ) -> None:
+        return
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        return
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> RangeConstraint:
+        return self
+
+
+@dataclass(frozen=True)
 class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     """
     Constrain an attribute range with the given length.
