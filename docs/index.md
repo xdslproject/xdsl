@@ -49,7 +49,7 @@ For further information about canonicalization, please take a look at [MLIR's do
 
 We have a short series of notebooks describing the APIs necessary to build
 representations of code, and transformations on it.
-The [Toy tutorial notebooks](notebooks/Toy/ch0.html) are the best place to start.
+The [Toy tutorial notebooks](notebooks) are the best place to start.
 We recommend first looking at them, and then at the implementation of the Toy compiler
 itself: [Dialect](https://github.com/xdslproject/xdsl/tree/main/docs/Toy/toy/dialects/toy.py),
 [Canonicalization](https://github.com/xdslproject/xdsl/tree/main/docs/Toy/toy/rewrites/optimise_toy.py).
