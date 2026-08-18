@@ -27,34 +27,24 @@ class OperandTileInfo:
     This records how one operand should be sliced when we enter a tile.
     - `source_type` keeps the original type.
     - `loop_dims` the loop dimension that comes from each indexing-map.
-    - `result_shape` the shape that tiled slice should have.
     """
 
     source_type: MemRefType[Attribute] | TensorType[Attribute]
     loop_dims: tuple[int, ...]
-    result_shape: tuple[int, ...]
 
     @staticmethod
     def analyze(
         indexing_map: AffineMap,
         source_type: MemRefType[Attribute] | TensorType[Attribute],
-        tile_sizes: Sequence[int],
     ) -> "OperandTileInfo":
         """
         Analyze how one operand should be sliced for each tile.
         """
 
-        source_shape = source_type.get_shape()
         loop_dims = tuple(
             cast(AffineDimExpr, expr).position for expr in indexing_map.results
         )
-        result_shape = tuple(
-            tile_sizes[loop_dim]
-            if tile_sizes[loop_dim] != 0
-            else source_shape[result_index]
-            for result_index, loop_dim in enumerate(loop_dims)
-        )
-        return OperandTileInfo(source_type, loop_dims, result_shape)
+        return OperandTileInfo(source_type, loop_dims)
 
 
 @dataclass(frozen=True)
@@ -111,11 +101,7 @@ class TilingPlan:
             source_type = operand.type
             assert isa(source_type, MemRefType | TensorType)
             operand_infos_list.append(
-                OperandTileInfo.analyze(
-                    indexing_map.data,
-                    source_type,
-                    normalized_tile_sizes,
-                )
+                OperandTileInfo.analyze(indexing_map.data, source_type)
             )
         operand_infos = tuple(operand_infos_list)
 
@@ -277,14 +263,15 @@ class SliceParameters:
         indexing_map: AffineMap,
         operand_info: OperandTileInfo,
         tiled_loop_ivs: dict[int, SSAValue],
+        tile_sizes: dict[int, SSAValue | int],
     ) -> "SliceParameters":
         """
         Compute where the current tile sits within one operand.
 
         Each result of the indexing map addresses one dimension of the operand.
         A dimension whose loop is tiled starts at that loop's induction variable
-        and spans one tile, and a dimension whose loop is not tiled starts at
-        zero and spans the whole operand.
+        and spans that loop's tile, and a dimension whose loop is not tiled
+        starts at zero and spans the whole operand.
         """
 
         source_shape = operand_info.source_type.get_shape()
@@ -296,7 +283,7 @@ class SliceParameters:
             loop_dim = operand_info.loop_dims[result_index]
             if loop_dim in tiled_loop_ivs:
                 offsets.append(tiled_loop_ivs[loop_dim])
-                sizes.append(operand_info.result_shape[result_index])
+                sizes.append(tile_sizes[loop_dim])
             else:
                 offsets.append(0)
                 sizes.append(source_shape[result_index])
@@ -430,8 +417,14 @@ def tile_linalg_generic(
     )
 
     num_inputs = len(op.inputs)
+    tile_sizes_by_dim: dict[int, SSAValue | int] = {
+        dim: plan.tile_sizes[dim] for dim in plan.tiled_dims
+    }
+
     slice_parameters = tuple(
-        SliceParameters.compute(indexing_map.data, operand_info, tiled_loop_ivs)
+        SliceParameters.compute(
+            indexing_map.data, operand_info, tiled_loop_ivs, tile_sizes_by_dim
+        )
         for operand_info, indexing_map in zip(
             plan.operand_infos, op.get_indexing_maps(), strict=True
         )
