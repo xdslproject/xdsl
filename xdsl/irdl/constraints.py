@@ -12,7 +12,7 @@ from typing import (
     get_origin,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -1376,6 +1376,7 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         return RangeOf(self.constr.mapping_type_vars(type_var_mapping))
 
 
+@deprecated("Use `RangeOf(attr).of_length(1)` instead.")
 @dataclass(frozen=True)
 class SingleOf(RangeConstraint[AttributeCovT]):
     """
@@ -1412,5 +1413,5 @@ class SingleOf(RangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> SingleOf[AttributeCovT]:
-        return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
+    ) -> RangeConstraint[AttributeCovT]:
+        return SingleOf(self.constr.mapping_type_vars(type_var_mapping))  # pyright: ignore [reportDeprecated]

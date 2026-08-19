@@ -73,7 +73,6 @@ from .constraints import (  # noqa: TID251
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
-    SingleOf,
     TypeVarConstraint,
 )
 
@@ -665,7 +664,7 @@ def range_constr_coercion(
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
-    return SingleOf(irdl_to_attr_constraint(attr))
+    return RangeOf(irdl_to_attr_constraint(attr)).of_length(1)
 
 
 @overload

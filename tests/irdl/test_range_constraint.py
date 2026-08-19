@@ -18,7 +18,6 @@ from xdsl.irdl import (
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
-    SingleOf,
     VarConstraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -133,10 +132,10 @@ def test_empty_range():
 
 
 def test_range_var_constraint_verify():
-    RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).verify(
+    RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32)).of_length(1)).verify(
         (i32,), ConstraintContext()
     )
-    RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+    RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
         (i32,), ConstraintContext({}, {"R": (i32,)})
     )
 
@@ -146,7 +145,7 @@ def test_range_var_constraint_verify():
             "attributes ('i32',) expected from range variable 'R', but got ('i32', 'i32')"
         ),
     ):
-        RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+        RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
             (i32, i32), ConstraintContext({}, {"R": (i32,)})
         )
 
@@ -154,8 +153,13 @@ def test_range_var_constraint_verify():
 @pytest.mark.parametrize(
     "constraint, context_dict, length, inferred",
     [
-        (RangeVarConstraint("R", SingleOf(AnyAttr())), {}, None, None),
-        (RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))), {}, True, (i32,)),
+        (RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)), {}, None, None),
+        (
+            RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32)).of_length(1)),
+            {},
+            True,
+            (i32,),
+        ),
         (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, None, None),
         (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, 2, (i32, i32)),
         (RangeVarConstraint("R", AnyRange()), {}, None, None),
