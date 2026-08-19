@@ -105,3 +105,83 @@ linalg.generic {
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
+
+// -----
+
+// Tensors are tiled by extracting each tile, computing it, and inserting the
+// result back into the tensor carried by the loops.
+
+%A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
+
+%C = "linalg.generic"(%A, %B) <{
+  indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
+  operandSegmentSizes = array<i32: 1, 1>
+}> ({
+^bb0(%a: f32, %b: f32):
+  "linalg.yield"(%a) : (f32) -> ()
+}) {test_tile_sizes = array<i32: 2, 2>} : (tensor<4x4xf32>, tensor<4x4xf32>) -> tensor<4x4xf32>
+
+"test.op"(%C) : (tensor<4x4xf32>) -> ()
+
+// Each loop carries the tensor: the outer one from %B, the inner one from the
+// block argument of the outer one. The output tile is extracted from the
+// carried value, not from %B, so tiles accumulate.
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 4 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   %3 = arith.constant 2 : index
+// CHECK-NEXT:   %4 = arith.constant 2 : index
+// CHECK-NEXT:   %C = scf.for %5 = %0 to %1 step %3 iter_args(%6 = %B) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:     %7 = scf.for %8 = %0 to %2 step %4 iter_args(%9 = %6) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:       %10 = "tensor.extract_slice"(%A, %5, %8) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 2, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 2, 0, 0>}> : (tensor<4x4xf32>, index, index) -> tensor<2x2xf32>
+// CHECK-NEXT:       %11 = "tensor.extract_slice"(%9, %5, %8) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 2, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 2, 0, 0>}> : (tensor<4x4xf32>, index, index) -> tensor<2x2xf32>
+// CHECK-NEXT:       %12 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%10 : tensor<2x2xf32>) outs(%11 : tensor<2x2xf32>) {
+// CHECK-NEXT:       ^bb0(%a: f32, %b: f32):
+// CHECK-NEXT:         linalg.yield %a : f32
+// CHECK-NEXT:       } -> tensor<2x2xf32>
+// CHECK-NEXT:       %13 = "tensor.insert_slice"(%12, %9, %5, %8) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 2, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 2, 0, 0>}> : (tensor<2x2xf32>, tensor<4x4xf32>, index, index) -> tensor<4x4xf32>
+// CHECK-NEXT:       scf.yield %13 : tensor<4x4xf32>
+// CHECK-NEXT:     }
+// CHECK-NEXT:     scf.yield %7 : tensor<4x4xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%C) : (tensor<4x4xf32>) -> ()
+// CHECK-NEXT: }
+
+// -----
+
+// An untiled tensor dimension takes its whole extent.
+
+%A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
+
+%C = "linalg.generic"(%A, %B) <{
+  indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
+  operandSegmentSizes = array<i32: 1, 1>
+}> ({
+^bb0(%a: f32, %b: f32):
+  "linalg.yield"(%a) : (f32) -> ()
+}) {test_tile_sizes = array<i32: 2, 0>} : (tensor<4x4xf32>, tensor<4x4xf32>) -> tensor<4x4xf32>
+
+"test.op"(%C) : (tensor<4x4xf32>) -> ()
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 4 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   %C = scf.for %3 = %0 to %1 step %2 iter_args(%4 = %B) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:     %5 = "tensor.extract_slice"(%A, %3) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: 2, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 0>}> : (tensor<4x4xf32>, index) -> tensor<2x4xf32>
+// CHECK-NEXT:     %6 = "tensor.extract_slice"(%4, %3) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: 2, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 0>}> : (tensor<4x4xf32>, index) -> tensor<2x4xf32>
+// CHECK-NEXT:     %7 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%5 : tensor<2x4xf32>) outs(%6 : tensor<2x4xf32>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32):
+// CHECK-NEXT:       linalg.yield %a : f32
+// CHECK-NEXT:     } -> tensor<2x4xf32>
+// CHECK-NEXT:     %8 = "tensor.insert_slice"(%7, %4, %3) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: 2, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<2x4xf32>, tensor<4x4xf32>, index) -> tensor<4x4xf32>
+// CHECK-NEXT:     scf.yield %8 : tensor<4x4xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%C) : (tensor<4x4xf32>) -> ()
+// CHECK-NEXT: }
