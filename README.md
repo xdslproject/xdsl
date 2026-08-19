@@ -4,6 +4,7 @@
 [![Downloads](https://static.pepy.tech/badge/xdsl)](https://www.pepy.tech/projects/xdsl)
 [![Downloads](https://static.pepy.tech/badge/xdsl/week)](https://pepy.tech/project/xdsl)
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
+[![inspect.software](https://raw.githubusercontent.com/inspect-software/badges/main/v1/x/xdslproject/xdsl.svg)](https://inspect.software/software/xdslproject/xdsl)
 [![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
 
 # xDSL: A Python-native SSA Compiler Framework
