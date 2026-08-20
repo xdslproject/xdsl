@@ -224,6 +224,20 @@ def test_tiling_plan_marks_a_dynamic_range_partial():
     assert plan.partial_tiled_dims == frozenset({0})
 
 
+def test_tiling_plan_tiles_a_dim_whose_tile_size_is_not_static():
+    op = _generic_2d_copy_op()
+    tile_size = create_ssa_value(IndexType())
+
+    # Tiling by zero means leaving a dimension alone, and a size that is not
+    # known until the op runs cannot be shown to be zero, so the dimension is
+    # tiled. It cannot be shown to divide the range either, so it is partial.
+    plan = TilingPlan.analyze_generic_op(op, (tile_size, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
+    assert plan.tile_sizes == (tile_size, 0)
+
+
 def test_tiling_plan_rejects_non_projected_permutation_map():
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)

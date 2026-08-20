@@ -326,3 +326,33 @@ linalg.generic {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%C) : (tensor<?x4xf32>) -> ()
 // CHECK-NEXT: }
+
+// -----
+
+// A tile size that is not known until the op runs steps the loop directly.
+// It cannot be shown to divide the range either, so its tiles are clamped.
+
+%A, %B = "test.op"() : () -> (memref<8x4xf32>, memref<8x4xf32>)
+linalg.generic {
+    indexing_maps = [affine_map<(i, j) -> (i, j)>, affine_map<(i, j) -> (i, j)>],
+    iterator_types = ["parallel", "parallel"]
+} ins(%A : memref<8x4xf32>) outs(%B : memref<8x4xf32>) attrs = {test_tile_sizes = array<i32: 0, 0>, test_dynamic_tile_sizes = array<i32: 0>} {
+^bb0(%a: f32, %b: f32):
+    linalg.yield %a : f32
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B = "test.op"() : () -> (memref<8x4xf32>, memref<8x4xf32>)
+// CHECK-NEXT:   %0 = "test.op"() : () -> index
+// CHECK-NEXT:   %1 = arith.constant 0 : index
+// CHECK-NEXT:   %2 = arith.constant 8 : index
+// CHECK-NEXT:   scf.for %3 = %1 to %2 step %0 {
+// CHECK-NEXT:     %4 = "affine.min"(%0, %2, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:     %5 = memref.subview %A[%3, 0] [%4, 4] [1, 1] : memref<8x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:     %6 = memref.subview %B[%3, 0] [%4, 4] [1, 1] : memref<8x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%5 : memref<?x4xf32, strided<[4, 1], offset: ?>>) outs(%6 : memref<?x4xf32, strided<[4, 1], offset: ?>>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32):
+// CHECK-NEXT:       linalg.yield %a : f32
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }

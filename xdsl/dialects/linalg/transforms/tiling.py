@@ -34,6 +34,22 @@ _PARTIAL_TILE_MIN_MAP = AffineMapAttr(
 )
 
 
+def _is_zero(tile_size: SSAValue | int) -> bool:
+    """Whether a tile size is known to be zero, which means not tiling at all."""
+    return isinstance(tile_size, int) and tile_size == 0
+
+
+def _divides(tile_size: SSAValue | int, loop_range: int) -> bool:
+    """
+    Whether a tile size is known to divide a loop range, so that every tile of
+    that dimension is whole. Neither a size nor a range that is only known once
+    the op runs can be shown to.
+    """
+    return (
+        isinstance(tile_size, int) and loop_range >= 0 and loop_range % tile_size == 0
+    )
+
+
 @dataclass(frozen=True)
 class OperandTileInfo:
     """
@@ -69,31 +85,37 @@ class TilingPlan:
     - `partial_tiled_dims` the tiled dimensions whose loop range is not divisible
       by the tile size, so that their last tile is smaller than the rest.
     - `operand_infos` stores one `OperandTileInfo` per operand.
-    - `tile_sizes` are the normalized tile sizes, padded to match the op loop count.
+    - `tile_sizes` are the normalized tile sizes, padded to match the op loop
+      count. A tile size that is not known until the op runs is a value.
     """
 
     loop_ranges: tuple[int, ...]
     tiled_dims: tuple[int, ...]
     partial_tiled_dims: frozenset[int]
     operand_infos: tuple[OperandTileInfo, ...]
-    tile_sizes: tuple[int, ...]
+    tile_sizes: tuple[SSAValue | int, ...]
 
     @staticmethod
     def analyze_generic_op(
         op: linalg.ops.GenericOp,
-        tile_sizes: tuple[int, ...],
+        tile_sizes: Sequence[SSAValue | int],
     ) -> "TilingPlan":
         """
         Analyze one supported `linalg.generic` and return a `TilingPlan`.
         """
 
         num_loops = op.get_num_loops()
-        normalized_tile_sizes = tile_sizes[:num_loops] + (0,) * (
-            num_loops - len(tile_sizes)
-        )
+        normalized_tile_sizes: tuple[SSAValue | int, ...] = tuple(
+            tile_sizes[:num_loops]
+        ) + (0,) * (num_loops - len(tile_sizes))
 
+        # Tiling by zero means leaving a dimension alone, so a dimension is tiled
+        # unless its tile size is known to be zero. One that is not known until
+        # the op runs cannot be, so it is tiled.
         tiled_dims = tuple(
-            dim for dim, tile_size in enumerate(normalized_tile_sizes) if tile_size != 0
+            dim
+            for dim, tile_size in enumerate(normalized_tile_sizes)
+            if not _is_zero(tile_size)
         )
 
         if not tiled_dims:
@@ -116,8 +138,7 @@ class TilingPlan:
         partial_tiled_dims = frozenset(
             dim
             for dim in tiled_dims
-            if loop_ranges[dim] < 0
-            or loop_ranges[dim] % normalized_tile_sizes[dim] != 0
+            if not _divides(normalized_tile_sizes[dim], loop_ranges[dim])
         )
 
         operand_infos_list: list[OperandTileInfo] = []
@@ -142,14 +163,17 @@ class TilingPlan:
 
 def _verify_generic_is_tileable(
     op: linalg.ops.GenericOp,
-    tile_sizes: Sequence[int],
+    tile_sizes: Sequence[SSAValue | int],
     tiled_dims: Sequence[int],
 ) -> tuple[int, ...]:
     """
     Check whether a `linalg.generic` is safe to tile.
     """
 
-    if any(tile_sizes[dim] < 0 for dim in tiled_dims):
+    if any(
+        isinstance(tile_sizes[dim], int) and cast(int, tile_sizes[dim]) < 0
+        for dim in tiled_dims
+    ):
         raise ValueError("negative tile sizes are not supported")
 
     # Operands that mix the two are rejected outright rather than tiled, since
@@ -252,7 +276,7 @@ def _build_tile_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     loop_ranges: Sequence[int],
-    tile_sizes: Sequence[int],
+    tile_sizes: Sequence[SSAValue | int],
     tiled_dims: Sequence[int],
     range_sources: dict[int, tuple[SSAValue, int]],
     iter_args: Sequence[SSAValue] = (),
@@ -287,10 +311,15 @@ def _build_tile_loops(
             rewriter.insert(ub_op, insertion_point)
             ubs[dim] = ub_op.result
 
-    tile_ops = {
-        dim: arith.ConstantOp(IntegerAttr(tile_sizes[dim], index)) for dim in tiled_dims
-    }
-    rewriter.insert([tile_ops[dim] for dim in tiled_dims], insertion_point)
+    steps: dict[int, SSAValue] = {}
+    for dim in tiled_dims:
+        tile_size = tile_sizes[dim]
+        if isinstance(tile_size, SSAValue):
+            steps[dim] = tile_size
+        else:
+            tile_op = arith.ConstantOp(IntegerAttr(tile_size, index))
+            rewriter.insert(tile_op, insertion_point)
+            steps[dim] = tile_op.result
 
     current_insertion_point = insertion_point
     loops: list[scf.ForOp] = []
@@ -301,7 +330,7 @@ def _build_tile_loops(
         loop = scf.ForOp(
             zero.result,
             ubs[dim],
-            tile_ops[dim].result,
+            steps[dim],
             carried,
             Region(Block(arg_types=(index, *carried_types))),
         )
@@ -491,7 +520,7 @@ def _build_tiled_insert(
 def tile_linalg_generic(
     rewriter: PatternRewriter,
     op: linalg.ops.GenericOp,
-    tile_sizes: tuple[int, ...],
+    tile_sizes: Sequence[SSAValue | int],
 ) -> bool:
     """
     Rewrite supported `linalg.generic` ops into tiled formed.
