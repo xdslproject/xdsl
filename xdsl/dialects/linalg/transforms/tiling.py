@@ -111,10 +111,13 @@ class TilingPlan:
             tiled_dims,
         )
 
+        # A range that is not known until the op runs cannot be shown to divide
+        # by its tile size, so it is treated as leaving a leftover tile.
         partial_tiled_dims = frozenset(
             dim
             for dim in tiled_dims
-            if loop_ranges[dim] % normalized_tile_sizes[dim] != 0
+            if loop_ranges[dim] < 0
+            or loop_ranges[dim] % normalized_tile_sizes[dim] != 0
         )
 
         operand_infos_list: list[OperandTileInfo] = []
@@ -185,12 +188,6 @@ def _verify_generic_is_tileable(
                 "tiling linalg.generic with operands that are neither memrefs nor "
                 "tensors is not supported yet"
             )
-        operand_type = raw_operand_type
-
-        if any(dim < 0 for dim in operand_type.get_shape()):
-            raise ValueError(
-                "tiling linalg.generic with dynamic operand shapes is not supported yet"
-            )
 
         if not indexing_map.is_projected_permutation():
             raise ValueError(
@@ -200,12 +197,64 @@ def _verify_generic_is_tileable(
     return op.get_static_loop_ranges()
 
 
+def _loop_range_sources(
+    op: linalg.ops.GenericOp, plan: TilingPlan
+) -> dict[int, tuple[SSAValue, int]]:
+    """
+    Say where the range of each tiled loop can be read from when it is not known
+    until the op runs.
+
+    A loop range comes from the operands it indexes, so a range that is not
+    static is read back off one of them, as the operand and the position within
+    it that the loop dimension addresses.
+    """
+
+    sources: dict[int, tuple[SSAValue, int]] = {}
+    for operand, operand_info in zip(op.operands, plan.operand_infos, strict=True):
+        for result_index, loop_dim in enumerate(operand_info.loop_dims):
+            if loop_dim not in plan.tiled_dims or loop_dim in sources:
+                continue
+            if plan.loop_ranges[loop_dim] < 0:
+                sources[loop_dim] = (operand, result_index)
+    return sources
+
+
+def _build_loop_range(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    source: SSAValue,
+    position: int,
+) -> SSAValue:
+    """
+    Read one dimension of an operand, for a loop range only known at runtime.
+    """
+
+    position_op = arith.ConstantOp(IntegerAttr(position, IndexType()))
+    rewriter.insert(position_op, insertion_point)
+
+    source_type = source.type
+    assert isa(source_type, MemRefType | TensorType)
+    match source_type:
+        case MemRefType():
+            dim_op = memref.DimOp.from_source_and_index(source, position_op)
+        case TensorType():
+            dim_op = tensor.DimOp.build(
+                operands=[source, position_op], result_types=[IndexType()]
+            )
+        case _:
+            assert_never(source_type)
+
+    rewriter.insert(dim_op, insertion_point)
+    return dim_op.result
+
+
 def _build_tile_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     loop_ranges: Sequence[int],
     tile_sizes: Sequence[int],
     tiled_dims: Sequence[int],
+    range_sources: dict[int, tuple[SSAValue, int]],
     iter_args: Sequence[SSAValue] = (),
 ) -> tuple[list[scf.ForOp], dict[int, SSAValue], InsertPoint]:
     """
@@ -226,21 +275,22 @@ def _build_tile_loops(
 
     index = IndexType()
     zero = arith.ConstantOp(IntegerAttr(0, index))
-    ub_ops = {
-        dim: arith.ConstantOp(IntegerAttr(loop_ranges[dim], index))
-        for dim in tiled_dims
-    }
+    rewriter.insert(zero, insertion_point)
+
+    ubs: dict[int, SSAValue] = {}
+    for dim in tiled_dims:
+        if loop_ranges[dim] < 0:
+            source, position = range_sources[dim]
+            ubs[dim] = _build_loop_range(rewriter, insertion_point, source, position)
+        else:
+            ub_op = arith.ConstantOp(IntegerAttr(loop_ranges[dim], index))
+            rewriter.insert(ub_op, insertion_point)
+            ubs[dim] = ub_op.result
+
     tile_ops = {
         dim: arith.ConstantOp(IntegerAttr(tile_sizes[dim], index)) for dim in tiled_dims
     }
-    rewriter.insert(
-        [
-            zero,
-            *(ub_ops[dim] for dim in tiled_dims),
-            *(tile_ops[dim] for dim in tiled_dims),
-        ],
-        insertion_point,
-    )
+    rewriter.insert([tile_ops[dim] for dim in tiled_dims], insertion_point)
 
     current_insertion_point = insertion_point
     loops: list[scf.ForOp] = []
@@ -250,7 +300,7 @@ def _build_tile_loops(
     for dim in tiled_dims:
         loop = scf.ForOp(
             zero.result,
-            ub_ops[dim].result,
+            ubs[dim],
             tile_ops[dim].result,
             carried,
             Region(Block(arg_types=(index, *carried_types))),
@@ -465,6 +515,7 @@ def tile_linalg_generic(
         plan.loop_ranges,
         plan.tile_sizes,
         plan.tiled_dims,
+        _loop_range_sources(op, plan),
         iter_args,
     )
 

@@ -210,11 +210,18 @@ def test_tiling_plan_rejects_mixed_memref_and_tensor_outputs():
         TilingPlan.analyze_generic_op(op, (2, 0))
 
 
-def test_tiling_plan_rejects_dynamic_operand_shape():
-    op = _generic_2d_copy_op(input_type=MemRefType(f32, [DYNAMIC_INDEX, 5]))
+def test_tiling_plan_marks_a_dynamic_range_partial():
+    # The range is not known until the op runs, so it cannot be shown to divide
+    # by the tile size and has to be treated as leaving a leftover tile.
+    op = _generic_2d_copy_op(
+        input_type=MemRefType(f32, [DYNAMIC_INDEX, 5]),
+        output_type=MemRefType(f32, [DYNAMIC_INDEX, 5]),
+    )
 
-    with pytest.raises(ValueError, match="dynamic operand shapes"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
 
 
 def test_tiling_plan_rejects_non_projected_permutation_map():
@@ -404,7 +411,7 @@ def test_build_tile_loops_without_iter_args():
     rewriter = PatternRewriter(op)
 
     loops, tiled_loop_ivs, _ = _build_tile_loops(
-        rewriter, InsertPoint.before(op), (4, 5), (2, 0), (0,)
+        rewriter, InsertPoint.before(op), (4, 5), (2, 0), (0,), {}
     )
 
     (loop,) = loops
@@ -421,7 +428,7 @@ def test_build_tile_loops_threads_iter_args():
     init = create_ssa_value(TensorType(f32, [4, 5]))
 
     loops, tiled_loop_ivs, _ = _build_tile_loops(
-        rewriter, InsertPoint.before(op), (4, 5), (2, 2), (0, 1), (init,)
+        rewriter, InsertPoint.before(op), (4, 5), (2, 2), (0, 1), {}, (init,)
     )
 
     outer, inner = loops
