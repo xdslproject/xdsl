@@ -20,8 +20,8 @@ func.func @gauss_seidel(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, 
     %16 = csl_stencil.access %14[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
     %17 = csl_stencil.access %14[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
     %18 = arith.constant 1.666600e-01 : f32
-    %19 = "tensor.extract_slice"(%16) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-    %20 = "tensor.extract_slice"(%17) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+    %19 = tensor.extract_slice %16[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+    %20 = tensor.extract_slice %17[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
     %21 = arith.addf %15, %20 : tensor<510xf32>
     %22 = arith.addf %21, %19 : tensor<510xf32>
     %23 = tensor.empty() : tensor<510xf32>
@@ -87,8 +87,8 @@ func.func @gauss_seidel(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, 
 // CHECK-NEXT:       %56 = csl_stencil.access %54[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:       %57 = csl_stencil.access %54[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:       %58 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:       %59 = "tensor.extract_slice"(%56) <{static_offsets = array<i64: 1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %60 = "tensor.extract_slice"(%57) <{static_offsets = array<i64: -1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %59 = tensor.extract_slice %56[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+// CHECK-NEXT:       %60 = tensor.extract_slice %57[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
 // CHECK-NEXT:       %61 = arith.addf %55, %60 : tensor<510xf32>
 // CHECK-NEXT:       %62 = arith.addf %61, %59 : tensor<510xf32>
 // CHECK-NEXT:       %63 = tensor.empty() : tensor<510xf32>

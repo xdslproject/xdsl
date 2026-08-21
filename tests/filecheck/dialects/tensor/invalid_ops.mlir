@@ -181,3 +181,18 @@ builtin.module {
 %tensor1, %tensor2, %tensor3 = "test.op"() : () -> (tensor<1x2xf32>, tensor<1x2xf32>, tensor<2x1xf32>) 
 // CHECK: static concatenation size mismatch along non-concatenated dimension 1
 %res = tensor.concat dim(0) %tensor1, %tensor2, %tensor3 : (tensor<1x2xf32>, tensor<1x2xf32>, tensor<2x1xf32>) ->  tensor<4x2xf32>
+
+// -----
+%t, %i = "test.op"() : () -> (tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the offset arguments.
+%res = "tensor.extract_slice"(%t, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 0>}> : (tensor<8x16xf32>, index) -> tensor<4x4xf32>
+
+// -----
+%t, %i = "test.op"() : () -> (tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the size arguments.
+%res = "tensor.extract_slice"(%t, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 1, 0>}> : (tensor<8x16xf32>, index) -> tensor<4x4xf32>
+
+// -----
+%t, %i = "test.op"() : () -> (tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the stride arguments.
+%res = "tensor.extract_slice"(%t, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 0, 1>}> : (tensor<8x16xf32>, index) -> tensor<4x4xf32>

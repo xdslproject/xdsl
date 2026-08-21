@@ -28,6 +28,7 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
     split_dynamic_index_list,
+    verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
@@ -564,6 +565,36 @@ class ExtractSliceOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(Pure())
+
+    assembly_format = (
+        "$source ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def verify_(self) -> None:
+        verify_dynamic_index_list(
+            self.static_offsets.get_values(),
+            self.offsets,
+            DYNAMIC_INDEX,
+            " in the offset arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_sizes.get_values(),
+            self.sizes,
+            DYNAMIC_INDEX,
+            " in the size arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_strides.get_values(),
+            self.strides,
+            DYNAMIC_INDEX,
+            " in the stride arguments",
+        )
 
     def __init__(
         self,
