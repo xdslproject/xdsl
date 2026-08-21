@@ -693,19 +693,53 @@ class InsertSliceOp(IRDLOperation):
 
     name = "tensor.insert_slice"
 
+    # An insert_slice returns a copy of its destination, so the two share a type.
+    # The syntax leaves the result type off, and takes it from the destination.
+    DEST_TYPE: ClassVar = VarConstraint("DEST_TYPE", base(TensorType))
+
     source = operand_def(TensorType)
-    dest = operand_def(TensorType)
+    dest = operand_def(DEST_TYPE)
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
     static_strides = prop_def(DenseArrayBase.constr(i64))
-    result = result_def(TensorType)
+    result = result_def(DEST_TYPE)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(Pure())
+
+    assembly_format = (
+        "$source `into` $dest ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `into` type($dest)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def verify_(self) -> None:
+        verify_dynamic_index_list(
+            self.static_offsets.get_values(),
+            self.offsets,
+            DYNAMIC_INDEX,
+            " in the offset arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_sizes.get_values(),
+            self.sizes,
+            DYNAMIC_INDEX,
+            " in the size arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_strides.get_values(),
+            self.strides,
+            DYNAMIC_INDEX,
+            " in the stride arguments",
+        )
 
     @staticmethod
     def get(
