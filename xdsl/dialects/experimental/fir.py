@@ -720,8 +720,6 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             if shape is None:
                 shape = [1]
 
-            # MLIR upstream uses i64 by default
-            # see [MLIR source @ v22.1.2](https://github.com/llvm/llvm-project/blob/1ab49a973e210e97d61e5db6557180dcb92c3e98/flang/include/flang/Optimizer/Dialect/FIRTypes.td#L447).
             shape_array_attr = ArrayAttr(
                 [(IntegerAttr(d, 64) if isinstance(d, int) else d) for d in shape]
             )
