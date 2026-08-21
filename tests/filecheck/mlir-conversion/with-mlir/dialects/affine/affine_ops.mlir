@@ -58,7 +58,7 @@
 
     // CHECK:      %{{.*}} = "test.op"() : () -> index
     // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
-    // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
+    // CHECK-NEXT: %{{.*}} = affine.min affine_map<(d0) -> ((d0 + 41), d0)> (%{{.*}})
     // CHECK-NEXT: %{{.*}} = affine.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<2x3xf64>
 
     %vmemref = "test.op"() : () -> memref<2x3xf64>

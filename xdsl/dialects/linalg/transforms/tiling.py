@@ -363,9 +363,7 @@ def _build_effective_tile_sizes(
             continue
 
         min_op = affine.MinOp(
-            operands=[[loop.step, loop.ub, loop.body.block.args[0]]],
-            properties={"map": _PARTIAL_TILE_MIN_MAP},
-            result_types=[IndexType()],
+            (loop.step, loop.ub, loop.body.block.args[0]), _PARTIAL_TILE_MIN_MAP
         )
         rewriter.insert(min_op, insertion_point)
         effective[dim] = min_op.result

@@ -21,8 +21,8 @@ func.func @parallel_loop(%arg0: index, %arg1: index, %arg2: index, %arg3: index,
 // CHECK:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK:           "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:           ^{{.*}}({{%.*}}: index, {{%.*}}: index):
-// CHECK:             %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
-// CHECK:             %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK:             %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
+// CHECK:             %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:             ^{{.*}}({{%.*}}: index, {{%.*}}: index):
 // CHECK:               %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
@@ -104,7 +104,7 @@ func.func @tile_nested_innermost() {
 // CHECK:             %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK:             %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK:               %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK:               %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK:               "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
@@ -118,7 +118,7 @@ func.func @tile_nested_innermost() {
 // CHECK:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK:           "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK:             %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK:             %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
