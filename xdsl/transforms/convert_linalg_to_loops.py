@@ -43,7 +43,7 @@ def materialize_loop_bound(
         dim_index_op = arith.ConstantOp.from_int_and_width(dim_index, IndexType())
         rewriter.insert(dim_index_op, insertion_point)
 
-        dim_op = memref.DimOp.from_source_and_index(operand, dim_index_op.result)
+        dim_op = memref.DimOp(operand, dim_index_op.result)
         rewriter.insert(dim_op, insertion_point)
         return dim_op.result
 

@@ -105,9 +105,7 @@ def get_strides(
                 arith.ConstantOp.from_int_and_width(i + 1, _index_type)
             )
             dim_idx.result.name_hint = "dim_idx"
-            dim_size = builder.insert(
-                memref.DimOp.from_source_and_index(memref_val, dim_idx.result)
-            ).result
+            dim_size = builder.insert(memref.DimOp(memref_val, dim_idx.result)).result
         prev = strides[i + 1]
         match (prev, dim_size):
             case (int(p), int(d)):

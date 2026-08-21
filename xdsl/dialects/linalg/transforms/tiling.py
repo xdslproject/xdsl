@@ -260,11 +260,9 @@ def _build_loop_range(
     assert isa(source_type, MemRefType | TensorType)
     match source_type:
         case MemRefType():
-            dim_op = memref.DimOp.from_source_and_index(source, position_op)
+            dim_op = memref.DimOp(source, position_op)
         case TensorType():
-            dim_op = tensor.DimOp.build(
-                operands=[source, position_op], result_types=[IndexType()]
-            )
+            dim_op = tensor.DimOp(source, position_op)
         case _:
             assert_never(source_type)
 

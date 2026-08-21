@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, cast
 
 from typing_extensions import Self
@@ -489,11 +489,15 @@ class DimOp(IRDLOperation):
 
     assembly_format = "$source `,` $index attr-dict `:` type($source)"
 
-    @staticmethod
-    def from_source_and_index(
-        source: SSAValue | Operation, index: SSAValue | Operation
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        index: SSAValue | Operation,
+        attributes: Mapping[str, Attribute] | None = None,
     ):
-        return DimOp.build(operands=[source, index], result_types=[IndexType()])
+        super().__init__(
+            operands=(source, index), result_types=(IndexType(),), attributes=attributes
+        )
 
 
 @irdl_op_definition
