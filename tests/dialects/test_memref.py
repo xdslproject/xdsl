@@ -216,6 +216,17 @@ def test_memref_dim():
     assert isinstance(dim_1.result.type, IndexType)
 
 
+def test_memref_dim_from_source_and_index_is_deprecated():
+    idx = arith.ConstantOp.from_int_and_width(1, IndexType())
+    alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
+
+    with pytest.deprecated_call():
+        dim_1 = memref.DimOp.from_source_and_index(alloc0, idx)  # pyright: ignore[reportDeprecated]
+
+    assert dim_1.source is alloc0.memref
+    assert dim_1.index is idx.result
+
+
 def test_memref_rank():
     alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
     dim_1 = memref.RankOp.from_memref(alloc0)

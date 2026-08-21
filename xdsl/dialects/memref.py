@@ -4,7 +4,7 @@ import abc
 from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
@@ -498,6 +498,13 @@ class DimOp(IRDLOperation):
         super().__init__(
             operands=(source, index), result_types=(IndexType(),), attributes=attributes
         )
+
+    @staticmethod
+    @deprecated("Use DimOp(source, index) instead")
+    def from_source_and_index(
+        source: SSAValue | Operation, index: SSAValue | Operation
+    ) -> DimOp:
+        return DimOp(source, index)
 
 
 @irdl_op_definition
