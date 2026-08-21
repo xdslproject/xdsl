@@ -91,3 +91,17 @@ affine.for %i = 0 to affine_map<()[s0] -> (s0)>() {
 }
 
 // CHECK: symbol operand count and affine map symbol count must match
+
+// -----
+
+%zero = "test.op"() : () -> index
+%min = "affine.min"(%zero) <{map = affine_map<(d0, d1) -> (d0, d1)>}> : (index) -> index
+
+// CHECK: affine.min expects 2 operands, but got 1. The number of map operands must match the sum of the dimensions and symbols of its map.
+
+// -----
+
+%zero = "test.op"() : () -> index
+%min = affine.min 42 : i32 (%zero)
+
+// CHECK: Expected affine map attr
