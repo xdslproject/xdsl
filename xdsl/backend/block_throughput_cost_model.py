@@ -91,6 +91,21 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     def is_installed(cls) -> bool:
         return which(cls.tool_name()) is not None
 
+    def is_available(self) -> bool:
+        if not self.is_installed():
+            return False
+        # Probe with a trivial instruction fed through stdin, so an unsupported
+        # target fails at target lookup while a supported one exits 0.
+        self.src_path = "-"
+        result = subprocess.run(
+            self.cmd(),
+            input="nop\n",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return result.returncode == 0
+
     def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
             self.src_path = tmp_file.name
