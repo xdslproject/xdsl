@@ -153,7 +153,7 @@ def test_tiling_plan_rejects_linalg_index():
         TilingPlan.analyze_generic_op(op, (2, 0))
 
 
-def test_tiling_plan_rejects_non_parallel_tiled_iterator():
+def test_tiling_plan_tiles_a_non_parallel_iterator():
     op = _generic_2d_copy_op(
         iterator_types=[
             linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
@@ -161,8 +161,9 @@ def test_tiling_plan_rejects_non_parallel_tiled_iterator():
         ]
     )
 
-    with pytest.raises(ValueError, match="non-parallel iterator dimensions"):
-        TilingPlan.analyze_generic_op(op, (0, 2))
+    plan = TilingPlan.analyze_generic_op(op, (0, 2))
+
+    assert plan.tiled_dims == (1,)
 
 
 def test_tiling_plan_rejects_operand_that_is_neither_memref_nor_tensor():
