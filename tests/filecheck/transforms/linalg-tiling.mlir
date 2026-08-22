@@ -553,3 +553,57 @@ linalg.generic {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%D) : (tensor<6xindex>) -> ()
 // CHECK-NEXT: }
+
+// -----
+
+// A named op is tiled into the same named op over the slices, rather than into
+// a generic. What a linalg.matmul computes is which op it is, which tiling has
+// no reason to take away from it.
+
+%A, %B, %C = "test.op"() : () -> (memref<4x6xf32>, memref<6x4xf32>, memref<4x4xf32>)
+
+linalg.matmul {test_tile_sizes = array<i32: 2, 2, 0>} ins(%A, %B : memref<4x6xf32>, memref<6x4xf32>) outs(%C : memref<4x4xf32>)
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (memref<4x6xf32>, memref<6x4xf32>, memref<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 4 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   %3 = arith.constant 2 : index
+// CHECK-NEXT:   %4 = arith.constant 2 : index
+// CHECK-NEXT:   scf.for %5 = %0 to %1 step %3 {
+// CHECK-NEXT:     scf.for %6 = %0 to %2 step %4 {
+// CHECK-NEXT:       %7 = memref.subview %A[%5, 0] [2, 6] [1, 1] : memref<4x6xf32> to memref<2x6xf32, strided<[6, 1], offset: ?>>
+// CHECK-NEXT:       %8 = memref.subview %B[0, %6] [6, 2] [1, 1] : memref<6x4xf32> to memref<6x2xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:       %9 = memref.subview %C[%5, %6] [2, 2] [1, 1] : memref<4x4xf32> to memref<2x2xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:       linalg.matmul ins(%7, %8 : memref<2x6xf32, strided<[6, 1], offset: ?>>, memref<6x2xf32, strided<[4, 1], offset: ?>>) outs(%9 : memref<2x2xf32, strided<[4, 1], offset: ?>>)
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+// The same over tensors, tiled over the dimension the matmul reduces, so that
+// the tiles accumulate into the value the loop carries.
+
+%A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+
+%D = linalg.matmul {test_tile_sizes = array<i32: 0, 0, 2>} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
+
+"test.op"(%D) : (tensor<4x4xf32>) -> ()
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   %D = scf.for %3 = %0 to %1 step %2 iter_args(%4 = %C) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:     %5 = tensor.extract_slice %A[0, %3] [4, 2] [1, 1] : tensor<4x6xf32> to tensor<4x2xf32>
+// CHECK-NEXT:     %6 = tensor.extract_slice %B[%3, 0] [2, 4] [1, 1] : tensor<6x4xf32> to tensor<2x4xf32>
+// CHECK-NEXT:     %7 = tensor.extract_slice %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> to tensor<4x4xf32>
+// CHECK-NEXT:     %8 = linalg.matmul ins(%5, %6 : tensor<4x2xf32>, tensor<2x4xf32>) outs(%7 : tensor<4x4xf32>) -> tensor<4x4xf32>
+// CHECK-NEXT:     %9 = tensor.insert_slice %8 into %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> into tensor<4x4xf32>
+// CHECK-NEXT:     scf.yield %9 : tensor<4x4xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%D) : (tensor<4x4xf32>) -> ()
+// CHECK-NEXT: }
