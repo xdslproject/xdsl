@@ -12,7 +12,7 @@ builtin.module {
       %8 = linalg.add ins(%7, %6 : tensor<255xf32>, tensor<255xf32>) outs(%7 : tensor<255xf32>) -> tensor<255xf32>
       %9 = linalg.add ins(%8, %5 : tensor<255xf32>, tensor<255xf32>) outs(%8 : tensor<255xf32>) -> tensor<255xf32>
       %10 = linalg.add ins(%9, %4 : tensor<255xf32>, tensor<255xf32>) outs(%9 : tensor<255xf32>) -> tensor<255xf32>
-      %11 = "tensor.insert_slice"(%10, %3, %2) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+      %11 = tensor.insert_slice %10 into %3[%2] [255] [1] : tensor<255xf32> into tensor<510xf32>
       csl_stencil.yield %11 : tensor<510xf32>
     }, {
     ^bb1(%12: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %13: tensor<510xf32>):
@@ -49,7 +49,7 @@ builtin.module {
 // CHECK-NEXT:       %15 = linalg.add ins(%13, %11 : tensor<255xf32>, tensor<255xf32>) outs(%14 : tensor<255xf32>) -> tensor<255xf32>
 // CHECK-NEXT:       %16 = linalg.add ins(%15, %9 : tensor<255xf32>, tensor<255xf32>) outs(%15 : tensor<255xf32>) -> tensor<255xf32>
 // CHECK-NEXT:       %17 = linalg.add ins(%16, %7 : tensor<255xf32>, tensor<255xf32>) outs(%16 : tensor<255xf32>) -> tensor<255xf32>
-// CHECK-NEXT:       %18 = "tensor.insert_slice"(%17, %5, %3) <{static_offsets = array<i64: -9223372036854775808>, static_sizes = array<i64: 255>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+// CHECK-NEXT:       %18 = tensor.insert_slice %17 into %5[%3] [255] [1] : tensor<255xf32> into tensor<510xf32>
 // CHECK-NEXT:       %19 = bufferization.to_buffer %18 : tensor<510xf32> to memref<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %19 : memref<510xf32>
 // CHECK-NEXT:     }, {

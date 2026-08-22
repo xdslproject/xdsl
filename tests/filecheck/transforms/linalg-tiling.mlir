@@ -143,7 +143,7 @@ linalg.generic {
 // CHECK-NEXT:       ^bb0(%a: f32, %b: f32):
 // CHECK-NEXT:         linalg.yield %a : f32
 // CHECK-NEXT:       } -> tensor<2x2xf32>
-// CHECK-NEXT:       %13 = "tensor.insert_slice"(%12, %9, %5, %8) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 2, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 2, 0, 0>}> : (tensor<2x2xf32>, tensor<4x4xf32>, index, index) -> tensor<4x4xf32>
+// CHECK-NEXT:       %13 = tensor.insert_slice %12 into %9[%5, %8] [2, 2] [1, 1] : tensor<2x2xf32> into tensor<4x4xf32>
 // CHECK-NEXT:       scf.yield %13 : tensor<4x4xf32>
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield %7 : tensor<4x4xf32>
@@ -180,7 +180,7 @@ linalg.generic {
 // CHECK-NEXT:     ^bb0(%a: f32, %b: f32):
 // CHECK-NEXT:       linalg.yield %a : f32
 // CHECK-NEXT:     } -> tensor<2x4xf32>
-// CHECK-NEXT:     %8 = "tensor.insert_slice"(%7, %4, %3) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: 2, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<2x4xf32>, tensor<4x4xf32>, index) -> tensor<4x4xf32>
+// CHECK-NEXT:     %8 = tensor.insert_slice %7 into %4[%3, 0] [2, 4] [1, 1] : tensor<2x4xf32> into tensor<4x4xf32>
 // CHECK-NEXT:     scf.yield %8 : tensor<4x4xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%C) : (tensor<4x4xf32>) -> ()
@@ -253,7 +253,7 @@ linalg.generic {
 // CHECK-NEXT:       ^bb0(%a: f32, %b: f32):
 // CHECK-NEXT:         linalg.yield %a : f32
 // CHECK-NEXT:       } -> tensor<?x2xf32>
-// CHECK-NEXT:       %14 = "tensor.insert_slice"(%13, %9, %5, %8, %10) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: -9223372036854775808, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 2, 1, 0>}> : (tensor<?x2xf32>, tensor<5x4xf32>, index, index, index) -> tensor<5x4xf32>
+// CHECK-NEXT:       %14 = tensor.insert_slice %13 into %9[%5, %8] [%10, 2] [1, 1] : tensor<?x2xf32> into tensor<5x4xf32>
 // CHECK-NEXT:       scf.yield %14 : tensor<5x4xf32>
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield %7 : tensor<5x4xf32>
@@ -321,7 +321,7 @@ linalg.generic {
 // CHECK-NEXT:     ^bb0(%a: f32, %b: f32):
 // CHECK-NEXT:       linalg.yield %a : f32
 // CHECK-NEXT:     } -> tensor<?x4xf32>
-// CHECK-NEXT:     %10 = "tensor.insert_slice"(%9, %5, %4, %6) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: -9223372036854775808, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 1, 0>}> : (tensor<?x4xf32>, tensor<?x4xf32>, index, index) -> tensor<?x4xf32>
+// CHECK-NEXT:     %10 = tensor.insert_slice %9 into %5[%4, 0] [%6, 4] [1, 1] : tensor<?x4xf32> into tensor<?x4xf32>
 // CHECK-NEXT:     scf.yield %10 : tensor<?x4xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%C) : (tensor<?x4xf32>) -> ()

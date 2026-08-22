@@ -196,3 +196,18 @@ builtin.module {
 %t, %i = "test.op"() : () -> (tensor<8x16xf32>, index)
 // CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the stride arguments.
 %res = "tensor.extract_slice"(%t, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 0, 1>}> : (tensor<8x16xf32>, index) -> tensor<4x4xf32>
+
+// -----
+%s, %d, %i = "test.op"() : () -> (tensor<4x4xf32>, tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the offset arguments.
+%res = "tensor.insert_slice"(%s, %d, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<4x4xf32>, tensor<8x16xf32>, index) -> tensor<8x16xf32>
+
+// -----
+%s, %d, %i = "test.op"() : () -> (tensor<4x4xf32>, tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the size arguments.
+%res = "tensor.insert_slice"(%s, %d, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 1, 0>}> : (tensor<4x4xf32>, tensor<8x16xf32>, index) -> tensor<8x16xf32>
+
+// -----
+%s, %d, %i = "test.op"() : () -> (tensor<4x4xf32>, tensor<8x16xf32>, index)
+// CHECK: The number of dynamic positions passed as values (1) does not match the number of dynamic position markers (0) in the stride arguments.
+%res = "tensor.insert_slice"(%s, %d, %i) <{static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 4, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> : (tensor<4x4xf32>, tensor<8x16xf32>, index) -> tensor<8x16xf32>

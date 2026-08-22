@@ -13,7 +13,7 @@ func.func @gauss_seidel(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, 
     %10 = arith.addf %9, %8 : tensor<255xf32>
     %11 = arith.addf %10, %7 : tensor<255xf32>
     %12 = arith.addf %11, %6 : tensor<255xf32>
-    %13 = "tensor.insert_slice"(%12, %5, %4) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+    %13 = tensor.insert_slice %12 into %5[%4] [255] [1] : tensor<255xf32> into tensor<510xf32>
     csl_stencil.yield %13 : tensor<510xf32>
   }, {
   ^bb1(%14: !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %15: tensor<510xf32>):
@@ -80,7 +80,7 @@ func.func @gauss_seidel(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, 
 // CHECK-NEXT:       %50 = arith.addf %48, %47 : tensor<255xf32>
 // CHECK-NEXT:       %51 = arith.addf %50, %46 : tensor<255xf32>
 // CHECK-NEXT:       %52 = arith.addf %51, %45 : tensor<255xf32>
-// CHECK-NEXT:       %53 = "tensor.insert_slice"(%52, %43, %42) <{static_offsets = array<i64: 0>, static_sizes = array<i64: 255>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+// CHECK-NEXT:       %53 = tensor.insert_slice %52 into %43[%42] [255] [1] : tensor<255xf32> into tensor<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %53 : tensor<510xf32>
 // CHECK-NEXT:     }, {
 // CHECK-NEXT:     ^bb0(%54: !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %55: tensor<510xf32>):
