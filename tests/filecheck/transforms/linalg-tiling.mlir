@@ -473,3 +473,83 @@ linalg.generic {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%D) : (tensor<4x4xf32>) -> ()
 // CHECK-NEXT: }
+
+// -----
+
+// A linalg.index reads the position of the iteration it runs in, which inside a
+// tile is a position within that tile, so the offset the tile starts at is added
+// back to it. Here the first dimension is tiled and the second is not, so only
+// the index of the first is offset.
+
+%A, %C = "test.op"() : () -> (memref<4x6xindex>, memref<4x6xindex>)
+
+linalg.generic {
+  indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : memref<4x6xindex>) outs(%C : memref<4x6xindex>) attrs = {test_tile_sizes = array<i32: 2, 0>} {
+^bb0(%a: index, %c: index):
+  %i = linalg.index 0 : index
+  %j = linalg.index 1 : index
+  %s = arith.addi %i, %j : index
+  linalg.yield %s : index
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %C = "test.op"() : () -> (memref<4x6xindex>, memref<4x6xindex>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 4 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   scf.for %3 = %0 to %1 step %2 {
+// CHECK-NEXT:     %4 = memref.subview %A[%3, 0] [2, 6] [1, 1] : memref<4x6xindex> to memref<2x6xindex, strided<[6, 1], offset: ?>>
+// CHECK-NEXT:     %5 = memref.subview %C[%3, 0] [2, 6] [1, 1] : memref<4x6xindex> to memref<2x6xindex, strided<[6, 1], offset: ?>>
+// CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%4 : memref<2x6xindex, strided<[6, 1], offset: ?>>) outs(%5 : memref<2x6xindex, strided<[6, 1], offset: ?>>) {
+// CHECK-NEXT:     ^bb0(%a: index, %c: index):
+// CHECK-NEXT:       %i = linalg.index 0 : index
+// CHECK-NEXT:       %i_1 = affine.apply affine_map<(d0, d1) -> ((d0 + d1))> (%i, %3)
+// CHECK-NEXT:       %j = linalg.index 1 : index
+// CHECK-NEXT:       %s = arith.addi %i_1, %j : index
+// CHECK-NEXT:       linalg.yield %s : index
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+// An index read more than once takes the offset one at each of its readers, and
+// a dimension whose tile size does not divide it is offset like any other.
+
+%A, %C = "test.op"() : () -> (tensor<6xindex>, tensor<6xindex>)
+
+%D = linalg.generic {
+  indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>],
+  iterator_types = ["parallel"]
+} ins(%A : tensor<6xindex>) outs(%C : tensor<6xindex>) attrs = {test_tile_sizes = array<i32: 4>} {
+^bb0(%a: index, %c: index):
+  %i = linalg.index 0 : index
+  %s = arith.muli %i, %i : index
+  linalg.yield %s : index
+} -> tensor<6xindex>
+
+"test.op"(%D) : (tensor<6xindex>) -> ()
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %C = "test.op"() : () -> (tensor<6xindex>, tensor<6xindex>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   %D = scf.for %3 = %0 to %1 step %2 iter_args(%4 = %C) -> (tensor<6xindex>) {
+// CHECK-NEXT:     %5 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%2, %1, %3)
+// CHECK-NEXT:     %6 = tensor.extract_slice %A[%3] [%5] [1] : tensor<6xindex> to tensor<?xindex>
+// CHECK-NEXT:     %7 = tensor.extract_slice %4[%3] [%5] [1] : tensor<6xindex> to tensor<?xindex>
+// CHECK-NEXT:     %8 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%6 : tensor<?xindex>) outs(%7 : tensor<?xindex>) {
+// CHECK-NEXT:     ^bb0(%a: index, %c: index):
+// CHECK-NEXT:       %i = linalg.index 0 : index
+// CHECK-NEXT:       %i_1 = affine.apply affine_map<(d0, d1) -> ((d0 + d1))> (%i, %3)
+// CHECK-NEXT:       %s = arith.muli %i_1, %i_1 : index
+// CHECK-NEXT:       linalg.yield %s : index
+// CHECK-NEXT:     } -> tensor<?xindex>
+// CHECK-NEXT:     %9 = tensor.insert_slice %8 into %4[%3] [%5] [1] : tensor<?xindex> into tensor<6xindex>
+// CHECK-NEXT:     scf.yield %9 : tensor<6xindex>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%D) : (tensor<6xindex>) -> ()
+// CHECK-NEXT: }

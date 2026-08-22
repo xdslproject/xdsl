@@ -1,4 +1,3 @@
-import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -146,11 +145,12 @@ def test_tiling_plan_accepts_tensor_operands():
     assert plan.operand_infos[0].source_type == TensorType(f32, [4, 5])
 
 
-def test_tiling_plan_rejects_linalg_index():
+def test_tiling_plan_tiles_linalg_index():
     op = _generic_2d_copy_op(use_index=True)
 
-    with pytest.raises(ValueError, match=re.escape("using linalg.index")):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
 
 
 def test_tiling_plan_tiles_a_non_parallel_iterator():
