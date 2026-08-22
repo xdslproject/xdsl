@@ -193,13 +193,12 @@ def _verify_generic_is_tileable(
             "tiling linalg.generic using linalg.index is not supported yet"
         )
 
-    iterator_types = tuple(iterator.data for iterator in op.get_iterator_types())
-    if any(
-        iterator_types[dim] != linalg.attrs.IteratorType.PARALLEL for dim in tiled_dims
-    ):
-        raise ValueError(
-            "tiling of non-parallel iterator dimensions is not supported yet"
-        )
+    # A reduction dimension is tiled like any other. It is absent from the output
+    # indexing maps, being the dimension reduced away, so the output is not sliced
+    # along it and each tile reads the value the last one left, accumulating into
+    # it. The tiles run in the order the untiled dimension did, which leaves the
+    # reduction associating as it did before, so this holds for a reduction that
+    # cannot be reassociated, such as one over floats.
 
     indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
     for operand, indexing_map in zip(op.operands, indexing_maps, strict=True):

@@ -356,3 +356,120 @@ linalg.generic {
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
+
+// -----
+
+// A tiled reduction dimension is absent from the output indexing map, so each
+// tile takes the whole output, reads what the last tile left in it and
+// accumulates into that. Here only the reduction dimension of a matmul is tiled.
+
+%A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+
+%D = linalg.generic {
+  indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel", "reduction"]
+} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) attrs = {test_tile_sizes = array<i32: 0, 0, 2>} {
+^bb0(%a: f32, %b: f32, %c: f32):
+  %m = arith.mulf %a, %b : f32
+  %s = arith.addf %c, %m : f32
+  linalg.yield %s : f32
+} -> tensor<4x4xf32>
+
+"test.op"(%D) : (tensor<4x4xf32>) -> ()
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   %D = scf.for %3 = %0 to %1 step %2 iter_args(%4 = %C) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:     %5 = tensor.extract_slice %A[0, %3] [4, 2] [1, 1] : tensor<4x6xf32> to tensor<4x2xf32>
+// CHECK-NEXT:     %6 = tensor.extract_slice %B[%3, 0] [2, 4] [1, 1] : tensor<6x4xf32> to tensor<2x4xf32>
+// CHECK-NEXT:     %7 = tensor.extract_slice %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> to tensor<4x4xf32>
+// CHECK-NEXT:     %8 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%5, %6 : tensor<4x2xf32>, tensor<2x4xf32>) outs(%7 : tensor<4x4xf32>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32, %c: f32):
+// CHECK-NEXT:       %m = arith.mulf %a, %b : f32
+// CHECK-NEXT:       %s = arith.addf %c, %m : f32
+// CHECK-NEXT:       linalg.yield %s : f32
+// CHECK-NEXT:     } -> tensor<4x4xf32>
+// CHECK-NEXT:     %9 = tensor.insert_slice %8 into %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> into tensor<4x4xf32>
+// CHECK-NEXT:     scf.yield %9 : tensor<4x4xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%D) : (tensor<4x4xf32>) -> ()
+// CHECK-NEXT: }
+
+// -----
+
+// The same over memrefs, where a tile accumulates into the output through its
+// subview rather than through a carried value.
+
+%A, %B, %C = "test.op"() : () -> (memref<4x6xf32>, memref<6x4xf32>, memref<4x4xf32>)
+
+linalg.generic {
+  indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel", "reduction"]
+} ins(%A, %B : memref<4x6xf32>, memref<6x4xf32>) outs(%C : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 0, 0, 2>} {
+^bb0(%a: f32, %b: f32, %c: f32):
+  %m = arith.mulf %a, %b : f32
+  %s = arith.addf %c, %m : f32
+  linalg.yield %s : f32
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (memref<4x6xf32>, memref<6x4xf32>, memref<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   scf.for %3 = %0 to %1 step %2 {
+// CHECK-NEXT:     %4 = memref.subview %A[0, %3] [4, 2] [1, 1] : memref<4x6xf32> to memref<4x2xf32, strided<[6, 1], offset: ?>>
+// CHECK-NEXT:     %5 = memref.subview %B[%3, 0] [2, 4] [1, 1] : memref<6x4xf32> to memref<2x4xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:     %6 = memref.subview %C[0, 0] [4, 4] [1, 1] : memref<4x4xf32> to memref<4x4xf32, strided<[4, 1]>>
+// CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%4, %5 : memref<4x2xf32, strided<[6, 1], offset: ?>>, memref<2x4xf32, strided<[4, 1], offset: ?>>) outs(%6 : memref<4x4xf32, strided<[4, 1]>>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32, %c: f32):
+// CHECK-NEXT:       %m = arith.mulf %a, %b : f32
+// CHECK-NEXT:       %s = arith.addf %c, %m : f32
+// CHECK-NEXT:       linalg.yield %s : f32
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+// A reduction dimension that the tile size does not divide, where the last tile
+// runs past the end of the dimension and is clamped like any other.
+
+%A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+
+%D = linalg.generic {
+  indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel", "reduction"]
+} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) attrs = {test_tile_sizes = array<i32: 0, 0, 4>} {
+^bb0(%a: f32, %b: f32, %c: f32):
+  %m = arith.mulf %a, %b : f32
+  %s = arith.addf %c, %m : f32
+  linalg.yield %s : f32
+} -> tensor<4x4xf32>
+
+"test.op"(%D) : (tensor<4x4xf32>) -> ()
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (tensor<4x6xf32>, tensor<6x4xf32>, tensor<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   %D = scf.for %3 = %0 to %1 step %2 iter_args(%4 = %C) -> (tensor<4x4xf32>) {
+// CHECK-NEXT:     %5 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%2, %1, %3)
+// CHECK-NEXT:     %6 = tensor.extract_slice %A[0, %3] [4, %5] [1, 1] : tensor<4x6xf32> to tensor<4x?xf32>
+// CHECK-NEXT:     %7 = tensor.extract_slice %B[%3, 0] [%5, 4] [1, 1] : tensor<6x4xf32> to tensor<?x4xf32>
+// CHECK-NEXT:     %8 = tensor.extract_slice %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> to tensor<4x4xf32>
+// CHECK-NEXT:     %9 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%6, %7 : tensor<4x?xf32>, tensor<?x4xf32>) outs(%8 : tensor<4x4xf32>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32, %c: f32):
+// CHECK-NEXT:       %m = arith.mulf %a, %b : f32
+// CHECK-NEXT:       %s = arith.addf %c, %m : f32
+// CHECK-NEXT:       linalg.yield %s : f32
+// CHECK-NEXT:     } -> tensor<4x4xf32>
+// CHECK-NEXT:     %10 = tensor.insert_slice %9 into %4[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> into tensor<4x4xf32>
+// CHECK-NEXT:     scf.yield %10 : tensor<4x4xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%D) : (tensor<4x4xf32>) -> ()
+// CHECK-NEXT: }
