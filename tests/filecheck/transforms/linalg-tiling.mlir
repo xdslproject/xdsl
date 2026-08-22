@@ -210,7 +210,7 @@ linalg.generic {
 // CHECK-NEXT:   %4 = arith.constant 2 : index
 // CHECK-NEXT:   scf.for %5 = %0 to %1 step %3 {
 // CHECK-NEXT:     scf.for %6 = %0 to %2 step %4 {
-// CHECK-NEXT:       %7 = "affine.min"(%3, %1, %5) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:       %7 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%3, %1, %5)
 // CHECK-NEXT:       %8 = memref.subview %A[%5, %6] [%7, 2] [1, 1] : memref<5x4xf32> to memref<?x2xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:       %9 = memref.subview %B[%5, %6] [%7, 2] [1, 1] : memref<5x4xf32> to memref<?x2xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:       linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%8 : memref<?x2xf32, strided<[4, 1], offset: ?>>) outs(%9 : memref<?x2xf32, strided<[4, 1], offset: ?>>) {
@@ -246,7 +246,7 @@ linalg.generic {
 // CHECK-NEXT:   %4 = arith.constant 2 : index
 // CHECK-NEXT:   %C = scf.for %5 = %0 to %1 step %3 iter_args(%6 = %B) -> (tensor<5x4xf32>) {
 // CHECK-NEXT:     %7 = scf.for %8 = %0 to %2 step %4 iter_args(%9 = %6) -> (tensor<5x4xf32>) {
-// CHECK-NEXT:       %10 = "affine.min"(%3, %1, %5) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:       %10 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%3, %1, %5)
 // CHECK-NEXT:       %11 = "tensor.extract_slice"(%A, %5, %8, %10) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: -9223372036854775808, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 2, 1, 0>}> : (tensor<5x4xf32>, index, index, index) -> tensor<?x2xf32>
 // CHECK-NEXT:       %12 = "tensor.extract_slice"(%9, %5, %8, %10) <{static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: -9223372036854775808, 2>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 2, 1, 0>}> : (tensor<5x4xf32>, index, index, index) -> tensor<?x2xf32>
 // CHECK-NEXT:       %13 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%11 : tensor<?x2xf32>) outs(%12 : tensor<?x2xf32>) {
@@ -282,7 +282,7 @@ linalg.generic {
 // CHECK-NEXT:   %2 = memref.dim %A, %1 : memref<?x4xf32>
 // CHECK-NEXT:   %3 = arith.constant 2 : index
 // CHECK-NEXT:   scf.for %4 = %0 to %2 step %3 {
-// CHECK-NEXT:     %5 = "affine.min"(%3, %2, %4) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:     %5 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%3, %2, %4)
 // CHECK-NEXT:     %6 = memref.subview %A[%4, 0] [%5, 4] [1, 1] : memref<?x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:     %7 = memref.subview %B[%4, 0] [%5, 4] [1, 1] : memref<?x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%6 : memref<?x4xf32, strided<[4, 1], offset: ?>>) outs(%7 : memref<?x4xf32, strided<[4, 1], offset: ?>>) {
@@ -314,7 +314,7 @@ linalg.generic {
 // CHECK-NEXT:   %2 = tensor.dim %A, %1 : tensor<?x4xf32>
 // CHECK-NEXT:   %3 = arith.constant 2 : index
 // CHECK-NEXT:   %C = scf.for %4 = %0 to %2 step %3 iter_args(%5 = %B) -> (tensor<?x4xf32>) {
-// CHECK-NEXT:     %6 = "affine.min"(%3, %2, %4) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:     %6 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%3, %2, %4)
 // CHECK-NEXT:     %7 = "tensor.extract_slice"(%A, %4, %6) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: -9223372036854775808, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> : (tensor<?x4xf32>, index, index) -> tensor<?x4xf32>
 // CHECK-NEXT:     %8 = "tensor.extract_slice"(%5, %4, %6) <{static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: -9223372036854775808, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> : (tensor<?x4xf32>, index, index) -> tensor<?x4xf32>
 // CHECK-NEXT:     %9 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%7 : tensor<?x4xf32>) outs(%8 : tensor<?x4xf32>) {
@@ -347,7 +347,7 @@ linalg.generic {
 // CHECK-NEXT:   %1 = arith.constant 0 : index
 // CHECK-NEXT:   %2 = arith.constant 8 : index
 // CHECK-NEXT:   scf.for %3 = %1 to %2 step %0 {
-// CHECK-NEXT:     %4 = "affine.min"(%0, %2, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:     %4 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%0, %2, %3)
 // CHECK-NEXT:     %5 = memref.subview %A[%3, 0] [%4, 4] [1, 1] : memref<8x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:     %6 = memref.subview %B[%3, 0] [%4, 4] [1, 1] : memref<8x4xf32> to memref<?x4xf32, strided<[4, 1], offset: ?>>
 // CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%5 : memref<?x4xf32, strided<[4, 1], offset: ?>>) outs(%6 : memref<?x4xf32, strided<[4, 1], offset: ?>>) {

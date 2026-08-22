@@ -729,14 +729,63 @@ class MinOp(IRDLOperation):
 
     map = prop_def(AffineMapAttr)
 
+    def __init__(
+        self,
+        map_operands: Sequence[SSAValue | Operation],
+        affine_map: AffineMapAttr,
+    ):
+        super().__init__(
+            operands=[map_operands],
+            properties={"map": affine_map},
+            result_types=[IndexType()],
+        )
+
     def verify_(self) -> None:
         if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
             raise VerifyException(
                 f"{self.name} expects "
                 f"{self.map.data.num_dims + self.map.data.num_symbols} "
-                "operands, but got {len(self.operands)}. The number of map operands "
+                f"operands, but got {len(self.operands)}. The number of map operands "
                 "must match the sum of the dimensions and symbols of its map."
             )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> MinOp:
+        pos = parser.pos
+        m = parser.parse_attribute()
+        if not isinstance(m, AffineMapAttr):
+            parser.raise_error("Expected affine map attr", at_position=pos)
+        dims = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+        )
+        if dims is None:
+            dims = []
+        syms = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+        )
+        if syms is None:
+            syms = []
+        return MinOp(dims + syms, m)
+
+    def print(self, printer: Printer):
+        m = self.map.data
+        operands = tuple(self.arguments)
+        assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
+        printer.print_string(" ")
+        printer.print_attribute(self.map)
+        printer.print_string(" (")
+        if m.num_dims:
+            printer.print_list(
+                operands[: m.num_dims], lambda el: printer.print_operand(el)
+            )
+        printer.print_string(")")
+
+        if m.num_symbols:
+            printer.print_string("[")
+            printer.print_list(
+                operands[m.num_dims :], lambda el: printer.print_operand(el)
+            )
+            printer.print_string("]")
 
 
 @irdl_op_definition

@@ -53,13 +53,17 @@
 
     %zero = "test.op"() : () -> index
     %2 = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%zero)[%zero]
-    %min = "affine.min"(%zero) <{"map" = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
+    %min = affine.min affine_map<(d0) -> ((d0 + 41), d0)> (%zero)
+    %min_sym = affine.min affine_map<(d0)[s0] -> (d0, s0)> (%zero)[%zero]
+    %min_none = affine.min affine_map<() -> (0)>
     %same_value = affine.load %memref[%zero, %zero] : memref<2x3xf64>
     %nested = affine.load %memref[3 + %zero * 7 + %zero, %zero + 7] : memref<2x3xf64>
 
     // CHECK:      %zero = "test.op"() : () -> index
     // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
-    // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
+    // CHECK-NEXT: %{{.*}} = affine.min affine_map<(d0) -> ((d0 + 41), d0)> (%{{.*}})
+    // CHECK-NEXT: %{{.*}} = affine.min affine_map<(d0)[s0] -> (d0, s0)> (%{{.*}})[%{{.*}}]
+    // CHECK-NEXT: %{{.*}} = affine.min affine_map<() -> (0)> ()
     // CHECK-NEXT: %same_value = affine.load %memref[%zero, %zero] : memref<2x3xf64>
     // CHECK-NEXT: %nested = affine.load %memref[%zero * 7 + 3 + %zero, %zero + 7] : memref<2x3xf64>
 

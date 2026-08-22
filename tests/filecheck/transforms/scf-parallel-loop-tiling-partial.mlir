@@ -25,8 +25,8 @@ func.func @tile_partial() {
 // CHECK-NEXT:   %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK-NEXT:   "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK-NEXT:   ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
-// CHECK-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
-// CHECK-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
+// CHECK-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK-NEXT:     "scf.parallel"(%{{.*}}, %zero, %{{.*}}, %{{.*}}, %size, %{{.*}}, %{{.*}}, %one, %{{.*}}) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-NEXT:     ^{{.*}}(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index):
 // CHECK-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
@@ -50,8 +50,8 @@ func.func @tile_partial() {
 // CHECK-FIRST-NEXT:   %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK-FIRST-NEXT:   "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK-FIRST-NEXT:   ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
-// CHECK-FIRST-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
-// CHECK-FIRST-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-FIRST-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
+// CHECK-FIRST-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK-FIRST-NEXT:     "scf.parallel"(%zero, %{{.*}}, %{{.*}}, %size, %{{.*}}, %{{.*}}, %one, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-FIRST-NEXT:     ^{{.*}}(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index):
 // CHECK-FIRST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
@@ -75,8 +75,8 @@ func.func @tile_partial() {
 // CHECK-LAST-NEXT:   %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK-LAST-NEXT:   "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK-LAST-NEXT:   ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
-// CHECK-LAST-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
-// CHECK-LAST-NEXT:     %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-LAST-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
+// CHECK-LAST-NEXT:     %{{.*}} = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%{{.*}}, %{{.*}}, %{{.*}})
 // CHECK-LAST-NEXT:     "scf.parallel"(%{{.*}}, %{{.*}}, %zero, %{{.*}}, %{{.*}}, %size, %{{.*}}, %{{.*}}, %one) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-LAST-NEXT:     ^{{.*}}(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index):
 // CHECK-LAST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
@@ -110,7 +110,7 @@ func.func @tile_partial_1d() {
 // CHECK-NEXT:      %2 = arith.muli %one, %1 : index
 // CHECK-NEXT:      "scf.parallel"(%zero, %size, %2) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:      ^bb0(%3: index):
-// CHECK-NEXT:        %4 = "affine.min"(%1, %size, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-NEXT:        %4 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%1, %size, %3)
 // CHECK-NEXT:        "scf.parallel"(%0, %4, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:        ^bb0(%arg1: index):
 // CHECK-NEXT:          %5 = arith.addi %3, %arg1 : index
@@ -145,7 +145,7 @@ func.func @tile_partial_1d() {
 // CHECK-LAST-NEXT:      %2 = arith.muli %one, %1 : index
 // CHECK-LAST-NEXT:      "scf.parallel"(%zero, %size, %2) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-LAST-NEXT:      ^bb0(%3: index):
-// CHECK-LAST-NEXT:        %4 = "affine.min"(%1, %size, %3) <{map = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK-LAST-NEXT:        %4 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%1, %size, %3)
 // CHECK-LAST-NEXT:        "scf.parallel"(%0, %4, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-LAST-NEXT:        ^bb0(%arg1: index):
 // CHECK-LAST-NEXT:          %5 = arith.addi %3, %arg1 : index
