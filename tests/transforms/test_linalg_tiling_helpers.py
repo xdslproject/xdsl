@@ -239,7 +239,7 @@ def test_tiling_plan_tiles_a_dim_whose_tile_size_is_not_static():
     assert plan.tile_sizes == (tile_size, 0)
 
 
-def test_tiling_plan_rejects_non_projected_permutation_map():
+def test_tiling_plan_accepts_non_projected_permutation_map():
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)
 
@@ -251,8 +251,32 @@ def test_tiling_plan_rejects_non_projected_permutation_map():
         ],
     )
 
-    with pytest.raises(ValueError, match="non-projected-permutation indexing maps"):
-        TilingPlan.analyze(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    # The input reads both loops in one result, which no single loop range can
+    # be read back from, so no loop dimension is recorded for it.
+    assert plan.operand_infos[0].loop_dims == (None,)
+    assert plan.operand_infos[1].loop_dims == (0, 1)
+
+
+def test_slice_parameters_span_a_result_reading_two_loops():
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+    iv = create_ssa_value(IndexType())
+
+    # d0 + d1 over a tile of 2 in d0 and the whole of d1, which is 5 long, is
+    # read from where d0 is and spans the two of them together, 2 + 5 - 1.
+    parameters = _compute_slice(
+        AffineMap(2, 0, (i + j,)),
+        MemRefType(f32, [8]),
+        {0: iv},
+        {0: 2},
+        loop_ranges=(4, 5),
+    )
+
+    assert parameters.sizes == (6,)
+    assert parameters.strides == (1,)
 
 
 def test_tiling_plan_marks_dims_with_a_leftover_tile():
@@ -284,13 +308,33 @@ def test_tiling_plan_marks_a_tile_larger_than_its_range_partial():
     assert plan.partial_tiled_dims == frozenset({0})
 
 
+def _compute_slice(
+    indexing_map: AffineMap,
+    source_type: MemRefType[Attribute] | TensorType[Attribute],
+    tiled_loop_ivs: dict[int, SSAValue],
+    effective_tile_sizes: dict[int, SSAValue | int],
+    loop_ranges: Sequence[int] = (4, 5),
+) -> SliceParameters:
+    """Compute one operand's slice, into a module the built ops can go in."""
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    return SliceParameters.compute(
+        PatternRewriter(op),
+        InsertPoint.before(op),
+        indexing_map,
+        OperandTileInfo.analyze(indexing_map, source_type),
+        tiled_loop_ivs,
+        effective_tile_sizes,
+        loop_ranges,
+    )
+
+
 def test_slice_parameters_compute_tiled_and_untiled_dims():
     source_type = MemRefType(f32, [4, 5])
     iv = create_ssa_value(IndexType())
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
-    operand_info = OperandTileInfo.analyze(indexing_map, source_type)
 
-    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv}, {0: 2})
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
 
     # Dim 0's loop is tiled, so it starts at the induction variable and spans one
     # tile; dim 1's loop is not, so it starts at zero and spans the whole operand.
@@ -302,9 +346,8 @@ def test_slice_parameters_compute_tiled_and_untiled_dims():
 def test_slice_parameters_compute_without_tiled_dims():
     source_type = MemRefType(f32, [4, 5])
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
-    operand_info = OperandTileInfo.analyze(indexing_map, source_type)
 
-    parameters = SliceParameters.compute(indexing_map, operand_info, {}, {})
+    parameters = _compute_slice(indexing_map, source_type, {}, {})
 
     # Nothing is tiled, so the slice covers the whole operand.
     assert parameters.offsets == (0, 0)
@@ -317,9 +360,8 @@ def test_slice_parameters_compute_follows_indexing_map():
     source_type = MemRefType(f32, [5, 4])
     iv = create_ssa_value(IndexType())
     indexing_map = AffineMap.from_callable(lambda i, j: (j, i))
-    operand_info = OperandTileInfo.analyze(indexing_map, source_type)
 
-    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv}, {0: 2})
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
 
     assert parameters.offsets == (0, iv)
     assert parameters.sizes == (5, 2)
@@ -334,8 +376,7 @@ def _tiled_slice_for(source_type: MemRefType[Attribute] | TensorType[Attribute])
     operand = create_ssa_value(source_type)
     iv = create_ssa_value(IndexType())
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
-    operand_info = OperandTileInfo.analyze(indexing_map, source_type)
-    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv}, {0: 2})
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
 
     result = _build_tiled_slice(
         rewriter, InsertPoint.before(op), operand, source_type, parameters
@@ -377,8 +418,7 @@ def _tiled_insert_for(
 
     iv = create_ssa_value(IndexType())
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
-    operand_info = OperandTileInfo.analyze(indexing_map, destination_type)
-    parameters = SliceParameters.compute(indexing_map, operand_info, {0: iv}, {0: 2})
+    parameters = _compute_slice(indexing_map, destination_type, {0: iv}, {0: 2})
 
     destination = create_ssa_value(destination_type)
     tiled_value = create_ssa_value(

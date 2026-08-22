@@ -15,7 +15,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Region, SSAValue
-from xdsl.ir.affine import AffineDimExpr, AffineExpr, AffineMap
+from xdsl.ir.affine import (
+    AffineConstantExpr,
+    AffineDimExpr,
+    AffineExpr,
+    AffineMap,
+)
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
@@ -60,11 +65,13 @@ class OperandTileInfo:
     """
     This records how one operand should be sliced when we enter a tile.
     - `source_type` keeps the original type.
-    - `loop_dims` the loop dimension that comes from each indexing-map.
+    - `loop_dims` the loop dimension each indexing-map result reads, where it
+      reads exactly one, and `None` where it reads an expression over several or
+      none, which no single loop range can be read back from.
     """
 
     source_type: MemRefType[Attribute] | TensorType[Attribute]
-    loop_dims: tuple[int, ...]
+    loop_dims: tuple[int | None, ...]
 
     @staticmethod
     def analyze(
@@ -76,7 +83,8 @@ class OperandTileInfo:
         """
 
         loop_dims = tuple(
-            cast(AffineDimExpr, expr).position for expr in indexing_map.results
+            expr.position if isinstance(expr, AffineDimExpr) else None
+            for expr in indexing_map.results
         )
         return OperandTileInfo(source_type, loop_dims)
 
@@ -200,8 +208,7 @@ def _verify_is_tileable(
     # reduction associating as it did before, so this holds for a reduction that
     # cannot be reassociated, such as one over floats.
 
-    indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
-    for operand, indexing_map in zip(op.operands, indexing_maps, strict=True):
+    for operand in op.operands:
         raw_operand_type = operand.type
 
         if not isa(raw_operand_type, MemRefType) and not isa(
@@ -212,12 +219,30 @@ def _verify_is_tileable(
                 "tensors is not supported yet"
             )
 
-        if not indexing_map.is_projected_permutation():
+    loop_ranges = op.get_static_loop_ranges()
+
+    # The bounds of the `scf.for` we build come from `loop_ranges`. One that is
+    # dynamic is read at runtime instead, with a `memref.dim` or `tensor.dim` on
+    # an operand, so we need an indexing map result that is exactly `dN` to tell
+    # us which operand to read and which of its dimensions. A result like
+    # `d0 + d1` names no single dimension to read, so a dynamic loop reachable
+    # only that way is rejected.
+    indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
+    readable_dims = {
+        expr.position
+        for indexing_map in indexing_maps
+        for expr in indexing_map.results
+        if isinstance(expr, AffineDimExpr)
+    }
+    for dim in tiled_dims:
+        if loop_ranges[dim] < 0 and dim not in readable_dims:
             raise ValueError(
-                "tiling a linalg op with non-projected-permutation indexing maps is not supported yet"
+                "tiling a linalg op dimension whose range is not known until "
+                "it runs and that no indexing map reads on its own is not "
+                "supported yet"
             )
 
-    return op.get_static_loop_ranges()
+    return loop_ranges
 
 
 def _loop_range_sources(
@@ -370,6 +395,71 @@ def _build_effective_tile_sizes(
     return effective
 
 
+def _apply_affine_expr(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    expr: AffineExpr,
+    values: Sequence[SSAValue | int],
+) -> SSAValue | int:
+    """
+    Evaluate one result of an indexing map, given a value per loop dimension.
+
+    Returns either an `int`, when the answer is known here, or an SSA value.
+
+    An `affine.apply` is only built when one is needed. A result that is just
+    `dN` is the value given for that dimension, and one whose values are all
+    ints is worked out here. Otherwise the int values are written into the map
+    as constants, and only the SSA ones are passed to the op as operands.
+    """
+
+    if isinstance(expr, AffineDimExpr):
+        return values[expr.position]
+
+    if all(isinstance(value, int) for value in values):
+        return expr.eval(cast(Sequence[int], values), ())
+
+    replacements: list[AffineExpr] = []
+    operands: list[SSAValue] = []
+    for value in values:
+        if isinstance(value, int):
+            replacements.append(AffineExpr.constant(value))
+        else:
+            replacements.append(AffineExpr.dimension(len(operands)))
+            operands.append(value)
+
+    substituted = expr.replace_dims_and_symbols(replacements, ())
+
+    # Writing the known values in can leave a map with nothing left to compute,
+    # so return the value directly rather than emitting an `affine.apply` that
+    # only forwards one operand or yields a constant.
+    if isinstance(substituted, AffineConstantExpr):
+        return substituted.value
+    if isinstance(substituted, AffineDimExpr):
+        return operands[substituted.position]
+
+    apply_op = affine.ApplyOp(
+        operands,
+        AffineMapAttr(AffineMap(len(operands), 0, (substituted,))),
+    )
+    rewriter.insert(apply_op, insertion_point)
+    return apply_op.result
+
+
+def _decrement(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    value: SSAValue | int,
+) -> SSAValue | int:
+    """
+    Turn a count of elements into the index of its last one, `n` into `n - 1`,
+    building an `affine.apply` when the count is not known here.
+    """
+
+    return _apply_affine_expr(
+        rewriter, insertion_point, AffineExpr.dimension(0) - 1, (value,)
+    )
+
+
 @dataclass(frozen=True)
 class SliceParameters:
     """
@@ -386,33 +476,90 @@ class SliceParameters:
 
     @staticmethod
     def compute(
+        rewriter: PatternRewriter,
+        insertion_point: InsertPoint,
         indexing_map: AffineMap,
         operand_info: OperandTileInfo,
         tiled_loop_ivs: dict[int, SSAValue],
         effective_tile_sizes: dict[int, SSAValue | int],
+        loop_ranges: Sequence[int],
     ) -> "SliceParameters":
         """
-        Compute where the current tile sits within one operand.
+        Compute the offsets and sizes for one operand's `memref.subview` or
+        `tensor.extract_slice`.
 
-        Each result of the indexing map addresses one dimension of the operand.
-        A dimension whose loop is tiled starts at that loop's induction variable
-        and spans the current tile, and a dimension whose loop is not tiled
-        starts at zero and spans the whole operand.
+        There is one offset and one size per operand dimension, and the indexing
+        map has one result per operand dimension saying how the loops reach it.
+
+        - A result that no tiled loop appears in is not sliced at all: offset 0,
+          and the whole dimension for its size.
+        - A result that is just `dN`, for a tiled loop, takes that loop's
+          induction variable as its offset and its tile size as its size.
+        - Any other result, `d0 + d1` or `d0 * 2`, gets both from an
+          `affine.apply`. Its offset evaluates the result with each tiled loop at
+          its induction variable and the rest at zero, less what it evaluates to
+          with every loop at zero. Its size evaluates it at the last index each
+          loop reaches inside the tile, plus one to turn that index back into a
+          count.
         """
 
         source_shape = operand_info.source_type.get_shape()
+        num_loops = indexing_map.num_dims
+
+        # The induction variable of each tiled loop, and zero for the rest.
+        starts: tuple[SSAValue | int, ...] = tuple(
+            tiled_loop_ivs.get(dim, 0) for dim in range(num_loops)
+        )
+        zeros = (0,) * num_loops
+        # The last index each loop reaches inside the tile. This costs an
+        # `affine.apply` per loop, so it is built once, and only if some result
+        # turns out to need it.
+        extents: tuple[SSAValue | int, ...] | None = None
 
         offsets: list[SSAValue | int] = []
         sizes: list[SSAValue | int] = []
         for result_index, expr in enumerate(indexing_map.results):
-            assert isinstance(expr, AffineDimExpr)
-            loop_dim = operand_info.loop_dims[result_index]
-            if loop_dim in tiled_loop_ivs:
-                offsets.append(tiled_loop_ivs[loop_dim])
-                sizes.append(effective_tile_sizes[loop_dim])
-            else:
+            if not (expr.used_dims() & tiled_loop_ivs.keys()):
                 offsets.append(0)
                 sizes.append(source_shape[result_index])
+                continue
+
+            # `dN` on its own: the slice starts at that loop's induction
+            # variable and is one tile long. The general case below computes
+            # exactly this, so taking it here just avoids emitting an
+            # `affine.apply` to say so.
+            if isinstance(expr, AffineDimExpr):
+                offsets.append(tiled_loop_ivs[expr.position])
+                sizes.append(effective_tile_sizes[expr.position])
+                continue
+
+            if extents is None:
+                extents = tuple(
+                    _decrement(
+                        rewriter,
+                        insertion_point,
+                        effective_tile_sizes.get(dim, size),
+                    )
+                    for dim, size in enumerate(loop_ranges[:num_loops])
+                )
+
+            # Take off what the result evaluates to with every loop at zero, so
+            # that a constant the map adds does not shift the slice: the tiled op
+            # applies the same map inside the slice and adds it back there.
+            # Taking it off the expression rather than off the value it produces
+            # keeps this to a single `affine.apply`.
+            at_zero = expr.eval(zeros, ())
+            offsets.append(
+                _apply_affine_expr(
+                    rewriter,
+                    insertion_point,
+                    expr if at_zero == 0 else expr - at_zero,
+                    starts,
+                )
+            )
+            sizes.append(
+                _apply_affine_expr(rewriter, insertion_point, expr + 1, extents)
+            )
 
         return SliceParameters(tuple(offsets), tuple(sizes), (1,) * len(source_shape))
 
@@ -584,7 +731,13 @@ def tile_structured_op(
 
     slice_parameters = tuple(
         SliceParameters.compute(
-            indexing_map.data, operand_info, tiled_loop_ivs, effective_tile_sizes
+            rewriter,
+            inner_ip,
+            indexing_map.data,
+            operand_info,
+            tiled_loop_ivs,
+            effective_tile_sizes,
+            plan.loop_ranges,
         )
         for operand_info, indexing_map in zip(
             plan.operand_infos, op.get_indexing_maps(), strict=True
