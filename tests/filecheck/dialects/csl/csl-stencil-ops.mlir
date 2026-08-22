@@ -11,8 +11,8 @@ builtin.module {
       %6 = csl_stencil.access %3[-1, 0] : tensor<4x510xf32>
       %7 = csl_stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
       %8 = csl_stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-      %9 = "tensor.extract_slice"(%7) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %10 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %9 = tensor.extract_slice %7[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+      %10 = tensor.extract_slice %8[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
       %11 = csl_stencil.access %3[0, 1] : tensor<4x510xf32>
       %12 = csl_stencil.access %3[0, -1] : tensor<4x510xf32>
       %13 = arith.addf %12, %11 : tensor<510xf32>
@@ -40,8 +40,8 @@ builtin.module {
 // CHECK-NEXT:       %6 = csl_stencil.access %3[-1, 0] : tensor<4x510xf32>
 // CHECK-NEXT:       %7 = csl_stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:       %8 = csl_stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:       %9 = "tensor.extract_slice"(%7) <{static_offsets = array<i64: 1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %10 = "tensor.extract_slice"(%8) <{static_offsets = array<i64: -1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %9 = tensor.extract_slice %7[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+// CHECK-NEXT:       %10 = tensor.extract_slice %8[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
 // CHECK-NEXT:       %11 = csl_stencil.access %3[0, 1] : tensor<4x510xf32>
 // CHECK-NEXT:       %12 = csl_stencil.access %3[0, -1] : tensor<4x510xf32>
 // CHECK-NEXT:       %13 = arith.addf %12, %11 : tensor<510xf32>
@@ -119,8 +119,8 @@ builtin.module {
         // takes combined chunks and applies further compute (communicate_cb)
         %12 = csl_stencil.access %3[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
         %13 = csl_stencil.access %3[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-        %14 = "tensor.extract_slice"(%12) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-        %15 = "tensor.extract_slice"(%13) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+        %14 = tensor.extract_slice %12[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+        %15 = tensor.extract_slice %13[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
 
         %16 = arith.addf %rcv, %14 : tensor<510xf32>
         %17 = arith.addf %16, %15 : tensor<510xf32>
@@ -157,8 +157,8 @@ builtin.module {
 // CHECK-NEXT:     ^bb0(%11: !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %rcv: tensor<510xf32>):
 // CHECK-NEXT:       %12 = csl_stencil.access %11[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:       %13 = csl_stencil.access %11[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:       %14 = "tensor.extract_slice"(%12) <{static_offsets = array<i64: 1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %15 = "tensor.extract_slice"(%13) <{static_offsets = array<i64: -1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %14 = tensor.extract_slice %12[1] [510] [1] : tensor<512xf32> to tensor<510xf32>
+// CHECK-NEXT:       %15 = tensor.extract_slice %13[-1] [510] [1] : tensor<512xf32> to tensor<510xf32>
 // CHECK-NEXT:       %16 = arith.addf %rcv, %14 : tensor<510xf32>
 // CHECK-NEXT:       %17 = arith.addf %16, %15 : tensor<510xf32>
 // CHECK-NEXT:       %18 = arith.constant 1.666600e-01 : f32
@@ -231,8 +231,8 @@ builtin.module {
     ^bb1(%12: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %13: tensor<510xf32>):
       %14 = csl_stencil.access %12[0, 0] : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
       %15 = arith.constant dense<1.666600e-01> : tensor<510xf32>
-      %16 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %17 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %16 = tensor.extract_slice %14[2] [510] [1] : tensor<512xf32> to tensor<510xf32>
+      %17 = tensor.extract_slice %14[0] [510] [1] : tensor<512xf32> to tensor<510xf32>
       %18 = arith.addf %13, %17 : tensor<510xf32>
       %19 = arith.addf %18, %16 : tensor<510xf32>
       %20 = arith.mulf %19, %15 : tensor<510xf32>
@@ -260,8 +260,8 @@ builtin.module {
 //CHECK-NEXT:     ^bb0(%12: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %13: tensor<510xf32>):
 //CHECK-NEXT:       %14 = csl_stencil.access %12[0, 0] : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 //CHECK-NEXT:       %15 = arith.constant dense<1.666600e-01> : tensor<510xf32>
-//CHECK-NEXT:       %16 = "tensor.extract_slice"(%14) <{static_offsets = array<i64: 2>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-//CHECK-NEXT:       %17 = "tensor.extract_slice"(%14) <{static_offsets = array<i64: 0>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+//CHECK-NEXT:       %16 = tensor.extract_slice %14[2] [510] [1] : tensor<512xf32> to tensor<510xf32>
+//CHECK-NEXT:       %17 = tensor.extract_slice %14[0] [510] [1] : tensor<512xf32> to tensor<510xf32>
 //CHECK-NEXT:       %18 = arith.addf %13, %17 : tensor<510xf32>
 //CHECK-NEXT:       %19 = arith.addf %18, %16 : tensor<510xf32>
 //CHECK-NEXT:       %20 = arith.mulf %19, %15 : tensor<510xf32>
