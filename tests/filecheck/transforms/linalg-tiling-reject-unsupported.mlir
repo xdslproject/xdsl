@@ -63,26 +63,6 @@ builtin.module {
   %output = "test.op"() : () -> memref<4x4xf32>
   linalg.generic {
       indexing_maps = [
-          affine_map<(i, j) -> (i, j)>,
-          affine_map<(i, j) -> (i, j)>
-      ],
-      iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
-  ^bb0(%in: f32, %out: f32):
-      %i = linalg.index 0 : index
-      %unused = "test.op"(%i) : (index) -> f32
-      linalg.yield %unused : f32
-  }
-}
-// CHECK: tiling linalg.generic using linalg.index is not supported yet
-
-// -----
-
-builtin.module {
-  %input = "test.op"() : () -> memref<4x4xf32>
-  %output = "test.op"() : () -> memref<4x4xf32>
-  linalg.generic {
-      indexing_maps = [
           affine_map<(i, j) -> (i + j)>,
           affine_map<(i, j) -> (i, j)>
       ],

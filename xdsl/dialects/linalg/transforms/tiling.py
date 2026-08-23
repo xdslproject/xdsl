@@ -21,6 +21,11 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
+# iv + index, the index a tiled iteration would have had before it was tiled.
+_INDEX_OFFSET_MAP = AffineMapAttr(
+    AffineMap(2, 0, (AffineExpr.dimension(0) + AffineExpr.dimension(1),))
+)
+
 # min(tile, ub - iv), the size of a tile that may run past the end of its loop.
 _PARTIAL_TILE_MIN_MAP = AffineMapAttr(
     AffineMap(
@@ -186,11 +191,6 @@ def _verify_generic_is_tileable(
         raise ValueError(
             "tiling linalg.generic with a mix of memref and tensor operands is "
             "not supported"
-        )
-
-    if any(isa(body_op, linalg.ops.IndexOp) for body_op in op.body.walk()):
-        raise ValueError(
-            "tiling linalg.generic using linalg.index is not supported yet"
         )
 
     # A reduction dimension is tiled like any other. It is absent from the output
@@ -512,6 +512,42 @@ def _build_tiled_insert(
     return insert_op.result
 
 
+def _offset_tiled_indices(
+    rewriter: PatternRewriter,
+    tiled_op: linalg.ops.GenericOp,
+    tiled_loop_ivs: dict[int, SSAValue],
+) -> None:
+    """
+    Give each `linalg.index` in a tiled body the index it read before tiling.
+
+    A `linalg.index` reads the position of the iteration it runs in. The tiled op
+    iterates over one tile, so it reads a position within that tile, and the
+    offset the tile starts at is added back to it. A dimension that was not tiled
+    is iterated over whole, so its index is already the one it was.
+    """
+
+    # A linalg.index can only be a direct child of the op whose iteration it
+    # reads, so the block itself is enough to find every one of them. They are
+    # taken before any is offset, since offsetting inserts into that same block,
+    # and paired with the offset to give them, which a dimension that was not
+    # tiled has none of.
+    index_ops = tuple(
+        (body_op, iv)
+        for body_op in tiled_op.body.block.ops
+        if isinstance(body_op, linalg.ops.IndexOp)
+        if (iv := tiled_loop_ivs.get(body_op.dim.value.data)) is not None
+    )
+
+    for body_op, iv in index_ops:
+        offset_op = affine.ApplyOp((body_op.result, iv), _INDEX_OFFSET_MAP)
+        rewriter.insert(offset_op, InsertPoint.after(body_op))
+        # Every reader of the index takes the offset one instead, other than the
+        # op doing the offsetting, which is left reading the index itself.
+        body_op.result.replace_uses_with_if(
+            offset_op.result, lambda use: use.operation is not offset_op
+        )
+
+
 def tile_linalg_generic(
     rewriter: PatternRewriter,
     op: linalg.ops.GenericOp,
@@ -581,6 +617,7 @@ def tile_linalg_generic(
         tuple(value.type for value in tiled_outputs) if has_tensor_outputs else (),
     )
     rewriter.insert(tiled_generic, inner_ip)
+    _offset_tiled_indices(rewriter, tiled_generic, tiled_loop_ivs)
 
     # Memref outputs are written through their subview, so only tensor outputs
     # need their computed tile written back into the value being carried.
