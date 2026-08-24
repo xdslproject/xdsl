@@ -27,119 +27,23 @@ The ``Callable[...]`` argument to :meth:`JITContext.jit` is the ABI signature us
 for marshalling. It is passed explicitly so annotations need not be evaluated.
 """
 
-import abc
 from collections.abc import Callable
-from ctypes import c_double
 from dataclasses import dataclass
-from typing import ParamSpec
 
 import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
-from typing_extensions import TypeForm, TypeVar
 
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm
-from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.jit.c_type_context import CTypeContext, register_builtin_ctypes
-from xdsl.jit.function import (
-    CFunc,
-    CFuncType,
-    RawJITFunc,
-    WrappedJITFunc,
-    wrap_jit_func,
-)
+from xdsl.jit.c_type_context import register_builtin_ctypes
+from xdsl.jit.context import JITBackend, JITContext, register_builtin_type_maps
+from xdsl.jit.function import CFunc, CFuncType, RawJITFunc
 from xdsl.jit.llvm.c_type_context import register_llvm_ctypes, to_c_func_type
-from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
-
-P = ParamSpec("P")
-R = TypeVar("R")
-
-# --- Driver / backend interface (xdsl.jit) ---
-
-
-class JITBackend(abc.ABC):
-    """
-    Compile a module symbol to a :class:`RawJITFunc`.
-
-    Implementations receive the module produced by the frontend, lower it to the
-    backend’s dialect, and bind ``symbol`` for native calls.
-    """
-
-    c_type_context: CTypeContext
-    """IR type attribute to ctypes type registry."""
-
-    def __init__(self):
-        """Initialize an empty :class:`CTypeContext`."""
-        super().__init__()
-        self.c_type_context = CTypeContext()
-
-    @abc.abstractmethod
-    def jit(
-        self,
-        mlir_module: builtin.ModuleOp,
-        symbol: str,
-        ir_context: Context,
-    ) -> RawJITFunc:
-        """Lower ``mlir_module`` and JIT-compile ``symbol``."""
-        ...
-
-
-class JITContext:
-    """
-    Configure frontend, Python ctypes bridges, and backend into a ``@jit`` decorator.
-
-    Authors register types, operations, and dialects on :attr:`pyast_ctx`, extend
-    type converters for ABI types, and supply a :class:`JITBackend`. End users apply
-    :meth:`jit`.
-    """
-
-    pyast_ctx: PyASTContext
-    """Frontend used to parse Python functions into IR."""
-
-    py_type_context: PyTypeContext
-    """Python value to ctypes marshalling registry."""
-
-    jit_backend: JITBackend
-    """Backend that lowers IR and produces a :class:`RawJITFunc`."""
-
-    def __init__(self, jit_backend: JITBackend):
-        """Create empty frontend and type-converter state around ``jit_backend``."""
-        self.pyast_ctx = PyASTContext()
-        self.py_type_context = PyTypeContext()
-        self.jit_backend = jit_backend
-
-    def jit(
-        self, signature: TypeForm[Callable[P, R]]
-    ) -> Callable[[Callable[P, R]], WrappedJITFunc[P, R]]:
-        """Return a decorator that JIT-compiles a function with ``signature``."""
-
-        def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
-            parsed_program = self.pyast_ctx.parse_program(func)
-            raw = self.jit_backend.jit(
-                parsed_program.module,
-                parsed_program.name,
-                self.pyast_ctx.ir_context,
-            )
-            return wrap_jit_func(raw, func, signature, self.py_type_context)
-
-        return inner
-
-
-def register_default_type_conversion(ctx: JITContext) -> None:
-    """
-    Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
-
-    Updates the frontend type map and the :class:`PyTypeContext` together. The
-    backend registers the IR side on its own :class:`CTypeContext`.
-    """
-    ctx.pyast_ctx.register_type(float, builtin.f64)
-    ctx.py_type_context.register_type_map(TypeMap(float, c_double, c_double, float))
-
 
 # --- LLVM / llvmlite backend (xdsl.jit.llvm) ---
 
@@ -255,7 +159,7 @@ ctx.pyast_ctx.register_dialect(arith.Arith)
 ctx.pyast_ctx.register_dialect(builtin.Builtin)
 ctx.pyast_ctx.register_dialect(func.Func)
 
-register_default_type_conversion(ctx)
+register_builtin_type_maps(ctx)
 
 # --- Example: end-user code ---
 
