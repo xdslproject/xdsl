@@ -55,6 +55,20 @@ class X86Arch(Arch):
                 f"{sorted(_ARCH_BY_NAME)}."
             ) from None
 
+    def default_allocatable_registers(self) -> tuple[X86RegisterType, ...]:
+        """
+        The registers the allocator may use on this target.
+
+        The upper half of each vector bank, xmm16-31 and ymm16-31, is only
+        reachable through EVEX, so it exists on AVX-512 targets and nowhere
+        else. Every vector bank shares one allocation pool, so the vector half
+        is indexed off a single bank rather than listing each of them.
+        """
+        return (
+            *Reg64Type.allocatable_registers(),
+            *AVX2RegisterType.allocatable_registers()[:16],
+        )
+
     def _register_type_for_vector_type(
         self, value_type: VectorType
     ) -> type[X86VectorRegisterType]:
@@ -196,6 +210,12 @@ class AVX512Arch(X86Arch):
         256: AVX2RegisterType,
         512: AVX512RegisterType,
     }
+
+    def default_allocatable_registers(self) -> tuple[X86RegisterType, ...]:
+        return (
+            *Reg64Type.allocatable_registers(),
+            *AVX2RegisterType.allocatable_registers(),
+        )
 
 
 AVX512 = AVX512Arch()
