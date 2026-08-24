@@ -24,7 +24,7 @@ from xdsl.dialects.linalg.transforms.tiling import (
     _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
     _build_tiled_insert,  # pyright: ignore[reportPrivateUsage]
     _build_tiled_slice,  # pyright: ignore[reportPrivateUsage]
-    tile_linalg_generic,
+    tile_structured_op,
 )
 from xdsl.ir import Attribute, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
@@ -96,10 +96,10 @@ def _generic_2d_copy_op(
     )
 
 
-def test_tiling_plan_analyze_generic_op():
+def test_tiling_plan_analyze():
     op = _generic_2d_copy_op()
 
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.loop_ranges == (4, 5)
     assert plan.tiled_dims == (0,)
@@ -112,10 +112,10 @@ def test_tiling_plan_analyze_generic_op():
     assert plan.operand_infos[1].loop_dims == (0, 1)
 
 
-def test_tiling_plan_analyze_generic_op_without_tiled_dims():
+def test_tiling_plan_analyze_without_tiled_dims():
     op = _generic_2d_copy_op()
 
-    plan = TilingPlan.analyze_generic_op(op, (0, 0))
+    plan = TilingPlan.analyze(op, (0, 0))
 
     assert plan.loop_ranges == ()
     assert plan.tiled_dims == ()
@@ -128,7 +128,7 @@ def test_tiling_plan_rejects_negative_tile_size():
     op = _generic_2d_copy_op()
 
     with pytest.raises(ValueError, match="negative tile sizes"):
-        TilingPlan.analyze_generic_op(op, (-1, 0))
+        TilingPlan.analyze(op, (-1, 0))
 
 
 def test_tiling_plan_accepts_tensor_operands():
@@ -138,7 +138,7 @@ def test_tiling_plan_accepts_tensor_operands():
         result_types=(TensorType(f32, [4, 5]),),
     )
 
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.loop_ranges == (4, 5)
     assert plan.tiled_dims == (0,)
@@ -148,7 +148,7 @@ def test_tiling_plan_accepts_tensor_operands():
 def test_tiling_plan_tiles_linalg_index():
     op = _generic_2d_copy_op(use_index=True)
 
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.tiled_dims == (0,)
 
@@ -161,7 +161,7 @@ def test_tiling_plan_tiles_a_non_parallel_iterator():
         ]
     )
 
-    plan = TilingPlan.analyze_generic_op(op, (0, 2))
+    plan = TilingPlan.analyze(op, (0, 2))
 
     assert plan.tiled_dims == (1,)
 
@@ -170,7 +170,7 @@ def test_tiling_plan_rejects_operand_that_is_neither_memref_nor_tensor():
     op = _generic_2d_copy_op(input_type=VectorType(f32, [4, 5]))
 
     with pytest.raises(NotImplementedError, match="neither memrefs nor tensors"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+        TilingPlan.analyze(op, (2, 0))
 
 
 def test_tiling_plan_rejects_mixed_memref_and_tensor_operands():
@@ -182,7 +182,7 @@ def test_tiling_plan_rejects_mixed_memref_and_tensor_operands():
     )
 
     with pytest.raises(ValueError, match="mix of memref and tensor operands"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+        TilingPlan.analyze(op, (2, 0))
 
 
 def test_tiling_plan_rejects_mixed_memref_and_tensor_outputs():
@@ -208,7 +208,7 @@ def test_tiling_plan_rejects_mixed_memref_and_tensor_outputs():
     )
 
     with pytest.raises(ValueError, match="mix of memref and tensor operands"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+        TilingPlan.analyze(op, (2, 0))
 
 
 def test_tiling_plan_marks_a_dynamic_range_partial():
@@ -219,7 +219,7 @@ def test_tiling_plan_marks_a_dynamic_range_partial():
         output_type=MemRefType(f32, [DYNAMIC_INDEX, 5]),
     )
 
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.tiled_dims == (0,)
     assert plan.partial_tiled_dims == frozenset({0})
@@ -232,7 +232,7 @@ def test_tiling_plan_tiles_a_dim_whose_tile_size_is_not_static():
     # Tiling by zero means leaving a dimension alone, and a size that is not
     # known until the op runs cannot be shown to be zero, so the dimension is
     # tiled. It cannot be shown to divide the range either, so it is partial.
-    plan = TilingPlan.analyze_generic_op(op, (tile_size, 0))
+    plan = TilingPlan.analyze(op, (tile_size, 0))
 
     assert plan.tiled_dims == (0,)
     assert plan.partial_tiled_dims == frozenset({0})
@@ -252,14 +252,14 @@ def test_tiling_plan_rejects_non_projected_permutation_map():
     )
 
     with pytest.raises(ValueError, match="non-projected-permutation indexing maps"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+        TilingPlan.analyze(op, (2, 0))
 
 
 def test_tiling_plan_marks_dims_with_a_leftover_tile():
     op = _generic_2d_copy_op()
 
     # Dim 0 has range 4 and tile size 3, so its last tile holds one element.
-    plan = TilingPlan.analyze_generic_op(op, (3, 0))
+    plan = TilingPlan.analyze(op, (3, 0))
 
     assert plan.tiled_dims == (0,)
     assert plan.partial_tiled_dims == frozenset({0})
@@ -269,7 +269,7 @@ def test_tiling_plan_marks_no_dims_partial_when_tiles_divide():
     op = _generic_2d_copy_op()
 
     # Range 4 divides by tile size 2, so every tile is whole.
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.tiled_dims == (0,)
     assert plan.partial_tiled_dims == frozenset()
@@ -279,7 +279,7 @@ def test_tiling_plan_marks_a_tile_larger_than_its_range_partial():
     op = _generic_2d_copy_op()
 
     # A tile bigger than the range gives one iteration covering the whole range.
-    plan = TilingPlan.analyze_generic_op(op, (8, 0))
+    plan = TilingPlan.analyze(op, (8, 0))
 
     assert plan.partial_tiled_dims == frozenset({0})
 
@@ -465,9 +465,9 @@ def test_build_tile_loops_threads_iter_args():
         assert loop.body.block.args[1].type == init.type
 
 
-def test_tile_linalg_generic_returns_false_without_tiled_dims():
+def test_tile_structured_op_returns_false_without_tiled_dims():
     op = _generic_2d_copy_op()
     ModuleOp([op])
     rewriter = PatternRewriter(op)
 
-    assert not tile_linalg_generic(rewriter, op, (0, 0))
+    assert not tile_structured_op(rewriter, op, (0, 0))

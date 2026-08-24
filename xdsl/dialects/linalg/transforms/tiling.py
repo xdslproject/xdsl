@@ -101,12 +101,12 @@ class TilingPlan:
     tile_sizes: tuple[SSAValue | int, ...]
 
     @staticmethod
-    def analyze_generic_op(
-        op: linalg.ops.GenericOp,
+    def analyze(
+        op: linalg.abstract_ops.LinalgStructuredOperation,
         tile_sizes: Sequence[SSAValue | int],
     ) -> "TilingPlan":
         """
-        Analyze one supported `linalg.generic` and return a `TilingPlan`.
+        Analyze one supported structured linalg op and return a `TilingPlan`.
         """
 
         num_loops = op.get_num_loops()
@@ -132,7 +132,7 @@ class TilingPlan:
                 tile_sizes=normalized_tile_sizes,
             )
 
-        loop_ranges = _verify_generic_is_tileable(
+        loop_ranges = _verify_is_tileable(
             op,
             normalized_tile_sizes,
             tiled_dims,
@@ -166,13 +166,13 @@ class TilingPlan:
         )
 
 
-def _verify_generic_is_tileable(
-    op: linalg.ops.GenericOp,
+def _verify_is_tileable(
+    op: linalg.abstract_ops.LinalgStructuredOperation,
     tile_sizes: Sequence[SSAValue | int],
     tiled_dims: Sequence[int],
 ) -> tuple[int, ...]:
     """
-    Check whether a `linalg.generic` is safe to tile.
+    Check whether a structured linalg op is safe to tile.
     """
 
     if any(
@@ -189,7 +189,7 @@ def _verify_generic_is_tileable(
         isa(operand_type, TensorType) for operand_type in operand_types
     ):
         raise ValueError(
-            "tiling linalg.generic with a mix of memref and tensor operands is "
+            "tiling a linalg op with a mix of memref and tensor operands is "
             "not supported"
         )
 
@@ -208,20 +208,20 @@ def _verify_generic_is_tileable(
             raw_operand_type, TensorType
         ):
             raise NotImplementedError(
-                "tiling linalg.generic with operands that are neither memrefs nor "
+                "tiling a linalg op with operands that are neither memrefs nor "
                 "tensors is not supported yet"
             )
 
         if not indexing_map.is_projected_permutation():
             raise ValueError(
-                "tiling linalg.generic with non-projected-permutation indexing maps is not supported yet"
+                "tiling a linalg op with non-projected-permutation indexing maps is not supported yet"
             )
 
     return op.get_static_loop_ranges()
 
 
 def _loop_range_sources(
-    op: linalg.ops.GenericOp, plan: TilingPlan
+    op: linalg.abstract_ops.LinalgStructuredOperation, plan: TilingPlan
 ) -> dict[int, tuple[SSAValue, int]]:
     """
     Say where the range of each tiled loop can be read from when it is not known
@@ -291,7 +291,7 @@ def _build_tile_loops(
     Return:
         - `loops`: the outer `scf.for` ops, outermost first
         - `tiled_loop_ivs`: a map from loop dimensions to induction variables
-        - `current_insertion_point`: the place to insert `tiled subview` and the `tiled generic`
+        - `current_insertion_point`: the place to insert `tiled subview` and the tiled op
     """
 
     index = IndexType()
@@ -514,7 +514,7 @@ def _build_tiled_insert(
 
 def _offset_tiled_indices(
     rewriter: PatternRewriter,
-    tiled_op: linalg.ops.GenericOp,
+    tiled_op: linalg.abstract_ops.LinalgStructuredOperation,
     tiled_loop_ivs: dict[int, SSAValue],
 ) -> None:
     """
@@ -548,16 +548,16 @@ def _offset_tiled_indices(
         )
 
 
-def tile_linalg_generic(
+def tile_structured_op(
     rewriter: PatternRewriter,
-    op: linalg.ops.GenericOp,
+    op: linalg.abstract_ops.LinalgStructuredOperation,
     tile_sizes: Sequence[SSAValue | int],
 ) -> bool:
     """
-    Rewrite supported `linalg.generic` ops into tiled formed.
+    Rewrite supported structured linalg ops into tiled form.
     """
     try:
-        plan = TilingPlan.analyze_generic_op(op, tile_sizes)
+        plan = TilingPlan.analyze(op, tile_sizes)
     except (ValueError, NotImplementedError) as e:
         raise PassFailedException(str(e)) from e
 
@@ -608,16 +608,19 @@ def tile_linalg_generic(
     ]
 
     tiled_outputs = tiled_operands[num_inputs:]
-    tiled_generic = linalg.ops.GenericOp(
-        tiled_operands[:num_inputs],
-        tiled_outputs,
-        op.body.clone(),
-        op.get_indexing_maps(),
-        op.get_iterator_types(),
-        tuple(value.type for value in tiled_outputs) if has_tensor_outputs else (),
+    # A tile is the same op over its slices, whatever op that is, so it is built
+    # as one of those rather than as a generic. A named op says what it computes
+    # by which op it is, which tiling it has no reason to take away from it.
+    tiled_op = type(op).create(
+        operands=tiled_operands,
+        result_types=(
+            tuple(value.type for value in tiled_outputs) if has_tensor_outputs else ()
+        ),
+        properties=dict(op.properties),
+        regions=[op.body.clone()],
     )
-    rewriter.insert(tiled_generic, inner_ip)
-    _offset_tiled_indices(rewriter, tiled_generic, tiled_loop_ivs)
+    rewriter.insert(tiled_op, inner_ip)
+    _offset_tiled_indices(rewriter, tiled_op, tiled_loop_ivs)
 
     # Memref outputs are written through their subview, so only tensor outputs
     # need their computed tile written back into the value being carried.
@@ -627,7 +630,7 @@ def tile_linalg_generic(
                 rewriter, inner_ip, tiled_result, destination, parameters
             )
             for tiled_result, destination, parameters in zip(
-                tiled_generic.res, carried, slice_parameters[num_inputs:], strict=True
+                tiled_op.res, carried, slice_parameters[num_inputs:], strict=True
             )
         )
         if has_tensor_outputs

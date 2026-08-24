@@ -36,7 +36,7 @@ builtin.module {
   }) {test_tile_sizes = array<i32: 2, 2>} : (tensor<4x4xf32>, tensor<4x4xf32>, memref<4x4xf32>) -> tensor<4x4xf32>
   "test.op"(%result) : (tensor<4x4xf32>) -> ()
 }
-// CHECK: tiling linalg.generic with a mix of memref and tensor operands is not supported
+// CHECK: tiling a linalg op with a mix of memref and tensor operands is not supported
 
 // -----
 
@@ -54,7 +54,7 @@ builtin.module {
       linalg.yield %out : f32
   }
 }
-// CHECK: tiling linalg.generic with a mix of memref and tensor operands is not supported
+// CHECK: tiling a linalg op with a mix of memref and tensor operands is not supported
 
 // -----
 
@@ -72,7 +72,7 @@ builtin.module {
       linalg.yield %in : f32
   }
 }
-// CHECK: tiling linalg.generic with non-projected-permutation indexing maps is not supported yet
+// CHECK: tiling a linalg op with non-projected-permutation indexing maps is not supported yet
 
 // -----
 

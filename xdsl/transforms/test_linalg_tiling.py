@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ModuleOp,
 )
-from xdsl.dialects.linalg.transforms.tiling import tile_linalg_generic
+from xdsl.dialects.linalg.transforms.tiling import tile_structured_op
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -21,9 +21,9 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-class TileLinalgGenericFromAttributePattern(RewritePattern):
+class TileLinalgFromAttributePattern(RewritePattern):
     """
-    Rewrite supported `linalg.generic` ops annotated with `test_tile_sizes` into
+    Rewrite supported structured linalg ops annotated with `test_tile_sizes` into
     tiled form.
 
     A tile size is normally taken straight from that attribute. Dimensions named
@@ -34,7 +34,10 @@ class TileLinalgGenericFromAttributePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.ops.GenericOp, rewriter: PatternRewriter, /
+        self,
+        op: linalg.abstract_ops.LinalgStructuredOperation,
+        rewriter: PatternRewriter,
+        /,
     ) -> None:
 
         tile_sizes_attr = op.attributes.get("test_tile_sizes")
@@ -52,19 +55,19 @@ class TileLinalgGenericFromAttributePattern(RewritePattern):
                 rewriter.insert(tile_size_op, InsertPoint.before(op))
                 tile_sizes[dim] = tile_size_op.res[0]
 
-        tile_linalg_generic(rewriter, op, tile_sizes)
+        tile_structured_op(rewriter, op, tile_sizes)
 
 
 @dataclass(frozen=True)
 class TestLinalgTilingPass(ModulePass):
     """
-    Tile supported memref-based `linalg.generic` ops annotated with `test_tile_sizes`.
+    Tile supported structured linalg ops annotated with `test_tile_sizes`.
     """
 
     name = "test-linalg-tiling"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            TileLinalgGenericFromAttributePattern(),
+            TileLinalgFromAttributePattern(),
             apply_recursively=False,
         ).rewrite_module(op)
