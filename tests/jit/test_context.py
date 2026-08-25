@@ -78,3 +78,15 @@ def test_register_builtin_type_maps(jit_context: JITContext):
     assert jit_context.py_type_context.type_map(float) == TypeMap(
         float, ctypes.c_double, ctypes.c_double, float
     )
+
+
+# only resolves in this module
+LocalFloat = float
+
+
+def test_jit_resolves_annotations_from_the_defining_module(jit_context: JITContext):
+    @jit_context.jit(Callable[[float, float], float])
+    def plus(a: LocalFloat, b: LocalFloat) -> LocalFloat:
+        return a + b
+
+    assert plus(3.0, 4.0) == -1.0  # `subtract` and not `plus` in mock backend
