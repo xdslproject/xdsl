@@ -30,7 +30,7 @@ class CTypeContext:
         """Register how ``attr_type`` instances map to a C type."""
         self.registry[attr_type] = converter
 
-    def to_type(self, type_attr: Attribute) -> str:
+    def to_c_type(self, type_attr: Attribute) -> str:
         """Return the C type for ``type_attr``."""
         try:
             converter = self.registry[type(type_attr)]
