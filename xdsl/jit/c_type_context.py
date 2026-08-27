@@ -6,7 +6,7 @@ from xdsl.ir import Attribute
 from xdsl.utils.exceptions import JITException
 
 
-class CFuncType(NamedTuple):
+class CFuncSignature(NamedTuple):
     """C function signature."""
 
     inputs: tuple[str, ...]
