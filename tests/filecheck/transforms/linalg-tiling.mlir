@@ -607,3 +607,113 @@ linalg.matmul {test_tile_sizes = array<i32: 2, 2, 0>} ins(%A, %B : memref<4x6xf3
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "test.op"(%D) : (tensor<4x4xf32>) -> ()
 // CHECK-NEXT: }
+
+// -----
+
+// An indexing map result that reads more than one loop, so that the operand
+// dimension it addresses is not one loop's to tile. It is read from where the
+// tiled loop is and spans the loops it reads together, the tile of 2 in the
+// first and the whole 4 of the second reaching 5 elements.
+
+%A, %C = "test.op"() : () -> (memref<8xf32>, memref<4x4xf32>)
+
+linalg.generic {
+  indexing_maps = [affine_map<(d0, d1) -> (d0 + d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : memref<8xf32>) outs(%C : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 0>} {
+^bb0(%a: f32, %c: f32):
+  linalg.yield %a : f32
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %C = "test.op"() : () -> (memref<8xf32>, memref<4x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 4 : index
+// CHECK-NEXT:   %2 = arith.constant 2 : index
+// CHECK-NEXT:   scf.for %3 = %0 to %1 step %2 {
+// CHECK-NEXT:     %4 = memref.subview %A[%3] [5] [1] : memref<8xf32> to memref<5xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:     %5 = memref.subview %C[%3, 0] [2, 4] [1, 1] : memref<4x4xf32> to memref<2x4xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ((d0 + d1))>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%4 : memref<5xf32, strided<[1], offset: ?>>) outs(%5 : memref<2x4xf32, strided<[4, 1], offset: ?>>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %c: f32):
+// CHECK-NEXT:       linalg.yield %a : f32
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+// A result that steps through its operand rather than walking it, and one that
+// is offset by a constant. The stride is left at one and taken up by the size,
+// which spans what the tile reaches, and the constant drops out of the offset,
+// which the operand is not moved along by.
+
+%A, %B, %C = "test.op"() : () -> (memref<16xf32>, memref<16xf32>, memref<8xf32>)
+
+linalg.generic {
+  indexing_maps = [affine_map<(d0) -> (d0 * 2)>, affine_map<(d0) -> (d0 + 3)>, affine_map<(d0) -> (d0)>],
+  iterator_types = ["parallel"]
+} ins(%A, %B : memref<16xf32>, memref<16xf32>) outs(%C : memref<8xf32>) attrs = {test_tile_sizes = array<i32: 4>} {
+^bb0(%a: f32, %b: f32, %c: f32):
+  %s = arith.addf %a, %b : f32
+  linalg.yield %s : f32
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %B, %C = "test.op"() : () -> (memref<16xf32>, memref<16xf32>, memref<8xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 8 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   scf.for %3 = %0 to %1 step %2 {
+// CHECK-NEXT:     %4 = affine.apply affine_map<(d0) -> ((d0 * 2))> (%3)
+// CHECK-NEXT:     %5 = memref.subview %A[%4] [7] [1] : memref<16xf32> to memref<7xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:     %6 = memref.subview %B[%3] [7] [1] : memref<16xf32> to memref<7xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:     %7 = memref.subview %C[%3] [4] [1] : memref<8xf32> to memref<4xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:     linalg.generic {indexing_maps = [affine_map<(d0) -> ((d0 * 2))>, affine_map<(d0) -> ((d0 + 3))>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%5, %6 : memref<7xf32, strided<[1], offset: ?>>, memref<7xf32, strided<[1], offset: ?>>) outs(%7 : memref<4xf32, strided<[1], offset: ?>>) {
+// CHECK-NEXT:     ^bb0(%a: f32, %b: f32, %c: f32):
+// CHECK-NEXT:       %s = arith.addf %a, %b : f32
+// CHECK-NEXT:       linalg.yield %s : f32
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+// One operand read two ways at once, where a tile size divides one loop and not
+// the other. The first dimension is read from both loops and spans a tile of
+// each, which the loop it does not divide leaves running to a size worked out as
+// the op runs. The second is read from the loop that is divided alone, so its
+// span is known here and no work is left for the op to do.
+
+%A, %C = "test.op"() : () -> (memref<9x7xf32>, memref<6x4xf32>)
+
+linalg.generic {
+  indexing_maps = [affine_map<(d0, d1) -> (d0 + d1, d1 * 2)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : memref<9x7xf32>) outs(%C : memref<6x4xf32>) attrs = {test_tile_sizes = array<i32: 4, 2>} {
+^bb0(%a: f32, %c: f32):
+  linalg.yield %a : f32
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %A, %C = "test.op"() : () -> (memref<9x7xf32>, memref<6x4xf32>)
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 6 : index
+// CHECK-NEXT:   %2 = arith.constant 4 : index
+// CHECK-NEXT:   %3 = arith.constant 4 : index
+// CHECK-NEXT:   %4 = arith.constant 2 : index
+// CHECK-NEXT:   scf.for %5 = %0 to %1 step %3 {
+// CHECK-NEXT:     scf.for %6 = %0 to %2 step %4 {
+// CHECK-NEXT:       %7 = affine.min affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))> (%3, %1, %5)
+// CHECK-NEXT:       %8 = affine.apply affine_map<(d0) -> ((d0 + -1))> (%7)
+// CHECK-NEXT:       %9 = affine.apply affine_map<(d0, d1) -> ((d0 + d1))> (%5, %6)
+// CHECK-NEXT:       %10 = affine.apply affine_map<(d0) -> ((d0 + 2))> (%8)
+// CHECK-NEXT:       %11 = affine.apply affine_map<(d0, d1) -> ((d1 * 2))> (%5, %6)
+// CHECK-NEXT:       %12 = memref.subview %A[%9, %11] [%10, 3] [1, 1] : memref<9x7xf32> to memref<?x3xf32, strided<[7, 1], offset: ?>>
+// CHECK-NEXT:       %13 = memref.subview %C[%5, %6] [%7, 2] [1, 1] : memref<6x4xf32> to memref<?x2xf32, strided<[4, 1], offset: ?>>
+// CHECK-NEXT:       linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ((d0 + d1), (d1 * 2))>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%12 : memref<?x3xf32, strided<[7, 1], offset: ?>>) outs(%13 : memref<?x2xf32, strided<[4, 1], offset: ?>>) {
+// CHECK-NEXT:       ^bb0(%a: f32, %c: f32):
+// CHECK-NEXT:         linalg.yield %a : f32
+// CHECK-NEXT:       }
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
