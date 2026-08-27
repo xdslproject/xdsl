@@ -4,9 +4,8 @@ import textwrap
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from inspect import currentframe, getsource
+from inspect import getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from types import FrameType
 from typing import Any, NamedTuple
 
 from xdsl.context import Context
@@ -105,20 +104,10 @@ class PyASTContext:
         return PassPipeline(tuple(self.post_transforms), self.post_callback)
 
     @classmethod
-    def _get_func_info(
-        cls,
-        current_frame: FrameType | None,
-        func: Callable[P, R],
-    ) -> FuncInfo:
+    def _get_func_info(cls, func: Callable[P, R]) -> FuncInfo:
         """Get information about the decorated function."""
-        # Get the correct function frame from the call stack
-        assert current_frame is not None
-        func_frame = current_frame.f_back
-        assert func_frame is not None
-
-        # Get the required information about the function from the frame
-        func_file = func_frame.f_code.co_filename
-        func_globals = func_frame.f_globals
+        func_file = func.__code__.co_filename
+        func_globals = func.__globals__
 
         # Remove leading indentation from the source code to avoid parsing errors
         source = getsource(func.__code__)
@@ -150,7 +139,7 @@ class PyASTContext:
 
     def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
-        func_file, func_globals, func_ast = self._get_func_info(currentframe(), func)
+        func_file, func_globals, func_ast = self._get_func_info(func)
         builder = PyASTBuilder(
             type_registry=self.type_registry,
             function_registry=self.function_registry,
