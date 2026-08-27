@@ -88,10 +88,10 @@ def wrap_jit_func(
             raise TypeError(
                 f"JIT function expects {arg_count} arguments, got {len(args)}"
             )
-        call_args = [
+        call_args = tuple(
             arg if converter is None else converter(arg)
             for converter, arg in zip(arg_converters, args)
-        ]
+        )
         result = c_func(*call_args)
         if result_converter is not None:
             result = result_converter(result)
