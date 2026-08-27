@@ -83,26 +83,26 @@ def llvm_jit(
 ) -> LLVMRawJITFunc:
     """Compile ``llvm_module`` with MCJIT and bind ``symbol`` to ``c_func_type``."""
     llvm_ir_text = str(llvm_module)
-    llvmlite.binding.initialize_native_target()  # pyright: ignore
-    llvmlite.binding.initialize_native_asmprinter()  # pyright: ignore
+    llvmlite.binding.initialize_native_target()
+    llvmlite.binding.initialize_native_asmprinter()
 
-    target = llvmlite.binding.Target.from_default_triple()  # pyright: ignore
-    target_machine = target.create_target_machine()  # pyright: ignore
-    backing_mod = llvmlite.binding.parse_assembly(llvm_ir_text)  # pyright: ignore
-    engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)  # pyright: ignore
-    engine.finalize_object()  # pyright: ignore
-    engine.run_static_constructors()  # pyright: ignore
+    target = llvmlite.binding.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_mod = llvmlite.binding.parse_assembly(llvm_ir_text)
+    engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
+    engine.finalize_object()
+    engine.run_static_constructors()
 
-    func_ptr = engine.get_function_address(symbol)  # pyright: ignore
-    c_types_fn = c_func_type(func_ptr)  # pyright: ignore
+    func_ptr = engine.get_function_address(symbol)
+    c_types_fn = c_func_type(func_ptr)
 
     keepalive = LLVMRawJITFunc(
         c_func_type,
         c_types_fn,
-        target=target,  # pyright: ignore
-        target_machine=target_machine,  # pyright: ignore
-        backing_mod=backing_mod,  # pyright: ignore
-        engine=engine,  # pyright: ignore
+        target=target,
+        target_machine=target_machine,
+        backing_mod=backing_mod,
+        engine=engine,
     )
 
     return keepalive
