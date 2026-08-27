@@ -12,7 +12,7 @@ from llvmlite.binding.targets import Target, TargetMachine
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.context import Context
 from xdsl.dialects import builtin, llvm
-from xdsl.jit.c_type_context import CFuncType, register_builtin_types
+from xdsl.jit.c_type_context import CFuncSignature, register_builtin_types
 from xdsl.jit.context import JITBackend
 from xdsl.jit.function import CFunc, RawJITFunc
 from xdsl.jit.llvm.c_type_context import register_llvm_types, to_c_func_type
@@ -41,7 +41,7 @@ _FFI = FFI()
 
 
 def llvm_jit(
-    llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncType
+    llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
 ) -> LLVMRawJITFunc:
     """Compile ``llvm_module`` with MCJIT and expose ``symbol`` through CFFI ABI mode."""
     llvmlite.binding.initialize_native_target()

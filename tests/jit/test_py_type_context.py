@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from typing_extensions import TypeForm
 
-from xdsl.jit.c_type_context import CFuncType
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.utils.exceptions import JITException
 
@@ -38,20 +38,20 @@ def test_func_type_map(ctx: PyTypeContext):
     [
         (
             Callable[[float, int], bool],
-            CFuncType(("double", "int32_t"), "_Bool"),
+            CFuncSignature(("double", "int32_t"), "_Bool"),
         ),
         (
             Callable[[float, float], bool],
-            CFuncType(("double", "double"), "_Bool"),
+            CFuncSignature(("double", "double"), "_Bool"),
         ),
-        (Callable[[], float], CFuncType((), "double")),
+        (Callable[[], float], CFuncSignature((), "double")),
     ],
     ids=["distinct-args", "repeated-args", "no-args"],
 )
 def test_c_func_type(
     ctx: PyTypeContext,
     signature: TypeForm[Callable[..., Any]],
-    expected: CFuncType,
+    expected: CFuncSignature,
 ):
     assert ctx.func_type_map(signature).c_func_type() == expected
 

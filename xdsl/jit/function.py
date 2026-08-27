@@ -4,7 +4,7 @@ from typing import Any, Generic, ParamSpec, Protocol, cast
 
 from typing_extensions import TypeForm, TypeVar
 
-from xdsl.jit.c_type_context import CFuncType
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.py_type_context import PyTypeContext
 from xdsl.utils.exceptions import JITException
 
@@ -24,7 +24,7 @@ class RawJITFunc:
     calls through ``c_func``.
     """
 
-    c_func_type: CFuncType
+    c_func_type: CFuncSignature
     """Native function signature."""
 
     c_func: CFunc
@@ -83,7 +83,9 @@ def wrap_jit_func(
 
     arg_count = len(arg_converters)
 
-    def fn(*args: Any) -> Any:
+    def fn(*args: P.args, **kwargs: P.kwargs) -> R:
+        if kwargs:
+            raise JITException("JIT functions do not support keyword arguments.")
         if len(args) != arg_count:
             raise TypeError(
                 f"JIT function expects {arg_count} arguments, got {len(args)}"
@@ -97,4 +99,4 @@ def wrap_jit_func(
             result = result_converter(result)
         return result
 
-    return WrappedJITFunc(raw_func, original_func, cast(Callable[P, R], fn))
+    return WrappedJITFunc(raw_func, original_func, fn)

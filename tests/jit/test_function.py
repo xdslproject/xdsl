@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import pytest
 
-from xdsl.jit.c_type_context import CFuncType
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.function import RawJITFunc, wrap_jit_func
 from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.utils.exceptions import JITException
@@ -36,7 +36,7 @@ def test_wrap_jit_func_converts_arguments_and_result():
     def subtract(lhs: int, rhs: int) -> int:
         return lhs - rhs
 
-    c_func_type = CFuncType(("int64_t", "int64_t"), "int64_t")
+    c_func_type = CFuncSignature(("int64_t", "int64_t"), "int64_t")
     raw_jit_func = RawJITFunc(c_func_type, subtract)
     wrapped_func = wrap_jit_func(
         raw_jit_func,
@@ -61,7 +61,7 @@ def test_wrap_jit_func_rejects_mismatched_c_signature():
     def native_func(value: float) -> float:
         return value
 
-    raw_func = RawJITFunc(CFuncType(("double",), "double"), native_func)
+    raw_func = RawJITFunc(CFuncSignature(("double",), "double"), native_func)
 
     with pytest.raises(JITException, match="does not match signature"):
         wrap_jit_func(

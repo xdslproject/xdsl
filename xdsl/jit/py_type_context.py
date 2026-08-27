@@ -3,7 +3,7 @@ from typing import Any, NamedTuple, get_args
 
 from typing_extensions import TypeForm
 
-from xdsl.jit.c_type_context import CFuncType
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.utils.exceptions import JITException
 
 
@@ -33,9 +33,9 @@ class FuncTypeMap(NamedTuple):
     arg_maps: tuple[TypeMap, ...]
     res_map: TypeMap
 
-    def c_func_type(self) -> CFuncType:
+    def c_func_type(self) -> CFuncSignature:
         """Return the C function signature."""
-        return CFuncType(
+        return CFuncSignature(
             tuple(type_map.c_type for type_map in self.arg_maps),
             self.res_map.c_type,
         )

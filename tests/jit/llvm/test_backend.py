@@ -80,7 +80,7 @@ def test_lowering_is_applied():
 
 def test_backend_registers_llvm_types():
     c_type_context = LLVMJITBackend().c_type_context
-    assert c_type_context.to_type(llvm.LLVMPointerType()) == "void *"
+    assert c_type_context.to_c_type(llvm.LLVMPointerType()) == "void *"
 
 
 def test_missing_symbol_raises():

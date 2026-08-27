@@ -5,7 +5,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func
 from xdsl.frontend.pyast.program import PyASTProgram
-from xdsl.jit.c_type_context import CFuncType
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.context import JITBackend, JITContext, register_builtin_type_maps
 from xdsl.jit.function import RawJITFunc
 from xdsl.jit.py_type_context import TypeMap
@@ -32,7 +32,7 @@ class StubJITBackend(JITBackend):
         self.mlir_module = mlir_module
         self.symbol = symbol
         self.ir_context = ir_context
-        c_func_type = CFuncType(("double", "double"), "double")
+        c_func_type = CFuncSignature(("double", "double"), "double")
         self.raw_func = RawJITFunc(c_func_type, subtract)
         return self.raw_func
 

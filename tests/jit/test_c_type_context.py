@@ -10,7 +10,11 @@ from xdsl.dialects.builtin import (
     Signedness,
 )
 from xdsl.ir import Attribute
-from xdsl.jit.c_type_context import CFuncType, CTypeContext, register_builtin_types
+from xdsl.jit.c_type_context import (
+    CFuncSignature,
+    CTypeContext,
+    register_builtin_types,
+)
 from xdsl.utils.exceptions import JITException
 
 
@@ -37,7 +41,7 @@ def ctx() -> CTypeContext:
     ],
 )
 def test_builtin_resolve(ctx: CTypeContext, type_attr: Attribute, expected: str):
-    assert ctx.to_type(type_attr) == expected
+    assert ctx.to_c_type(type_attr) == expected
 
 
 @pytest.mark.parametrize(
@@ -52,13 +56,13 @@ def test_builtin_resolve(ctx: CTypeContext, type_attr: Attribute, expected: str)
 )
 def test_builtin_unsupported(ctx: CTypeContext, type_attr: Attribute, match: str):
     with pytest.raises(JITException, match=match):
-        ctx.to_type(type_attr)
+        ctx.to_c_type(type_attr)
 
 
 def test_to_c_func_type(ctx: CTypeContext):
     assert ctx.to_c_func_type(
         (Float64Type(), IntegerType(32)), Float64Type()
-    ) == CFuncType(("double", "int32_t"), "double")
+    ) == CFuncSignature(("double", "int32_t"), "double")
 
 
 def test_to_c_func_type_propagates_unmapped_type(ctx: CTypeContext):

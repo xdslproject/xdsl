@@ -40,10 +40,10 @@ class CTypeContext:
 
     def to_c_func_type(
         self, inputs: Iterable[Attribute], output: Attribute
-    ) -> CFuncType:
+    ) -> CFuncSignature:
         """Build a C function signature from IR argument and result types."""
-        return CFuncType(
-            tuple(self.to_type(arg) for arg in inputs), self.to_type(output)
+        return CFuncSignature(
+            tuple(self.to_c_type(arg) for arg in inputs), self.to_c_type(output)
         )
 
 
@@ -56,7 +56,7 @@ _INT_TYPE_BY_WIDTH = {
 }
 
 
-def _int_to_type(type_attr: IntegerType) -> str:
+def _int_to_c_type(type_attr: IntegerType) -> str:
     width = type_attr.width.data
     try:
         return _INT_TYPE_BY_WIDTH[width]
@@ -67,5 +67,5 @@ def _int_to_type(type_attr: IntegerType) -> str:
 def register_builtin_types(ctx: CTypeContext) -> None:
     ctx.register_type(Float32Type, lambda _: "float")
     ctx.register_type(Float64Type, lambda _: "double")
-    ctx.register_type(IntegerType, _int_to_type)
+    ctx.register_type(IntegerType, _int_to_c_type)
     ctx.register_type(NoneType, lambda _: "void")
