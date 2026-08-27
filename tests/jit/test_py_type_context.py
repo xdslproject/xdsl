@@ -1,16 +1,16 @@
-import ctypes
 from collections.abc import Callable
 from typing import Any
 
 import pytest
 from typing_extensions import TypeForm
 
+from xdsl.jit.c_type_context import CFuncType
 from xdsl.jit.py_type_context import PyTypeContext, TypeMap
 from xdsl.utils.exceptions import JITException
 
-FLOAT_MAP = TypeMap(float, ctypes.c_double, ctypes.c_double, float)
-INT_MAP = TypeMap(int, ctypes.c_int32, ctypes.c_int32, int)
-BOOL_MAP = TypeMap(bool, ctypes.c_bool, ctypes.c_bool, bool)
+FLOAT_MAP = TypeMap(float, "double")
+INT_MAP = TypeMap(int, "int32_t")
+BOOL_MAP = TypeMap(bool, "_Bool")
 
 
 @pytest.fixture
@@ -38,34 +38,22 @@ def test_func_type_map(ctx: PyTypeContext):
     [
         (
             Callable[[float, int], bool],
-            (ctypes.c_bool, ctypes.c_double, ctypes.c_int32),
+            CFuncType(("double", "int32_t"), "_Bool"),
         ),
         (
             Callable[[float, float], bool],
-            (ctypes.c_bool, ctypes.c_double, ctypes.c_double),
+            CFuncType(("double", "double"), "_Bool"),
         ),
-        (Callable[[], float], (ctypes.c_double,)),
+        (Callable[[], float], CFuncType((), "double")),
     ],
     ids=["distinct-args", "repeated-args", "no-args"],
 )
 def test_c_func_type(
     ctx: PyTypeContext,
     signature: TypeForm[Callable[..., Any]],
-    expected: tuple[type[Any], ...],
+    expected: CFuncType,
 ):
-    assert ctx.func_type_map(signature).c_func_type() is ctypes.CFUNCTYPE(*expected)
-
-
-def test_marshals_call(ctx: PyTypeContext):
-    def scale(value: float, count: int) -> float:
-        return value * count
-
-    func_type_map = ctx.func_type_map(Callable[[float, int], float])
-    c_func = func_type_map.c_func_type()(scale)
-    ctype_args = tuple(
-        m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, (1.5, 3), strict=True)
-    )
-    assert func_type_map.res_map.from_ctype(c_func(*ctype_args)) == 4.5
+    assert ctx.func_type_map(signature).c_func_type() == expected
 
 
 @pytest.mark.parametrize(

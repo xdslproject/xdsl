@@ -1,4 +1,3 @@
-import ctypes
 from collections.abc import Callable
 
 import pytest
@@ -6,6 +5,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func
 from xdsl.frontend.pyast.program import PyASTProgram
+from xdsl.jit.c_type_context import CFuncType
 from xdsl.jit.context import JITBackend, JITContext, register_builtin_type_maps
 from xdsl.jit.function import RawJITFunc
 from xdsl.jit.py_type_context import TypeMap
@@ -32,10 +32,8 @@ class StubJITBackend(JITBackend):
         self.mlir_module = mlir_module
         self.symbol = symbol
         self.ir_context = ir_context
-        c_func_type = ctypes.CFUNCTYPE(
-            ctypes.c_double, ctypes.c_double, ctypes.c_double
-        )
-        self.raw_func = RawJITFunc(c_func_type, c_func_type(subtract))
+        c_func_type = CFuncType(("double", "double"), "double")
+        self.raw_func = RawJITFunc(c_func_type, subtract)
         return self.raw_func
 
 
@@ -69,15 +67,13 @@ def test_jit_compiles_and_wraps(jit_context: JITContext, backend: StubJITBackend
 
 def test_each_backend_owns_its_c_type_context():
     first, second = StubJITBackend(), StubJITBackend()
-    first.c_type_context.register_ctype(builtin.Float64Type, lambda _: ctypes.c_double)
+    first.c_type_context.register_type(builtin.Float64Type, lambda _: "double")
     assert second.c_type_context.registry == {}
 
 
 def test_register_builtin_type_maps(jit_context: JITContext):
     assert jit_context.pyast_ctx.type_registry.get_annotation(builtin.f64) is float
-    assert jit_context.py_type_context.type_map(float) == TypeMap(
-        float, ctypes.c_double, ctypes.c_double, float
-    )
+    assert jit_context.py_type_context.type_map(float) == TypeMap(float, "double")
 
 
 # only resolves in this module

@@ -1,30 +1,30 @@
 from collections.abc import Callable
-from ctypes import CFUNCTYPE
 from typing import Any, NamedTuple, get_args
 
 from typing_extensions import TypeForm
 
+from xdsl.jit.c_type_context import CFuncType
 from xdsl.utils.exceptions import JITException
 
 
 class TypeMap(NamedTuple):
     """
-    Correspondence between a Python type and its ctypes representation.
+    Map a Python type to a C type and optional call-boundary conversions.
 
-    ``to_ctype`` / ``from_ctype`` convert values at call boundaries.
+    Missing converters pass values through unchanged.
     """
 
     python_type: type[Any]
     """Python type on the wrapped-function boundary."""
 
-    ctype_type: type[Any]
-    """ctypes type used in the native ``CFUNCTYPE``."""
+    c_type: str
+    """C type used by the native function."""
 
-    to_ctype: Callable[[Any], Any]
-    """Convert a Python argument to a ctypes-compatible value."""
+    to_c: Callable[[Any], Any] | None = None
+    """Convert a Python argument before the native call."""
 
-    from_ctype: Callable[[Any], Any]
-    """Convert a ctypes result back to a Python value."""
+    from_c: Callable[[Any], Any] | None = None
+    """Convert the native result back to a Python value."""
 
 
 class FuncTypeMap(NamedTuple):
@@ -33,10 +33,11 @@ class FuncTypeMap(NamedTuple):
     arg_maps: tuple[TypeMap, ...]
     res_map: TypeMap
 
-    def c_func_type(self):
-        """Return the ``CFUNCTYPE`` for this signature."""
-        return CFUNCTYPE(
-            self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
+    def c_func_type(self) -> CFuncType:
+        """Return the C function signature."""
+        return CFuncType(
+            tuple(type_map.c_type for type_map in self.arg_maps),
+            self.res_map.c_type,
         )
 
 
@@ -44,8 +45,9 @@ class PyTypeContext:
     """
     Registry of Python types to :class:`TypeMap` entries.
 
-    Used to marshal values when wrapping a :class:`RawJITFunc`. Registrations must
-    agree with the frontend type mapping and with
+    Configures native call signatures and optional value conversions when wrapping
+    a :class:`RawJITFunc`. Registrations must agree with the frontend type mapping and
+    with
     :class:`~xdsl.jit.c_type_context.CTypeContext` for the same logical types.
     """
 

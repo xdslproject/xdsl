@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from typing import cast
 
 import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
+from cffi import FFI
 from llvmlite.binding.executionengine import ExecutionEngine
 from llvmlite.binding.module import ModuleRef
 from llvmlite.binding.targets import Target, TargetMachine
@@ -10,10 +12,10 @@ from llvmlite.binding.targets import Target, TargetMachine
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.context import Context
 from xdsl.dialects import builtin, llvm
-from xdsl.jit.c_type_context import register_builtin_ctypes
+from xdsl.jit.c_type_context import CFuncType, register_builtin_types
 from xdsl.jit.context import JITBackend
-from xdsl.jit.function import CFuncType, RawJITFunc
-from xdsl.jit.llvm.c_type_context import register_llvm_ctypes, to_c_func_type
+from xdsl.jit.function import CFunc, RawJITFunc
+from xdsl.jit.llvm.c_type_context import register_llvm_types, to_c_func_type
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.traits import SymbolTable
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -35,10 +37,13 @@ class LLVMRawJITFunc(RawJITFunc):
     engine: ExecutionEngine
 
 
+_FFI = FFI()
+
+
 def llvm_jit(
     llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncType
 ) -> LLVMRawJITFunc:
-    """Compile ``llvm_module`` with MCJIT and bind ``symbol`` to ``c_func_type``."""
+    """Compile ``llvm_module`` with MCJIT and expose ``symbol`` through CFFI ABI mode."""
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
@@ -53,11 +58,13 @@ def llvm_jit(
     if not func_ptr:
         # MCJIT reports an unresolved symbol as a null address rather than raising
         raise JITException(f"No address for symbol after compilation: {symbol}")
-    c_types_fn = c_func_type(func_ptr)
+    params = ", ".join(c_func_type.inputs) or "void"
+    signature = f"{c_func_type.output}(*)({params})"
+    cffi_func = cast(CFunc, _FFI.cast(signature, func_ptr))
 
     return LLVMRawJITFunc(
         c_func_type,
-        c_types_fn,
+        cffi_func,
         target=target,
         target_machine=target_machine,
         backing_mod=backing_mod,
@@ -70,7 +77,7 @@ class LLVMJITBackend(JITBackend):
     :class:`JITBackend` using xDSL's LLVM converter and llvmlite MCJIT.
 
     Runs :attr:`lowering`, requires ``symbol`` to name an ``llvm.FuncOp``, then
-    converts the module and JITs it.
+    converts the module and exposes the entry point through CFFI ABI mode.
     """
 
     lowering: tuple[ModulePass, ...]
@@ -87,8 +94,8 @@ class LLVMJITBackend(JITBackend):
     ):
         """Construct the backend with the given ``lowering`` pipeline."""
         super().__init__()
-        register_builtin_ctypes(self.c_type_context)
-        register_llvm_ctypes(self.c_type_context)
+        register_builtin_types(self.c_type_context)
+        register_llvm_types(self.c_type_context)
         self.lowering = lowering
 
     def jit(

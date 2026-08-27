@@ -1,6 +1,5 @@
 import abc
 from collections.abc import Callable
-from ctypes import c_double
 from typing import ParamSpec
 
 from typing_extensions import TypeForm, TypeVar
@@ -25,7 +24,7 @@ class JITBackend(abc.ABC):
     """
 
     c_type_context: CTypeContext
-    """IR type attribute to ctypes type registry."""
+    """IR attribute to C type registry."""
 
     def __init__(self):
         """Initialize an empty :class:`~xdsl.jit.c_type_context.CTypeContext`."""
@@ -44,19 +43,13 @@ class JITBackend(abc.ABC):
 
 
 class JITContext:
-    """
-    Configure frontend, Python ctypes bridges, and backend into a ``@jit`` decorator.
-
-    Authors register types, operations, and dialects on :attr:`pyast_ctx`, extend
-    type converters for ABI types, and supply a :class:`JITBackend`. End users apply
-    :meth:`jit`.
-    """
+    """Combine a frontend, call-boundary type mappings, and a JIT backend."""
 
     pyast_ctx: PyASTContext
     """Frontend used to parse Python functions into IR."""
 
     py_type_context: PyTypeContext
-    """Python value to ctypes marshalling registry."""
+    """Python type mappings for native calls."""
 
     jit_backend: JITBackend
     """Backend that lowers IR and produces a :class:`~xdsl.jit.function.RawJITFunc`."""
@@ -73,8 +66,9 @@ class JITContext:
         """
         Return a decorator that JIT-compiles a function with ``signature``.
 
-        ``signature`` is the ABI used for marshalling. It is passed explicitly so
-        that annotations need not be evaluated.
+        ``signature`` selects the Python-to-C type maps and is checked against the
+        C signature derived by the backend. It is passed explicitly so annotations
+        need not be evaluated.
         """
 
         def inner(func: Callable[P, R]) -> WrappedJITFunc[P, R]:
@@ -91,11 +85,11 @@ class JITContext:
 
 def register_builtin_type_maps(ctx: JITContext) -> None:
     """
-    Register type bridges on ``ctx``, e.g. ``float`` / ``f64`` / ``c_double``.
+    Register the Python ``float`` / IR ``f64`` / C ``double`` mapping.
 
     Updates the frontend type map and the
     :class:`~xdsl.jit.py_type_context.PyTypeContext` together. The backend registers
     the IR side on its own :class:`~xdsl.jit.c_type_context.CTypeContext`.
     """
     ctx.pyast_ctx.register_type(float, builtin.f64)
-    ctx.py_type_context.register_type_map(TypeMap(float, c_double, c_double, float))
+    ctx.py_type_context.register_type_map(TypeMap(float, "double"))
