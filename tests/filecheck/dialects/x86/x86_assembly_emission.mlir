@@ -531,6 +531,12 @@ x86.ms.vmovups [%1 + 8], %ymm1 : (!x86.reg64<rdx>, !x86.avx2reg<ymm1>) -> ()
 x86.ms.vmovups [%1 + 8], %zmm1 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 // CHECK: vmovups [rdx+8], zmm1
 
+// ---- vmovsd ----
+x86.ms.vmovsd [%1 + -8], %xmm0 : (!x86.reg64<rdx>, !x86.ssereg<xmm0>) -> ()
+// CHECK: vmovsd [rdx-8], xmm0
+x86.ms.vmovsd [%1 + 8], %xmm0 : (!x86.reg64<rdx>, !x86.ssereg<xmm0>) -> ()
+// CHECK-NEXT: vmovsd [rdx+8], xmm0
+
 // ---- dmk.vmovapd (masked load) ----
 %dmk_vmovapd = x86.dmk.vmovapd [%1], %k1 : (!x86.reg64<rdx>, !x86.avx512maskreg<k1>) -> !x86.avx512reg<zmm0>
 // CHECK: vmovapd zmm0 {k1}, [rdx]

@@ -229,6 +229,11 @@ def test_rrr_vops(
             x86.registers.RCX,
             x86.registers.YMM0,
         ),
+        (
+            x86.ops.MS_VmovsdOp,
+            x86.registers.RDI,
+            x86.registers.XMM0,
+        ),
     ],
 )
 def test_mr_vops(
@@ -374,7 +379,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 141
+    assert len(effects_ops) == 142
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -405,7 +410,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 137
+    assert len(register_effects_ops) == 138
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,
@@ -473,6 +478,7 @@ def test_effect_traits():
         x86.ops.MS_VmovntpsOp,
         x86.ops.MS_VmovupdOp,
         x86.ops.MS_VmovupsOp,
+        x86.ops.MS_VmovsdOp,
         x86.ops.MS_XorOp,
         x86.ops.MSK_VmovapdOp,
         x86.ops.MSK_VmovapsOp,

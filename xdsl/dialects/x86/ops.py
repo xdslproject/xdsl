@@ -115,6 +115,7 @@ from .registers import (
     AVX512RegisterType,
     GeneralRegisterType,
     Reg32Type,
+    SSERegisterType,
     X86RegisterType,
     X86VectorRegisterType,
 )
@@ -3707,6 +3708,17 @@ class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
 
     name = "x86.ms.vmovups"
+
+
+@irdl_op_definition
+class MS_VmovsdOp(MS_Operation[GeneralRegisterType, SSERegisterType]):
+    """
+    Move a scalar double-precision floating-point value from an XMM register to memory.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movsd).
+    """
+
+    name = "x86.ms.vmovsd"
 
 
 @irdl_op_definition
