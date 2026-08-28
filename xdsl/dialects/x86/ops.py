@@ -3611,6 +3611,23 @@ class RSM_Vfmadd231psOp(
 
 
 @irdl_op_definition
+class DSS_VmulpdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Multiply packed double-precision floating-point elements in s1 and s2 and store
+    the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/mulpd).
+    """
+
+    name = "x86.dss.vmulpd"
+
+    def verify_(self) -> None:
+        _verify_same_vector_width(self.destination, self.source1, self.source2)
+
+
+@irdl_op_definition
 class DSM_VmulpdOp(
     DSM_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
 ):
@@ -3667,6 +3684,18 @@ class DSS_VaddpdOp(
     """
 
     name = "x86.dss.vaddpd"
+
+
+@irdl_op_definition
+class DSS_VaddsdOp(DSS_Operation[SSERegisterType, SSERegisterType, SSERegisterType]):
+    """
+    Add the low double-precision floating-point elements in s1 and s2 and store the
+    result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addsd).
+    """
+
+    name = "x86.dss.vaddsd"
 
 
 @irdl_op_definition
@@ -4178,12 +4207,25 @@ class KS_KMovQOp(KS_Operation):
 
 
 @irdl_op_definition
+class DSS_VpermpdOp(
+    DSS_Operation[AVX512RegisterType, AVX512RegisterType, AVX512RegisterType]
+):
+    """
+    Permute packed double-precision floating-point elements in values using indices.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpermpd).
+    """
+
+    name = "x86.dss.vpermpd"
+
+
+@irdl_op_definition
 class DSI_Vextractf64x4Op(DSI8_Operation[AVX2RegisterType, AVX512RegisterType]):
     """
     Extract 256 bits of packed double-precision floating-point elements from a ZMM
     register into a YMM register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/vextractf128:vextractf32x4:vextractf64x2:vextractf32x8:vextractf64x4).
+    See external [documentation](https://www.felixcloutier.com/x86/vextractf64x4:vextractf32x4).
     """
 
     name = "x86.dsi.vextractf64x4"
@@ -4195,7 +4237,7 @@ class DSI_Vextractf128Op(DSI8_Operation[SSERegisterType, AVX2RegisterType]):
     Extract 128 bits of packed floating-point elements from a YMM register into an XMM
     register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/vextractf128:vextractf32x4:vextractf64x2:vextractf32x8:vextractf64x4).
+    See external [documentation](https://www.felixcloutier.com/x86/vextractf128:vextracti128).
     """
 
     name = "x86.dsi.vextractf128"
@@ -4221,6 +4263,23 @@ class DSSI_ShufpsOp(
     """
 
     name = "x86.dssi.shufps"
+
+
+@irdl_op_definition
+class DSSI_VshufpdOp(
+    DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Shuffle packed double-precision floating-point elements from two vector registers
+    according to an unsigned 8-bit immediate.
+
+    See external [documentation](https://www.felixcloutier.com/x86/shufpd).
+    """
+
+    name = "x86.dssi.vshufpd"
+
+    def verify_(self) -> None:
+        _verify_same_vector_width(self.destination, self.source0, self.source1)
 
 
 class GetAnyRegisterOperation(

@@ -302,6 +302,24 @@ def test_rm_vops(
             x86.registers.YMM1,
             x86.registers.YMM2,
         ),
+        (
+            x86.ops.DSS_VmulpdOp,
+            x86.registers.YMM0,
+            x86.registers.YMM1,
+            x86.registers.YMM2,
+        ),
+        (
+            x86.ops.DSS_VpermpdOp,
+            x86.registers.ZMM0,
+            x86.registers.ZMM1,
+            x86.registers.ZMM2,
+        ),
+        (
+            x86.ops.DSS_VaddsdOp,
+            x86.registers.XMM0,
+            x86.registers.XMM1,
+            x86.registers.XMM2,
+        ),
     ],
 )
 def test_dss_vops(
@@ -353,6 +371,16 @@ def test_dsi8_vops(
     op = OpClass(source, 1, destination=dest)
     assert op.destination.type == dest
     assert op.source.type == src
+    assert op.immediate.type == x86.ops.ui8
+
+
+def test_dssi_vshufpd_op():
+    source0 = create_ssa_value(x86.registers.XMM1)
+    source1 = create_ssa_value(x86.registers.XMM2)
+    op = x86.ops.DSSI_VshufpdOp(source0, source1, 1, destination=x86.registers.XMM0)
+    assert op.destination.type == x86.registers.XMM0
+    assert op.source0.type == x86.registers.XMM1
+    assert op.source1.type == x86.registers.XMM2
     assert op.immediate.type == x86.ops.ui8
 
 
@@ -445,7 +473,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 146
+    assert len(effects_ops) == 150
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -476,7 +504,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 142
+    assert len(register_effects_ops) == 146
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,

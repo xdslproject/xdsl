@@ -422,6 +422,8 @@ x86_func.func @funcyasm() {
 // CHECK: vfmadd231ps xmm0, xmm1, [rdx]{1to4}
 
 // ---- vmulpd ----
+%vmulpd_register = x86.dss.vmulpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
+// CHECK: vmulpd zmm0, zmm1, zmm2
 %vmulpd_memory = x86.dsm.vmulpd %zmm1, [%rdi + 64] : (!x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vmulpd zmm0, zmm1, [rdi+64]
 %vmulpd_memory_negative = x86.dsm.vmulpd %zmm1, [%rdi + -64] : (!x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg<zmm0>
@@ -433,6 +435,8 @@ x86_func.func @funcyasm() {
 // CHECK-NEXT: addps zmm0, zmm1, zmm2
 %dss_vaddpd_avx512 = x86.dss.vaddpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vaddpd zmm0, zmm1, zmm2
+%vaddsd = x86.dss.vaddsd %xmm0, %xmm1 : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>) -> !x86.ssereg<xmm0>
+// CHECK-NEXT: vaddsd xmm0, xmm0, xmm1
 %vaddsd_memory = x86.dsm.vaddsd %xmm0, [%1 + -8] : (!x86.ssereg<xmm0>, !x86.reg64<rdx>) -> !x86.ssereg<xmm1>
 // CHECK-NEXT: vaddsd xmm1, xmm0, [rdx-8]
 %dss_vaddps_avx512 = x86.dss.vaddps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
@@ -625,12 +629,16 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 %rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %ds_vmovapd_avx512, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vfmadd231ps zmm0, zmm1, zmm2
 
+%vpermpd = x86.dss.vpermpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
+// CHECK: vpermpd zmm0, zmm1, zmm2
 %vextractf64x4 = x86.dsi.vextractf64x4 %zmm1, 1 : (!x86.avx512reg<zmm1>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vextractf64x4 ymm0, zmm1, 1
 %vextractf128 = x86.dsi.vextractf128 %ymm1, 1 : (!x86.avx2reg<ymm1>) -> !x86.ssereg<xmm0>
 // CHECK-NEXT: vextractf128 xmm0, ymm1, 1
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: shufps zmm0, zmm1, zmm2, 170
+%vshufpd = x86.dssi.vshufpd %xmm0, %xmm1, 1 : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>) -> !x86.ssereg<xmm0>
+// CHECK-NEXT: vshufpd xmm0, xmm0, xmm1, 1
 
 // ---- kmov -----
 

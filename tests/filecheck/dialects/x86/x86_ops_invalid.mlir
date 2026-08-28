@@ -42,11 +42,35 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 
 // -----
 
+// vmulpd register operands must have matching vector widths.
+%zmm, %ymm = "test.op"() : () -> (!x86.avx512reg, !x86.avx2reg)
+%result = x86.dss.vmulpd %zmm, %ymm : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg
+
+// CHECK: Expected all vector registers to have the same width
+
+// -----
+
 // vmulpd memory form destination and vector source must have matching widths.
 %base, %zmm = "test.op"() : () -> (!x86.reg64, !x86.avx512reg)
 %result = x86.dsm.vmulpd %zmm, [%base] : (!x86.avx512reg, !x86.reg64) -> !x86.avx2reg
 
 // CHECK: Expected all vector registers to have the same width
+
+// -----
+
+// vshufpd operands must have matching vector widths.
+%xmm, %ymm = "test.op"() : () -> (!x86.ssereg, !x86.avx2reg)
+%result = x86.dssi.vshufpd %xmm, %ymm, 1 : (!x86.ssereg, !x86.avx2reg) -> !x86.ssereg
+
+// CHECK: Expected all vector registers to have the same width
+
+// -----
+
+// Vector-index vpermpd only accepts ZMM registers.
+%ymm, %zmm = "test.op"() : () -> (!x86.avx2reg, !x86.avx512reg)
+%result = x86.dss.vpermpd %ymm, %zmm : (!x86.avx2reg, !x86.avx512reg) -> !x86.avx512reg
+
+// CHECK: !x86.avx2reg should be of base attribute x86.avx512reg
 
 // -----
 
@@ -66,11 +90,28 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 
 // -----
 
+// Scalar vaddsd only accepts XMM registers.
+%ymm, %xmm = "test.op"() : () -> (!x86.avx2reg, !x86.ssereg)
+%result = x86.dss.vaddsd %ymm, %xmm : (!x86.avx2reg, !x86.ssereg) -> !x86.ssereg
+
+// CHECK: !x86.avx2reg should be of base attribute x86.ssereg
+
+// -----
+
 // Scalar memory-source vaddsd only accepts an XMM vector source and destination.
 %base, %ymm = "test.op"() : () -> (!x86.reg64, !x86.avx2reg)
 %result = x86.dsm.vaddsd %ymm, [%base] : (!x86.avx2reg, !x86.reg64) -> !x86.ssereg
 
 // CHECK: !x86.avx2reg should be of base attribute x86.ssereg
+
+// -----
+
+// Scalar vmovsd only accepts an XMM source.
+%base, %ymm = "test.op"() : () -> (!x86.reg64, !x86.avx2reg)
+x86.ms.vmovsd [%base], %ymm : (!x86.reg64, !x86.avx2reg) -> ()
+
+// CHECK: !x86.avx2reg should be of base attribute x86.ssereg
+
 // -----
 
 // Extraction immediates must be ui8 attributes.
