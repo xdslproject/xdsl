@@ -157,6 +157,9 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 
 [tool.pytest]
+ini_options.testpaths = [ "docs/notebooks", "tests" ]
+# HTML exports contain executable copies of the source notebooks.
+ini_options.norecursedirs = [ "docs/notebooks/html" ]
 ini_options.python_files = [ "docs/notebooks/**.py", "tests/*test_*.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
