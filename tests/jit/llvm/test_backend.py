@@ -1,6 +1,5 @@
-import ctypes
-
 import pytest
+from cffi import FFI
 
 pytest.importorskip("llvmlite.binding")
 
@@ -44,6 +43,19 @@ def test_jit_compiles_and_binds_symbol():
     assert raw_func.c_func(3.0, 4.0) == 7.0
 
 
+POINTER_IDENTITY = """
+llvm.func @identity(%p: !llvm.ptr) -> !llvm.ptr {
+  llvm.return %p : !llvm.ptr
+}
+"""
+
+
+def test_jit_pointer_call():
+    raw_func = jit(POINTER_IDENTITY, "identity")
+    pointer = FFI().cast("void *", 1)
+    assert raw_func.c_func(pointer) == pointer
+
+
 def test_jit_is_reusable_across_calls():
     # a JITContext reuses one ir_context for every function it decorates
     backend = LLVMJITBackend(lowering=())
@@ -66,10 +78,9 @@ def test_lowering_is_applied():
     assert len(lowered) == 1
 
 
-def test_backend_registers_llvm_ctypes():
-    # the builtin ctypes are already covered by the jit test
+def test_backend_registers_llvm_types():
     c_type_context = LLVMJITBackend().c_type_context
-    assert c_type_context.to_ctype(llvm.LLVMPointerType()) is ctypes.c_void_p
+    assert c_type_context.to_c_type(llvm.LLVMPointerType()) == "void *"
 
 
 def test_missing_symbol_raises():

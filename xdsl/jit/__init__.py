@@ -1,12 +1,13 @@
 """
 JIT compilation of Python functions via xDSL IR.
 
-Frontend builds mid-level IR. Backend lowers to its dialect and binds ctypes
-from IR types. Context only parses, delegates, and wraps Python values.
+The frontend builds IR. The backend lowers and compiles it, derives a C function
+signature from the IR types, and binds the native entry point. The context
+coordinates parsing, compilation, and call wrapping.
 
-Library authors configure a :class:`~xdsl.jit.context.JITContext` with a frontend
-(:class:`~xdsl.frontend.pyast.context.PyASTContext`), ctypes bridges, and a
-:class:`~xdsl.jit.context.JITBackend`. End users apply
+A :class:`~xdsl.jit.context.JITContext` combines a frontend
+(:class:`~xdsl.frontend.pyast.context.PyASTContext`), Python-to-C type mappings,
+and a :class:`~xdsl.jit.context.JITBackend`. End users apply
 :meth:`~xdsl.jit.context.JITContext.jit` without knowing about compilers::
 
     @ctx.jit(Callable[[float, float], float])
@@ -19,10 +20,11 @@ Pipeline:
    post-transforms.
 2. Hand the module to the backend, which lowers to its dialect and produces a
    :class:`~xdsl.jit.function.RawJITFunc`.
-3. Wrap it as a :class:`~xdsl.jit.function.WrappedJITFunc` that marshals Python
-   values through ctypes.
+3. Wrap it as a :class:`~xdsl.jit.function.WrappedJITFunc` that converts arguments
+   and results according to the registered type mappings and invokes the native
+   entry point.
 
-The ``Callable[...]`` argument to :meth:`~xdsl.jit.context.JITContext.jit` is the
-ABI signature used for marshalling. It is passed explicitly so annotations need
-not be evaluated.
+The ``Callable[...]`` argument to :meth:`~xdsl.jit.context.JITContext.jit`
+describes the Python call signature. It selects the registered value conversions
+and must match the C signature derived by the backend from the IR function type.
 """

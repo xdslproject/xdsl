@@ -40,7 +40,7 @@ optional-dependencies.dev = [
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
 optional-dependencies.heir = [ "heir-py==2026.8.1" ]
-optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
+optional-dependencies.llvm = [ "cffi>=2", "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
 urls.Homepage = "https://xdsl.dev/"
