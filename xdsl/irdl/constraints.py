@@ -1000,7 +1000,9 @@ class IntVarConstraint(IntConstraint):
     """The constraint that the variable must satisfy."""
 
     @staticmethod
-    def get(name: str, constraint: int | TypeForm[int] | IntConstraint = AnyInt()):
+    def get(
+        name: str, constraint: int | TypeForm[int] | IntConstraint = AnyInt()
+    ) -> IntConstraint:
         if not isinstance(constraint, IntConstraint):
             from xdsl.irdl import get_int_constraint
 
