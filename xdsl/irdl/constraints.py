@@ -1283,6 +1283,21 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     constraint: RangeConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
 
+    @staticmethod
+    def get(
+        name: str,
+        constraint: IRDLAttrConstraint[AttributeInvT]
+        | RangeConstraint[AttributeInvT] = AnyRange(),
+    ) -> RangeConstraint[AttributeInvT]:
+        if not isinstance(constraint, RangeConstraint):
+            from xdsl.irdl import irdl_to_attr_constraint
+
+            constraint = RangeOf(irdl_to_attr_constraint(constraint))
+
+        return RangeVarConstraint(
+            name, cast(RangeConstraint[AttributeInvT], constraint)
+        )
+
     def verify(
         self,
         attrs: Sequence[Attribute],
