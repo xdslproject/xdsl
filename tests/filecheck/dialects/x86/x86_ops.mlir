@@ -618,8 +618,12 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 %rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %ds_vmovapd_avx512, %zmm1, %zmm2 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 
+%vextractf64x4 = x86.dsi.vextractf64x4 %zmm1, 1 : (!x86.avx512reg) -> !x86.avx2reg
+// CHECK-NEXT: %vextractf64x4 = x86.dsi.vextractf64x4 %zmm1, 1 : (!x86.avx512reg) -> !x86.avx2reg
+%vextractf128 = x86.dsi.vextractf128 %ymm1, 1 : (!x86.avx2reg) -> !x86.ssereg
+// CHECK-NEXT: %vextractf128 = x86.dsi.vextractf128 %ymm1, 1 : (!x86.avx2reg) -> !x86.ssereg
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
-// CHECK: %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 
 // ---- kmov -----
 
