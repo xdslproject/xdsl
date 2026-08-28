@@ -5,6 +5,7 @@ from xdsl.dialects.x86.ops import (
     DMI_Operation,
     DS_Operation,
     DSI_Operation,
+    DSM_VmulpdOp,
     DSSI_Operation,
     M_Operation,
     MI_Operation,
@@ -15,6 +16,7 @@ from xdsl.dialects.x86.ops import (
     RS_Operation,
     RSS_Operation,
 )
+from xdsl.dialects.x86.registers import RDI, ZMM0, ZMM1
 from xdsl.irdl import irdl_op_definition
 from xdsl.utils import test_value
 
@@ -325,3 +327,17 @@ def test_di_operation_register_constraints():
     assert tuple(di_c.ins) == ()
     assert di_c.outs == (di_op.destination,)
     assert di_c.inouts == ()
+
+
+def test_vmulpd_register_constraints():
+    memory_op = DSM_VmulpdOp(
+        test_value.create_ssa_value(ZMM1),
+        test_value.create_ssa_value(RDI),
+        0,
+        destination=ZMM0,
+    )
+
+    memory_constraints = memory_op.get_register_constraints()
+    assert tuple(memory_constraints.ins) == (memory_op.source, memory_op.memory)
+    assert memory_constraints.outs == (memory_op.destination,)
+    assert memory_constraints.inouts == ()

@@ -1347,6 +1347,52 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
 
+class DSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
+    """
+    A base class for x86 operations that have one destination register, one source
+    register, and one memory source operand.
+    """
+
+    destination: OpResult[R1InvT] = result_def(R1InvT)
+    source = operand_def(R2InvT)
+    memory = operand_def(R3InvT)
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+
+    traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($source) `,` type($memory) `)` `->` type($destination)"
+    )
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        memory: Operation | SSAValue,
+        memory_offset: int | IntegerAttr[SI64],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, si64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source, memory],
+            attributes={
+                "memory_offset": memory_offset,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.memory, self.memory_offset)
+        return reg(self.destination), reg(self.source), memory_access
+
+
 class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     """
     A base class for x86 operations that have one register that is read and written to,
@@ -3523,6 +3569,23 @@ class RSM_Vfmadd231psOp(
 
 
 @irdl_op_definition
+class DSM_VmulpdOp(
+    DSM_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
+):
+    """
+    Multiply packed double-precision floating-point elements in s and at the specified
+    memory location and store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/mulpd).
+    """
+
+    name = "x86.dsm.vmulpd"
+
+    def verify_(self) -> None:
+        _verify_same_vector_width(self.destination, self.source)
+
+
+@irdl_op_definition
 class DSS_AddpdOp(
     DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
@@ -3562,6 +3625,20 @@ class DSS_VaddpdOp(
     """
 
     name = "x86.dss.vaddpd"
+
+
+@irdl_op_definition
+class DSM_VaddsdOp(
+    DSM_Operation[SSERegisterType, SSERegisterType, GeneralRegisterType]
+):
+    """
+    Add the low double-precision floating-point elements in s and at the specified
+    memory location and store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addsd).
+    """
+
+    name = "x86.dsm.vaddsd"
 
 
 @irdl_op_definition
@@ -4184,3 +4261,9 @@ class X86AsmTarget(Target):
 
     def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
         print_assembly(module, output)
+
+
+def _verify_same_vector_width(*values: SSAValue) -> None:
+    register_types = {type(value.type) for value in values}
+    if len(register_types) != 1:
+        raise VerifyException("Expected all vector registers to have the same width")
