@@ -173,3 +173,13 @@ def test_int_attr_get():
         IntSetConstraint(frozenset((1, 2)))
     ) == IntAttrConstraint(IntSetConstraint(frozenset((1, 2))))
     assert IntAttrConstraint.get(EqIntConstraint(1)) == EqAttrConstraint(IntAttr(1))
+
+
+def test_int_var_get():
+    assert IntVarConstraint.get("I") == IntVarConstraint("I", AnyInt())
+    assert IntVarConstraint.get("I", AnyInt()) == IntVarConstraint("I", AnyInt())
+    assert IntVarConstraint.get("I", AtLeast(2)) == IntVarConstraint("I", AtLeast(2))
+    assert IntVarConstraint.get("I", 1) == IntVarConstraint("I", EqIntConstraint(1))
+    assert IntVarConstraint.get("I", Literal[1, 2]) == IntVarConstraint(
+        "I", IntSetConstraint(frozenset([1, 2]))
+    )
