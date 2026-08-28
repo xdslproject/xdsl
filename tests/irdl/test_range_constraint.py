@@ -202,3 +202,19 @@ def test_range_var_constraint_infer(
             constraint.infer(ConstraintContext({}, context_dict), length=length)
             == inferred
         )
+
+
+def test_range_var_constraint_get():
+    assert RangeVarConstraint.get("R") == RangeVarConstraint("R", AnyRange())
+    assert RangeVarConstraint.get("R", AnyRange()) == RangeVarConstraint(
+        "R", AnyRange()
+    )
+    assert RangeVarConstraint.get("R", AnyRange().of_length(2)) == RangeVarConstraint(
+        "R", AnyRange().of_length(2)
+    )
+    assert RangeVarConstraint.get("R", EqAttrConstraint(i32)) == RangeVarConstraint(
+        "R", RangeOf(EqAttrConstraint(i32))
+    )
+    assert RangeVarConstraint.get("R", i32) == RangeVarConstraint(
+        "R", RangeOf(EqAttrConstraint(i32))
+    )
