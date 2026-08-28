@@ -8,6 +8,7 @@
 %rsp = x86.get_register : !x86.reg64<rsp>
 %rax = x86.get_register : !x86.reg64<rax>
 %r8 = x86.get_register : !x86.reg64<r8>
+%rdi = x86.get_register : !x86.reg64<rdi>
 
 %rs_add = x86.rs.add %0, %1 : (!x86.reg64<rax>, !x86.reg64<rdx>) -> !x86.reg64<rax>
 // CHECK-NEXT: add rax, rdx
@@ -420,12 +421,20 @@ x86_func.func @funcyasm() {
 %rrm_vfmadd231ps_xmm_broadcast = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_xmm_broadcast, %xmm1, [%1] {broadcast} : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>, !x86.reg64<rdx>) -> !x86.ssereg<xmm0>
 // CHECK: vfmadd231ps xmm0, xmm1, [rdx]{1to4}
 
+// ---- vmulpd ----
+%vmulpd_memory = x86.dsm.vmulpd %zmm1, [%rdi + 64] : (!x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vmulpd zmm0, zmm1, [rdi+64]
+%vmulpd_memory_negative = x86.dsm.vmulpd %zmm1, [%rdi + -64] : (!x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vmulpd zmm0, zmm1, [rdi-64]
+
 %dss_addpd_avx512 = x86.dss.addpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: addpd zmm0, zmm1, zmm2
 %dss_addps_avx512 = x86.dss.addps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: addps zmm0, zmm1, zmm2
 %dss_vaddpd_avx512 = x86.dss.vaddpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vaddpd zmm0, zmm1, zmm2
+%vaddsd_memory = x86.dsm.vaddsd %xmm0, [%1 + -8] : (!x86.ssereg<xmm0>, !x86.reg64<rdx>) -> !x86.ssereg<xmm1>
+// CHECK-NEXT: vaddsd xmm1, xmm0, [rdx-8]
 %dss_vaddps_avx512 = x86.dss.vaddps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vaddps zmm0, zmm1, zmm2
 %dss_vpxord_avx512 = x86.dss.vpxord %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>

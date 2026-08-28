@@ -324,6 +324,40 @@ def test_dss_vops(
     assert op.source2.type == operand2
 
 
+@pytest.mark.parametrize(
+    "OpClass, dest, src",
+    [
+        (
+            x86.ops.DSM_VmulpdOp,
+            x86.registers.ZMM0,
+            x86.registers.ZMM1,
+        ),
+        (
+            x86.ops.DSM_VaddsdOp,
+            x86.registers.XMM0,
+            x86.registers.XMM1,
+        ),
+    ],
+)
+def test_dsm_vops(
+    OpClass: type[
+        x86.ops.DSM_Operation[
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+            x86.registers.GeneralRegisterType,
+        ]
+    ],
+    dest: x86.registers.X86VectorRegisterType,
+    src: x86.registers.X86VectorRegisterType,
+):
+    source = create_ssa_value(src)
+    memory = create_ssa_value(x86.registers.RDI)
+    op = OpClass(source, memory, 8, destination=dest)
+    assert op.destination.type == dest
+    assert op.source.type == src
+    assert op.memory.type == x86.registers.RDI
+
+
 def test_get_constant_value():
     U = x86.registers.UNALLOCATED_REG64
     unknown_value = create_ssa_value(U)
@@ -379,7 +413,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 142
+    assert len(effects_ops) == 144
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -410,7 +444,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 138
+    assert len(register_effects_ops) == 140
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,
@@ -425,6 +459,8 @@ def test_effect_traits():
         x86.ops.DMK_VmovapsOp,
         x86.ops.DMK_VmovupdOp,
         x86.ops.DMK_VmovupsOp,
+        x86.ops.DSM_VaddsdOp,
+        x86.ops.DSM_VmulpdOp,
         x86.ops.M_DecOp,
         x86.ops.M_IDivOp,
         x86.ops.M_ImulOp,

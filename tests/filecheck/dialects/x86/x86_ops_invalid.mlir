@@ -39,3 +39,19 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 
 // CHECK: %0, %1 = "test.op"() : () -> (!x86.reg64<r10>, !x86.reg64<r11>)
 // CHECK: Outputs must be unallocated or distinct.
+
+// -----
+
+// vmulpd memory form destination and vector source must have matching widths.
+%base, %zmm = "test.op"() : () -> (!x86.reg64, !x86.avx512reg)
+%result = x86.dsm.vmulpd %zmm, [%base] : (!x86.avx512reg, !x86.reg64) -> !x86.avx2reg
+
+// CHECK: Expected all vector registers to have the same width
+
+// -----
+
+// Scalar memory-source vaddsd only accepts an XMM vector source and destination.
+%base, %ymm = "test.op"() : () -> (!x86.reg64, !x86.avx2reg)
+%result = x86.dsm.vaddsd %ymm, [%base] : (!x86.avx2reg, !x86.reg64) -> !x86.ssereg
+
+// CHECK: !x86.avx2reg should be of base attribute x86.ssereg
