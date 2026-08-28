@@ -777,8 +777,8 @@ class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
-    A base class for x86 operations that have one memory reference and one source
-    register.
+    A base class for x86 operations that write one source register to a memory
+    destination. Read-modify-write subclasses must additionally declare a memory read.
     """
 
     memory = operand_def(R1InvT)
@@ -787,7 +787,6 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     traits = traits_def(
         MS_OperationHasCanonicalizationPatterns(),
-        MemoryReadEffect(),
         MemoryWriteEffect(),
     )
 
@@ -2171,6 +2170,8 @@ class MS_AddOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.ms.add"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class MS_SubOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
@@ -2182,6 +2183,8 @@ class MS_SubOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.ms.sub"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 @irdl_op_definition
@@ -2195,6 +2198,8 @@ class MS_AndOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.ms.and"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class MS_OrOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
@@ -2207,6 +2212,8 @@ class MS_OrOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.ms.or"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class MS_XorOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
@@ -2218,6 +2225,8 @@ class MS_XorOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.ms.xor"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 @irdl_op_definition
