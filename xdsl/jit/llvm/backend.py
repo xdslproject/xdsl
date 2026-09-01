@@ -40,15 +40,23 @@ class LLVMRawJITFunc(RawJITFunc):
 _FFI = FFI()
 
 
-def llvm_jit(
-    llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
-) -> LLVMRawJITFunc:
-    """Compile ``llvm_module`` with MCJIT and expose ``symbol`` through CFFI ABI mode."""
+def _create_target_machine() -> tuple[Target, TargetMachine]:
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
     target = llvmlite.binding.Target.from_default_triple()
     target_machine = target.create_target_machine()
+    return target, target_machine
+
+
+def _compile_module(
+    llvm_module: llvm_ir.Module,
+    symbol: str,
+    c_func_type: CFuncSignature,
+    *,
+    target: Target,
+    target_machine: TargetMachine,
+) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
@@ -69,6 +77,20 @@ def llvm_jit(
         target_machine=target_machine,
         backing_mod=backing_mod,
         engine=engine,
+    )
+
+
+def llvm_jit(
+    llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
+) -> LLVMRawJITFunc:
+    """Compile ``llvm_module`` with MCJIT and expose ``symbol`` through CFFI ABI mode."""
+    target, target_machine = _create_target_machine()
+    return _compile_module(
+        llvm_module,
+        symbol,
+        c_func_type,
+        target=target,
+        target_machine=target_machine,
     )
 
 
@@ -118,5 +140,12 @@ class LLVMJITBackend(JITBackend):
                 "the lowering must leave it in the LLVM dialect"
             )
         c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
+        target, target_machine = _create_target_machine()
         llvm_module = convert_module(mlir_module, fallback_target_triple=None)
-        return llvm_jit(llvm_module, symbol, c_func_type)
+        return _compile_module(
+            llvm_module,
+            symbol,
+            c_func_type,
+            target=target,
+            target_machine=target_machine,
+        )
