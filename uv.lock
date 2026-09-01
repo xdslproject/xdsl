@@ -790,11 +790,11 @@ wheels = [
 
 [[package]]
 name = "filecheck"
-version = "1.0.3"
+version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1e/1c/10167ce597b4badb548cd8f70c7d8f36fdefafa41ba50e19f1a6a775708d/filecheck-1.0.3.tar.gz", hash = "sha256:ccb70500858e8f362f06d5c3e33c9c133785543ade50ddbeb9390681991f1b05", size = 20060, upload-time = "2025-08-19T10:00:06.256Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/2f/6d227124190b04b6a4c791818259f9ee1444e8cd446eae4dafae2c0bb228/filecheck-1.0.5.tar.gz", hash = "sha256:397eeb2c51f9d45bb31324925c797e77519eede8fb3d1b427db23fad27fff556", size = 20592, upload-time = "2026-08-31T13:55:07.876Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/40/69ca9ea803303e14301fff9d4931b6d080b9603e134df0419c55e9764df4/filecheck-1.0.3-py3-none-any.whl", hash = "sha256:1427d0e82d9c5209ec5cd9fb65745cae16d3003f800321f3c29f4b0729e68a19", size = 23943, upload-time = "2025-08-19T10:00:05.139Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/67/0d5289cbeffccd2fbeab401a2ed84f32a2f867525dc141860def745a82bb/filecheck-1.0.5-py3-none-any.whl", hash = "sha256:933db648cc012bcef4c9dd356a70172e3356709962753b977cf5f330004422f3", size = 24665, upload-time = "2026-08-31T13:55:06.84Z" },
 ]
 
 [[package]]
@@ -3566,7 +3566,7 @@ docs = [
 requires-dist = [
     { name = "cffi", marker = "extra == 'llvm'", specifier = ">=2" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8" },
-    { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
+    { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.5" },
     { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.8.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19" },
