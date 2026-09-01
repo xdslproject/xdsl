@@ -108,6 +108,27 @@ llvm.func @identity(%value: i64) -> i64 {
 """
 
 
+ADD_ZERO = """
+llvm.func @add_zero(%value: i64) -> i64 {
+  %zero = llvm.mlir.constant(0 : i64) : i64
+  %result = llvm.add %value, %zero : i64
+  llvm.return %result : i64
+}
+"""
+
+
+def test_pipeline_optimizes_module():
+    unoptimized = LLVMJITBackend(lowering=()).jit(
+        parse(ADD_ZERO), "add_zero", Context()
+    )
+    optimized = LLVMJITBackend(lowering=(), optimize=True).jit(
+        parse(ADD_ZERO), "add_zero", Context()
+    )
+
+    assert " add i64 " in str(unoptimized.backing_mod)
+    assert " add i64 " not in str(optimized.backing_mod)
+
+
 def test_jit_rejects_non_native_target_triple():
     incompatible_arch = (
         "aarch64"

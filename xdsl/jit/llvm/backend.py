@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import cast
 
-import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
 from cffi import FFI
@@ -40,13 +39,31 @@ class LLVMRawJITFunc(RawJITFunc):
 _FFI = FFI()
 
 
-def _create_target_machine() -> tuple[Target, TargetMachine]:
+def _create_target_machine(*, optimize: bool) -> tuple[Target, TargetMachine]:
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
     target = llvmlite.binding.Target.from_triple(llvmlite.binding.get_process_triple())
-    target_machine = target.create_target_machine(jit=True)
+    target_machine = target.create_target_machine(
+        cpu=llvmlite.binding.get_host_cpu_name(),
+        features=llvmlite.binding.get_host_cpu_features().flatten(),
+        opt=3 if optimize else 2,
+        jit=True,
+    )
     return target, target_machine
+
+
+def _run_optimization_pipeline(
+    module: ModuleRef, target_machine: TargetMachine
+) -> None:
+    options = llvmlite.binding.PipelineTuningOptions(speed_level=3)
+    options.slp_vectorization = True
+    with (
+        options,
+        llvmlite.binding.create_pass_builder(target_machine, options) as pass_builder,
+        pass_builder.getModulePassManager() as module_pass_manager,
+    ):
+        module_pass_manager.run(module, pass_builder)
 
 
 def _compile_module(
@@ -56,6 +73,7 @@ def _compile_module(
     *,
     target: Target,
     target_machine: TargetMachine,
+    optimize: bool,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
     if backing_mod.triple not in (
@@ -70,6 +88,15 @@ def _compile_module(
         )
     backing_mod.triple = target_machine.triple
     backing_mod.data_layout = str(target_machine.target_data)
+
+    try:
+        entry_point = backing_mod.get_function(symbol)
+    except NameError:
+        raise JITException(f"No function to JIT compile: {symbol}") from None
+
+    if optimize:
+        entry_point.linkage = "external"
+        _run_optimization_pipeline(backing_mod, target_machine)
 
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
@@ -104,6 +131,9 @@ class LLVMJITBackend(JITBackend):
     lowering: tuple[ModulePass, ...]
     """Pass pipeline applied before resolving ``symbol``."""
 
+    optimize: bool
+    """Run host O3 optimization."""
+
     def __init__(
         self,
         lowering: tuple[ModulePass, ...] = (
@@ -112,19 +142,22 @@ class LLVMJITBackend(JITBackend):
                 generic=True,
             ),
         ),
+        *,
+        optimize: bool = False,
     ):
         """Construct the backend with the given ``lowering`` pipeline."""
         super().__init__()
         register_builtin_types(self.c_type_context)
         register_llvm_types(self.c_type_context)
         self.lowering = lowering
+        self.optimize = optimize
 
     def jit(
         self,
         mlir_module: builtin.ModuleOp,
         symbol: str,
         ir_context: Context,
-    ) -> RawJITFunc:
+    ) -> LLVMRawJITFunc:
         """Lower ``mlir_module``, bind ``symbol``, and return an :class:`LLVMRawJITFunc`."""
         # `jit` may be called more than once against the same context
         if llvm.LLVM.name not in ir_context.registered_dialect_names:
@@ -139,7 +172,7 @@ class LLVMJITBackend(JITBackend):
                 "the lowering must leave it in the LLVM dialect"
             )
         c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
-        target, target_machine = _create_target_machine()
+        target, target_machine = _create_target_machine(optimize=self.optimize)
         llvm_module = convert_module(
             mlir_module,
             fallback_target_triple=target_machine.triple,
@@ -151,4 +184,5 @@ class LLVMJITBackend(JITBackend):
             c_func_type,
             target=target,
             target_machine=target_machine,
+            optimize=self.optimize,
         )

@@ -22,12 +22,12 @@ def get_triple_parts(triple: str):  # -> Triple:
     """
     ...
 
-class FeatureMap(dict):
+class FeatureMap(dict[str, bool]):
     """
     Maps feature name to a boolean indicating the availability of the feature.
     Extends ``dict`` to add `.flatten()` method.
     """
-    def flatten(self, sort=...):  # -> str:
+    def flatten(self, sort: bool = ...) -> str:
         """
         Args
         ----
@@ -42,7 +42,7 @@ class FeatureMap(dict):
         """
         ...
 
-def get_host_cpu_features():  # -> FeatureMap:
+def get_host_cpu_features() -> FeatureMap:
     """
     Returns a dictionary-like object indicating the CPU features for current
     architecture and whether they are enabled for this CPU.  The key-value pairs
@@ -62,7 +62,7 @@ def get_default_triple() -> str:
     """
     ...
 
-def get_host_cpu_name():  # -> str:
+def get_host_cpu_name() -> str:
     """
     Get the name of the host's CPU, suitable for using with
     :meth:`Target.create_target_machine()`.
