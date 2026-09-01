@@ -44,8 +44,8 @@ def _create_target_machine() -> tuple[Target, TargetMachine]:
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
-    target = llvmlite.binding.Target.from_default_triple()
-    target_machine = target.create_target_machine()
+    target = llvmlite.binding.Target.from_triple(llvmlite.binding.get_process_triple())
+    target_machine = target.create_target_machine(jit=True)
     return target, target_machine
 
 
@@ -58,6 +58,19 @@ def _compile_module(
     target_machine: TargetMachine,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
+    if backing_mod.triple not in (
+        "",
+        "unknown-unknown-unknown",
+        target.triple,
+        target_machine.triple,
+    ):
+        raise JITException(
+            f"Cannot JIT module for target {backing_mod.triple} with native "
+            f"target {target_machine.triple}"
+        )
+    backing_mod.triple = target_machine.triple
+    backing_mod.data_layout = str(target_machine.target_data)
+
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
     engine.run_static_constructors()
@@ -127,7 +140,11 @@ class LLVMJITBackend(JITBackend):
             )
         c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
         target, target_machine = _create_target_machine()
-        llvm_module = convert_module(mlir_module, fallback_target_triple=None)
+        llvm_module = convert_module(
+            mlir_module,
+            fallback_target_triple=target_machine.triple,
+            data_layout=str(target_machine.target_data),
+        )
         return _compile_module(
             llvm_module,
             symbol,

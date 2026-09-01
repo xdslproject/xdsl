@@ -82,7 +82,7 @@ class ModuleRef(ffi.ObjectRef):
     def data_layout(self, strrep):  # -> None:
         ...
     @property
-    def triple(self):  # -> str:
+    def triple(self) -> str:
         """
         This module's target "triple" specification, as a string.
         """
