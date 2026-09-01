@@ -72,7 +72,7 @@ class ModuleRef(ffi.ObjectRef):
         ...
 
     @property
-    def data_layout(self):  # -> str:
+    def data_layout(self) -> str:
         """
         This module's data layout specification, as a string.
         """
@@ -82,7 +82,7 @@ class ModuleRef(ffi.ObjectRef):
     def data_layout(self, strrep):  # -> None:
         ...
     @property
-    def triple(self):  # -> str:
+    def triple(self) -> str:
         """
         This module's target "triple" specification, as a string.
         """

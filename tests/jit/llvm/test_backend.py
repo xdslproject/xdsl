@@ -3,11 +3,15 @@ from cffi import FFI
 
 pytest.importorskip("llvmlite.binding")
 
+import llvmlite.binding as llvm_binding
+import llvmlite.ir as llvm_ir
+
 from xdsl.context import Context
 from xdsl.dialects import func, llvm
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.function import RawJITFunc
-from xdsl.jit.llvm.backend import LLVMJITBackend, LLVMRawJITFunc
+from xdsl.jit.llvm.backend import LLVMJITBackend, LLVMRawJITFunc, llvm_jit
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import JITException
@@ -97,3 +101,33 @@ def test_declaration_without_body_raises():
     # a declaration resolves and converts, but MCJIT has no code to bind
     with pytest.raises(JITException, match="No address for symbol"):
         jit("llvm.func @plus(f64, f64) -> f64")
+
+
+def identity_module() -> llvm_ir.Module:
+    module = llvm_ir.Module()
+    func_type = llvm_ir.FunctionType(llvm_ir.IntType(64), (llvm_ir.IntType(64),))
+    func = llvm_ir.Function(module, func_type, "identity")
+    builder = llvm_ir.IRBuilder(func.append_basic_block())
+    builder.ret(func.args[0])
+    return module
+
+
+def test_jit_rejects_non_native_target_triple():
+    incompatible_arch = (
+        "aarch64"
+        if llvm_binding.get_process_triple().startswith("x86_64")
+        else "x86_64"
+    )
+    module = identity_module()
+    module.triple = f"{incompatible_arch}-unknown-unknown"
+
+    with pytest.raises(JITException, match="Cannot JIT module for target"):
+        llvm_jit(module, "identity", CFuncSignature(("int64_t",), "int64_t"))
+
+
+def test_jit_rejects_non_native_data_layout():
+    module = identity_module()
+    module.data_layout = "e-p:32:32"
+
+    with pytest.raises(JITException, match="non-native data layout"):
+        llvm_jit(module, "identity", CFuncSignature(("int64_t",), "int64_t"))
