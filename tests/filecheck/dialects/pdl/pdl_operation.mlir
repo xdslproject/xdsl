@@ -11,7 +11,7 @@ pdl.pattern @unboundedOperation : benefit(1) {
 // CHECK: %{{.*}} = pdl.operation
 
 pdl.pattern @boundedOperation : benefit(1) {
-  %type = pdl.type 
+  %type = pdl.type
   %types = pdl.types
 
   %operand = pdl.operand
@@ -40,4 +40,3 @@ pdl.pattern @noresultsOperation : benefit(1) {
 // CHECK-NEXT:     %root_2 = pdl.operation "test.op"
 // CHECK-NEXT:     pdl.rewrite %root_2 with "test_rewriter"(%root_2 : !pdl.operation)
 // CHECK-NEXT:  }
-// CHECK-NEXT:   
