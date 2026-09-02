@@ -633,9 +633,12 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
     written to, a source register m that contains a pointer, a constant offset, and a
     mask register k. The z attribute enables zero masking, which sets the elements of
     the destination register to zero where the corresponding bit in the mask is zero.
+
+    AVX512VL encodes these on the 128- and 256-bit register banks as well, so the
+    destination is any vector register.
     """
 
-    destination = result_def(AVX512RegisterType)
+    destination = result_def(X86VectorRegisterType)
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     mask_reg = operand_def(AVX512MaskRegisterType)
@@ -656,7 +659,7 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
-        destination: AVX512RegisterType,
+        destination: X86VectorRegisterType,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, i64)
@@ -830,9 +833,10 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     register. The z attribute enables zero-masking, which sets the elements of the
     destination register to zero where the mask is zero.
 
-    Typical usage: d[k] := op([m+offset], s)
-    where d is the destination AVX512 register, [m+offset] is the memory location
-    addressed by the base register and offset, s is the source register, and k is the mask.
+    Typical usage: [m+offset]{k} := s
+    where [m+offset] is the memory location addressed by the base register and offset,
+    s is the source vector register, and k is the mask. AVX512VL encodes these on the
+    128- and 256-bit register banks as well, so s is any vector register.
     """
 
     memory = operand_def(R1InvT)
@@ -3895,7 +3899,7 @@ class DMK_VmovupsOp(DMK_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MSK_VmovapdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+class MSK_VmovapdOp(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from vector register to
     memory using writemask k.
@@ -3907,7 +3911,7 @@ class MSK_VmovapdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
 
 
 @irdl_op_definition
-class MSK_VmovupdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+class MSK_VmovupdOp(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move unaligned packed double precision floating-point values from vector register to
     memory using writemask k.
@@ -3919,7 +3923,7 @@ class MSK_VmovupdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
 
 
 @irdl_op_definition
-class MSK_VmovapsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+class MSK_VmovapsOp(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from vector register to
     memory using writemask k.
@@ -3931,7 +3935,7 @@ class MSK_VmovapsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
 
 
 @irdl_op_definition
-class MSK_VmovupsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+class MSK_VmovupsOp(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move unaligned packed single precision floating-point values from vector register to
     memory using writemask k.
