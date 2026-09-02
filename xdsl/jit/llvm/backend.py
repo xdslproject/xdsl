@@ -89,13 +89,7 @@ def _compile_module(
     backing_mod.triple = target_machine.triple
     backing_mod.data_layout = str(target_machine.target_data)
 
-    try:
-        entry_point = backing_mod.get_function(symbol)
-    except NameError:
-        raise JITException(f"No function to JIT compile: {symbol}") from None
-
     if optimize:
-        entry_point.linkage = "external"
         _run_optimization_pipeline(backing_mod, target_machine)
 
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
