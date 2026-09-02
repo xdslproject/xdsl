@@ -76,6 +76,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    prop_def,
     result_def,
     successor_def,
     traits_def,
@@ -981,11 +982,10 @@ class DSI8_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
-    immediate = attr_def(IntegerAttr[UI8])
+    immediate = prop_def(IntegerAttr[UI8])
 
     assembly_format = (
-        "$source `,` $immediate attr-dict `:` "
-        "`(` type($source) `)` `->` type($destination)"
+        "$source `,` $immediate attr-dict `:` functional-type($source, $destination)"
     )
 
     def __init__(
@@ -1004,8 +1004,10 @@ class DSI8_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         super().__init__(
             operands=[source],
             attributes={
-                "immediate": immediate,
                 "comment": comment,
+            },
+            properties={
+                "immediate": immediate,
             },
             result_types=[destination],
         )
