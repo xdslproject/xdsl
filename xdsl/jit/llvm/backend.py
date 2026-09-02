@@ -80,20 +80,6 @@ def _compile_module(
     )
 
 
-def llvm_jit(
-    llvm_module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
-) -> LLVMRawJITFunc:
-    """Compile ``llvm_module`` with MCJIT and expose ``symbol`` through CFFI ABI mode."""
-    target, target_machine = _create_target_machine()
-    return _compile_module(
-        llvm_module,
-        symbol,
-        c_func_type,
-        target=target,
-        target_machine=target_machine,
-    )
-
-
 class LLVMJITBackend(JITBackend):
     """
     :class:`JITBackend` using xDSL's LLVM converter and llvmlite MCJIT.
