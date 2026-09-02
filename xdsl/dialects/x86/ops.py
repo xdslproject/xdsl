@@ -112,7 +112,6 @@ from .registers import (
     RFLAGS,
     RSP,
     AVX512MaskRegisterType,
-    AVX512RegisterType,
     GeneralRegisterType,
     Reg32Type,
     SSERegisterType,
@@ -367,10 +366,13 @@ class DSK_Operation(X86Instruction, ABC):
     """
     A base class for x86 operations that have one destination register and one source
     register.
+
+    AVX512VL encodes these on the 128- and 256-bit register banks as well, so the
+    destination and source are any vector register.
     """
 
-    destination: OpResult[AVX512RegisterType] = result_def(AVX512RegisterType)
-    source = operand_def(AVX512RegisterType)
+    destination: OpResult[X86VectorRegisterType] = result_def(X86VectorRegisterType)
+    source = operand_def(X86VectorRegisterType)
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
@@ -386,7 +388,7 @@ class DSK_Operation(X86Instruction, ABC):
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
-        destination: AVX512RegisterType,
+        destination: X86VectorRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -1254,14 +1256,17 @@ class RSSK_Operation(X86Instruction, ABC):
     and two source registers s1 and s2, with mask register k. The z attribute enables zero masking,
     which sets the elements of the destination register to zero where the corresponding
     bit in the mask is zero.
+
+    AVX512VL encodes these on the 128- and 256-bit register banks as well, so r, s1 and
+    s2 are any vector register.
     """
 
-    T: ClassVar[VarConstraint] = VarConstraint("T", base(AVX512RegisterType))
+    T: ClassVar[VarConstraint] = VarConstraint("T", base(X86VectorRegisterType))
 
     register_in = operand_def(T)
     register_out = result_def(T)
-    source1 = operand_def(AVX512RegisterType)
-    source2 = operand_def(AVX512RegisterType)
+    source1 = operand_def(X86VectorRegisterType)
+    source2 = operand_def(X86VectorRegisterType)
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
