@@ -328,6 +328,38 @@ def test_dss_vops(
     "OpClass, dest, src",
     [
         (
+            x86.ops.DSI_Vextractf64x4Op,
+            x86.registers.YMM0,
+            x86.registers.ZMM1,
+        ),
+        (
+            x86.ops.DSI_Vextractf128Op,
+            x86.registers.XMM0,
+            x86.registers.YMM1,
+        ),
+    ],
+)
+def test_dsi8_vops(
+    OpClass: type[
+        x86.ops.DSI8_Operation[
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+        ]
+    ],
+    dest: x86.registers.X86VectorRegisterType,
+    src: x86.registers.X86VectorRegisterType,
+):
+    source = create_ssa_value(src)
+    op = OpClass(source, 1, destination=dest)
+    assert op.destination.type == dest
+    assert op.source.type == src
+    assert op.immediate.type == x86.ops.ui8
+
+
+@pytest.mark.parametrize(
+    "OpClass, dest, src",
+    [
+        (
             x86.ops.DSM_VmulpdOp,
             x86.registers.ZMM0,
             x86.registers.ZMM1,
@@ -413,7 +445,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 144
+    assert len(effects_ops) == 146
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -444,7 +476,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 140
+    assert len(register_effects_ops) == 142
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,

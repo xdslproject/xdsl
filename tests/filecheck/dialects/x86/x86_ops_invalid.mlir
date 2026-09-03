@@ -50,8 +50,31 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 
 // -----
 
+// vextractf64x4 requires a ZMM source and YMM destination.
+%ymm = "test.op"() : () -> !x86.avx2reg
+%result = x86.dsi.vextractf64x4 %ymm, 1 : (!x86.avx2reg) -> !x86.avx2reg
+
+// CHECK: !x86.avx2reg should be of base attribute x86.avx512reg
+
+// -----
+
+// vextractf128 requires a YMM source and XMM destination.
+%zmm = "test.op"() : () -> !x86.avx512reg
+%result = x86.dsi.vextractf128 %zmm, 1 : (!x86.avx512reg) -> !x86.ssereg
+
+// CHECK: !x86.avx512reg should be of base attribute x86.avx2reg
+
+// -----
+
 // Scalar memory-source vaddsd only accepts an XMM vector source and destination.
 %base, %ymm = "test.op"() : () -> (!x86.reg64, !x86.avx2reg)
 %result = x86.dsm.vaddsd %ymm, [%base] : (!x86.avx2reg, !x86.reg64) -> !x86.ssereg
 
 // CHECK: !x86.avx2reg should be of base attribute x86.ssereg
+// -----
+
+// Extraction immediates must be ui8 attributes.
+%ymm = "test.op"() : () -> !x86.avx2reg
+%result = "x86.dsi.vextractf128"(%ymm) {immediate = 1 : i32} : (!x86.avx2reg) -> !x86.ssereg
+
+// CHECK: Expected attribute ui8 but got i32

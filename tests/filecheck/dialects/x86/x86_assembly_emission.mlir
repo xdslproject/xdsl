@@ -665,8 +665,12 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 %rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %ds_vmovapd_avx512, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vfmadd231ps zmm0, zmm1, zmm2
 
+%vextractf64x4 = x86.dsi.vextractf64x4 %zmm1, 1 : (!x86.avx512reg<zmm1>) -> !x86.avx2reg<ymm0>
+// CHECK-NEXT: vextractf64x4 ymm0, zmm1, 1
+%vextractf128 = x86.dsi.vextractf128 %ymm1, 1 : (!x86.avx2reg<ymm1>) -> !x86.ssereg<xmm0>
+// CHECK-NEXT: vextractf128 xmm0, ymm1, 1
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
-// CHECK: shufps zmm0, zmm1, zmm2, 170
+// CHECK-NEXT: shufps zmm0, zmm1, zmm2, 170
 
 // ---- kmov -----
 
