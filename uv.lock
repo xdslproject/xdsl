@@ -790,8 +790,12 @@ wheels = [
 
 [[package]]
 name = "filecheck"
-version = "1.0.5"
-source = { git = "https://github.com/antonlydike/filecheck#b50b6f8642433bbff75604b16983499a349765b7" }
+version = "1.0.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/01/5ff29e252321dd7cd012d8473580ae53c2fb66e81000d99a7dd8426102d3/filecheck-1.0.6.tar.gz", hash = "sha256:c41c51f733b0bfdae6718dca4b94fb0bdf72fab70f35fc68d62bf8ac60d6442d", size = 47410, upload-time = "2026-09-03T11:00:46.555Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/2e/d46ab13a690cfa257ebadddd36c4fcc6eb36218c198b3b48a74312a4cd65/filecheck-1.0.6-py3-none-any.whl", hash = "sha256:202b53d0b384016f6b150af8fa6f1b7f306d2213d31983d5a472135fce95baf9", size = 24510, upload-time = "2026-09-03T11:00:45.407Z" },
+]
 
 [[package]]
 name = "filelock"
@@ -3562,7 +3566,7 @@ docs = [
 requires-dist = [
     { name = "cffi", marker = "extra == 'llvm'", specifier = ">=2" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8" },
-    { name = "filecheck", marker = "extra == 'dev'", git = "https://github.com/antonlydike/filecheck" },
+    { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.6" },
     { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.8.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19" },
