@@ -114,6 +114,7 @@ from .registers import (
     RSP,
     AVX2RegisterType,
     AVX512MaskRegisterType,
+    AVX512RegisterType,
     GeneralRegisterType,
     Reg32Type,
     SSERegisterType,
