@@ -85,6 +85,7 @@ zip-safe = false
 
 [tool.uv]
 sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
+sources.filecheck = { git = "https://github.com/antonlydike/filecheck" }
 sources.my_plugin = { path = "tests/my_plugin", editable = true }
 sources.toy = { path = "docs/Toy", editable = true }
 
