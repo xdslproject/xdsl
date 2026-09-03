@@ -76,6 +76,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    prop_def,
     result_def,
     successor_def,
     traits_def,
@@ -111,6 +112,7 @@ from .registers import (
     RDX,
     RFLAGS,
     RSP,
+    AVX2RegisterType,
     AVX512MaskRegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
@@ -964,6 +966,48 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
             attributes={
                 "immediate": immediate,
                 "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source), self.immediate
+
+
+class DSI8_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
+    """
+    A base class for x86 operations that have one destination register, one source
+    register, and an unsigned 8-bit immediate value.
+    """
+
+    destination: OpResult[R1InvT] = result_def(R1InvT)
+    source = operand_def(R2InvT)
+    immediate = prop_def(IntegerAttr[UI8])
+
+    assembly_format = (
+        "$source `,` $immediate attr-dict `:` functional-type($source, $destination)"
+    )
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        immediate: int | IntegerAttr[UI8],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui8)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            properties={
+                "immediate": immediate,
             },
             result_types=[destination],
         )
@@ -4133,6 +4177,30 @@ class KS_KMovQOp(KS_Operation):
     """
 
     name = "x86.ks.kmovq"
+
+
+@irdl_op_definition
+class DSI_Vextractf64x4Op(DSI8_Operation[AVX2RegisterType, AVX512RegisterType]):
+    """
+    Extract 256 bits of packed double-precision floating-point elements from a ZMM
+    register into a YMM register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vextractf128:vextractf32x4:vextractf64x2:vextractf32x8:vextractf64x4).
+    """
+
+    name = "x86.dsi.vextractf64x4"
+
+
+@irdl_op_definition
+class DSI_Vextractf128Op(DSI8_Operation[SSERegisterType, AVX2RegisterType]):
+    """
+    Extract 128 bits of packed floating-point elements from a YMM register into an XMM
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vextractf128:vextractf32x4:vextractf64x2:vextractf32x8:vextractf64x4).
+    """
+
+    name = "x86.dsi.vextractf128"
 
 
 @irdl_op_definition
