@@ -404,6 +404,10 @@ func.func @funcyasm() {
 // CHECK: %{{.*}} = x86.rssk.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} {z} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
 %rrrk_vfmadd231pd_avx512_no_z = x86.rssk.vfmadd231pd %rrrk_vfmadd231pd_avx512_z, %zmm1, %zmm2, %k1 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rssk.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
+%rrrk_vfmadd231pd_sse = x86.rssk.vfmadd231pd %xmm0, %xmm1, %xmm2, %k1 : (!x86.ssereg, !x86.ssereg, !x86.ssereg, !x86.avx512maskreg) -> !x86.ssereg
+// CHECK: %{{.*}} = x86.rssk.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.ssereg, !x86.avx512maskreg) -> !x86.ssereg
+%rrrk_vfmadd231pd_avx2 = x86.rssk.vfmadd231pd %ymm0, %ymm1, %ymm2, %k1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg, !x86.avx512maskreg) -> !x86.avx2reg
+// CHECK: %{{.*}} = x86.rssk.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg, !x86.avx512maskreg) -> !x86.avx2reg
 %rrm_vfmadd231pd_avx512 = x86.rsm.vfmadd231pd %rrrk_vfmadd231pd_avx512_no_z, %zmm1, [%1 + 8] : (!x86.avx512reg, !x86.avx512reg, !x86.reg64) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, [%{{.*}} + 8] : (!x86.avx512reg, !x86.avx512reg, !x86.reg64) -> !x86.avx512reg
 %rrm_vfmadd231pd_avx512_no_offset = x86.rsm.vfmadd231pd %rrm_vfmadd231pd_avx512, %zmm1, [%1] : (!x86.avx512reg, !x86.avx512reg, !x86.reg64) -> !x86.avx512reg
@@ -469,6 +473,10 @@ func.func @funcyasm() {
 // CHECK-NEXT: %ds_vmovapd_avx512_mask = x86.dsk.vmovapd %zmm1, %k1 : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
 %ds_vmovapd_avx512_mask_z = x86.dsk.vmovapd %zmm1, %k1 {z} : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
 // CHECK-NEXT: %ds_vmovapd_avx512_mask_z = x86.dsk.vmovapd %zmm1, %k1 {z} : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
+%ds_vmovapd_sse_mask = x86.dsk.vmovapd %xmm1, %k1 : (!x86.ssereg, !x86.avx512maskreg) -> !x86.ssereg
+// CHECK-NEXT: %ds_vmovapd_sse_mask = x86.dsk.vmovapd %xmm1, %k1 : (!x86.ssereg, !x86.avx512maskreg) -> !x86.ssereg
+%ds_vmovapd_avx2_mask_z = x86.dsk.vmovapd %ymm1, %k1 {z} : (!x86.avx2reg, !x86.avx512maskreg) -> !x86.avx2reg
+// CHECK-NEXT: %ds_vmovapd_avx2_mask_z = x86.dsk.vmovapd %ymm1, %k1 {z} : (!x86.avx2reg, !x86.avx512maskreg) -> !x86.avx2reg
 
 x86.ms.vmovapd [%1 + 8], %xmm1 : (!x86.reg64, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd [%1 + 8], %xmm1 : (!x86.reg64, !x86.ssereg) -> ()
