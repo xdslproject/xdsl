@@ -53,19 +53,6 @@ def _create_target_machine(*, optimize: bool) -> tuple[Target, TargetMachine]:
     return target, target_machine
 
 
-def _run_optimization_pipeline(
-    module: ModuleRef, target_machine: TargetMachine
-) -> None:
-    options = llvmlite.binding.PipelineTuningOptions(speed_level=3)
-    options.slp_vectorization = True
-    with (
-        options,
-        llvmlite.binding.create_pass_builder(target_machine, options) as pass_builder,
-        pass_builder.getModulePassManager() as module_pass_manager,
-    ):
-        module_pass_manager.run(module, pass_builder)
-
-
 def _compile_module(
     llvm_module: llvm_ir.Module,
     symbol: str,
@@ -90,7 +77,16 @@ def _compile_module(
     backing_mod.data_layout = str(target_machine.target_data)
 
     if optimize:
-        _run_optimization_pipeline(backing_mod, target_machine)
+        options = llvmlite.binding.PipelineTuningOptions(speed_level=3)
+        options.slp_vectorization = True
+        with (
+            options,
+            llvmlite.binding.create_pass_builder(
+                target_machine, options
+            ) as pass_builder,
+            pass_builder.getModulePassManager() as module_pass_manager,
+        ):
+            module_pass_manager.run(backing_mod, pass_builder)
 
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
