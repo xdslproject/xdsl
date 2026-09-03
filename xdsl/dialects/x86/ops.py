@@ -366,9 +366,6 @@ class DSK_Operation(X86Instruction, ABC):
     """
     A base class for x86 operations that have one destination register and one source
     register.
-
-    AVX512VL encodes these on the 128- and 256-bit register banks as well, so the
-    destination and source are any vector register.
     """
 
     destination: OpResult[X86VectorRegisterType] = result_def(X86VectorRegisterType)
@@ -635,9 +632,6 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
     written to, a source register m that contains a pointer, a constant offset, and a
     mask register k. The z attribute enables zero masking, which sets the elements of
     the destination register to zero where the corresponding bit in the mask is zero.
-
-    AVX512VL encodes these on the 128- and 256-bit register banks as well, so the
-    destination is any vector register.
     """
 
     destination = result_def(X86VectorRegisterType)
@@ -837,8 +831,7 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     Typical usage: [m+offset]{k} := s
     where [m+offset] is the memory location addressed by the base register and offset,
-    s is the source vector register, and k is the mask. AVX512VL encodes these on the
-    128- and 256-bit register banks as well, so s is any vector register.
+    s is the source vector register, and k is the mask.
     """
 
     memory = operand_def(R1InvT)
@@ -1256,9 +1249,6 @@ class RSSK_Operation(X86Instruction, ABC):
     and two source registers s1 and s2, with mask register k. The z attribute enables zero masking,
     which sets the elements of the destination register to zero where the corresponding
     bit in the mask is zero.
-
-    AVX512VL encodes these on the 128- and 256-bit register banks as well, so r, s1 and
-    s2 are any vector register.
     """
 
     T: ClassVar[VarConstraint] = VarConstraint("T", base(X86VectorRegisterType))
