@@ -39,7 +39,10 @@ class LLVMRawJITFunc(RawJITFunc):
 _FFI = FFI()
 
 
-def _create_target_machine(*, optimize: bool) -> tuple[Target, TargetMachine]:
+def _create_target_machine(*, opt_level: int | None) -> tuple[Target, TargetMachine]:
+    if opt_level is not None and opt_level not in range(4):
+        raise ValueError("opt_level must be between 0 and 3 or None")
+
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
@@ -47,7 +50,7 @@ def _create_target_machine(*, optimize: bool) -> tuple[Target, TargetMachine]:
     target_machine = target.create_target_machine(
         cpu=llvmlite.binding.get_host_cpu_name(),
         features=llvmlite.binding.get_host_cpu_features().flatten(),
-        opt=3 if optimize else 2,
+        opt=2 if opt_level is None else opt_level,
         jit=True,
     )
     return target, target_machine
@@ -60,7 +63,7 @@ def _compile_module(
     *,
     target: Target,
     target_machine: TargetMachine,
-    optimize: bool,
+    opt_level: int | None,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
     if backing_mod.triple not in (
@@ -76,8 +79,8 @@ def _compile_module(
     backing_mod.triple = target_machine.triple
     backing_mod.data_layout = str(target_machine.target_data)
 
-    if optimize:
-        options = llvmlite.binding.PipelineTuningOptions(speed_level=3)
+    if opt_level is not None:
+        options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
         options.slp_vectorization = True
         with (
             options,
@@ -121,8 +124,8 @@ class LLVMJITBackend(JITBackend):
     lowering: tuple[ModulePass, ...]
     """Pass pipeline applied before resolving ``symbol``."""
 
-    optimize: bool
-    """Run host O3 optimization."""
+    opt_level: int | None
+    """LLVM optimization level, or ``None`` to skip the IR optimization pipeline."""
 
     def __init__(
         self,
@@ -133,14 +136,14 @@ class LLVMJITBackend(JITBackend):
             ),
         ),
         *,
-        optimize: bool = False,
+        opt_level: int | None = None,
     ):
         """Construct the backend with the given ``lowering`` pipeline."""
         super().__init__()
         register_builtin_types(self.c_type_context)
         register_llvm_types(self.c_type_context)
         self.lowering = lowering
-        self.optimize = optimize
+        self.opt_level = opt_level
 
     def jit(
         self,
@@ -162,7 +165,7 @@ class LLVMJITBackend(JITBackend):
                 "the lowering must leave it in the LLVM dialect"
             )
         c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
-        target, target_machine = _create_target_machine(optimize=self.optimize)
+        target, target_machine = _create_target_machine(opt_level=self.opt_level)
         llvm_module = convert_module(
             mlir_module,
             fallback_target_triple=target_machine.triple,
@@ -174,5 +177,5 @@ class LLVMJITBackend(JITBackend):
             c_func_type,
             target=target,
             target_machine=target_machine,
-            optimize=self.optimize,
+            opt_level=self.opt_level,
         )
