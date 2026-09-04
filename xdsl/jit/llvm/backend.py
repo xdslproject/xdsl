@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
@@ -118,8 +118,8 @@ class LLVMJITBackend(JITBackend):
     lowering: tuple[ModulePass, ...]
     """Pass pipeline applied before resolving ``symbol``."""
 
-    opt_level: int
-    """LLVM optimization level, from 0 to 3, applied to codegen and the IR pipeline."""
+    opt_level: Literal[0, 1, 2, 3]
+    """LLVM optimization level, applied to code generation and the IR pipeline."""
 
     def __init__(
         self,
@@ -130,11 +130,9 @@ class LLVMJITBackend(JITBackend):
             ),
         ),
         *,
-        opt_level: int = 2,
+        opt_level: Literal[0, 1, 2, 3] = 2,
     ):
         """Construct the backend with the given ``lowering`` and ``opt_level``."""
-        if opt_level not in range(4):
-            raise ValueError(f"opt_level must be between 0 and 3, got {opt_level}")
         super().__init__()
         register_builtin_types(self.c_type_context)
         register_llvm_types(self.c_type_context)
