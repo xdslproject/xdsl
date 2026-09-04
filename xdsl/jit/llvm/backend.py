@@ -39,10 +39,7 @@ class LLVMRawJITFunc(RawJITFunc):
 _FFI = FFI()
 
 
-def _create_target_machine(*, opt_level: int | None) -> tuple[Target, TargetMachine]:
-    if opt_level is not None and opt_level not in range(4):
-        raise ValueError("opt_level must be between 0 and 3 or None")
-
+def _create_target_machine(*, opt_level: int) -> tuple[Target, TargetMachine]:
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
@@ -50,7 +47,7 @@ def _create_target_machine(*, opt_level: int | None) -> tuple[Target, TargetMach
     target_machine = target.create_target_machine(
         cpu=llvmlite.binding.get_host_cpu_name(),
         features=llvmlite.binding.get_host_cpu_features().flatten(),
-        opt=2 if opt_level is None else opt_level,
+        opt=opt_level,
         jit=True,
     )
     return target, target_machine
@@ -63,7 +60,7 @@ def _compile_module(
     *,
     target: Target,
     target_machine: TargetMachine,
-    opt_level: int | None,
+    opt_level: int,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
     if backing_mod.triple not in (
@@ -79,17 +76,14 @@ def _compile_module(
     backing_mod.triple = target_machine.triple
     backing_mod.data_layout = str(target_machine.target_data)
 
-    if opt_level is not None:
-        options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
-        options.slp_vectorization = True
-        with (
-            options,
-            llvmlite.binding.create_pass_builder(
-                target_machine, options
-            ) as pass_builder,
-            pass_builder.getModulePassManager() as module_pass_manager,
-        ):
-            module_pass_manager.run(backing_mod, pass_builder)
+    options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
+    options.slp_vectorization = True
+    with (
+        options,
+        llvmlite.binding.create_pass_builder(target_machine, options) as pass_builder,
+        pass_builder.getModulePassManager() as module_pass_manager,
+    ):
+        module_pass_manager.run(backing_mod, pass_builder)
 
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
@@ -124,8 +118,8 @@ class LLVMJITBackend(JITBackend):
     lowering: tuple[ModulePass, ...]
     """Pass pipeline applied before resolving ``symbol``."""
 
-    opt_level: int | None
-    """LLVM optimization level, or ``None`` to skip the IR optimization pipeline."""
+    opt_level: int
+    """LLVM optimization level, from 0 to 3, applied to codegen and the IR pipeline."""
 
     def __init__(
         self,
@@ -136,9 +130,11 @@ class LLVMJITBackend(JITBackend):
             ),
         ),
         *,
-        opt_level: int | None = None,
+        opt_level: int = 2,
     ):
-        """Construct the backend with the given ``lowering`` pipeline."""
+        """Construct the backend with the given ``lowering`` and ``opt_level``."""
+        if opt_level not in range(4):
+            raise ValueError(f"opt_level must be between 0 and 3, got {opt_level}")
         super().__init__()
         register_builtin_types(self.c_type_context)
         register_llvm_types(self.c_type_context)

@@ -124,11 +124,15 @@ def test_pipeline_optimizes_module(opt_level: int):
     )
 
     assert " add i64 " not in str(optimized.backing_mod)
+    assert optimized.c_func(41) == 41
 
 
-@pytest.mark.parametrize("opt_level", [None, 0])
-def test_pipeline_does_not_optimize_module(opt_level: int | None):
-    unoptimized = LLVMJITBackend(lowering=(), opt_level=opt_level).jit(
+def test_default_opt_level():
+    assert LLVMJITBackend(lowering=()).opt_level == 2
+
+
+def test_pipeline_does_not_optimize_module():
+    unoptimized = LLVMJITBackend(lowering=(), opt_level=0).jit(
         parse(ADD_ZERO), "add_zero", Context()
     )
 
@@ -137,10 +141,8 @@ def test_pipeline_does_not_optimize_module(opt_level: int | None):
 
 @pytest.mark.parametrize("opt_level", [-1, 4])
 def test_invalid_optimization_level(opt_level: int):
-    with pytest.raises(ValueError, match="opt_level must be between 0 and 3 or None"):
-        LLVMJITBackend(lowering=(), opt_level=opt_level).jit(
-            parse(ADD_ZERO), "add_zero", Context()
-        )
+    with pytest.raises(ValueError, match="opt_level must be between 0 and 3"):
+        LLVMJITBackend(lowering=(), opt_level=opt_level)
 
 
 def test_jit_rejects_non_native_target_triple():
