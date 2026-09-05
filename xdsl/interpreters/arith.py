@@ -1,5 +1,5 @@
 from math import copysign, isnan
-from typing import cast
+from typing import Any, cast
 
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import FloatAttr, IntegerAttr
@@ -10,6 +10,8 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.comparisons import to_signed
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
@@ -260,6 +262,39 @@ class ArithFunctions(InterpreterFunctions):
         (lhs, rhs) = args
         assert rhs != 0
         return (lhs // rhs,)
+
+    @impl(arith.SelectOp)
+    def run_select(
+        self, interpreter: Interpreter, op: arith.SelectOp, args: PythonValues
+    ):
+        assert len(args) == 3
+        cond, lhs, rhs = args
+
+        if not isinstance(cond, ShapedArray):
+            # A scalar condition selects the whole value, shaped or not.
+            return (lhs if cond else rhs,)
+
+        # A shaped condition selects elementwise, all shapes must be identical.
+        shaped_cond = cast(ShapedArray[int], cond)
+        shaped_lhs = cast(ShapedArray[Any], lhs)
+        shaped_rhs = cast(ShapedArray[Any], rhs)
+        interpreter.interpreter_assert(
+            shaped_cond.shape == shaped_lhs.shape == shaped_rhs.shape,
+            f"arith.select shape mismatch: {shaped_cond.shape}, "
+            f"{shaped_lhs.shape}, {shaped_rhs.shape}",
+        )
+        data: list[Any] = [
+            l if c else r
+            for c, l, r in zip(
+                shaped_cond.data, shaped_lhs.data, shaped_rhs.data, strict=True
+            )
+        ]
+        return (
+            ShapedArray(
+                TypedPtr[Any].new(data, xtype=shaped_lhs.element_type),
+                list(shaped_lhs.shape),
+            ),
+        )
 
     @impl(arith.IndexCastOp)
     def run_indexcast(

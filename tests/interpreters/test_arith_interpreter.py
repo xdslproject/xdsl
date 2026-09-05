@@ -19,15 +19,28 @@ from xdsl.dialects.arith import (
     MuliOp,
     OrIOp,
     RemSIOp,
+    SelectOp,
     ShLIOp,
     ShRSIOp,
     SubfOp,
     SubiOp,
     XOrIOp,
 )
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i8, i32
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+    VectorType,
+    i1,
+    i8,
+    i32,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
+from xdsl.utils.exceptions import InterpretationError
 
 interpreter = Interpreter(ModuleOp([]))
 interpreter.register_implementations(ArithFunctions())
@@ -369,6 +382,65 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
 
     assert len(ret) == 1
     assert ret[0] == result
+
+
+@pytest.mark.parametrize("cond_value", [1, 0])
+def test_select(cond_value: int):
+    cond_op = test.TestOp(result_types=[i1])
+    select = SelectOp(cond_op, lhs_op, rhs_op)
+
+    ret = interpreter.run_op(select, (cond_value, 1, 2))
+
+    assert len(ret) == 1
+    assert ret[0] == (1 if cond_value else 2)
+
+
+@pytest.mark.parametrize("cond_value", [1, 0])
+def test_select_scalar_cond_shaped_operands(cond_value: int):
+    vector_type = VectorType(i32, (2, 2))
+    cond_op = test.TestOp(result_types=[i1])
+    vector_lhs_op = test.TestOp(result_types=[vector_type])
+    vector_rhs_op = test.TestOp(result_types=[vector_type])
+    select = SelectOp(cond_op, vector_lhs_op, vector_rhs_op)
+
+    lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
+    rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
+
+    ret = interpreter.run_op(select, (cond_value, lhs, rhs))
+
+    assert len(ret) == 1
+    assert ret[0] == (lhs if cond_value else rhs)
+
+
+def test_select_shaped_cond():
+    vector_type = VectorType(i32, (2, 2))
+    cond_op = test.TestOp(result_types=[VectorType(i1, (2, 2))])
+    vector_lhs_op = test.TestOp(result_types=[vector_type])
+    vector_rhs_op = test.TestOp(result_types=[vector_type])
+    select = SelectOp(cond_op, vector_lhs_op, vector_rhs_op)
+
+    cond = ShapedArray(TypedPtr.new_int32([1, 0, 0, 1]), [2, 2])
+    lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
+    rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
+
+    ret = interpreter.run_op(select, (cond, lhs, rhs))
+
+    assert len(ret) == 1
+    assert ret[0] == ShapedArray(TypedPtr.new_int32([1, 6, 7, 4]), [2, 2])
+
+
+def test_select_shaped_cond_shape_mismatch():
+    cond_op = test.TestOp(result_types=[VectorType(i1, (4,))])
+    vector_lhs_op = test.TestOp(result_types=[VectorType(i32, (2, 2))])
+    vector_rhs_op = test.TestOp(result_types=[VectorType(i32, (2, 2))])
+    select = SelectOp(cond_op, vector_lhs_op, vector_rhs_op)
+
+    cond = ShapedArray(TypedPtr.new_int32([1, 0, 0, 1]), [4])
+    lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
+    rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
+
+    with pytest.raises(InterpretationError, match=r"arith\.select shape mismatch"):
+        interpreter.run_op(select, (cond, lhs, rhs))
 
 
 @pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
