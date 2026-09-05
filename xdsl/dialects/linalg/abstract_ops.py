@@ -29,6 +29,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .attrs import IteratorTypeAttr
@@ -358,6 +359,56 @@ class NamedOperation(LinalgStructuredOperation, ABC):
             AffineMapAttr(map_) for map_ in self.get_default_indexing_maps()
         )
 
+    def verify_(self) -> None:
+        operand_types = self.operand_types
+        if not all(
+            isinstance(operand_type, ShapedType) for operand_type in operand_types
+        ):
+            return
+        shaped_types = cast(Sequence[ShapedType], operand_types)
+
+        try:
+            indexing_maps = tuple(map.data for map in self.get_indexing_maps())
+        except NotImplementedError:
+            return
+
+        if (num_maps := len(indexing_maps)) != (num_operands := len(shaped_types)):
+            raise VerifyException(
+                f"Operation has {num_operands} operands but {num_maps} indexing maps"
+            )
+
+        for index, (shaped_type, indexing_map) in enumerate(
+            zip(shaped_types, indexing_maps)
+        ):
+            if (rank := len(shaped_type.get_shape())) != (
+                num_results := len(indexing_map.results)
+            ):
+                raise VerifyException(
+                    f"rank(operand {index}) = {rank} doesn't match the number of "
+                    f"results of its indexing map ({num_results})"
+                )
+
+        if not all(shaped_type.has_static_shape() for shaped_type in shaped_types):
+            return
+
+        try:
+            loop_ranges = self.get_static_loop_ranges()
+        except NotImplementedError:
+            return
+
+        for index, (shaped_type, indexing_map) in enumerate(
+            zip(shaped_types, indexing_maps)
+        ):
+            expected_shape = indexing_map.eval(loop_ranges, ())
+            for dimension, (expected, actual) in enumerate(
+                zip(expected_shape, shaped_type.get_shape())
+            ):
+                if expected != actual:
+                    raise VerifyException(
+                        f"dim(operand {index}, {dimension}) = {actual} doesn't match "
+                        f"the {expected} given by its indexing map"
+                    )
+
 
 class ElementwiseOperation(NamedOperation, ABC):
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
@@ -366,12 +417,9 @@ class ElementwiseOperation(NamedOperation, ABC):
             "types."
         )
         operand_types = cast(Sequence[ShapedType], self.operand_types)
-        shapes = tuple(t.get_shape() for t in operand_types)
-        assert all(shape == shapes[0] for shape in shapes[1:]), (
-            "All shapes must be equal"
-        )
+        rank = len(operand_types[0].get_shape())
 
-        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+        return (AffineMap.identity(rank),) * len(operand_types)
 
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         num_loops = self.get_num_loops()
