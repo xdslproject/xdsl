@@ -44,6 +44,14 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                         if result_reg in phys_reg_by_inf_reg:
                             # use previously allocated phys reg for this value
                             phys_reg = phys_reg_by_inf_reg[result_reg]
+                        elif (
+                            isinstance(inner_op, riscv.MVOp)
+                            and isinstance(inner_op.rs.type, riscv.RISCVRegisterType)
+                            and inner_op.rs.type.is_allocated
+                        ):
+                            # reuse source register type to allow redundant mv elimination
+                            phys_reg = inner_op.rs.type
+                            phys_reg_by_inf_reg[result_reg] = phys_reg
                         else:
                             # allocate a new phys reg
                             phys_reg = register_stack.pop(type(result_reg))
