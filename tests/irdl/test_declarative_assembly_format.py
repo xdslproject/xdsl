@@ -612,6 +612,37 @@ def test_optional_qualified_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
+            "test.optional_typed_property of",
+            '"test.optional_typed_property"() : () -> ()',
+        ),
+        (
+            "test.optional_typed_property 3 of",
+            '"test.optional_typed_property"() <{prop = 3 : i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_typed_property(program: str, generic_program: str):
+    """Test the parsing of an optional property with a unique typed base."""
+
+    @irdl_op_definition
+    class OptionalTypedPropertyOp(IRDLOperation):
+        name = "test.optional_typed_property"
+        prop = opt_prop_def(IntegerAttr.constr(type=i32))
+
+        assembly_format = "($prop^)? `of` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalTypedPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
             "test.optional_property()",
             '"test.optional_property"() : () -> ()',
         ),
