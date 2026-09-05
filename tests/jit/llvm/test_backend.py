@@ -18,6 +18,8 @@ from xdsl.jit.llvm.backend import (
     LLVMRawJITFunc,
     _compile_module,  # pyright: ignore[reportPrivateUsage]
     _create_target_machine,  # pyright: ignore[reportPrivateUsage]
+    _is_native_data_layout,  # pyright: ignore[reportPrivateUsage]
+    _is_native_triple,  # pyright: ignore[reportPrivateUsage]
 )
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
@@ -149,11 +151,8 @@ def test_pipeline_does_not_optimize_module():
 
 
 def test_jit_rejects_non_native_target_triple():
-    incompatible_arch = (
-        "aarch64"
-        if llvm_binding.get_process_triple().startswith("x86_64")
-        else "x86_64"
-    )
+    native_arch = llvm_binding.get_triple_parts(llvm_binding.get_process_triple()).Arch
+    incompatible_arch = "aarch64" if native_arch == "x86_64" else "x86_64"
     module = parse(IDENTITY)
     module.attributes["llvm.target_triple"] = StringAttr(
         f"{incompatible_arch}-unknown-unknown"
@@ -176,7 +175,6 @@ def identity_module(*, linkage: str = "") -> llvm_ir.Module:
 def compile_module(
     module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
 ) -> LLVMRawJITFunc:
-    # the converter only emits native modules, so these guards need llvmlite IR
     target, target_machine = _create_target_machine(opt_level=2)
     return _compile_module(
         module,
@@ -205,7 +203,6 @@ def test_jit_rejects_non_function_symbol():
 
 
 def test_optimization_preserves_requested_symbol():
-    # global DCE drops an internal entry point unless the backend exports it
     raw_func = compile_module(
         identity_module(linkage="internal"),
         "identity",
@@ -213,3 +210,41 @@ def test_optimization_preserves_requested_symbol():
     )
 
     assert raw_func.c_func(42) == 42
+
+
+def test_jit_accepts_another_spelling_of_the_native_triple():
+    parts = llvm_binding.get_triple_parts(llvm_binding.get_process_triple())
+    module = parse(IDENTITY)
+    module.attributes["llvm.target_triple"] = StringAttr(
+        f"{parts.Arch}-{parts.Vendor}-{parts.OS}"
+    )
+
+    raw_func = LLVMJITBackend(lowering=()).jit(module, "identity", Context())
+
+    assert raw_func.c_func(42) == 42
+
+
+@pytest.mark.parametrize(
+    "module_triple",
+    ["aarch64-apple-darwin", "arm64-apple-macosx15.0.0"],
+)
+def test_apple_triple_spellings_name_one_target(module_triple: str):
+    assert _is_native_triple(module_triple, "arm64-apple-darwin25.5.0")
+
+
+@pytest.mark.parametrize(
+    "module_triple,native_triple",
+    [
+        ("garbage", "arm64-apple-darwin25.5.0"),
+        ("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"),
+        ("aarch64-unknown-linux", "arm64-apple-darwin25.5.0"),
+        ("x86_64-unknown-linux-musl", "x86_64-unknown-linux-gnu"),
+        ("armv7-unknown-linux-gnueabihf", "armv6-unknown-linux-gnueabihf"),
+    ],
+)
+def test_foreign_triple_is_not_native(module_triple: str, native_triple: str):
+    assert not _is_native_triple(module_triple, native_triple)
+
+
+def test_data_layout_spec_order_does_not_matter():
+    assert _is_native_data_layout("e-i64:64-S128", "e-S128-i64:64")

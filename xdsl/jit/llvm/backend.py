@@ -53,6 +53,26 @@ def _create_target_machine(*, opt_level: int) -> tuple[Target, TargetMachine]:
     return target, target_machine
 
 
+def _is_native_triple(module_triple: str, native_triple: str) -> bool:
+    # LLVM spells one target several ways: arm64 for aarch64, macosx for darwin
+    if module_triple in ("", "unknown-unknown-unknown"):
+        return True
+    module_parts = llvmlite.binding.get_triple_parts(module_triple)
+    native_parts = llvmlite.binding.get_triple_parts(native_triple)
+    return (
+        module_parts.Arch == native_parts.Arch
+        and module_parts.SubArch in ("", native_parts.SubArch)
+        and module_parts.ObjectFormat == native_parts.ObjectFormat
+        and module_parts.Env in ("unknown", native_parts.Env)
+    )
+
+
+def _is_native_data_layout(module_layout: str, native_layout: str) -> bool:
+    if not module_layout:
+        return True
+    return set(module_layout.split("-")) == set(native_layout.split("-"))
+
+
 def _compile_module(
     llvm_module: llvm_ir.Module,
     symbol: str,
@@ -63,18 +83,13 @@ def _compile_module(
     opt_level: int,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
-    if backing_mod.triple not in (
-        "",
-        "unknown-unknown-unknown",
-        target.triple,
-        target_machine.triple,
-    ):
+    if not _is_native_triple(backing_mod.triple, target_machine.triple):
         raise JITException(
             f"Cannot JIT module for target {backing_mod.triple} with native "
             f"target {target_machine.triple}"
         )
     native_data_layout = str(target_machine.target_data)
-    if backing_mod.data_layout not in ("", native_data_layout):
+    if not _is_native_data_layout(backing_mod.data_layout, native_data_layout):
         raise JITException("Cannot JIT module with a non-native data layout")
     backing_mod.triple = target_machine.triple
     backing_mod.data_layout = native_data_layout
@@ -83,7 +98,6 @@ def _compile_module(
         entry_point = backing_mod.get_function(symbol)
     except NameError:
         raise JITException(f"No function to JIT compile: {symbol}") from None
-    # the pipeline runs global DCE, which drops an entry point that is not exported
     entry_point.linkage = "external"
 
     options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
