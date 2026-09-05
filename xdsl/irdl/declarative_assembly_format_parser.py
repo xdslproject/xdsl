@@ -60,6 +60,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandDirective,
     OperandsDirective,
     OperandVariable,
+    OptionalFormatDirective,
     OptionalGroupDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
@@ -707,13 +708,17 @@ class FormatParser(BaseParser):
                 "An optional group's anchor must be an anchorable directive."
             )
 
+        then_first = cast(
+            OptionalFormatDirective, then_elements[first_non_whitespace_index]
+        )
+
         return OptionalGroupDirective(
             anchor,
             cast(
                 tuple[WhitespaceDirective, ...],
                 then_elements[:first_non_whitespace_index],
             ),
-            then_elements[first_non_whitespace_index],
+            then_first,
             then_elements[first_non_whitespace_index + 1 :],
             else_elements,
         )

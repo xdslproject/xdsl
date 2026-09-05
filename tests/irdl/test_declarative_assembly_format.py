@@ -87,6 +87,7 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatProgram,
     OperandsDirective,
     OperandVariable,
+    OptionalFormatDirective,
     ParsingState,
     PrintingState,
     PunctuationDirective,
@@ -2197,6 +2198,36 @@ def test_functional_type_with_operands_and_results(program: str):
     check_roundtrip(program, ctx)
 
 
+def test_functional_type_rejects_non_parenthesized_operand_types():
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        ops = var_operand_def()
+        res = var_result_def()
+
+        assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
+
+    ctx = Context()
+    ctx.load_op(FunctionalTypeOp)
+    ctx.load_dialect(Test)
+
+    parser = Parser(
+        ctx,
+        textwrap.dedent(
+            """\
+            %input = "test.op"() : () -> i32
+            %output = test.functional_type %input : i32 -> i32"""
+        ),
+    )
+    parser.parse_operation()
+
+    with pytest.raises(ParseError) as exc_info:
+        parser.parse_operation()
+
+    assert "AnyAttr()" not in str(exc_info.value)
+
+
 ################################################################################
 # Regions                                                                     #
 ################################################################################
@@ -3151,6 +3182,39 @@ def test_optional_else_group(
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_typed_attr_group 5 of %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_typed_attr_group"(%0) <{index = 5 : i32}> : (i32) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_typed_attr_group of %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_typed_attr_group"(%0) : (i32) -> ()',
+        ),
+    ],
+)
+def test_optional_group_anchored_on_typed_attribute(program: str, generic_program: str):
+    """An optional group anchored on a typed attribute variable must be skippable."""
+
+    @irdl_op_definition
+    class OptionalTypedAttrGroupOp(IRDLOperation):
+        name = "test.optional_typed_attr_group"
+
+        index = opt_prop_def(IntegerAttr[I32])
+        input_op = operand_def(i32)
+
+        assembly_format = "($index^)? `of` $input_op attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalTypedAttrGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
 def test_impossible_optional_else_group():
     error = "property 'val' is already bound"
     with pytest.raises(
@@ -3852,9 +3916,8 @@ def test_qualified_attr():
 
 @irdl_custom_directive
 class Hello(CustomDirective):
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         parser.parse_keyword("hello")
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -3885,12 +3948,12 @@ def test_custom_directive(program: str):
 
 
 @irdl_custom_directive
-class Bars(CustomDirective):
+class Bars(CustomDirective, OptionalFormatDirective):
     """We print the operands with bars between, because why not."""
 
     var: VariadicOperandVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         first = parser.parse_optional_unresolved_operand()
         if first is None:
             operands = []
@@ -3942,10 +4005,10 @@ def test_non_upper_classvar():
     ):
 
         @irdl_custom_directive
-        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+        class BadClassVar(CustomDirective, OptionalFormatDirective):  # pyright: ignore[reportUnusedClass]
             bad: ClassVar
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -3966,7 +4029,7 @@ def test_bad_parameter():
         class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
             int_param: int
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -3988,8 +4051,7 @@ class EmptyDirectiveWithParams(CustomDirective):
     operand_types: TypeDirective
     results: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        return True
+    def parse(self, parser: Parser, state: ParsingState) -> None: ...
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         pass

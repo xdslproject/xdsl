@@ -34,15 +34,13 @@ class DimensionList(CustomDirective):
 
     dimensions: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState) -> None:
         dims = []
 
         if not parse_empty_dimension_list_directive(parser):
             dims = parser.parse_dimension_list()
 
         self.dimensions.set(state, DenseArrayBase[I64].from_list(i64, dims))
-
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
