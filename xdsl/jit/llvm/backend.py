@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
-import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
 from cffi import FFI
@@ -40,12 +39,17 @@ class LLVMRawJITFunc(RawJITFunc):
 _FFI = FFI()
 
 
-def _create_target_machine() -> tuple[Target, TargetMachine]:
+def _create_target_machine(*, opt_level: int) -> tuple[Target, TargetMachine]:
     llvmlite.binding.initialize_native_target()
     llvmlite.binding.initialize_native_asmprinter()
 
-    target = llvmlite.binding.Target.from_default_triple()
-    target_machine = target.create_target_machine()
+    target = llvmlite.binding.Target.from_triple(llvmlite.binding.get_process_triple())
+    target_machine = target.create_target_machine(
+        cpu=llvmlite.binding.get_host_cpu_name(),
+        features=llvmlite.binding.get_host_cpu_features().flatten(),
+        opt=opt_level,
+        jit=True,
+    )
     return target, target_machine
 
 
@@ -56,8 +60,31 @@ def _compile_module(
     *,
     target: Target,
     target_machine: TargetMachine,
+    opt_level: int,
 ) -> LLVMRawJITFunc:
     backing_mod = llvmlite.binding.parse_assembly(str(llvm_module))
+    if backing_mod.triple not in (
+        "",
+        "unknown-unknown-unknown",
+        target.triple,
+        target_machine.triple,
+    ):
+        raise JITException(
+            f"Cannot JIT module for target {backing_mod.triple} with native "
+            f"target {target_machine.triple}"
+        )
+    backing_mod.triple = target_machine.triple
+    backing_mod.data_layout = str(target_machine.target_data)
+
+    options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
+    options.slp_vectorization = True
+    with (
+        options,
+        llvmlite.binding.create_pass_builder(target_machine, options) as pass_builder,
+        pass_builder.getModulePassManager() as module_pass_manager,
+    ):
+        module_pass_manager.run(backing_mod, pass_builder)
+
     engine = llvmlite.binding.create_mcjit_compiler(backing_mod, target_machine)
     engine.finalize_object()
     engine.run_static_constructors()
@@ -91,6 +118,9 @@ class LLVMJITBackend(JITBackend):
     lowering: tuple[ModulePass, ...]
     """Pass pipeline applied before resolving ``symbol``."""
 
+    opt_level: Literal[0, 1, 2, 3]
+    """LLVM optimization level, applied to code generation and the IR pipeline."""
+
     def __init__(
         self,
         lowering: tuple[ModulePass, ...] = (
@@ -99,19 +129,22 @@ class LLVMJITBackend(JITBackend):
                 generic=True,
             ),
         ),
+        *,
+        opt_level: Literal[0, 1, 2, 3] = 2,
     ):
-        """Construct the backend with the given ``lowering`` pipeline."""
+        """Construct the backend with the given ``lowering`` and ``opt_level``."""
         super().__init__()
         register_builtin_types(self.c_type_context)
         register_llvm_types(self.c_type_context)
         self.lowering = lowering
+        self.opt_level = opt_level
 
     def jit(
         self,
         mlir_module: builtin.ModuleOp,
         symbol: str,
         ir_context: Context,
-    ) -> RawJITFunc:
+    ) -> LLVMRawJITFunc:
         """Lower ``mlir_module``, bind ``symbol``, and return an :class:`LLVMRawJITFunc`."""
         # `jit` may be called more than once against the same context
         if llvm.LLVM.name not in ir_context.registered_dialect_names:
@@ -126,12 +159,17 @@ class LLVMJITBackend(JITBackend):
                 "the lowering must leave it in the LLVM dialect"
             )
         c_func_type = to_c_func_type(self.c_type_context, func_op.function_type)
-        target, target_machine = _create_target_machine()
-        llvm_module = convert_module(mlir_module, fallback_target_triple=None)
+        target, target_machine = _create_target_machine(opt_level=self.opt_level)
+        llvm_module = convert_module(
+            mlir_module,
+            fallback_target_triple=target_machine.triple,
+            data_layout=str(target_machine.target_data),
+        )
         return _compile_module(
             llvm_module,
             symbol,
             c_func_type,
             target=target,
             target_machine=target_machine,
+            opt_level=self.opt_level,
         )

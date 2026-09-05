@@ -7,7 +7,7 @@ from typing_extensions import Self
 
 Triple = ...
 
-def get_process_triple():  # -> str:
+def get_process_triple() -> str:
     """
     Return a target triple suitable for generating code for the current process.
     An example when the default triple from ``get_default_triple()`` is not be
@@ -22,12 +22,12 @@ def get_triple_parts(triple: str):  # -> Triple:
     """
     ...
 
-class FeatureMap(dict):
+class FeatureMap(dict[str, bool]):
     """
     Maps feature name to a boolean indicating the availability of the feature.
     Extends ``dict`` to add `.flatten()` method.
     """
-    def flatten(self, sort=...):  # -> str:
+    def flatten(self, sort: bool = ...) -> str:
         """
         Args
         ----
@@ -42,7 +42,7 @@ class FeatureMap(dict):
         """
         ...
 
-def get_host_cpu_features():  # -> FeatureMap:
+def get_host_cpu_features() -> FeatureMap:
     """
     Returns a dictionary-like object indicating the CPU features for current
     architecture and whether they are enabled for this CPU.  The key-value pairs
@@ -62,7 +62,7 @@ def get_default_triple() -> str:
     """
     ...
 
-def get_host_cpu_name():  # -> str:
+def get_host_cpu_name() -> str:
     """
     Get the name of the host's CPU, suitable for using with
     :meth:`Target.create_target_machine()`.
@@ -123,7 +123,7 @@ class Target(ffi.ObjectRef):
         ...
 
     @classmethod
-    def from_triple(cls, triple):  # -> Self:
+    def from_triple(cls, triple: str) -> Self:
         """
         Create a Target instance for the given triple (a string).
         """
@@ -134,18 +134,17 @@ class Target(ffi.ObjectRef):
     @property
     def description(self): ...
     @property
-    def triple(self):  # -> str:
-        ...
+    def triple(self) -> str: ...
     def create_target_machine(
         self,
-        cpu=...,
-        features=...,
-        opt=...,
-        reloc=...,
-        codemodel=...,
-        printmc=...,
-        jit=...,
-        abiname=...,
+        cpu: str = ...,
+        features: str = ...,
+        opt: int = ...,
+        reloc: str = ...,
+        codemodel: str = ...,
+        printmc: bool = ...,
+        jit: bool = ...,
+        abiname: str = ...,
     ) -> TargetMachine:
         """
         Create a new TargetMachine for this target and the given options.
@@ -194,8 +193,6 @@ class TargetMachine(ffi.ObjectRef):
         ...
 
     @property
-    def target_data(self):  # -> TargetData:
-        ...
+    def target_data(self) -> TargetData: ...
     @property
-    def triple(self):  # -> str:
-        ...
+    def triple(self) -> str: ...
