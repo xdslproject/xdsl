@@ -1470,17 +1470,20 @@ class OptionalGroupDirective(FormatDirective):
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         # If the first element was parsed, parse the then-elements as usual
-        if ret := self.then_first.parse_optional(parser, state):
+        start_pos = parser.pos
+        self.then_first.parse_optional(parser, state)
+        if start_pos != parser.pos:
             for element in self.then_elements:
                 element.parse(parser, state)
             for element in self.else_elements:
                 element.set_empty(state)
+            return True
         else:
             for element in self.then_elements:
                 element.set_empty(state)
             for element in self.else_elements:
                 element.parse(parser, state)
-        return ret
+            return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.anchor.is_present(op):
