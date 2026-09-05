@@ -73,8 +73,18 @@ def _compile_module(
             f"Cannot JIT module for target {backing_mod.triple} with native "
             f"target {target_machine.triple}"
         )
+    native_data_layout = str(target_machine.target_data)
+    if backing_mod.data_layout not in ("", native_data_layout):
+        raise JITException("Cannot JIT module with a non-native data layout")
     backing_mod.triple = target_machine.triple
-    backing_mod.data_layout = str(target_machine.target_data)
+    backing_mod.data_layout = native_data_layout
+
+    try:
+        entry_point = backing_mod.get_function(symbol)
+    except NameError:
+        raise JITException(f"No function to JIT compile: {symbol}") from None
+    # the pipeline runs global DCE, which drops an entry point that is not exported
+    entry_point.linkage = "external"
 
     options = llvmlite.binding.PipelineTuningOptions(speed_level=opt_level)
     options.slp_vectorization = True

@@ -6,12 +6,19 @@ from cffi import FFI
 pytest.importorskip("llvmlite.binding")
 
 import llvmlite.binding as llvm_binding
+import llvmlite.ir as llvm_ir
 
 from xdsl.context import Context
 from xdsl.dialects import func, llvm
 from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.function import RawJITFunc
-from xdsl.jit.llvm.backend import LLVMJITBackend, LLVMRawJITFunc
+from xdsl.jit.llvm.backend import (
+    LLVMJITBackend,
+    LLVMRawJITFunc,
+    _compile_module,  # pyright: ignore[reportPrivateUsage]
+    _create_target_machine,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import JITException
@@ -154,3 +161,55 @@ def test_jit_rejects_non_native_target_triple():
 
     with pytest.raises(JITException, match="Cannot JIT module for target"):
         LLVMJITBackend(lowering=()).jit(module, "identity", Context())
+
+
+def identity_module(*, linkage: str = "") -> llvm_ir.Module:
+    module = llvm_ir.Module()
+    func_type = llvm_ir.FunctionType(llvm_ir.IntType(64), (llvm_ir.IntType(64),))
+    function = llvm_ir.Function(module, func_type, "identity")
+    function.linkage = linkage
+    builder = llvm_ir.IRBuilder(function.append_basic_block())
+    builder.ret(function.args[0])
+    return module
+
+
+def compile_module(
+    module: llvm_ir.Module, symbol: str, c_func_type: CFuncSignature
+) -> LLVMRawJITFunc:
+    # the converter only emits native modules, so these guards need llvmlite IR
+    target, target_machine = _create_target_machine(opt_level=2)
+    return _compile_module(
+        module,
+        symbol,
+        c_func_type,
+        target=target,
+        target_machine=target_machine,
+        opt_level=2,
+    )
+
+
+def test_jit_rejects_non_native_data_layout():
+    module = identity_module()
+    module.data_layout = "e-p:32:32"
+
+    with pytest.raises(JITException, match="non-native data layout"):
+        compile_module(module, "identity", CFuncSignature(("int64_t",), "int64_t"))
+
+
+def test_jit_rejects_non_function_symbol():
+    module = llvm_ir.Module()
+    llvm_ir.GlobalVariable(module, llvm_ir.IntType(64), "value")
+
+    with pytest.raises(JITException, match="No function to JIT compile: value"):
+        compile_module(module, "value", CFuncSignature((), "int64_t"))
+
+
+def test_optimization_preserves_requested_symbol():
+    # global DCE drops an internal entry point unless the backend exports it
+    raw_func = compile_module(
+        identity_module(linkage="internal"),
+        "identity",
+        CFuncSignature(("int64_t",), "int64_t"),
+    )
+
+    assert raw_func.c_func(42) == 42
