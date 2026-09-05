@@ -1384,6 +1384,9 @@ class PunctuationDirective(FormatDirective):
     """The punctuation that should be printed/parsed."""
 
     def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_punctuation(self.punctuation)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
         parser.parse_optional_punctuation(self.punctuation)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -1420,6 +1423,9 @@ class KeywordDirective(FormatDirective):
     """The identifier that should be printed."""
 
     def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_keyword(self.keyword)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
         parser.parse_optional_keyword(self.keyword)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
