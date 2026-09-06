@@ -15,11 +15,11 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,

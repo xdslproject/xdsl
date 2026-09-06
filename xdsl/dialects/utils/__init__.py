@@ -4,5 +4,6 @@
 from .bit_enum_attribute import *  # noqa: TID251
 from .dimension_list import *  # noqa: TID251
 from .dynamic_index_list import *  # noqa: TID251
+from .enum_attribute import *
 from .fast_math import *  # noqa: TID251
 from .format import *  # noqa: TID251

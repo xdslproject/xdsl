@@ -17,17 +17,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -59,6 +58,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition
