@@ -541,7 +541,7 @@ class SqrtOp(ElementwiseOperation, NamedOperation):
 
 
 @irdl_op_definition
-class SelectOp(NamedOperation):
+class SelectOp(ElementwiseOperation):
     """
     Chooses one value based on a binary condition supplied as its first operand.
 
@@ -582,15 +582,6 @@ class SelectOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
-
-    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
-        raise NotImplementedError
-
-    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
-
-    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
-        raise NotImplementedError
 
 
 @irdl_op_definition
