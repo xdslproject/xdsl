@@ -8,6 +8,7 @@ from typing_extensions import Self, deprecated
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I32,
     I64,
     AnyFloatConstr,
     BoolAttr,
@@ -71,6 +72,8 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     NoMemoryEffect,
+    Pure,
+    SameOperandsAndResultType,
     SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
@@ -378,6 +381,42 @@ class AllocaOp(IRDLOperation):
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
         _verify_memref_alloc_alignment(self.alignment)
+
+
+@irdl_op_definition
+class AssumeAlignmentOp(IRDLOperation):
+    """Assert that a memref has the given byte alignment."""
+
+    name = "memref.assume_alignment"
+
+    T: ClassVar = VarConstraint("T", base(MemRefType))
+
+    memref = operand_def(T)
+    alignment = prop_def(IntegerAttr[I32])
+    result = result_def(T)
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    assembly_format = "$memref `,` $alignment attr-dict `:` type($memref)"
+
+    def __init__(
+        self,
+        memref: SSAValue | Operation,
+        alignment: int | IntegerAttr[I32],
+    ) -> None:
+        memref = SSAValue.get(memref)
+        if isinstance(alignment, int):
+            alignment = IntegerAttr(alignment, i32)
+        super().__init__(
+            operands=[memref],
+            result_types=[memref.type],
+            properties={"alignment": alignment},
+        )
+
+    def verify_(self) -> None:
+        alignment = self.alignment.value.data
+        if alignment <= 0:
+            raise VerifyException(f"Alignment must be positive, got {alignment}")
 
 
 @irdl_op_definition
@@ -1257,6 +1296,7 @@ MemRef = Dialect(
         StoreOp,
         AllocOp,
         AllocaOp,
+        AssumeAlignmentOp,
         AllocaScopeOp,
         AllocaScopeReturnOp,
         AtomicRMWOp,

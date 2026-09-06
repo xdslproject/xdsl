@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     NoneAttr,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.memref import (
     AllocaOp,
     AllocOp,
+    AssumeAlignmentOp,
     CastOp,
     CopyOp,
     DeallocOp,
@@ -87,6 +89,27 @@ def test_memref_store_i32():
     assert store.memref is memref_ssa_value
     assert store.indices == ()
     assert store.value is i32_ssa_value
+
+
+def test_memref_assume_alignment():
+    memref_type = MemRefType(i32, [4])
+    value = create_ssa_value(memref_type)
+
+    assume = AssumeAlignmentOp(value, 16)
+
+    assert assume.memref is value
+    assert assume.result.type == memref_type
+    assert assume.alignment == IntegerAttr(16, i32)
+    assume.verify()
+
+
+@pytest.mark.parametrize("alignment", [0, -1])
+def test_memref_assume_alignment_requires_positive_alignment(alignment: int):
+    value = create_ssa_value(MemRefType(i32, [4]))
+    assume = AssumeAlignmentOp(value, alignment)
+
+    with pytest.raises(VerifyException, match="Alignment must be positive"):
+        assume.verify()
 
 
 def test_memref_store_i32_with_dimensions():
