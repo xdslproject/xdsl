@@ -2,8 +2,10 @@
 
 //CHECK:   %lhs, %rhs, %out = "test.op"() : () -> (memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
 //CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (memref<2x3xf32>, memref<3x4xf32>, memref<2x4xf32>)
+//CHECK-NEXT:   %cond, %t, %f, %res = "test.op"() : () -> (memref<4x5xi1>, memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
 %lhs, %rhs, %out = "test.op"() : () -> (memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
 %a, %b, %c = "test.op"() : () -> (memref<2x3xf32>, memref<3x4xf32>, memref<2x4xf32>)
+%cond, %t, %f, %res = "test.op"() : () -> (memref<4x5xi1>, memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
 
 //CHECK-NEXT:   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%lhs, %rhs : memref<4x5xf32>, memref<4x5xf32>) outs(%out : memref<4x5xf32>) {
 //CHECK-NEXT:   ^bb0(%0: f32, %1: f32, %2: f32):
@@ -19,3 +21,10 @@ linalg.add ins(%lhs, %rhs : memref<4x5xf32>, memref<4x5xf32>) outs(%out : memref
 //CHECK-NEXT:     linalg.yield %8 : f32
 //CHECK-NEXT:   }
 linalg.matmul ins(%a, %b : memref<2x3xf32>, memref<3x4xf32>) outs(%c : memref<2x4xf32>)
+
+//CHECK-NEXT:   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%cond, %t, %f : memref<4x5xi1>, memref<4x5xf32>, memref<4x5xf32>) outs(%res : memref<4x5xf32>) {
+//CHECK-NEXT:   ^bb0(%9: i1, %10: f32, %11: f32, %12: f32):
+//CHECK-NEXT:     %13 = arith.select %9, %10, %11 : f32
+//CHECK-NEXT:     linalg.yield %13 : f32
+//CHECK-NEXT:   }
+linalg.select ins(%cond, %t, %f : memref<4x5xi1>, memref<4x5xf32>, memref<4x5xf32>) outs(%res : memref<4x5xf32>)
