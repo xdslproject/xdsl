@@ -194,7 +194,10 @@ class AVX2Arch(X86Arch):
     def name() -> str:
         return "avx2"
 
-    VECTOR_TYPES_BY_BITWIDTH = {128: SSERegisterType, 256: AVX2RegisterType}
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
+        128: SSERegisterType,
+        256: AVX2RegisterType,
+    }
 
 
 AVX2 = AVX2Arch()
@@ -205,7 +208,7 @@ class AVX512Arch(X86Arch):
     def name() -> str:
         return "avx512"
 
-    VECTOR_TYPES_BY_BITWIDTH = {
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
         128: SSERegisterType,
         256: AVX2RegisterType,
         512: AVX512RegisterType,
