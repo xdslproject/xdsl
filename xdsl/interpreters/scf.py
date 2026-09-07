@@ -38,3 +38,30 @@ class ScfFunctions(InterpreterFunctions):
     @impl_terminator(scf.YieldOp)
     def run_br(self, interpreter: Interpreter, op: scf.YieldOp, args: tuple[Any, ...]):
         return ReturnedValues(args), ()
+
+    @impl_terminator(scf.ConditionOp)
+    def run_condition(
+        self, interpreter: Interpreter, op: scf.ConditionOp, args: PythonValues
+    ) -> PythonValues:
+        return ReturnedValues(args), ()
+
+    @impl(scf.WhileOp)
+    def run_while(
+        self, interpreter: Interpreter, op: scf.WhileOp, args: PythonValues
+    ) -> PythonValues:
+        results = args
+
+        while True:
+            before_region = op.before_region
+            results = interpreter.run_ssacfg_region(
+                before_region, (*results,), "while.before_region"
+            )
+            if not results[0]:
+                break
+
+            results = results[1:]
+            after_region = op.after_region
+            results = interpreter.run_ssacfg_region(
+                after_region, (*results,), "while.after_region"
+            )
+        return results[1:]
