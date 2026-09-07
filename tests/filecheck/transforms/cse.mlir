@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --allow-unregistered-dialect %s -p cse | filecheck %s
+// RUN: xdsl-opt --allow-unregistered-dialect "%s" -p cse | filecheck "%s"
 
 #map0 = affine_map<(d0) -> (d0 mod 2)>
 
@@ -23,6 +23,20 @@ func.func @simple_float_constant() -> (f32, f32) {
 // CHECK-NEXT:      %0 = arith.constant 1.000000e+00 : f32
 // CHECK-NEXT:      func.return %0, %0 : f32, f32
 // CHECK-NEXT:    }
+
+func.func @signed_zero_constants() -> (f64, f64, f64, f64) {
+    %0 = arith.constant 0.0 : f64
+    %1 = arith.constant 0.0 : f64
+    %2 = arith.constant -0.0 : f64
+    %3 = arith.constant -0.0 : f64
+    func.return %0, %1, %2, %3 : f64, f64, f64, f64
+}
+
+// CHECK-LABEL:    func.func @signed_zero_constants() -> (f64, f64, f64, f64) {
+// CHECK-NEXT:       %0 = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:       %1 = arith.constant -0.000000e+00 : f64
+// CHECK-NEXT:       func.return %0, %0, %1, %1 : f64, f64, f64, f64
+// CHECK-NEXT:     }
 
 // CHECK-LABEL: @basic
   func.func @basic() -> (index, index) {
