@@ -1532,3 +1532,23 @@ def test_region_verify_block_parent_pointer_mismatch():
         match="Parent pointer of block does not refer to containing region",
     ):
         region.verify()
+
+
+def test_deprecated_enum_attribute_imports_are_available():
+    with pytest.warns(
+        DeprecationWarning,
+        match="Importing 'EnumAttribute' from 'xdsl.ir' is deprecated",
+    ):
+        from xdsl.ir import EnumAttribute
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Importing 'StrEnum' from 'xdsl.ir' is deprecated",
+    ):
+        from xdsl.ir import StrEnum
+
+    from xdsl.dialects.utils import EnumAttribute as NewEnumAttribute
+    from xdsl.utils.str_enum import StrEnum as NewStrEnum
+
+    assert EnumAttribute is NewEnumAttribute
+    assert StrEnum is NewStrEnum
