@@ -1,13 +1,18 @@
+from typing import Literal
+
 import pytest
 from cffi import FFI
 
 pytest.importorskip("llvmlite.binding")
 
+import llvmlite.binding as llvm_binding
+from llvmlite.binding import Triple
+
 from xdsl.context import Context
 from xdsl.dialects import func, llvm
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.jit.function import RawJITFunc
-from xdsl.jit.llvm.backend import LLVMJITBackend, LLVMRawJITFunc
+from xdsl.jit.llvm.backend import LLVMJITBackend, LLVMRawJITFunc, is_native_triple
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import JITException
@@ -97,3 +102,118 @@ def test_declaration_without_body_raises():
     # a declaration resolves and converts, but MCJIT has no code to bind
     with pytest.raises(JITException, match="No address for symbol"):
         jit("llvm.func @plus(f64, f64) -> f64")
+
+
+IDENTITY = """
+llvm.func @identity(%value: i64) -> i64 {
+  llvm.return %value : i64
+}
+"""
+
+
+ADD_ZERO = """
+llvm.func @add_zero(%value: i64) -> i64 {
+  %zero = llvm.mlir.constant(0 : i64) : i64
+  %result = llvm.add %value, %zero : i64
+  llvm.return %result : i64
+}
+"""
+
+
+@pytest.mark.parametrize("opt_level", [1, 2, 3])
+def test_pipeline_optimizes_module(opt_level: Literal[1, 2, 3]):
+    optimized = LLVMJITBackend(lowering=(), opt_level=opt_level).jit(
+        parse(ADD_ZERO), "add_zero", Context()
+    )
+
+    assert " add i64 " not in str(optimized.backing_mod)
+    assert optimized.c_func(41) == 41
+
+
+def test_default_opt_level():
+    assert LLVMJITBackend(lowering=()).opt_level == 2
+
+
+def test_pipeline_does_not_optimize_module():
+    unoptimized = LLVMJITBackend(lowering=(), opt_level=0).jit(
+        parse(ADD_ZERO), "add_zero", Context()
+    )
+
+    assert " add i64 " in str(unoptimized.backing_mod)
+
+
+def native_parts() -> Triple:
+    return llvm_binding.get_triple_parts(llvm_binding.get_process_triple())
+
+
+def jit_identity_for_triple(module_triple: str) -> LLVMRawJITFunc:
+    module = parse(IDENTITY)
+    module.attributes["llvm.target_triple"] = StringAttr(module_triple)
+    return LLVMJITBackend(lowering=()).jit(module, "identity", Context())
+
+
+def test_jit_accepts_the_process_triple():
+    assert jit_identity_for_triple(llvm_binding.get_process_triple()).c_func(42) == 42
+
+
+def test_jit_accepts_another_spelling_of_the_native_triple():
+    # the same target, without the OS version
+    parts = native_parts()
+    raw_func = jit_identity_for_triple(f"{parts.Arch}-{parts.Vendor}-{parts.OS}")
+
+    assert raw_func.c_func(42) == 42
+
+
+@pytest.mark.parametrize("module_triple", ["", "unknown-unknown-unknown"])
+def test_jit_accepts_a_module_that_names_no_target(module_triple: str):
+    assert jit_identity_for_triple(module_triple).c_func(42) == 42
+
+
+def test_jit_retargets_the_module_at_the_process():
+    parts = native_parts()
+    raw_func = jit_identity_for_triple(f"{parts.Arch}-{parts.Vendor}-{parts.OS}")
+
+    assert raw_func.backing_mod.triple == raw_func.target_machine.triple
+
+
+def test_jit_rejects_a_foreign_target_triple():
+    foreign_arch = "aarch64" if native_parts().Arch == "x86_64" else "x86_64"
+
+    with pytest.raises(JITException, match="Cannot JIT module for target"):
+        jit_identity_for_triple(f"{foreign_arch}-unknown-unknown")
+
+
+@pytest.mark.parametrize(
+    "module_triple,native_triple",
+    [
+        # no target named
+        ("", "arm64-apple-darwin25.5.0"),
+        ("unknown-unknown-unknown", "x86_64-unknown-linux-gnu"),
+        # arm64 is aarch64, macosx is darwin
+        ("aarch64-apple-darwin", "arm64-apple-darwin25.5.0"),
+        ("arm64-apple-macosx15.0.0", "arm64-apple-darwin25.5.0"),
+        # vendor ignored, environment and sub-architecture may be unsaid
+        ("x86_64-pc-linux-gnu", "x86_64-unknown-linux-gnu"),
+        ("x86_64-unknown-linux", "x86_64-unknown-linux-gnu"),
+        ("arm-unknown-linux-gnueabihf", "armv7-unknown-linux-gnueabihf"),
+    ],
+)
+def test_triple_names_the_native_target(module_triple: str, native_triple: str):
+    assert is_native_triple(module_triple, native_triple)
+
+
+@pytest.mark.parametrize(
+    "module_triple,native_triple",
+    [
+        # unparseable, so no architecture at all
+        ("garbage", "arm64-apple-darwin25.5.0"),
+        # foreign architecture, sub-architecture, object format, environment
+        ("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"),
+        ("armv7-unknown-linux-gnueabihf", "armv6-unknown-linux-gnueabihf"),
+        ("aarch64-unknown-linux", "arm64-apple-darwin25.5.0"),
+        ("x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"),
+        ("x86_64-unknown-linux-musl", "x86_64-unknown-linux-gnu"),
+    ],
+)
+def test_triple_names_a_foreign_target(module_triple: str, native_triple: str):
+    assert not is_native_triple(module_triple, native_triple)

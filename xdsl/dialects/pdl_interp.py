@@ -959,7 +959,7 @@ class RangeTypeDirective(CustomDirective):
     arguments_type: TypeDirective
     result_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         args_inner = self.arguments_type.inner
         assert isinstance(args_inner, VariadicOperandVariable)
 
@@ -975,13 +975,11 @@ class RangeTypeDirective(CustomDirective):
                 element_type = first_type
             result_type = RangeType(element_type)
             self.result_type.set(state, (result_type,))
-            return False  # No input consumed during inference
         else:
             # Parse `: type` for result when no arguments
             parser.parse_punctuation(":")
             result_type = parser.parse_type()
             self.result_type.set(state, (result_type,))
-            return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         arg_types = self.arguments_type.get(op)
