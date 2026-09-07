@@ -6,6 +6,7 @@ from xdsl.interpreter import (
     InterpreterFunctions,
     PythonValues,
     ReturnedValues,
+    TerminatorValue,
     impl,
     impl_terminator,
     register_impls,
@@ -36,13 +37,15 @@ class ScfFunctions(InterpreterFunctions):
         return loop_args
 
     @impl_terminator(scf.YieldOp)
-    def run_br(self, interpreter: Interpreter, op: scf.YieldOp, args: tuple[Any, ...]):
+    def run_br(
+        self, interpreter: Interpreter, op: scf.YieldOp, args: tuple[Any, ...]
+    ) -> tuple[TerminatorValue, PythonValues]:
         return ReturnedValues(args), ()
 
     @impl_terminator(scf.ConditionOp)
     def run_condition(
         self, interpreter: Interpreter, op: scf.ConditionOp, args: PythonValues
-    ) -> PythonValues:
+    ) -> tuple[TerminatorValue, PythonValues]:
         return ReturnedValues(args), ()
 
     @impl(scf.WhileOp)
@@ -65,3 +68,8 @@ class ScfFunctions(InterpreterFunctions):
                 after_region, (*results,), "while.after_region"
             )
         return results[1:]
+
+    def run_index_switch(
+        self, interpreter: Interpreter, op: scf.IndexSwitchOp, args: PythonValues
+    ) -> PythonValues:
+        return ()
