@@ -52,22 +52,21 @@ class ScfFunctions(InterpreterFunctions):
     def run_while(
         self, interpreter: Interpreter, op: scf.WhileOp, args: PythonValues
     ) -> PythonValues:
-        results = args
+        loop_args = args
 
         while True:
-            before_region = op.before_region
-            results = interpreter.run_ssacfg_region(
-                before_region, (*results,), "while.before_region"
+            # while "before" region is terminated by an scf.condition op, of which `args[0]` is the i1 condition operand and
+            # `args[1:]` are the values forwarded to the after-region (if the condition holds) or returned as the results of the
+            # op (otherwise).
+            condition, *forwarded_args = interpreter.run_ssacfg_region(
+                op.before_region, loop_args, "while.before_region"
             )
-            if not results[0]:
-                break
+            if not condition:
+                return tuple(forwarded_args)
 
-            results = results[1:]
-            after_region = op.after_region
-            results = interpreter.run_ssacfg_region(
-                after_region, (*results,), "while.after_region"
+            loop_args = interpreter.run_ssacfg_region(
+                op.after_region, tuple(forwarded_args), "while.after_region"
             )
-        return results[1:]
 
     def run_index_switch(
         self, interpreter: Interpreter, op: scf.IndexSwitchOp, args: PythonValues
