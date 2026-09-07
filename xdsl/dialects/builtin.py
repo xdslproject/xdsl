@@ -1824,11 +1824,16 @@ class FloatData(Data[float]):
         with printer.in_angle_brackets():
             printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: object):
+    def __eq__(self, other: object) -> bool:
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
             (math.isnan(self.data) and math.isnan(other.data))
-            or self.data == other.data
+            # Attribute identity must distinguish signed zeros, even though
+            # floating-point numeric equality considers them equal.
+            or (
+                self.data == other.data
+                and math.copysign(1.0, self.data) == math.copysign(1.0, other.data)
+            )
         )
 
     def __hash__(self):

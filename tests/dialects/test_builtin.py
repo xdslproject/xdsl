@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatData,
     FloatNonfiniteBehavior,
     FloatSemantics,
     IndexType,
@@ -83,6 +84,51 @@ from xdsl.irdl import (
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@pytest.mark.parametrize(
+    "lhs, rhs, equal",
+    [
+        (0.0, 0.0, True),
+        (-0.0, -0.0, True),
+        (0.0, -0.0, False),
+        (-0.0, 0.0, False),
+        (1.0, 1.0, True),
+        (1.0, -1.0, False),
+        (math.inf, math.inf, True),
+        (-math.inf, -math.inf, True),
+        (math.inf, -math.inf, False),
+    ],
+)
+def test_float_data_equality(lhs: float, rhs: float, equal: bool):
+    assert (FloatData(lhs) == FloatData(rhs)) is equal
+    assert (FloatAttr(lhs, f64) == FloatAttr(rhs, f64)) is equal
+    assert len({FloatData(lhs), FloatData(rhs)}) == (1 if equal else 2)
+    if equal:
+        assert hash(FloatData(lhs)) == hash(FloatData(rhs))
+
+
+def test_float_data_nan_equality_unchanged():
+    # Keep the existing policy that all NaNs compare equal, including different
+    # signs and payloads. NaN hash/payload policy is outside the signed-zero fix.
+    values = [
+        float("nan"),
+        float("nan"),
+        struct.unpack(">d", bytes.fromhex("7ff8000000000001"))[0],
+        struct.unpack(">d", bytes.fromhex("fff8000000000002"))[0],
+    ]
+    data = [FloatData(value) for value in values]
+    attrs = [FloatAttr(value, f64) for value in values]
+    for attr in data:
+        assert attr == data[0]
+        assert attr != FloatData(0.0)
+    for attr in attrs:
+        assert attr == attrs[0]
+
+
+def test_float_data_not_other_attribute():
+    assert FloatData(0.0) != IntAttr(0)
+    assert FloatData(0.0) != 0.0
 
 
 @pytest.mark.parametrize(
