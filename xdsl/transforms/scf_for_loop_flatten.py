@@ -72,12 +72,25 @@ class FlattenNestedLoopsPattern(RewritePattern):
 
         if (inner_lb := const_evaluate_operand(inner_loop.lb)) is None:
             return
-
         if (inner_ub := const_evaluate_operand(inner_loop.ub)) is None:
             return
         if (outer_step := const_evaluate_operand(op.step)) is None:
             return
         if (inner_step := const_evaluate_operand(inner_loop.step)) is None:
+            return
+        if outer_step <= 0 or inner_step <= 0:
+            return
+
+        inner_span = inner_ub - inner_lb
+        if inner_span < 0 or inner_span % inner_step != 0:
+            return
+
+        if (outer_lb := const_evaluate_operand(op.lb)) is None:
+            return
+        if (outer_ub := const_evaluate_operand(op.ub)) is None:
+            return
+        outer_span = outer_ub - outer_lb
+        if outer_span < 0 or outer_span % outer_step != 0:
             return
 
         outer_index = outer_body.args[0]
@@ -113,14 +126,11 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
-            if (outer_lb := const_evaluate_operand(op.lb)) is None:
-                return
-
             if outer_lb != 0:
                 # Do not currently handle lb != 0
                 return
 
-            factor = (inner_ub - inner_lb) // inner_step
+            factor = inner_span // inner_step
             factor_op = arith.ConstantOp(
                 builtin.IntegerAttr(factor, builtin.IndexType())
             )
@@ -147,14 +157,11 @@ class FlattenNestedLoopsPattern(RewritePattern):
 
 class ScfForLoopFlattenPass(ModulePass):
     """
-    Folds perfect loop nests if they can be represented with a single loop.
-    Currently does this by matching the inner loop range with the outer loop step.
-    If the inner iteration space fits perfectly in the outer iteration step, then merge.
-    Other conditions:
-     - the only use of the induction arguments must be an add operation, this op is fused
-       into a single induction argument,
-     - the lower bound of the inner loop must be 0,
-     - the loops must have no iteration arguments.
+    Folds perfect loop nests when their statically known, positive-step ranges
+    tile exactly. If induction variables are used, they must have the existing
+    matching add operation and the inner range must match the outer step.
+    Carried arguments are supported when both loops have matching arguments and
+    the inner and outer yields forward them in order.
     """
 
     name = "scf-for-loop-flatten"
