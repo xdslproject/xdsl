@@ -13,7 +13,7 @@ from xdsl.transforms.scf_for_loop_flatten import ScfForLoopFlattenPass
 
 
 def flatten_ir(
-    outer_lb: int,
+    outer_lb: int | None,
     outer_ub: int | None,
     outer_step: int,
     inner_lb: int,
@@ -22,13 +22,24 @@ def flatten_ir(
     *,
     iv_used: bool,
 ) -> str:
+    outer_lb_value = "%outer_lb"
     outer_ub_value = "%outer_ub"
+    outer_lb_decl = (
+        ""
+        if outer_lb is None
+        else f"    %outer_lb = arith.constant {outer_lb} : index\n"
+    )
     outer_ub_decl = (
         ""
         if outer_ub is None
         else f"    %outer_ub = arith.constant {outer_ub} : index\n"
     )
-    signature = "(%outer_ub: index)" if outer_ub is None else "()"
+    signature_args: list[str] = []
+    if outer_lb is None:
+        signature_args.append("%outer_lb: index")
+    if outer_ub is None:
+        signature_args.append("%outer_ub: index")
+    signature = f"({', '.join(signature_args)})" if signature_args else "()"
     body = (
         "      %pair = arith.addi %outer_iv, %inner_iv : index\n"
         "      %next = arith.addi %acc, %pair : index"
@@ -37,14 +48,13 @@ def flatten_ir(
     )
     return f"""builtin.module {{
   func.func @main{signature} -> index {{
-    %outer_lb = arith.constant {outer_lb} : index
-{outer_ub_decl}    %outer_step = arith.constant {outer_step} : index
+{outer_lb_decl}{outer_ub_decl}    %outer_step = arith.constant {outer_step} : index
     %inner_lb = arith.constant {inner_lb} : index
     %inner_ub = arith.constant {inner_ub} : index
     %inner_step = arith.constant {inner_step} : index
     %zero = arith.constant 0 : index
     %one = arith.constant 1 : index
-    %result = scf.for %outer_iv = %outer_lb to {outer_ub_value} step %outer_step iter_args(%outer_acc = %zero) -> (index) {{
+    %result = scf.for %outer_iv = {outer_lb_value} to {outer_ub_value} step %outer_step iter_args(%outer_acc = %zero) -> (index) {{
       %inner_result = scf.for %inner_iv = %inner_lb to %inner_ub step %inner_step iter_args(%acc = %outer_acc) -> (index) {{
 {body}
         scf.yield %next : index
@@ -82,11 +92,13 @@ def run(module: builtin.ModuleOp, *args: int) -> int:
         ("zero_trip", 0, 8, 4, 4, 4, 2, False, True),
         ("nonzero_lb_iv_used", 2, 10, 4, 0, 4, 2, True, True),
         ("dynamic_bounds_nofold", 0, None, 4, 0, 4, 2, False, False),
+        ("dynamic_lower_nofold", None, 8, 4, 0, 4, 2, False, False),
+        ("dynamic_lower_iv_used_nofold", None, 8, 4, 0, 4, 2, True, False),
     ],
 )
 def test_flatten_preserves_python_range_count_or_sum(
     name: str,
-    outer_lb: int,
+    outer_lb: int | None,
     outer_ub: int | None,
     outer_step: int,
     inner_lb: int,
@@ -95,8 +107,9 @@ def test_flatten_preserves_python_range_count_or_sum(
     iv_used: bool,
     expected_flatten: bool,
 ):
+    concrete_outer_lb = 3 if outer_lb is None else outer_lb
     concrete_outer_ub = 8 if outer_ub is None else outer_ub
-    outer_indices = range(outer_lb, concrete_outer_ub, outer_step)
+    outer_indices = range(concrete_outer_lb, concrete_outer_ub, outer_step)
     inner_indices = range(inner_lb, inner_ub, inner_step)
     expected = (
         sum(i + j for i in outer_indices for j in inner_indices)
@@ -116,7 +129,9 @@ def test_flatten_preserves_python_range_count_or_sum(
         )
     )
     before.verify()
-    args = (concrete_outer_ub,) if outer_ub is None else ()
+    args = ((concrete_outer_lb,) if outer_lb is None else ()) + (
+        (concrete_outer_ub,) if outer_ub is None else ()
+    )
     assert run(before, *args) == expected, name
 
     after = parse_module(
@@ -136,6 +151,8 @@ def test_flatten_preserves_python_range_count_or_sum(
     assert sum(isinstance(op, scf.ForOp) for op in after.walk()) == (
         1 if expected_flatten else 2
     ), name
+    if not expected_flatten:
+        assert before.is_structurally_equivalent(after), name
 
 
 @pytest.mark.parametrize("outer_step,inner_step", [(0, 1), (-1, 1), (1, 0), (1, -1)])
