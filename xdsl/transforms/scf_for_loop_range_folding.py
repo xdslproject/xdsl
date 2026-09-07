@@ -8,6 +8,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 
 def is_foldable(val: SSAValue, for_op: scf.ForOp):
@@ -39,6 +40,14 @@ class ScfForLoopRangeFolding(RewritePattern):
                 if not is_foldable(user.operands[0], op):
                     return
                 folding_const = user.operands[0]
+
+            # Multiplication scales the loop step. Require a statically known
+            # positive factor; zero, negative, or unknown factors cannot justify
+            # this rewrite.
+            if isinstance(user, arith.MuliOp):
+                factor = const_evaluate_operand(folding_const)
+                if factor is None or factor <= 0:
+                    return
 
             match user:
                 case arith.AddiOp():
