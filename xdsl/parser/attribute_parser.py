@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast, overload
+from typing import Any, ClassVar, Literal, NoReturn, cast, overload
 
 from immutabledict import immutabledict
 
@@ -1570,7 +1570,7 @@ class AttrParser(BaseParser):
         )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
-    _builtin_float_types = {
+    _builtin_float_types: ClassVar = {
         "bf16": bf16,
         "f16": f16,
         "f32": f32,
