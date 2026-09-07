@@ -25,8 +25,8 @@ class ScfFunctions(InterpreterFunctions):
     def run_for(
         self, interpreter: Interpreter, op: scf.ForOp, args: PythonValues
     ) -> PythonValues:
-        lb, ub, step, *loop_args = args
-        loop_args = tuple(loop_args)
+        lb, ub, step, *packed_args = args
+        loop_args = tuple(packed_args)
 
         for i in range(lb, ub, step):
             loop_args = interpreter.run_ssacfg_region(
