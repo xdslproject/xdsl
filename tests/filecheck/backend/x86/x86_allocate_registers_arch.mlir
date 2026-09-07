@@ -1,5 +1,5 @@
-// RUN: xdsl-opt -p 'x86-allocate-registers{arch=avx512}' %s | filecheck %s
-// RUN: xdsl-opt -p 'x86-allocate-registers' --verify-diagnostics %s | filecheck %s --check-prefix=CHECK-VEX
+// RUN: xdsl-opt -p 'x86-set-arch{arch=avx512},x86-allocate-registers' %s --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt -p 'x86-allocate-registers' %s --split-input-file --verify-diagnostics | filecheck %s --check-prefix=CHECK-VEX
 
 // zmm16-31 can only be named through EVEX, so they are allocatable on an AVX-512
 // target and nowhere else. Seventeen simultaneously live vectors need one of them,
@@ -46,4 +46,32 @@ x86_func.func @seventeen_live_vectors() {
   x86.ms.vmovapd [%ptr + 960], %v15 : (!x86.reg64<rdi>, !x86.avx512reg) -> ()
   x86.ms.vmovapd [%ptr + 1024], %v16 : (!x86.reg64<rdi>, !x86.avx512reg) -> ()
   x86_func.ret
+}
+
+// -----
+
+// The attribute has to name a target, so a non-string is a malformed module
+// rather than an unknown target and is reported instead of being treated as
+// absent. Setting the target explicitly overwrites whatever was there, which is
+// why only the second run reports it.
+
+// CHECK:      @bad_arch_attribute
+// CHECK-VEX:  `x86.arch` must be a string attribute, got 42 : i64.
+builtin.module attributes {x86.arch = 42 : i64} {
+  x86_func.func @bad_arch_attribute() {
+    x86_func.ret
+  }
+}
+
+// -----
+
+// An unrecognised target name is reported rather than quietly falling back to
+// the conservative one.
+
+// CHECK:      @unknown_arch_name
+// CHECK-VEX:  Unsupported arch sse9.
+builtin.module attributes {x86.arch = "sse9"} {
+  x86_func.func @unknown_arch_name() {
+    x86_func.ret
+  }
 }
