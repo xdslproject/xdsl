@@ -1174,6 +1174,26 @@ class PoolingNchwMaxOp(PoolingOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, c, oh, ow, kh, kw = (AffineDimExpr(dim) for dim in range(6))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                6,
+                0,
+                (
+                    n,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(6, 0, (kh, kw)),
+            AffineMap(6, 0, (n, c, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNchwFchwOp(ConvOperation):
@@ -1185,30 +1205,153 @@ class Conv2DNchwFchwOp(ConvOperation):
 
     name = "linalg.conv_2d_nchw_fchw"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(7, 0, (f, c, kh, kw)),
+            AffineMap(7, 0, (n, f, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNgchwFgchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_fgchw"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, g, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    g,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(8, 0, (f, g, c, kh, kw)),
+            AffineMap(8, 0, (n, g, f, oh, ow)),
+        )
 
 
 @irdl_op_definition
 class Conv2DNgchwGfchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_gfchw"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, g, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    g,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(8, 0, (g, f, c, kh, kw)),
+            AffineMap(8, 0, (n, g, f, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNhwc_FhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_fhwc"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    c,
+                ),
+            ),
+            AffineMap(7, 0, (f, kh, kw, c)),
+            AffineMap(7, 0, (n, oh, ow, f)),
+        )
 
 
 @irdl_op_definition
 class Conv2DNhwc_HwcfOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_hwcf"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    c,
+                ),
+            ),
+            AffineMap(7, 0, (kh, kw, c, f)),
+            AffineMap(7, 0, (n, oh, ow, f)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNhwgcGfhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwgc_gfhwc"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, g, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    g,
+                    c,
+                ),
+            ),
+            AffineMap(8, 0, (g, f, kh, kw, c)),
+            AffineMap(8, 0, (n, oh, ow, g, f)),
+        )
 
 
 @irdl_op_definition
