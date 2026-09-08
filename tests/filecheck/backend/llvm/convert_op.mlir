@@ -503,7 +503,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   unreachable
   // CHECK-NEXT: }
 
-  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) {
+  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) -> f32 {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
@@ -512,10 +512,11 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
     %7 = llvm.sitofp %arg0 : i32 to f32
-    llvm.return
+    %8 = llvm.fptrunc %6 : f64 to f32
+    llvm.return %8 : f32
   }
 
-  // CHECK: define void @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
+  // CHECK: define float @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
@@ -524,9 +525,10 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   {{%.+}} = ptrtoint ptr %".3" to i64
   // CHECK-NEXT:   {{%.+}} = inttoptr i64 %".2" to ptr
   // CHECK-NEXT:   {{%.+}} = bitcast i64 %".2" to double
-  // CHECK-NEXT:   {{%.+}} = fpext float %".4" to double
+  // CHECK-NEXT:   [[EXT:%.+]] = fpext float %".4" to double
   // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
-  // CHECK-NEXT:   ret void
+  // CHECK-NEXT:   [[TRUNC:%.+]] = fptrunc double [[EXT]] to float
+  // CHECK-NEXT:   ret float [[TRUNC]]
   // CHECK-NEXT: }
 
   llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {

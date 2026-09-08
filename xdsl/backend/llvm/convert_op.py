@@ -106,6 +106,7 @@ _CAST_OP_NAMES: dict[type[Operation], str] = {
     llvm.IntToPtrOp: "inttoptr",
     llvm.BitcastOp: "bitcast",
     llvm.FPExtOp: "fpext",
+    llvm.FPTruncOp: "fptrunc",
     llvm.SIToFPOp: "sitofp",
 }
 
