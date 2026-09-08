@@ -30,12 +30,12 @@ def test_if():
 
             @Builder.implicit_region
             def true_region():
-                one = arith.ConstantOp.from_int_and_width(1, 32)
+                one = arith.ConstantOp.from_int_and_width(1, i32)
                 scf.YieldOp(one)
 
             @Builder.implicit_region
             def false_region():
-                zero = arith.ConstantOp.from_int_and_width(0, 32)
+                zero = arith.ConstantOp.from_int_and_width(0, i32)
                 scf.YieldOp(zero)
 
             result = scf.IfOp(cond, (i32,), true_region, false_region)
@@ -179,7 +179,7 @@ def square_or_default_op():
 
         @Builder.implicit_region
         def default_region():
-            default = arith.ConstantOp.from_int_and_width(-1, 32)
+            default = arith.ConstantOp.from_int_and_width(-1, i32)
             scf.YieldOp(default)
 
         case_regions: list[Region] = []
@@ -187,7 +187,7 @@ def square_or_default_op():
 
             @Builder.implicit_region
             def case_region(i: int = i):
-                square = arith.ConstantOp.from_int_and_width(i * i, 32)
+                square = arith.ConstantOp.from_int_and_width(i * i, i32)
                 scf.YieldOp(square)
 
             case_regions.append(case_region)
