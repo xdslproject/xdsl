@@ -2,12 +2,12 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
-from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
+from xdsl.dialects.builtin import DenseArrayBase, IndexType, ModuleOp, i1, i32, i64
 from xdsl.interpreter import Interpreter, OpCounter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.ir import BlockArgument
+from xdsl.ir import BlockArgument, Region
 
 index = IndexType()
 
@@ -157,5 +157,72 @@ def test_while_tracer():
         "scf.yield": 5,
         "arith.cmpi": 6,
         "arith.addi": 10,
+        "func.return": 1,
+    }
+
+
+def square_or_default_fn(n: int) -> int:
+    """
+    Python implementation of square_or_default_op
+    """
+    cases = {3: 9, 1: 1, 5: 25}
+    return cases.get(n, -1)
+
+
+@ModuleOp
+@Builder.implicit_region
+def square_or_default_op():
+    cases = [3, 1, 5]  # deliberately out of order and non-contiguous
+    with ImplicitBuilder(func.FuncOp("square_or_default", ((index,), (i32,))).body) as (
+        n,
+    ):
+
+        @Builder.implicit_region
+        def default_region():
+            default = arith.ConstantOp.from_int_and_width(-1, 32)
+            scf.YieldOp(default)
+
+        case_regions: list[Region] = []
+        for i in cases:
+
+            @Builder.implicit_region
+            def case_region(i: int = i):
+                square = arith.ConstantOp.from_int_and_width(i * i, 32)
+                scf.YieldOp(square)
+
+            case_regions.append(case_region)
+
+        result = scf.IndexSwitchOp(
+            n,
+            DenseArrayBase.from_list(i64, cases),
+            default_region,
+            case_regions,
+            (i32,),
+        )
+        func.ReturnOp(result)
+
+
+@pytest.mark.parametrize(
+    ("n", "res"), [(0, -1), (1, 1), (2, -1), (3, 9), (4, -1), (5, 25)]
+)
+def test_index_switch_via_square_or_default(n: int, res: int):
+    assert res == square_or_default_fn(n)
+    assert res == scf_interp(square_or_default_op, "square_or_default", n)
+
+
+@pytest.mark.parametrize(("n", "res"), [(3, 9), (4, -1)])
+def test_index_switch_tracer(n: int, res: int):
+    tracer = OpCounter()
+    interpreter = Interpreter(square_or_default_op.clone(), listeners=(tracer,))
+    interpreter.register_implementations(ScfFunctions())
+    interpreter.register_implementations(FuncFunctions())
+    interpreter.register_implementations(ArithFunctions())
+
+    (result,) = interpreter.call_op("square_or_default", (n,))
+    assert result == res
+    assert dict(tracer.ops) == {
+        "scf.index_switch": 1,
+        "arith.constant": 1,
+        "scf.yield": 1,
         "func.return": 1,
     }
