@@ -1,5 +1,3 @@
-from typing import Any
-
 from xdsl.dialects import scf
 from xdsl.interpreter import (
     Interpreter,
@@ -16,7 +14,7 @@ from xdsl.interpreter import (
 @register_impls
 class ScfFunctions(InterpreterFunctions):
     @impl(scf.IfOp)
-    def run_if(self, interpreter: Interpreter, op: scf.IfOp, args: tuple[Any, ...]):
+    def run_if(self, interpreter: Interpreter, op: scf.IfOp, args: PythonValues):
         (cond,) = args
         region = op.true_region if cond else op.false_region
         results = interpreter.run_ssacfg_region(region, ())
@@ -38,7 +36,7 @@ class ScfFunctions(InterpreterFunctions):
 
     @impl_terminator(scf.YieldOp)
     def run_br(
-        self, interpreter: Interpreter, op: scf.YieldOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: scf.YieldOp, args: PythonValues
     ) -> tuple[TerminatorValue, PythonValues]:
         return ReturnedValues(args), ()
 
