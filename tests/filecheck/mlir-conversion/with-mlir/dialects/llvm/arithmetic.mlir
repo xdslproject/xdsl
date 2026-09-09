@@ -66,4 +66,7 @@ builtin.module {
 
     %frem = llvm.frem %f1, %f1 : f32
     // CHECK: llvm.frem [[f1]], [[f1]] : f32
+
+    %fptrunc = llvm.fptrunc %f1 : f32 to f16
+    // CHECK: llvm.fptrunc [[f1]] : f32 to f16
 }
