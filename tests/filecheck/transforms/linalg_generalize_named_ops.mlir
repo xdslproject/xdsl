@@ -10,6 +10,7 @@
 //CHECK-NEXT:   %q1, %q2, %q3 = "test.op"() : () -> (memref<1x2x4x16x16xf32>, memref<2x6x4x3x3xf32>, memref<1x2x6x6x4xf32>)
 //CHECK-NEXT:   %z1, %z2, %z3 = "test.op"() : () -> (memref<1x16x16x2x4xf32>, memref<2x6x3x3x4xf32>, memref<1x6x4x2x6xf32>)
 //CHECK-NEXT:   %p1, %p2, %p3 = "test.op"() : () -> (memref<1x4x16x16xf32>, memref<3x3xf32>, memref<1x4x6x4xf32>)
+//CHECK-NEXT:   %v, %filled = "test.op"() : () -> (f32, memref<4x5xf32>)
 %lhs, %rhs, %out = "test.op"() : () -> (memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
 %a, %b, %c = "test.op"() : () -> (memref<2x3xf32>, memref<3x4xf32>, memref<2x4xf32>)
 %cond, %t, %f, %res = "test.op"() : () -> (memref<4x5xi1>, memref<4x5xf32>, memref<4x5xf32>, memref<4x5xf32>)
@@ -20,6 +21,7 @@
 %q1, %q2, %q3 = "test.op"() : () -> (memref<1x2x4x16x16xf32>, memref<2x6x4x3x3xf32>, memref<1x2x6x6x4xf32>)
 %z1, %z2, %z3 = "test.op"() : () -> (memref<1x16x16x2x4xf32>, memref<2x6x3x3x4xf32>, memref<1x6x4x2x6xf32>)
 %p1, %p2, %p3 = "test.op"() : () -> (memref<1x4x16x16xf32>, memref<3x3xf32>, memref<1x4x6x4xf32>)
+%v, %filled = "test.op"() : () -> (f32, memref<4x5xf32>)
 
 //CHECK-NEXT:   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%lhs, %rhs : memref<4x5xf32>, memref<4x5xf32>) outs(%out : memref<4x5xf32>) {
 //CHECK-NEXT:   ^bb0(%0: f32, %1: f32, %2: f32):
@@ -97,3 +99,9 @@ linalg.conv_2d_nhwgc_gfhwc {dilations = dense<[2, 3]> : tensor<2xi64>, strides =
 //CHECK-NEXT:     linalg.yield %47 : f32
 //CHECK-NEXT:   }
 linalg.pooling_nchw_max {dilations = dense<[2, 3]> : tensor<2xi64>, strides = dense<[2, 3]> : tensor<2xi64>} ins(%p1, %p2 : memref<1x4x16x16xf32>, memref<3x3xf32>) outs(%p3 : memref<1x4x6x4xf32>)
+
+//CHECK-NEXT:   linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%v : f32) outs(%filled : memref<4x5xf32>) {
+//CHECK-NEXT:   ^bb0(%48: f32, %49: f32):
+//CHECK-NEXT:     linalg.yield %48 : f32
+//CHECK-NEXT:   }
+linalg.fill ins(%v : f32) outs(%filled : memref<4x5xf32>)
