@@ -887,14 +887,16 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
 
   llvm.func @fneg_op(%arg0: f32) -> f32 {
     %0 = llvm.fneg %arg0 : f32
-    llvm.return %0 : f32
+    %1 = llvm.fneg %0 {fastmathFlags = #llvm.fastmath<nnan, ninf>} : f32
+    llvm.return %1 : f32
   }
 
   // CHECK: define float @"fneg_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = fneg float %".1"
-  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT:   %"[[FLAGGED:.\d+]]" = fneg {{(nnan ninf|ninf nnan)}} float %"[[RES]]"
+  // CHECK-NEXT:   ret float %"[[FLAGGED]]"
   // CHECK-NEXT: }
 
   // forward_ref_caller calls forward_ref_callee which is defined AFTER it
