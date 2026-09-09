@@ -13,18 +13,16 @@ from xdsl.passes import ModulePass
 class X86AllocateRegisters(ModulePass):
     """
     Allocates unallocated registers in the module.
+
+    The allocatable set depends on the target, read from the `x86.arch` module
+    attribute. Without it the conservative VEX-only set is used, since handing
+    out EVEX-only registers produces assembly the target cannot decode.
     """
 
     name = "x86-allocate-registers"
 
-    arch: str | None = None
-    """
-    The target architecture, which determines the allocatable register set. Without
-    one, only the registers every x86 target can encode are handed out.
-    """
-
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        arch = X86Arch.arch_for_name(self.arch)
+        arch = X86Arch.from_module(op)
         for inner_op in op.walk():
             if isinstance(inner_op, x86_func.FuncOp):
                 available_registers = X86RegisterStack.get_for_arch(arch)

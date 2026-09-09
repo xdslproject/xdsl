@@ -405,11 +405,12 @@ class PoolingOperation(NamedOperation, ABC):
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
-    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
-
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
-        raise NotImplementedError
+        parallel_loops = self.get_num_loops() - 2
+        return ArrayAttr(
+            (IteratorTypeAttr.parallel(),) * parallel_loops
+            + (IteratorTypeAttr.reduction(),) * 2
+        )
 
 
 class ConvOperation(NamedOperation, ABC):
@@ -467,8 +468,9 @@ class ConvOperation(NamedOperation, ABC):
 
         return hidden_region
 
-    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
-
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
-        raise NotImplementedError
+        parallel_loops = self.get_num_loops() - 3
+        return ArrayAttr(
+            (IteratorTypeAttr.parallel(),) * parallel_loops
+            + (IteratorTypeAttr.reduction(),) * 3
+        )

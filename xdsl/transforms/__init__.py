@@ -662,6 +662,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_infer_broadcast.X86InferBroadcast
 
+    def get_x86_set_arch():
+        from xdsl.transforms import x86_set_arch
+
+        return x86_set_arch.X86SetArch
+
     def get_x86_regalloc_legalize():
         from xdsl.transforms import x86_regalloc_legalize
 
@@ -811,6 +816,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-infer-broadcast": get_x86_infer_broadcast,
         "x86-regalloc-legalize": get_x86_regalloc_legalize,
+        "x86-set-arch": get_x86_set_arch,
         "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
         "x86-regalloc-verify-liveness": get_x86_regalloc_verify_liveness,
     }

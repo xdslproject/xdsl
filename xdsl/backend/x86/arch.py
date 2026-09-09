@@ -9,6 +9,8 @@ from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
+    ModuleOp,
+    StringAttr,
     VectorType,
 )
 from xdsl.dialects.x86.registers import (
@@ -27,6 +29,15 @@ from xdsl.ir import Attribute, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
+
+ARCH_ATTR_NAME = "x86.arch"
+"""
+Name of the module attribute recording the target this module is compiled for.
+
+Set once at the top of a pipeline so that passes downstream do not each need
+their own `arch` option, in the same spirit as an LLVM module carrying its
+target triple.
+"""
 
 
 class X86Arch(Arch):
@@ -54,6 +65,27 @@ class X86Arch(Arch):
                 f"Unsupported arch {name}. Supported arches are "
                 f"{sorted(_ARCH_BY_NAME)}."
             ) from None
+
+    @staticmethod
+    def from_module(module: ModuleOp) -> X86Arch:
+        """
+        Read the target from the module, defaulting to the conservative
+        `unknown` target when it is not recorded.
+        """
+        attr = module.attributes.get(ARCH_ATTR_NAME)
+        if attr is None:
+            return UNKNOWN
+        if not isinstance(attr, StringAttr):
+            raise DiagnosticException(
+                f"`{ARCH_ATTR_NAME}` must be a string attribute, got {attr}."
+            )
+        return X86Arch.arch_for_name(attr.data)
+
+    def set_on_module(self, module: ModuleOp) -> None:
+        """
+        Record this target on the module.
+        """
+        module.attributes[ARCH_ATTR_NAME] = StringAttr(self.name())
 
     def default_allocatable_registers(self) -> tuple[X86RegisterType, ...]:
         """
@@ -194,7 +226,10 @@ class AVX2Arch(X86Arch):
     def name() -> str:
         return "avx2"
 
-    VECTOR_TYPES_BY_BITWIDTH = {128: SSERegisterType, 256: AVX2RegisterType}
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
+        128: SSERegisterType,
+        256: AVX2RegisterType,
+    }
 
 
 AVX2 = AVX2Arch()
@@ -205,7 +240,7 @@ class AVX512Arch(X86Arch):
     def name() -> str:
         return "avx512"
 
-    VECTOR_TYPES_BY_BITWIDTH = {
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
         128: SSERegisterType,
         256: AVX2RegisterType,
         512: AVX512RegisterType,

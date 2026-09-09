@@ -72,7 +72,7 @@ class ModuleRef(ffi.ObjectRef):
         ...
 
     @property
-    def data_layout(self):  # -> str:
+    def data_layout(self) -> str:
         """
         This module's data layout specification, as a string.
         """
