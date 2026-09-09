@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    ShapedType,
     StringAttr,
     TensorType,
     i64,
@@ -642,10 +643,18 @@ class FillOp(NamedOperation):
         return hidden_region
 
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
+        output_type = self.outputs[0].type
+        assert isinstance(output_type, ShapedType)
+        rank = len(output_type.get_shape())
+
+        return (
+            *(AffineMap(rank, 0, ()) for _ in self.inputs),
+            *(AffineMap.identity(rank) for _ in self.outputs),
+        )
 
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
-        raise NotImplementedError
+        num_loops = self.get_num_loops()
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
 
 
 @irdl_op_definition
