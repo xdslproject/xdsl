@@ -505,6 +505,13 @@ def test_fpext_op():
     assert op.result.type == builtin.f64  # wider type
 
 
+def test_fptrunc_op():
+    val = create_ssa_value(builtin.f64)
+    op = llvm.FPTruncOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
+
+
 def test_trunc_op_handles_missing_overflow_property():
     # verify printer handles manually deleted overflowflags gracefully
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)

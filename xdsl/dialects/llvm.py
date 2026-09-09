@@ -3057,6 +3057,11 @@ class FPExtOp(GenericCastOp):
 
 
 @irdl_op_definition
+class FPTruncOp(GenericCastOp):
+    name = "llvm.fptrunc"
+
+
+@irdl_op_definition
 class FAbsOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
@@ -3809,6 +3814,7 @@ LLVM = Dialect(
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPTruncOp,
         FPowOp,
         FRemOp,
         FSinOp,
