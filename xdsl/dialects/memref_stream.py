@@ -26,11 +26,10 @@ from xdsl.dialects.builtin import (
     MemRefType,
     StringAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils import AbstractYieldOperation, EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     Region,
     SSAValue,

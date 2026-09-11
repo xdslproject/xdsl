@@ -26,16 +26,14 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.dialects.utils import BitEnumAttribute
+from xdsl.dialects.utils import BitEnumAttribute, EnumAttribute
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
     BuiltinAttribute,
     Data,
-    EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    StrEnum,
     TypedAttribute,
 )
 from xdsl.irdl import (
@@ -61,6 +59,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 
 def test_wrong_attribute_type():

@@ -10,7 +10,8 @@ at some point when they have matured.
 
 from enum import auto
 
-from xdsl.ir import Attribute, Dialect, EnumAttribute, SpacedOpaqueSyntaxAttribute
+from xdsl.dialects.utils import EnumAttribute
+from xdsl.ir import Attribute, Dialect, SpacedOpaqueSyntaxAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
