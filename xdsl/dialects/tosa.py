@@ -45,6 +45,13 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.declarative_assembly_format import (
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    irdl_custom_directive,
+)
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -609,6 +616,27 @@ class YieldOp(IRDLOperation):
     assembly_format = "$inputs attr-dict `:` type($inputs)"
 
 
+@irdl_custom_directive
+class Outputs(CustomDirective):
+    results: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        if parser.parse_optional_punctuation("("):
+            self.results.inner.parse_types(parser, state)
+            parser.parse_punctuation(")")
+        else:
+            self.results.inner.parse_single_type(parser, state)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        types = self.results.inner.get_types(op)
+        if len(types) == 1:
+            printer.print_attribute(types[0])
+        else:
+            with printer.in_parens():
+                printer.print_list(types, printer.print_attribute)
+
+
 @irdl_op_definition
 class IfOp(IRDLOperation):
     """
@@ -631,7 +659,9 @@ class IfOp(IRDLOperation):
         SingleBlockImplicitTerminator(YieldOp),
     )
 
-    assembly_format = "$cond `:` type($cond) `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
+    custom_directives = (Outputs,)
+
+    assembly_format = "$cond `:` type($cond) `->` custom<Outputs>(type($output)) $true_region `else` $false_region attr-dict"
 
 
 ################################################################################

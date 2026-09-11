@@ -4071,3 +4071,41 @@ def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_keywords_are_non_optional():
+    @irdl_op_definition
+    class NonOptionalKeyword(IRDLOperation):
+        name = "test.non_optional_keyword"
+
+        assembly_format = "`keyword` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(NonOptionalKeyword)
+
+    parser = Parser(ctx, "test.non_optional_keyword keyword")
+    parser.parse_op()
+
+    parser = Parser(ctx, "test.non_optional_keyword")
+
+    with pytest.raises(ParseError, match="Expected 'keyword'"):
+        parser.parse_op()
+
+
+def test_punctuation_is_non_optional():
+    @irdl_op_definition
+    class NonOptionalPunctuation(IRDLOperation):
+        name = "test.non_optional_punctuation"
+
+        assembly_format = "`:` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(NonOptionalPunctuation)
+
+    parser = Parser(ctx, "test.non_optional_punctuation :")
+    parser.parse_op()
+
+    parser = Parser(ctx, "test.non_optional_punctuation")
+
+    with pytest.raises(ParseError, match="Expected ':'"):
+        parser.parse_op()

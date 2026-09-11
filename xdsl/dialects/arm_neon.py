@@ -340,7 +340,7 @@ class DSDupOp(ARMInstruction):
     d = result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` `(` type($d) `)`"
+    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` type($d)"
 
     def __init__(
         self,
