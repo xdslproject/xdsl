@@ -7,24 +7,17 @@ from .core import *  # noqa: TID251
 
 
 def __getattr__(name: str):
-    if name == "EnumAttribute":
-        from xdsl.dialects.utils.enum_attribute import EnumAttribute
+    if name in ("EnumAttribute", "EnumType"):
+        from xdsl.dialects.utils.enum_attribute import (  # noqa: TID251
+            EnumAttribute,
+            EnumType,
+        )
 
         warnings.warn(
-            "Importing 'EnumAttribute' from 'xdsl.ir' is deprecated. "
-            "Please use 'from xdsl.dialects.utils import EnumAttribute' instead.",
+            f"Importing '{name}' from 'xdsl.ir' is deprecated. "
+            f"Please use 'from xdsl.dialects.utils import {name}' instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        return EnumAttribute
-    if name == "StrEnum":
-        from xdsl.utils.str_enum import StrEnum
-
-        warnings.warn(
-            "Importing 'StrEnum' from 'xdsl.ir' is deprecated. "
-            "Please use 'from xdsl.utils.str_enum import StrEnum' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return StrEnum
+        return EnumAttribute if name == "EnumAttribute" else EnumType
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

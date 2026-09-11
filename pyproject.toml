@@ -117,6 +117,7 @@ lint.flake8-tidy-imports.banned-api."typing.TypeVar".msg = "Use typing_extension
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dynamic_index_list".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.enum_attribute".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"

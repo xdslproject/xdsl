@@ -1543,12 +1543,16 @@ def test_deprecated_enum_attribute_imports_are_available():
 
     with pytest.warns(
         DeprecationWarning,
-        match="Importing 'StrEnum' from 'xdsl.ir' is deprecated",
+        match="Importing 'EnumType' from 'xdsl.ir' is deprecated",
     ):
-        from xdsl.ir import StrEnum
+        from xdsl.ir import EnumType
 
-    from xdsl.dialects.utils import EnumAttribute as NewEnumAttribute
-    from xdsl.utils.str_enum import StrEnum as NewStrEnum
+    from xdsl.dialects.utils import (
+        EnumAttribute as NewEnumAttribute,
+    )
+    from xdsl.dialects.utils import (
+        EnumType as NewEnumType,
+    )
 
     assert EnumAttribute is NewEnumAttribute
-    assert StrEnum is NewStrEnum
+    assert EnumType is NewEnumType
