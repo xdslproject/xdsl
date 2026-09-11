@@ -12,6 +12,7 @@ from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, IndexType, LocationAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     Operation,
     Region,
@@ -294,7 +295,9 @@ class Parser(AttrParser):
         """
         return self.expect(self.parse_optional_unresolved_operand, msg)
 
-    def resolve_operand(self, operand: UnresolvedOperand, type: Attribute) -> SSAValue:
+    def resolve_operand(
+        self, operand: UnresolvedOperand, type: AttributeInvT
+    ) -> SSAValue[AttributeInvT]:
         """
         Resolve an unresolved operand.
         If the operand is not yet defined, it creates a forward reference.
@@ -308,14 +311,17 @@ class Parser(AttrParser):
             name in self.forward_ssa_references
             and operand.index in self.forward_ssa_references[name]
         ):
-            return self.forward_ssa_references[name][operand.index]
+            return cast(
+                SSAValue[AttributeInvT],
+                self.forward_ssa_references[name][operand.index],
+            )
 
         # If the operand is not yet defined, create a forward reference
         if name not in self.ssa_values:
             forward_value = ForwardDeclaredValue(type)
             reference_tuple = self.forward_ssa_references.setdefault(name, {})
             reference_tuple[operand.index] = forward_value
-            return forward_value
+            return cast(SSAValue[AttributeInvT], forward_value)
 
         # If the operand is already defined, check that the tuple index is in range
         tuple_size = len(self.ssa_values[name])
@@ -335,7 +341,7 @@ class Parser(AttrParser):
                 operand.span,
             )
 
-        return resolved
+        return cast(SSAValue[AttributeInvT], resolved)
 
     def parse_affine_map_of_ssa_ids(
         self,
@@ -352,7 +358,6 @@ class Parser(AttrParser):
             for span in spans
         ]
 
-        operands = cast(Sequence[SSAValue[IndexType]], operands)
         return affine_map, operands
 
     def parse_optional_operand(self) -> SSAValue | None:
