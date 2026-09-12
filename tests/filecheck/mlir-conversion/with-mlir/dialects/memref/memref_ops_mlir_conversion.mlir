@@ -39,6 +39,7 @@
     %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
     %index = arith.constant 2 : index
     %dyn_subview = memref.subview %5[%index, 0] [1, 2] [1, 1] : memref<10x2xindex> to memref<2xindex, strided<[1], offset: ?>>
+    %assumed = memref.assume_alignment %5, 16 : memref<10x2xindex>
     "func.return"() : () -> ()
   }) {"sym_name" = "memref_test", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -73,6 +74,7 @@
 // CHECK-NEXT: %15 = "memref.atomic_rmw"(%14, %13, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 // CHECK-NEXT: %16 = "arith.constant"() <{value = 2 : index}> : () -> index
 // CHECK-NEXT: %17 = "memref.subview"(%5, %16) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, static_offsets = array<i64: -9223372036854775808, 0>, static_sizes = array<i64: 1, 2>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>, index) -> memref<2xindex, strided<[1], offset: ?>>
+// CHECK-NEXT: %18 = "memref.assume_alignment"(%5) <{alignment = 16 : i32}> : (memref<10x2xindex>) -> memref<10x2xindex>
 // CHECK-NEXT: "func.return"() : () -> ()
 // CHECK-NEXT: }) : () -> ()
 // CHECK-NEXT: }) : () -> ()
