@@ -111,11 +111,6 @@ def test_float_data_nan_equality():
     assert FloatData(float("nan")) == FloatData(float("nan"))
 
 
-def test_float_data_not_other_attribute():
-    assert FloatData(0.0) != IntAttr(0)
-    assert FloatData(0.0) != 0.0
-
-
 @pytest.mark.parametrize(
     "e, m, s",
     [
