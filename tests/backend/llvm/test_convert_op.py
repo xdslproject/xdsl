@@ -2,7 +2,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from llvmlite import ir
+from llvmlite import binding, ir
 
 from xdsl.backend.llvm.convert_op import (
     convert_op,
@@ -11,7 +11,16 @@ from xdsl.backend.llvm.convert_op import (
     intrinsic_suffix,
 )
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import FloatAttr, IntegerAttr, UnitAttr, f32, f64, i32, i64
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    FloatAttr,
+    IntegerAttr,
+    UnitAttr,
+    f32,
+    f64,
+    i32,
+    i64,
+)
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import LLVMTranslationException
@@ -32,13 +41,41 @@ def test_convert_indirect_call_raises():
         convert_op(op, builder, val_map)
 
 
-def test_call_intrinsic_op_bundle_raises():
+@pytest.mark.parametrize("intrinsic", [False, True])
+@pytest.mark.parametrize("with_operand", [True, False], ids=["operand", "empty-bundle"])
+def test_call_op_bundles_raises(intrinsic: bool, with_operand: bool):
     block = Block(arg_types=[i32])
-    arg = block.args[0]
-    op = llvm.CallIntrinsicOp("llvm.donothing", [arg], [], op_bundle_operands=[arg])
-
+    operands = (block.args[0],) if with_operand else ()
+    # A zero-sized bundle still needs support even though it has no operands.
+    sizes = DenseArrayBase.from_list(i32, [] if with_operand else [0])
+    if intrinsic:
+        op = llvm.CallIntrinsicOp(
+            "llvm.donothing", [], [], op_bundle_sizes=sizes, op_bundle_operands=operands
+        )
+    else:
+        op = llvm.CallOp("callee", op_bundle_sizes=sizes, op_bundle_operands=operands)
+    builder = MagicMock()
     with pytest.raises(NotImplementedError, match="Operand bundles not supported"):
-        convert_op(op, MagicMock(), {arg: MagicMock()})
+        convert_op(op, builder, {})
+    assert not builder.mock_calls
+
+
+@pytest.mark.parametrize("intrinsic", [False, True])
+def test_calls_without_bundles_still_emit(intrinsic: bool):
+    module = ir.Module()
+    fn_type = ir.FunctionType(ir.VoidType(), [])
+    caller = ir.Function(module, fn_type, name="caller")
+    block = caller.append_basic_block()
+    builder = ir.IRBuilder(block)
+    if intrinsic:
+        op = llvm.CallIntrinsicOp("llvm.donothing", [], [])
+    else:
+        ir.Function(module, fn_type, name="callee")
+        op = llvm.CallOp("callee")
+    convert_op(op, builder, {})
+    builder.ret_void()
+    assert isinstance(block.instructions[0], ir.CallInstr)
+    binding.parse_assembly(str(module)).verify()  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_call_intrinsic_fastmath_raises():
