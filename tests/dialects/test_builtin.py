@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    FloatData,
     FloatNonfiniteBehavior,
     FloatSemantics,
     IndexType,
@@ -83,6 +84,31 @@ from xdsl.irdl import (
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@pytest.mark.parametrize(
+    "lhs, rhs, equal",
+    [
+        (0.0, 0.0, True),
+        (-0.0, -0.0, True),
+        (0.0, -0.0, False),
+        (-0.0, 0.0, False),
+        (1.0, 1.0, True),
+        (1.0, -1.0, False),
+        (math.inf, math.inf, True),
+        (-math.inf, -math.inf, True),
+        (math.inf, -math.inf, False),
+    ],
+)
+def test_float_data_equality(lhs: float, rhs: float, equal: bool):
+    assert (FloatData(lhs) == FloatData(rhs)) is equal
+    assert (FloatAttr(lhs, f64) == FloatAttr(rhs, f64)) is equal
+    if equal:
+        assert hash(FloatData(lhs)) == hash(FloatData(rhs))
+
+
+def test_float_data_nan_equality():
+    assert FloatData(float("nan")) == FloatData(float("nan"))
 
 
 @pytest.mark.parametrize(
