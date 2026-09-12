@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --allow-unregistered-dialect "%s" -p cse | filecheck "%s"
+// RUN: xdsl-opt --allow-unregistered-dialect %s -p cse | filecheck %s
 
 #map0 = affine_map<(d0) -> (d0 mod 2)>
 
