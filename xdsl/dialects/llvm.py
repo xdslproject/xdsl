@@ -43,6 +43,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     BitEnumAttribute,
+    EnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
     parse_dynamic_index_list_without_types,
@@ -54,7 +55,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,

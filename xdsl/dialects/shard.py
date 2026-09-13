@@ -20,11 +20,10 @@ from xdsl.dialects.builtin import (
     i16,
     i64,
 )
-from xdsl.dialects.utils import DimensionList, DynamicIndexList
+from xdsl.dialects.utils import DimensionList, DynamicIndexList, EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,

@@ -21,10 +21,10 @@ from xdsl.dialects.builtin import (
     TensorType,
     i1,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     SSAValue,
     TypeAttribute,
 )

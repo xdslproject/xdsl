@@ -21,14 +21,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    BitEnumAttribute,
+    EnumAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -69,6 +71,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 class OpenMPOffloadMappingFlags(IntFlag):

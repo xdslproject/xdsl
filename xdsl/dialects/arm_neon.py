@@ -15,14 +15,13 @@ from xdsl.dialects.builtin import (
     f64,
     i8,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     Operation,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
-    StrEnum,
 )
 from xdsl.irdl import (
     VarConstraint,
@@ -37,6 +36,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
 

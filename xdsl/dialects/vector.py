@@ -35,6 +35,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     DynamicIndexList,
+    EnumAttribute,
     get_dynamic_index_list,
     split_dynamic_index_list,
     verify_dynamic_index_list,
@@ -42,7 +43,6 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     Operation,
     SSAValue,
 )

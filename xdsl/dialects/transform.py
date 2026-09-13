@@ -20,13 +20,13 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
+    EnumAttribute,
     parse_func_op_like,
     print_func_op_like,
 )
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     Region,
     SSAValue,
