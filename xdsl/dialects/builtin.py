@@ -1824,12 +1824,17 @@ class FloatData(Data[float]):
         with printer.in_angle_brackets():
             printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: object):
-        # avoid triggering `float('nan') != float('nan')` inequality
-        return isinstance(other, FloatData) and (
-            (math.isnan(self.data) and math.isnan(other.data))
-            or self.data == other.data
-        )
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, FloatData):
+            return False
+        if math.isnan(self.data) and math.isnan(other.data):
+            # Treat all NaNs as equal
+            return True
+        if math.copysign(1.0, self.data) != math.copysign(1.0, other.data):
+            # Avoid dropping sign on -0.0
+            return False
+        # If the floats are not NaNs or +-0.0, use float equality
+        return self.data == other.data
 
     def __hash__(self):
         return hash(self.data)
