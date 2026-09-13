@@ -7,6 +7,7 @@ import pytest
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -160,6 +161,74 @@ def test_linalg_generic_scalar():
     interpreter.run_op(op, (a, b, c))
 
     assert c.data == [2, 4, 6, 8, 10, 12]
+
+
+@pytest.mark.parametrize("tensor", [False, True])
+def test_linalg_generic_dynamic_identity_reuses_ir(tensor: bool):
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    array_type = (TensorType if tensor else MemRefType)(i32, [DYNAMIC_INDEX])
+
+    op = linalg.ops.GenericOp(
+        (create_ssa_value(array_type),),
+        (create_ssa_value(array_type),),
+        Region(Block(arg_types=(i32, i32))),
+        (AffineMapAttr(AffineMap.identity(1)),) * 2,
+        (linalg.attrs.IteratorTypeAttr.parallel(),),
+        (array_type,) if tensor else (),
+    )
+
+    with ImplicitBuilder(op.body) as (a, _):
+        linalg.ops.YieldOp(a)
+    op.verify()
+
+    for values in ([], [1], [1, 2, 3], [1, 2, 3, 4, 5]):
+        input_array = ShapedArray(TypedPtr.new_int32(values), [len(values)])
+        initial_output = ShapedArray(
+            TypedPtr.new_int32([-1] * len(values)), [len(values)]
+        )
+
+        results = interpreter.run_op(op, (input_array, initial_output))
+
+        assert input_array.data == values
+        if tensor:
+            (output_array,) = results
+            assert initial_output.data == [-1] * len(values)
+            assert output_array is not initial_output
+        else:
+            assert results == ()
+            output_array = initial_output
+        assert output_array == ShapedArray(TypedPtr.new_int32(values), [len(values)])
+
+
+def test_linalg_transpose_dynamic_reuses_ir():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.ops.TransposeOp(
+        create_ssa_value(TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX])),
+        create_ssa_value(TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX])),
+        DenseArrayBase.from_list(i64, [1, 0]),
+        TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX]),
+    )
+    op.verify()
+
+    for input_shape, values, expected in (
+        ((0, 3), [], []),
+        ((2, 3), [1, 2, 3, 4, 5, 6], [1, 4, 2, 5, 3, 6]),
+    ):
+        output_shape = (input_shape[1], input_shape[0])
+        input_array = ShapedArray(TypedPtr.new_int32(values), list(input_shape))
+        initial_output = ShapedArray(
+            TypedPtr.new_int32([-1] * len(expected)), list(output_shape)
+        )
+
+        (output_array,) = interpreter.run_op(op, (input_array, initial_output))
+
+        assert input_array.data == values
+        assert initial_output.data == [-1] * len(expected)
+        assert output_array == ShapedArray(
+            TypedPtr.new_int32(expected), list(output_shape)
+        )
 
 
 def test_linalg_generic_reduction():
