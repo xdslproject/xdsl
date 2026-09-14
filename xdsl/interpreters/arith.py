@@ -267,7 +267,6 @@ class ArithFunctions(InterpreterFunctions):
     def run_select(
         self, interpreter: Interpreter, op: arith.SelectOp, args: PythonValues
     ):
-        assert len(args) == 3
         cond, lhs, rhs = args
 
         if not isinstance(cond, ShapedArray):
@@ -283,7 +282,7 @@ class ArithFunctions(InterpreterFunctions):
             f"arith.select shape mismatch: {shaped_cond.shape}, "
             f"{shaped_lhs.shape}, {shaped_rhs.shape}",
         )
-        data: list[Any] = [
+        data = [
             l if c else r
             for c, l, r in zip(
                 shaped_cond.data, shaped_lhs.data, shaped_rhs.data, strict=True
