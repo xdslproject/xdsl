@@ -1,3 +1,5 @@
+import math
+
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
 from xdsl.ir import OpResult
@@ -66,13 +68,14 @@ def _fold_const_operation(
             val = lhs.value.data * rhs.value.data
         case arith.DivfOp:
             if rhs.value.data == 0.0:
-                # this mirrors what mlir does
-                if lhs.value.data == 0.0:
+                if lhs.value.data == 0.0 or math.isnan(lhs.value.data):
                     val = float("nan")
-                elif lhs.value.data < 0:
-                    val = float("-inf")
                 else:
-                    val = float("inf")
+                    # Python raises on division by zero. IEEE division instead
+                    # gives an infinity whose sign depends on both operands.
+                    val = math.copysign(math.inf, lhs.value.data) * math.copysign(
+                        1.0, rhs.value.data
+                    )
             else:
                 val = lhs.value.data / rhs.value.data
         case _:
