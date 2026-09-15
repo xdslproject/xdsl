@@ -23,7 +23,7 @@
 %int0, %int1, %float0 = "test.op"() : () -> (index, index, f32)
 // CHECK-NEXT:    %int0, %int1, %float0 = "test.op"() : () -> (index, index, f32)
 
-scf.for %16 = %non_const to %c64 step %c8 {
+scf.for %16 = %c0 to %c64 step %c8 {
     scf.for %17 = %c0 to %c8 step %c1 {
         %18 = arith.constant 8 : index
         %19 = arith.addi %16, %17 : index
@@ -31,9 +31,26 @@ scf.for %16 = %non_const to %c64 step %c8 {
     }
 }
 
-// CHECK-NEXT:    scf.for %0 = %non_const to %c64 step %c1 {
+// CHECK-NEXT:    scf.for %0 = %c0 to %c64 step %c1 {
 // CHECK-NEXT:      %1 = arith.constant 8 : index
 // CHECK-NEXT:      "test.op"(%0) : (index) -> ()
+// CHECK-NEXT:    }
+
+// Unknown outer bound prevents flattening.
+scf.for %16 = %c0 to %non_const step %c8 {
+    scf.for %17 = %c0 to %c8 step %c1 {
+        %18 = arith.constant 8 : index
+        %19 = arith.addi %16, %17 : index
+        "test.op"(%19) : (index) -> ()
+    }
+}
+
+// CHECK-NEXT:    scf.for %{{.*}} = %c0 to %non_const step %c8 {
+// CHECK-NEXT:      scf.for %{{.*}} = %c0 to %c8 step %c1 {
+// CHECK-NEXT:        %{{.*}} = arith.constant 8 : index
+// CHECK-NEXT:        %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (index) -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
 scf.for %i = %c0 to %c64 step %c5 {
@@ -43,11 +60,11 @@ scf.for %i = %c0 to %c64 step %c5 {
     }
 }
 
-// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
-// CHECK-NEXT:    %{{.*}} = arith.muli %c64, %{{.*}} : index
-// CHECK-NEXT:    scf.for %{{.*}} = %c0 to %{{.*}} step %c5 {
-// CHECK-NEXT:      %{{.*}} = arith.constant 8 : index
-// CHECK-NEXT:      "test.op"(%{{.*}}) : (index) -> ()
+// CHECK-NEXT:    scf.for %{{.*}} = %c0 to %c64 step %c5 {
+// CHECK-NEXT:      scf.for %{{.*}} = %c0 to %c8 step %c3 {
+// CHECK-NEXT:        %{{.*}} = arith.constant 8 : index
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (index) -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
 %e0, %e1, %e2 = scf.for %16 = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (index, index, f32) {
