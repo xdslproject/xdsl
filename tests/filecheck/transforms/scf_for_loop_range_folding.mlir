@@ -1,6 +1,7 @@
 // RUN: xdsl-opt -p scf-for-loop-range-folding --split-input-file %s | filecheck %s
 
-// CHECK:       %0 = arith.addi %lb, %shift : index
+// CHECK:       %mul_shift = arith.constant 3 : index
+// CHECK-NEXT:  %0 = arith.addi %lb, %shift : index
 // CHECK-NEXT:  %1 = arith.addi %ub, %shift : index
 // CHECK-NEXT:  %2 = arith.muli %0, %mul_shift : index
 // CHECK-NEXT:  %3 = arith.muli %1, %mul_shift : index
@@ -9,20 +10,56 @@
 // CHECK-NEXT:    "test.op"(%i) : (index) -> ()
 // CHECK-NEXT:  }
 
-%shift, %mul_shift, %lb, %ub, %step = "test.op"() : () -> (index, index, index, index, index)
+%shift, %lb, %ub, %step = "test.op"() : () -> (index, index, index, index)
+%mul_shift = arith.constant 3 : index
 scf.for %i = %lb to %ub step %step {
     %shift_idx = arith.addi %shift, %i : index
     %mult_idx = arith.muli %shift_idx, %mul_shift : index
     "test.op"(%mult_idx) : (index) -> ()
 }
 
+// An unknown factor must not trigger range folding.
+%unknown_shift = "test.op"() : () -> index
+scf.for %unknown_i = %lb to %ub step %step {
+    %unknown_scaled = arith.muli %unknown_i, %unknown_shift : index
+    "test.op"(%unknown_scaled) : (index) -> ()
+}
+
+// CHECK:       scf.for %unknown_i = %lb to %ub step %step {
+// CHECK-NEXT:    %unknown_scaled = arith.muli %unknown_i, %unknown_shift : index
+// CHECK-NEXT:    "test.op"(%unknown_scaled) : (index) -> ()
+// CHECK-NEXT:  }
+
+// Zero and negative factors must also leave the loop range and body intact.
+%zero_factor = arith.constant 0 : index
+scf.for %zero_i = %lb to %ub step %step {
+    %zero_scaled = arith.muli %zero_i, %zero_factor : index
+    "test.op"(%zero_scaled) : (index) -> ()
+}
+%negative_factor = arith.constant -2 : index
+scf.for %negative_i = %lb to %ub step %step {
+    %negative_scaled = arith.muli %negative_i, %negative_factor : index
+    "test.op"(%negative_scaled) : (index) -> ()
+}
+
+// CHECK-NEXT:    %zero_factor = arith.constant 0 : index
+// CHECK-NEXT:    scf.for %zero_i = %lb to %ub step %step {
+// CHECK-NEXT:      %zero_scaled = arith.muli %zero_i, %zero_factor : index
+// CHECK-NEXT:      "test.op"(%zero_scaled) : (index) -> ()
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %negative_factor = arith.constant -2 : index
+// CHECK-NEXT:    scf.for %negative_i = %lb to %ub step %step {
+// CHECK-NEXT:      %negative_scaled = arith.muli %negative_i, %negative_factor : index
+// CHECK-NEXT:      "test.op"(%negative_scaled) : (index) -> ()
+// CHECK-NEXT:    }
+
 // CHECK:      %5 = arith.addi %lb, %shift : index
-// CHECK-NEXT  %6 = arith.addi %ub, %shift : index
-// CHECK-NEXT  scf.for %i_1 = %5 to %6 step %step {
-// CHECK-NEXT    %new_shift = arith.addi %mul_shift, %mul_shift : index
-// CHECK-NEXT    %mult_idx = arith.muli %i_1, %new_shift : index
-// CHECK-NEXT    "test.op"(%mult_idx) : (index) -> ()
-// CHECK-NEXT  }
+// CHECK-NEXT:  %6 = arith.addi %ub, %shift : index
+// CHECK-NEXT:  scf.for %i_1 = %5 to %6 step %step {
+// CHECK-NEXT:    %new_shift = arith.addi %mul_shift, %mul_shift : index
+// CHECK-NEXT:    %mult_idx = arith.muli %i_1, %new_shift : index
+// CHECK-NEXT:    "test.op"(%mult_idx) : (index) -> ()
+// CHECK-NEXT:  }
 
 // In this example muli can't be taken out of the loop. We need to loop invariant code motion transform to deal with it.
 scf.for %i = %lb to %ub step %step {
