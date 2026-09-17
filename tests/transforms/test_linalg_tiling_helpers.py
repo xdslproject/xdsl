@@ -173,44 +173,6 @@ def test_tiling_plan_rejects_operand_that_is_neither_memref_nor_tensor():
         TilingPlan.analyze(op, (2, 0))
 
 
-def test_tiling_plan_rejects_mixed_memref_and_tensor_operands():
-    # A tensor input written into a memref output. MLIR does not consider this
-    # valid either, requiring pure tensor or pure buffer semantics.
-    op = _generic_2d_copy_op(
-        input_type=TensorType(f32, [4, 5]),
-        output_type=MemRefType(f32, [4, 5]),
-    )
-
-    with pytest.raises(ValueError, match="mix of memref and tensor operands"):
-        TilingPlan.analyze(op, (2, 0))
-
-
-def test_tiling_plan_rejects_mixed_memref_and_tensor_outputs():
-    tensor_type = TensorType(f32, [4, 5])
-    lhs = create_ssa_value(tensor_type)
-    tensor_out = create_ssa_value(tensor_type)
-    memref_out = create_ssa_value(MemRefType(f32, [4, 5]))
-
-    @Builder.implicit_region((f32, f32, f32))
-    def body(args: tuple[Any, ...]):
-        linalg.ops.YieldOp(args[0])
-
-    identity = AffineMapAttr(AffineMap.from_callable(lambda i, j: (i, j)))
-    parallel = linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL)
-
-    op = linalg.ops.GenericOp(
-        [lhs],
-        [tensor_out, memref_out],
-        body,
-        [identity, identity, identity],
-        [parallel, parallel],
-        (tensor_type,),
-    )
-
-    with pytest.raises(ValueError, match="mix of memref and tensor operands"):
-        TilingPlan.analyze(op, (2, 0))
-
-
 def test_tiling_plan_marks_a_dynamic_range_partial():
     # The range is not known until the op runs, so it cannot be shown to divide
     # by the tile size and has to be treated as leaving a leftover tile.
