@@ -189,18 +189,6 @@ def _verify_is_tileable(
     ):
         raise ValueError("negative tile sizes are not supported")
 
-    # Operands that mix the two are rejected outright rather than tiled, since
-    # each kind is written back a different way. MLIR does not consider such an
-    # op valid either, requiring pure tensor or pure buffer semantics.
-    operand_types = tuple(operand.type for operand in op.operands)
-    if any(isa(operand_type, MemRefType) for operand_type in operand_types) and any(
-        isa(operand_type, TensorType) for operand_type in operand_types
-    ):
-        raise ValueError(
-            "tiling a linalg op with a mix of memref and tensor operands is "
-            "not supported"
-        )
-
     # A reduction dimension is tiled like any other. It is absent from the output
     # indexing maps, being the dimension reduced away, so the output is not sliced
     # along it and each tile reads the value the last one left, accumulating into

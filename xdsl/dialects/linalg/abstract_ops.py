@@ -29,6 +29,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .attrs import IteratorTypeAttr
@@ -169,6 +170,137 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         shapes_to_loops = self.get_shapes_to_loops_map()
         static_shapes = self.get_static_shapes()
         return shapes_to_loops.eval(static_shapes, [])
+
+    def verify_(self) -> None:
+        # Operands are all tensors or all memrefs. Each kind is written back a
+        # different way, and MLIR requires one or the other too.
+        shaped_types = [
+            operand.type
+            for operand in self.operands
+            if isinstance(operand.type, ShapedType)
+        ]
+        if any(isinstance(t, TensorType) for t in shaped_types) and any(
+            isinstance(t, MemRefType) for t in shaped_types
+        ):
+            raise VerifyException("expected to have pure tensor or buffer semantics")
+
+        indexing_maps = tuple(attr.data for attr in self.get_indexing_maps())
+        if len(indexing_maps) != len(self.operands):
+            raise VerifyException(
+                f"expected the number of indexing_map ({len(indexing_maps)}) to be "
+                f"equal to the number of input/output operands ({len(self.operands)})"
+            )
+
+        # Every indexing map is over the same loops, one per iterator type, and
+        # has one result per dimension of its operand, which says how the loops
+        # reach that dimension. A scalar has none.
+        num_loops = len(self.get_iterator_types())
+        for index, (operand, indexing_map) in enumerate(
+            zip(self.operands, indexing_maps, strict=True)
+        ):
+            if indexing_map.num_dims != num_loops:
+                raise VerifyException(
+                    f"expected indexing_map #{index} to have {num_loops} dim(s) to "
+                    f"match the number of loops"
+                )
+            if indexing_map.num_symbols:
+                raise VerifyException(f"unexpected symbols in indexing_map #{index}")
+            rank = (
+                len(operand.type.get_shape())
+                if isinstance(operand.type, ShapedType)
+                else 0
+            )
+            if len(indexing_map.results) != rank:
+                raise VerifyException(
+                    f"expected operand #{index} of rank {rank} to match the "
+                    f"result count of indexing_map #{index}, "
+                    f"{len(indexing_map.results)}"
+                )
+
+        # The body takes one argument per operand, of that operand's element
+        # type, or of the operand's own type for a scalar.
+        block_args = self.body.block.args
+        if len(block_args) != len(self.operands):
+            raise VerifyException(
+                "expected as many non-induction variable region arguments as the "
+                f"number of input/output operands, {len(self.operands)}, but got "
+                f"{len(block_args)}"
+            )
+        for index, (operand, arg) in enumerate(
+            zip(self.operands, block_args, strict=True)
+        ):
+            operand_type = operand.type
+            element_type: Attribute = (
+                operand_type.get_element_type()
+                if isa(operand_type, MemRefType | TensorType)
+                else operand_type
+            )
+            if arg.type != element_type:
+                raise VerifyException(
+                    f"expected type of bb argument #{index} ({arg.type}) to match "
+                    f"element or self type of the corresponding operand "
+                    f"({element_type})"
+                )
+
+        # With nothing to index there is nothing to reach into.
+        if not indexing_maps:
+            return
+
+        # The loop ranges are read back off the operand shapes, which needs each
+        # loop to appear on its own as some result of some map.
+        loops_to_shapes = self.get_loops_to_shapes_map()
+        shapes_to_loops = loops_to_shapes.inverse_permutation()
+        if shapes_to_loops is None:
+            raise VerifyException(
+                f"invalid indexing maps are non-invertible: ({loops_to_shapes})"
+            )
+
+        # A shape only known at runtime gives a loop range only known then, and
+        # nothing can be checked against it here.
+        static_shapes = self.get_static_shapes()
+        if any(dim < 0 for dim in static_shapes):
+            return
+        end_ranges = tuple(
+            bound - 1 for bound in shapes_to_loops.eval(static_shapes, [])
+        )
+        start_ranges = (0,) * len(end_ranges)
+
+        # Each operand is as large as the loops reach into it. A result that is
+        # one loop dimension reaches every index up to that loop's range, so the
+        # operand dimension is exactly that. One that is an expression over the
+        # loops, `d0 + d1` or `d0 * 2`, reaches indices that may not fill the
+        # dimension, so it only has to fit.
+        for index, (operand, indexing_map) in enumerate(
+            zip(self.operands, indexing_maps, strict=True)
+        ):
+            if not isinstance(operand.type, ShapedType):
+                continue
+            shape = operand.type.get_shape()
+            starts = indexing_map.eval(start_ranges, [])
+            ends = indexing_map.eval(end_ranges, [])
+            for dim, (start, end, size) in enumerate(
+                zip(starts, ends, shape, strict=True)
+            ):
+                if size == 0:
+                    continue
+                if min(start, end) < 0:
+                    raise VerifyException(
+                        f"unexpected result less than 0 at expression #{dim} in "
+                        f"{indexing_map}"
+                    )
+                inferred = max(start, end) + 1
+                if isinstance(indexing_map.results[dim], AffineDimExpr):
+                    if inferred != size:
+                        raise VerifyException(
+                            f"inferred input/output operand #{index} has shape's "
+                            f"dimension #{dim} to be {inferred}, but found {size}"
+                        )
+                elif inferred > size:
+                    raise VerifyException(
+                        f"inferred input/output operand #{index} has shape's "
+                        f"dimension #{dim} to be greater than or equal to "
+                        f"{inferred}, but found {size}"
+                    )
 
 
 class NamedOperation(LinalgStructuredOperation, ABC):
