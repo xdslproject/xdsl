@@ -25,7 +25,7 @@
 }) : () -> ()
 
 %input = "test.op"() : () -> !transform.any_value
-// CHECK: %tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i64: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+// CHECK: %tiled_op, %loop_op, %remainder = transform.structured.tile_using_for %input tile_sizes [8, 8] : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 %tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i64: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 
 %producer = "test.op"() : () -> !transform.any_op
@@ -83,7 +83,7 @@
 %split1, %split2 = "transform.split_handle"(%handle_to_split) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
 
 %to_tile = "test.op"() : () -> !transform.any_value
-// CHECK: %tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i64: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
+// CHECK: %tiled, %loop = transform.structured.tile_using_for %to_tile tile_sizes [8, 0] : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
 %tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i64: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
 
 %to_match = "test.op"() : () -> !transform.any_op
@@ -96,3 +96,8 @@
 
 // CHECK: %applied_registered_pass_opts = transform.apply_registered_pass "foo" with options = {foo = 1 : i32} to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 %applied_registered_pass_opts = transform.apply_registered_pass "foo" with options = {foo = 1 : i32} to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+
+%to_tile_dyn = "test.op"() : () -> !transform.any_op
+%dyn_size = "test.op"() : () -> !transform.param<i64>
+// CHECK: %tiled_dyn, %loops_dyn, %loops_dyn_1, %loops_dyn_2 = transform.structured.tile_using_for %to_tile_dyn tile_sizes [%dyn_size, [4], 8] interchange = [1, 0, 2] : (!transform.any_op, !transform.param<i64>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+%tiled_dyn, %loops_dyn:3 = transform.structured.tile_using_for %to_tile_dyn tile_sizes [%dyn_size, [4], 8] interchange = [1, 0, 2] : (!transform.any_op, !transform.param<i64>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
