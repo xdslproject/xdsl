@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
@@ -61,6 +62,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -864,8 +866,9 @@ class CastOp(IRDLOperation):
 
 MATCH_INTERFACE_NAMES = ("LinalgOp", "TilingInterface", "LoopLikeInterface")
 """
-The interfaces `transform.structured.match` can match on, indexed by the integer
-value MLIR stores for the corresponding `MatchInterfaceEnum` case.
+The interfaces `transform.structured.match` can match on. The order must match
+upstream's `MatchInterfaceEnum`: the position of each name is the `i32` value
+MLIR stores for that case.
 """
 
 
@@ -894,7 +897,8 @@ class MatchInterface(CustomDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         attr = self.interface.get(op)
-        assert isinstance(attr, IntegerAttr)
+        # The op verifier guarantees the value indexes MATCH_INTERFACE_NAMES.
+        assert isa(attr, IntegerAttr[I32])
         printer.print_string(MATCH_INTERFACE_NAMES[attr.value.data])
 
 
@@ -907,7 +911,7 @@ class MatchOp(IRDLOperation):
     name = "transform.structured.match"
 
     ops = opt_prop_def(ArrayAttr[StringAttr])
-    interface = opt_prop_def(IntegerAttr)
+    interface = opt_prop_def(IntegerAttr[I32])
     op_attrs = opt_prop_def(DictionaryAttr)
     filter_result_type = opt_prop_def(TypeAttribute)
     filter_operand_types = opt_prop_def(ArrayAttr[TypeAttribute])
@@ -961,6 +965,16 @@ class MatchOp(IRDLOperation):
             operands=[target],
             result_types=[AnyOpType()],
         )
+
+    def verify_(self):
+        if self.interface is not None and not (
+            0 <= self.interface.value.data < len(MATCH_INTERFACE_NAMES)
+        ):
+            raise VerifyException(
+                f"interface must be one of {', '.join(MATCH_INTERFACE_NAMES)} "
+                f"(0 to {len(MATCH_INTERFACE_NAMES) - 1}), got "
+                f"{self.interface.value.data}"
+            )
 
 
 Transform = Dialect(
