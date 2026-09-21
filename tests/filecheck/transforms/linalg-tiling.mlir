@@ -113,14 +113,13 @@ linalg.generic {
 
 %A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
 
-%C = "linalg.generic"(%A, %B) <{
+%C = linalg.generic {
   indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
-  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
-  operandSegmentSizes = array<i32: 1, 1>
-}> ({
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : tensor<4x4xf32>) outs(%B : tensor<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
 ^bb0(%a: f32, %b: f32):
-  "linalg.yield"(%a) : (f32) -> ()
-}) {test_tile_sizes = array<i32: 2, 2>} : (tensor<4x4xf32>, tensor<4x4xf32>) -> tensor<4x4xf32>
+  linalg.yield %a : f32
+} -> tensor<4x4xf32>
 
 "test.op"(%C) : (tensor<4x4xf32>) -> ()
 
@@ -157,14 +156,13 @@ linalg.generic {
 
 %A, %B = "test.op"() : () -> (tensor<4x4xf32>, tensor<4x4xf32>)
 
-%C = "linalg.generic"(%A, %B) <{
+%C = linalg.generic {
   indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
-  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
-  operandSegmentSizes = array<i32: 1, 1>
-}> ({
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : tensor<4x4xf32>) outs(%B : tensor<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 0>} {
 ^bb0(%a: f32, %b: f32):
-  "linalg.yield"(%a) : (f32) -> ()
-}) {test_tile_sizes = array<i32: 2, 0>} : (tensor<4x4xf32>, tensor<4x4xf32>) -> tensor<4x4xf32>
+  linalg.yield %a : f32
+} -> tensor<4x4xf32>
 
 "test.op"(%C) : (tensor<4x4xf32>) -> ()
 
@@ -227,14 +225,13 @@ linalg.generic {
 // same size, since the extract and the insert share slice parameters.
 
 %A, %B = "test.op"() : () -> (tensor<5x4xf32>, tensor<5x4xf32>)
-%C = "linalg.generic"(%A, %B) <{
-  indexing_maps = [affine_map<(d0,d1)->(d0,d1)>, affine_map<(d0,d1)->(d0,d1)>],
-  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
-  operandSegmentSizes = array<i32: 1, 1>
-}> ({
+%C = linalg.generic {
+  indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : tensor<5x4xf32>) outs(%B : tensor<5x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
 ^bb0(%a: f32, %b: f32):
-  "linalg.yield"(%a) : (f32) -> ()
-}) {test_tile_sizes = array<i32: 2, 2>} : (tensor<5x4xf32>, tensor<5x4xf32>) -> tensor<5x4xf32>
+  linalg.yield %a : f32
+} -> tensor<5x4xf32>
 "test.op"(%C) : (tensor<5x4xf32>) -> ()
 
 // CHECK:      builtin.module {
@@ -297,14 +294,13 @@ linalg.generic {
 // The same for tensors, read with tensor.dim.
 
 %A, %B = "test.op"() : () -> (tensor<?x4xf32>, tensor<?x4xf32>)
-%C = "linalg.generic"(%A, %B) <{
-  indexing_maps = [affine_map<(d0,d1)->(d0,d1)>, affine_map<(d0,d1)->(d0,d1)>],
-  iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>],
-  operandSegmentSizes = array<i32: 1, 1>
-}> ({
+%C = linalg.generic {
+  indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+  iterator_types = ["parallel", "parallel"]
+} ins(%A : tensor<?x4xf32>) outs(%B : tensor<?x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 0>} {
 ^bb0(%a: f32, %b: f32):
-  "linalg.yield"(%a) : (f32) -> ()
-}) {test_tile_sizes = array<i32: 2, 0>} : (tensor<?x4xf32>, tensor<?x4xf32>) -> tensor<?x4xf32>
+  linalg.yield %a : f32
+} -> tensor<?x4xf32>
 "test.op"(%C) : (tensor<?x4xf32>) -> ()
 
 // CHECK:      builtin.module {

@@ -400,7 +400,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       indexing_maps = [
         affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
         affine_map<(d0, d1, d2, d3, d4, d5) -> (d4, d5)>,
-        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
     } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf64>) outs(%Y : memref<1x1x8x8xf64>) {

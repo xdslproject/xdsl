@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     ArrayAttr,
     BoolAttr,
@@ -478,9 +479,9 @@ def test_vector_extract():
     )
     assert tuple(extract.static_position.iter_values()) == (
         0,
-        extract.DYNAMIC_INDEX,
+        DYNAMIC_INDEX,
         1,
-        extract.DYNAMIC_INDEX,
+        DYNAMIC_INDEX,
     )
     assert extract.result.type == i32
 
@@ -501,9 +502,9 @@ def test_vector_insert():
     )
     assert tuple(insert.static_position.iter_values()) == (
         0,
-        insert.DYNAMIC_INDEX,
+        DYNAMIC_INDEX,
         1,
-        insert.DYNAMIC_INDEX,
+        DYNAMIC_INDEX,
     )
     assert insert.result.type == dest.type
 

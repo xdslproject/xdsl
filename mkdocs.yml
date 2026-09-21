@@ -7,6 +7,7 @@ repo_name: xdslproject/xdsl
 repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
+exclude_docs: notebooks/README.md
 
 theme:
   name: "material"
@@ -58,9 +59,6 @@ plugins:
             show_root_full_path: false
             show_signature_annotations: true
             show_if_no_docstring: true
-  - mkdocs-simple-hooks:
-      hooks:
-        on_post_build: "scripts.hooks:build_xdsl_wheel"
 
 extra:
   social:
