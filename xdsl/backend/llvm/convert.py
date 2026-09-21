@@ -16,7 +16,7 @@ _ARG_ATTR_FLAGS = {
     "llvm.inreg": "inreg",
     "llvm.nest": "nest",
     "llvm.noalias": "noalias",
-    "llvm.nocapture": "nocapture",
+    "llvm.nocapture": "captures(none)",
     "llvm.nofree": "nofree",
     "llvm.nonnull": "nonnull",
     "llvm.noundef": "noundef",
