@@ -864,12 +864,19 @@ class CastOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
-MATCH_INTERFACE_NAMES = ("LinalgOp", "TilingInterface", "LoopLikeInterface")
-"""
-The interfaces `transform.structured.match` can match on. The order must match
-upstream's `MatchInterfaceEnum`: the position of each name is the `i32` value
-MLIR stores for that case.
-"""
+class MatchInterfaceEnum(StrEnum):
+    """
+    The interfaces `transform.structured.match` can match on. The order must
+    match upstream's `MatchInterfaceEnum`: the position of each case is the
+    `i32` value MLIR stores for it.
+    """
+
+    LINALG_OP = "LinalgOp"
+    TILING_INTERFACE = "TilingInterface"
+    LOOP_LIKE_INTERFACE = "LoopLikeInterface"
+
+
+MATCH_INTERFACES = tuple(MatchInterfaceEnum)
 
 
 @irdl_custom_directive
@@ -889,17 +896,17 @@ class MatchInterface(CustomDirective):
         return self.interface.get(op) is not None
 
     def parse(self, parser: Parser, state: ParsingState):
-        for value, keyword in enumerate(MATCH_INTERFACE_NAMES):
-            if parser.parse_optional_keyword(keyword) is not None:
+        for value, interface in enumerate(MATCH_INTERFACES):
+            if parser.parse_optional_keyword(interface.value) is not None:
                 self.interface.set(state, IntegerAttr(value, i32))
                 return
-        parser.raise_error(f"expected one of {', '.join(MATCH_INTERFACE_NAMES)}")
+        parser.raise_error(f"expected one of {', '.join(MatchInterfaceEnum)}")
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         attr = self.interface.get(op)
-        # The op verifier guarantees the value indexes MATCH_INTERFACE_NAMES.
+        # The op verifier guarantees the value indexes MATCH_INTERFACES.
         assert isa(attr, IntegerAttr[I32])
-        printer.print_string(MATCH_INTERFACE_NAMES[attr.value.data])
+        printer.print_string(MATCH_INTERFACES[attr.value.data].value)
 
 
 @irdl_op_definition
@@ -934,7 +941,7 @@ class MatchOp(IRDLOperation):
         self,
         target: SSAValue,
         ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
-        interface: int | IntegerAttr | str | None = None,
+        interface: int | IntegerAttr | MatchInterfaceEnum | None = None,
         op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
         filter_result_type: TypeAttribute | None = None,
         filter_operand_types: Sequence[TypeAttribute]
@@ -943,10 +950,8 @@ class MatchOp(IRDLOperation):
     ):
         if isinstance(ops, Sequence):
             ops = ArrayAttr([StringAttr(op) for op in ops])
-        if isinstance(interface, str):
-            if interface not in MATCH_INTERFACE_NAMES:
-                raise ValueError(f"Unknown interface: {interface}")
-            interface = MATCH_INTERFACE_NAMES.index(interface)
+        if isinstance(interface, MatchInterfaceEnum):
+            interface = MATCH_INTERFACES.index(interface)
         if isinstance(interface, int):
             interface = IntegerAttr(interface, i32)
 
@@ -968,11 +973,11 @@ class MatchOp(IRDLOperation):
 
     def verify_(self):
         if self.interface is not None and not (
-            0 <= self.interface.value.data < len(MATCH_INTERFACE_NAMES)
+            0 <= self.interface.value.data < len(MATCH_INTERFACES)
         ):
             raise VerifyException(
-                f"interface must be one of {', '.join(MATCH_INTERFACE_NAMES)} "
-                f"(0 to {len(MATCH_INTERFACE_NAMES) - 1}), got "
+                f"interface must be one of {', '.join(MatchInterfaceEnum)} "
+                f"(0 to {len(MATCH_INTERFACES) - 1}), got "
                 f"{self.interface.value.data}"
             )
 
