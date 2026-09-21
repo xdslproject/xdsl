@@ -21,6 +21,7 @@ from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     EnumAttribute,
+    ScalableDynamicIndexList,
     parse_func_op_like,
     print_func_op_like,
 )
@@ -608,10 +609,19 @@ class TileOp(IRDLOperation):
     tiled_linalg_op = result_def(AnyOpType)
     loops = var_result_def(AnyOpType)
 
+    assembly_format = (
+        "$target `tile_sizes` "
+        "custom<ScalableDynamicIndexList>($dynamic_sizes, $static_sizes, $scalable_sizes) "
+        "(`interchange` `=` $interchange^)? "
+        "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (ScalableDynamicIndexList,)
+
     def __init__(
         self,
         target: SSAValue,
-        dynamic_sizes: Sequence[SSAValue],
+        dynamic_sizes: Sequence[SSAValue] = (),
         static_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
         interchange: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
         scalable_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, IntegerType, i64
+from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, IntegerType, i1, i64
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.irdl.declarative_assembly_format import (
@@ -256,3 +256,79 @@ class DynamicIndexList(CustomDirective):
 
     def is_anchorable(self) -> bool:
         return True
+
+
+@irdl_custom_directive
+class ScalableDynamicIndexList(CustomDirective):
+    """
+    Custom directive for parsing a dynamic index list where each element may
+    additionally be marked as scalable by wrapping it in square brackets,
+    e.g. `[4, [8], %v]`.
+    Port of upstream `custom<DynamicIndexList>` with scalable flags.
+    """
+
+    dynamic_values: VariadicOperandVariable
+    static_values: AttributeVariable
+    scalable_flags: AttributeVariable
+
+    @staticmethod
+    def _parse_element(
+        parser: Parser,
+        dynamic: list[UnresolvedOperand],
+        static: list[int],
+        scalable: list[int],
+    ) -> None:
+        is_scalable = parser.parse_optional_punctuation("[") is not None
+        value = parse_dynamic_index_without_type(parser)
+        if is_scalable:
+            parser.parse_punctuation("]")
+        if isinstance(value, int):
+            static.append(value)
+        else:
+            static.append(DYNAMIC_INDEX)
+            dynamic.append(value)
+        scalable.append(int(is_scalable))
+
+    def parse(self, parser: Parser, state: ParsingState):
+        dynamic: list[UnresolvedOperand] = []
+        static: list[int] = []
+        scalable: list[int] = []
+        parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE,
+            lambda: self._parse_element(parser, dynamic, static, scalable),
+        )
+        self.dynamic_values.set(state, dynamic)
+        self.static_values.set(state, DenseArrayBase.from_list(i64, static))
+        self.scalable_flags.set(state, DenseArrayBase.from_list(i1, scalable))
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+
+        dynamic = self.dynamic_values.get(op)
+        static = self.static_values.get(op)
+        scalable = self.scalable_flags.get(op)
+        static_values = ()
+        if static is not None:
+            assert isa(static, DenseArrayBase[IntegerType])
+            static_values = static.get_values()
+        scalable_values: Sequence[int] = ()
+        if scalable is not None:
+            assert isa(scalable, DenseArrayBase[IntegerType])
+            scalable_values = scalable.get_values()
+
+        printer.print_string("[")
+        dynamic_index = 0
+        for i, value in enumerate(static_values):
+            if i:
+                printer.print_string(", ")
+            is_scalable = i < len(scalable_values) and scalable_values[i]
+            if is_scalable:
+                printer.print_string("[")
+            if value == DYNAMIC_INDEX:
+                printer.print_ssa_value(dynamic[dynamic_index])
+                dynamic_index += 1
+            else:
+                printer.print_string(f"{value}")
+            if is_scalable:
+                printer.print_string("]")
+        printer.print_string("]")
