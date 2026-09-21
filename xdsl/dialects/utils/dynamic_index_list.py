@@ -267,30 +267,36 @@ class ScalableDynamicIndexList(CustomDirective):
     Port of upstream `custom<DynamicIndexList>` with scalable flags.
     """
 
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-
     dynamic_values: VariadicOperandVariable
     static_values: AttributeVariable
     scalable_flags: AttributeVariable
+
+    @staticmethod
+    def _parse_element(
+        parser: Parser,
+        dynamic: list[UnresolvedOperand],
+        static: list[int],
+        scalable: list[int],
+    ) -> None:
+        is_scalable = parser.parse_optional_punctuation("[") is not None
+        value = parse_dynamic_index_without_type(parser)
+        if is_scalable:
+            parser.parse_punctuation("]")
+        if isinstance(value, int):
+            static.append(value)
+        else:
+            static.append(DYNAMIC_INDEX)
+            dynamic.append(value)
+        scalable.append(int(is_scalable))
 
     def parse(self, parser: Parser, state: ParsingState):
         dynamic: list[UnresolvedOperand] = []
         static: list[int] = []
         scalable: list[int] = []
-
-        def parse_element():
-            is_scalable = parser.parse_optional_punctuation("[") is not None
-            value = parse_dynamic_index_without_type(parser)
-            if is_scalable:
-                parser.parse_punctuation("]")
-            if isinstance(value, int):
-                static.append(value)
-            else:
-                static.append(self.DYNAMIC_INDEX)
-                dynamic.append(value)
-            scalable.append(int(is_scalable))
-
-        parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parse_element)
+        parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE,
+            lambda: self._parse_element(parser, dynamic, static, scalable),
+        )
         self.dynamic_values.set(state, dynamic)
         self.static_values.set(state, DenseArrayBase.from_list(i64, static))
         self.scalable_flags.set(state, DenseArrayBase.from_list(i1, scalable))
@@ -318,7 +324,7 @@ class ScalableDynamicIndexList(CustomDirective):
             is_scalable = i < len(scalable_values) and scalable_values[i]
             if is_scalable:
                 printer.print_string("[")
-            if value == self.DYNAMIC_INDEX:
+            if value == DYNAMIC_INDEX:
                 printer.print_ssa_value(dynamic[dynamic_index])
                 dynamic_index += 1
             else:
