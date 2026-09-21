@@ -43,7 +43,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   }
 
   // llvm.readonly is dropped. llvmlite prints in alphabetical order.
-  // CHECK: define i32 @"arg_attr_flags"(ptr nocapture nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
+  // CHECK: define i32 @"arg_attr_flags"(ptr captures(none) nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret i32 %".3"
