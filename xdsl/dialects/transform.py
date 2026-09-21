@@ -896,11 +896,8 @@ class MatchInterface(CustomDirective):
         return self.interface.get(op) is not None
 
     def parse(self, parser: Parser, state: ParsingState):
-        for value, interface in enumerate(MATCH_INTERFACES):
-            if parser.parse_optional_keyword(interface.value) is not None:
-                self.interface.set(state, IntegerAttr(value, i32))
-                return
-        parser.raise_error(f"expected one of {', '.join(MatchInterfaceEnum)}")
+        interface = parser.parse_str_enum(MatchInterfaceEnum)
+        self.interface.set(state, IntegerAttr(MATCH_INTERFACES.index(interface), i32))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         attr = self.interface.get(op)

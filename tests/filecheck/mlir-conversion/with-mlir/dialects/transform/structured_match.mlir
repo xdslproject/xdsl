@@ -1,4 +1,5 @@
-// RUN: xdsl-opt %s | $XDSL_MLIR_OPT | xdsl-opt | filecheck %s
+// RUN: MLIR_ROUNDTRIP
+// RUN: MLIR_GENERIC_ROUNDTRIP
 
 // Checks that the custom syntax xDSL prints for `transform.structured.match`
 // is accepted by mlir-opt, and that the syntax mlir-opt prints is accepted by xDSL.
