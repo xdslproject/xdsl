@@ -11,6 +11,7 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I1,
     I64,
     AffineMapAttr,
@@ -79,8 +80,6 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
 from xdsl.utils.str_enum import StrEnum
-
-DYNAMIC_INDEX: int = -(2**63)
 
 
 @irdl_op_definition
@@ -547,9 +546,6 @@ class ExtractOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    DYNAMIC_INDEX: ClassVar = DYNAMIC_INDEX
-    """This value is used to indicate that a position is a dynamic index."""
-
     assembly_format = (
         "$vector `` custom<DynamicIndexList>($dynamic_position, $static_position)"
         " attr-dict `:` type($result) `from` type($vector)"
@@ -565,7 +561,7 @@ class ExtractOp(IRDLOperation):
         return get_dynamic_index_list(
             static_positions,
             self.dynamic_position,
-            ExtractOp.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
         )
 
     def verify_(self):
@@ -575,7 +571,7 @@ class ExtractOp(IRDLOperation):
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,
-            self.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
         )
 
         num_indices = len(self.static_position)
@@ -606,7 +602,7 @@ class ExtractOp(IRDLOperation):
         result_type: Attribute,
     ):
         static_positions, dynamic_positions = split_dynamic_index_list(
-            positions, ExtractOp.DYNAMIC_INDEX
+            positions, DYNAMIC_INDEX
         )
 
         super().__init__(
@@ -646,9 +642,6 @@ class InsertOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    DYNAMIC_INDEX: ClassVar = -(2**63)
-    """This value is used to indicate that a position is a dynamic index."""
-
     assembly_format = (
         "$source `,` $dest custom<DynamicIndexList>($dynamic_position, $static_position)"
         "attr-dict `:` type($source) `into` type($dest)"
@@ -664,7 +657,7 @@ class InsertOp(IRDLOperation):
         return get_dynamic_index_list(
             static_positions,
             self.dynamic_position,
-            InsertOp.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
         )
 
     def verify_(self):
@@ -674,7 +667,7 @@ class InsertOp(IRDLOperation):
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,
-            self.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
         )
 
         num_indices = len(self.static_position)
@@ -704,7 +697,7 @@ class InsertOp(IRDLOperation):
         result_type: Attribute | None = None,
     ):
         static_positions, dynamic_positions = split_dynamic_index_list(
-            positions, InsertOp.DYNAMIC_INDEX
+            positions, DYNAMIC_INDEX
         )
 
         if result_type is None:

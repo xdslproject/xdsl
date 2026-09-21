@@ -11,9 +11,8 @@ where `MARKER` is a special value that indicates that the value at that position
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import ClassVar
 
-from xdsl.dialects.builtin import DenseArrayBase, IntegerType, i64
+from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, IntegerType, i64
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.irdl.declarative_assembly_format import (
@@ -225,15 +224,11 @@ class DynamicIndexList(CustomDirective):
     These contain a mix of indices and (untyped) ssa values.
     """
 
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-
     dynamic_position: VariadicOperandVariable
     static_position: AttributeVariable
 
     def parse(self, parser: Parser, state: ParsingState):
-        dynamic, static = parse_dynamic_index_list_without_types(
-            parser, self.DYNAMIC_INDEX
-        )
+        dynamic, static = parse_dynamic_index_list_without_types(parser, DYNAMIC_INDEX)
         self.dynamic_position.set(state, dynamic)
         self.static_position.set(state, DenseArrayBase.from_list(i64, static))
 
@@ -244,9 +239,7 @@ class DynamicIndexList(CustomDirective):
         static = self.static_position.get(op)
         assert isa(static, DenseArrayBase[IntegerType])
 
-        print_dynamic_index_list(
-            printer, self.DYNAMIC_INDEX, dynamic, static.get_values()
-        )
+        print_dynamic_index_list(printer, DYNAMIC_INDEX, dynamic, static.get_values())
 
     def set_empty(self, state: ParsingState):
         self.dynamic_position.set(state, [])
