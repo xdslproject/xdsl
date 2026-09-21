@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class FrontendProgramException(Exception):
     """
-    Exception type used when something goes wrong with `FrontendProgram`.
+    Exception type used when something goes wrong with the Python AST frontend.
     """
 
     msg: str
