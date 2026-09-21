@@ -5,7 +5,7 @@ import pytest
 from xdsl.dialects.affine import ForOp
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import i32
-from xdsl.frontend.pyast.program import FrontendProgramException
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.ir import Block, Region
 
