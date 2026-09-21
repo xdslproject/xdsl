@@ -35,8 +35,8 @@ jobs:
         run: make venv
 
       - name: Build documentation
-        run: uv run mkdocs build --strict
-        # The --strict flag ensures the build fails on warnings
+        run: make docs-build
+        # Strict mode in mkdocs.yml ensures the build fails on warnings.
 
       - name: Prune uv cache
         run: uv cache prune --ci
