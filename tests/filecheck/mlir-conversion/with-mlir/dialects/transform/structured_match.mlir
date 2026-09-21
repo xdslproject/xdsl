@@ -1,8 +1,11 @@
 // RUN: MLIR_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --mlir-print-op-generic | xdsl-opt | filecheck %s
 
 // Checks that the custom syntax xDSL prints for `transform.structured.match`
 // is accepted by mlir-opt, and that the syntax mlir-opt prints is accepted by xDSL.
+// The third pipeline has mlir-opt convert the `interface` keyword to its integer
+// value and xDSL convert it back, pinning the enum ordering to upstream's.
 
 builtin.module attributes {transform.with_named_sequence} {
   transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
