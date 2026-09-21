@@ -188,15 +188,19 @@ SKIP_GEN_PAGES ?= 0
 # Set to 1 to skip the building of xDSL wheel
 SKIP_BUILD_WHEEL ?= 0
 
+.PHONY: docs-wheels
+docs-wheels: uv-installed
+	if [ "$(SKIP_BUILD_WHEEL)" = "1" ]; then echo "Skipping docs wheel builds (SKIP_BUILD_WHEEL=1)"; else SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --package xdsl --no-build-logs --no-verify-hashes -o docs; SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --directory docs/Toy --no-build-logs --no-verify-hashes -o docs; fi
+
 
 .PHONY: docs-serve
-docs-serve: uv-installed
+docs-serve: docs-wheels
 	uv run mkdocs serve
 
 .PHONY: docs-serve-fast
-docs-serve-fast: uv-installed
+docs-serve-fast: docs-wheels
 	SKIP_GEN_PAGES=1 uv run mkdocs serve
 
 .PHONY: docs-build
-docs-build: uv-installed
+docs-build: docs-wheels
 	uv run mkdocs build

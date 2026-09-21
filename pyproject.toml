@@ -61,7 +61,6 @@ docs = [
   "mkdocs-gen-files>=0.5",
   "mkdocs-marimo>=0.2.1",
   "mkdocs-material>=9.5.49",
-  "mkdocs-simple-hooks>=0.1.5",
   "mkdocstrings[python]>=0.27",
   "pymdown-extensions>=10.7",
 ]
