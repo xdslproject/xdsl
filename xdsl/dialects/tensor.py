@@ -431,10 +431,6 @@ class ExpandShapeOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop
     """
 
-    # Constant value used to denote dynamic indices in offsets, sizes, and strides.
-    # Same constant as in MLIR.
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-
     name = "tensor.expand_shape"
 
     src = operand_def(TensorType)
@@ -497,7 +493,7 @@ class ExpandShapeOp(IRDLOperation):
 
         # Parse shape: mixture of ints and SSA values
         dyn_shape, static_shape = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=cls.DYNAMIC_INDEX
+            parser, dynamic_index=DYNAMIC_INDEX
         )
 
         dyn_shape = parser.resolve_operands(
@@ -527,7 +523,7 @@ class ExpandShapeOp(IRDLOperation):
         printer.print_string(" output_shape ")
         print_dynamic_index_list(
             printer,
-            self.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
             self.dynamic_output_shape,
             self.static_output_shape.get_values(),
         )

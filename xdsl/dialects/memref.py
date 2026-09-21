@@ -959,8 +959,6 @@ class MemorySpaceCastOp(IRDLOperation):
 
 @irdl_op_definition
 class ReinterpretCastOp(IRDLOperation):
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-
     name = "memref.reinterpret_cast"
 
     source = operand_def(MemRefType)
@@ -1029,15 +1027,9 @@ class ReinterpretCastOp(IRDLOperation):
         """
         Construct a `ReinterpretCastOp` from dynamic offsets, sizes, and strides.
         """
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, ReinterpretCastOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
 
         return ReinterpretCastOp(
             source,
@@ -1056,13 +1048,13 @@ class ReinterpretCastOp(IRDLOperation):
         static_strides = self.static_strides.get_values()
 
         verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+            static_sizes, self.sizes, DYNAMIC_INDEX, " in the size arguments"
         )
         verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+            static_offsets, self.offsets, DYNAMIC_INDEX, " in the offset arguments"
         )
         verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+            static_strides, self.strides, DYNAMIC_INDEX, " in the stride arguments"
         )
 
         assert isa(self.source.type, MemRefType)
@@ -1081,11 +1073,11 @@ class ReinterpretCastOp(IRDLOperation):
                 strict=True,
             )
         ):
-            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
+            if expected == DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
                 raise VerifyException(
                     f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
                 )
-            elif expected != ReinterpretCastOp.DYNAMIC_INDEX and expected != actual:
+            elif expected != DYNAMIC_INDEX and expected != actual:
                 raise VerifyException(
                     f"Expected result type with size = {expected} instead of {actual} in dim = {dim}"
                 )
