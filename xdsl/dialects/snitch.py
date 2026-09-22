@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Generic
+from typing import Generic, overload
 
 from typing_extensions import TypeVar
 
@@ -41,7 +41,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 _StreamTypeElement = TypeVar(
-    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
+    "_StreamTypeElement", bound=Attribute, covariant=False, default=Attribute
 )
 
 
@@ -82,13 +82,31 @@ class WritableStreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
+    @overload
     @staticmethod
     def constr(
-        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
-    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
-            WritableStreamType, (element_type,)
-        )
+        element_type: None = None,
+    ) -> ParamAttrConstraint[WritableStreamType[Attribute]]: ...
+
+    @overload
+    @staticmethod
+    def constr(
+        element_type: AttrConstraint[_StreamTypeElement],
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]: ...
+
+    @staticmethod
+    def constr(
+        element_type: AttrConstraint[_StreamTypeElement] | None = None,
+    ) -> (
+        ParamAttrConstraint[WritableStreamType[Attribute]]
+        | ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]
+    ):
+        if element_type is None:
+            return ParamAttrConstraint[WritableStreamType[Attribute]](
+                WritableStreamType, (AnyAttr(),)
+            )
+        else:
+            return ParamAttrConstraint(WritableStreamType, (element_type,))
 
 
 @dataclass(frozen=True)
