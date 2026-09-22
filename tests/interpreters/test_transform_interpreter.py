@@ -1,14 +1,22 @@
+import re
+from dataclasses import dataclass
+
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import builtin, func, transform
+from xdsl.dialects import arith, builtin, func, transform
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.transform import TransformFunctions
+from xdsl.interpreters.transform import OperationHandle, TransformFunctions
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
+from xdsl.utils.exceptions import InterpretationError
 
 
-def test_empty_transform_module():
+@pytest.mark.parametrize("num_targets", [0, 1, 2])
+def test_empty_transform_module(num_targets: int):
     payload = """
     module {
         func.func @foo() {
@@ -39,6 +47,60 @@ def test_empty_transform_module():
     interpreter = Interpreter(module)
     interpreter.register_implementations(TransformFunctions(ctx, get_all_passes()))
 
-    expected = Parser(ctx, payload).parse_module()
+    expected: OperationHandle = tuple(
+        Parser(ctx, payload).parse_module() for _ in range(num_targets)
+    )
     (observed,) = interpreter.call_op(named_sequence, (expected,))
     assert expected is observed
+
+
+@pytest.mark.parametrize("num_targets", [0, 1, 2])
+def test_apply_registered_pass(num_targets: int):
+    visited: list[builtin.ModuleOp] = []
+
+    @dataclass(frozen=True)
+    class RecordPass(ModulePass):
+        name = "record"
+
+        def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+            visited.append(op)
+
+    targets = tuple(builtin.ModuleOp([]) for _ in range(num_targets))
+    block = Block(arg_types=[transform.AnyOpType()])
+    op = transform.ApplyRegisteredPassOp("record", block.args[0])
+    module = builtin.ModuleOp([op])
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(
+        TransformFunctions(Context(), {"record": lambda: RecordPass})
+    )
+
+    (result,) = interpreter.run_op(op, (targets,))
+
+    assert result is targets
+    assert visited == list(targets)
+
+
+@pytest.mark.parametrize("include_module", [False, True])
+def test_apply_registered_pass_rejects_non_module_targets(include_module: bool):
+    # Check both a function alone and a mixed handle, rejecting the latter before
+    # the pass can modify any of its valid module targets.
+    constant = arith.ConstantOp.from_int_and_width(42, 32)
+    target = builtin.ModuleOp([constant])
+    function = func.FuncOp("foo", ([], []))
+    targets = (target, function) if include_module else (function,)
+    block = Block(arg_types=[transform.AnyOpType()])
+    op = transform.ApplyRegisteredPassOp("canonicalize", block.args[0])
+    module = builtin.ModuleOp([op])
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(
+        TransformFunctions(Context(), get_all_passes())
+    )
+
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "transform.apply_registered_pass currently supports only builtin.module targets"
+        ),
+    ):
+        interpreter.run_op(op, (targets,))
+    assert tuple(target.ops) == (constant,)

@@ -40,4 +40,4 @@ class TransformInterpreterPass(ModulePass):
         interpreter = Interpreter(op)
         interpreter.register_implementations(TransformFunctions(ctx, get_all_passes()))
         interpreter.register_implementations(PrintfFunctions())
-        interpreter.call_op(schedule, (op,))
+        interpreter.call_op(schedule, ((op,),))
