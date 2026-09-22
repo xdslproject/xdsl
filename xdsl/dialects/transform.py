@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I32,
     ArrayAttr,
     DenseArrayBase,
@@ -664,6 +665,27 @@ class TileOp(IRDLOperation):
                 ],
             ],
         )
+
+    def verify_(self) -> None:
+        sizes = self.static_sizes.get_values() if self.static_sizes is not None else ()
+        num_loops = sum(size != 0 for size in sizes)
+        if len(self.loops) != num_loops:
+            raise VerifyException(
+                f"expected {num_loops} loop results for nonzero tile sizes, "
+                f"got {len(self.loops)}"
+            )
+        num_dynamic = sizes.count(DYNAMIC_INDEX)
+        if len(self.dynamic_sizes) != num_dynamic:
+            raise VerifyException(
+                f"expected {num_dynamic} dynamic size operands, "
+                f"got {len(self.dynamic_sizes)}"
+            )
+        if self.scalable_sizes is not None:
+            num_scalable = len(self.scalable_sizes)
+            if num_scalable != len(sizes):
+                raise VerifyException(
+                    f"expected {len(sizes)} scalable size flags, got {num_scalable}"
+                )
 
 
 @irdl_op_definition
