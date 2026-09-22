@@ -3,6 +3,8 @@ from typing import TypeAlias
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, transform
+from xdsl.dialects.linalg.abstract_ops import LinalgStructuredOperation
+from xdsl.dialects.linalg.transforms.tiling import tile_structured_op
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -16,6 +18,7 @@ from xdsl.interpreter import (
 )
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass, PassPipeline
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -87,6 +90,57 @@ class TransformFunctions(InterpreterFunctions):
             if names is None or candidate.name in names
         )
         return (matches,)
+
+    @impl(transform.TileOp)
+    def run_tile_op(
+        self,
+        interpreter: Interpreter,
+        op: transform.TileOp,
+        args: PythonValues,
+    ) -> PythonValues:
+        targets = args[0]
+        assert isa(targets, OperationHandle)
+        if op.dynamic_sizes:
+            raise InterpretationError(
+                "transform.structured.tile_using_for does not yet support dynamic tile sizes"
+            )
+        if op.scalable_sizes is not None and any(op.scalable_sizes.get_values()):
+            raise InterpretationError(
+                "transform.structured.tile_using_for does not yet support scalable tile sizes"
+            )
+        if op.interchange is not None and len(op.interchange):
+            raise InterpretationError(
+                "transform.structured.tile_using_for does not yet support interchange"
+            )
+        sizes = op.static_sizes.get_values() if op.static_sizes is not None else ()
+        if any(size < 0 for size in sizes):
+            raise InterpretationError(
+                "transform.structured.tile_using_for requires nonnegative tile sizes"
+            )
+        if not isa(targets, tuple[LinalgStructuredOperation, ...]):
+            raise InterpretationError(
+                "transform.structured.tile_using_for supports only structured linalg targets"
+            )
+        for target in targets:
+            num_loops = target.get_num_loops()
+            if len(sizes) > num_loops:
+                raise InterpretationError(
+                    f"transform.structured.tile_using_for expected at most {num_loops} "
+                    f"tile sizes for {target.name}, got {len(sizes)}"
+                )
+
+        tiled_ops: list[Operation] = []
+        loops: list[list[Operation]] = [[] for _ in op.loops]
+        for target in targets:
+            rewriter = PatternRewriter(target)
+            result = tile_structured_op(rewriter, target, sizes)
+            rewriter.replace(target, [], result.replacements)
+            tiled_ops.append(result.tiled_op)
+            # Each transform result groups the corresponding loop across targets.
+            for loop_handle, loop in zip(loops, result.loops, strict=True):
+                loop_handle.append(loop)
+
+        return (tuple(tiled_ops), *(tuple(loop_handle) for loop_handle in loops))
 
     @impl(transform.ApplyRegisteredPassOp)
     def run_apply_registered_pass_op(
