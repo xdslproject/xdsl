@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects import linalg, memref, tensor
+from xdsl.dialects import linalg, memref, tensor, test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
@@ -467,9 +467,35 @@ def test_build_tile_loops_threads_iter_args():
         assert loop.body.block.args[1].type == init.type
 
 
-def test_tile_structured_op_returns_false_without_tiled_dims():
-    op = _generic_2d_copy_op()
-    ModuleOp([op])
+@pytest.mark.parametrize("tile_sizes", [(), (0, 0), (2, 0), (2, 5)])
+def test_tile_structured_op_result(tile_sizes: tuple[int, ...]):
+    tensor_type = TensorType(f32, [4, 5])
+    op = _generic_2d_copy_op(
+        input_type=tensor_type,
+        output_type=tensor_type,
+        result_types=(tensor_type,),
+    )
+    inputs = test.TestOp(result_types=[tensor_type, tensor_type])
+    op.operands = inputs.results
+    user = test.TestOp(operands=[op.res[0]])
+    module = ModuleOp([inputs, op, user])
     rewriter = PatternRewriter(op)
 
-    assert not tile_structured_op(rewriter, op, (0, 0))
+    result = tile_structured_op(rewriter, op, tile_sizes)
+
+    # The caller owns replacement, including when tiling generates no loops.
+    assert op.parent is module.body.block
+    rewriter.replace(op, [], result.replacements)
+    module.verify()
+    assert tuple(user.operands) == result.replacements
+    assert result.tiled_op is not op
+    assert len(result.loops) == sum(size != 0 for size in tile_sizes)
+    if result.loops:
+        assert result.loops[0].parent is module.body.block
+        for outer, inner in zip(result.loops, result.loops[1:]):
+            assert inner.parent is outer.body.block
+        assert result.tiled_op.parent is result.loops[-1].body.block
+        assert result.replacements == result.loops[0].results
+    else:
+        assert tuple(module.ops) == (inputs, result.tiled_op, user)
+        assert result.replacements == result.tiled_op.results

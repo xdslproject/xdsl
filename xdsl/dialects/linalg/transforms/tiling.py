@@ -683,13 +683,24 @@ def _offset_tiled_indices(
         )
 
 
+@dataclass(frozen=True)
+class TilingResult:
+    """The tiled op, enclosing loops (outermost first), and replacement results."""
+
+    tiled_op: linalg.abstract_ops.LinalgStructuredOperation
+    loops: tuple[scf.ForOp, ...]
+    replacements: tuple[SSAValue, ...]
+
+
 def tile_structured_op(
     rewriter: PatternRewriter,
     op: linalg.abstract_ops.LinalgStructuredOperation,
     tile_sizes: Sequence[SSAValue | int],
-) -> bool:
+) -> TilingResult:
     """
-    Rewrite supported structured linalg ops into tiled form.
+    Build tiled operations before `op`. The caller must replace `op` with the
+    returned replacement results. If no dimensions are tiled, clone `op` so it
+    can still be safely replaced.
     """
     try:
         plan = TilingPlan.analyze(op, tile_sizes)
@@ -697,7 +708,9 @@ def tile_structured_op(
         raise PassFailedException(str(e)) from e
 
     if not plan.tiled_dims:
-        return False
+        cloned_op = op.clone()
+        rewriter.insert(cloned_op, InsertPoint.before(op))
+        return TilingResult(cloned_op, (), tuple(cloned_op.results))
 
     # Outputs with value semantics are threaded through the loops, since each
     # tile produces a new value instead of writing through a view.
@@ -785,7 +798,6 @@ def tile_structured_op(
         yielded = loop.results
 
     # The outermost loop carries out the fully updated tensors. An op tiling
-    # memrefs carries nothing and has no results, so this replaces it with
-    # nothing, which is the erase that case needs.
-    rewriter.replace(op, [], loops[0].results)
-    return True
+    # memrefs carries nothing and has no results, so its replacement results
+    # are empty and the caller only needs to erase it.
+    return TilingResult(tiled_op, tuple(loops), tuple(loops[0].results))

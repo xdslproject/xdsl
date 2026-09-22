@@ -713,3 +713,33 @@ linalg.generic {
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
+
+// -----
+
+// Zero tile sizes generate no loops, but must clone the matmul before
+// replacement. The return keeps its result live: replacing the original with
+// its own results would fail when the original is erased.
+func.func @zero_tile_sizes(%A: tensor<4x6xf32>, %B: tensor<6x4xf32>, %C: tensor<4x4xf32>) -> tensor<4x4xf32> {
+  %D = linalg.matmul {test_tile_sizes = array<i32: 0, 0, 0>} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
+  func.return %D : tensor<4x4xf32>
+}
+
+// CHECK-LABEL: func.func @zero_tile_sizes(%A: tensor<4x6xf32>, %B: tensor<6x4xf32>, %C: tensor<4x4xf32>) -> tensor<4x4xf32> {
+// CHECK-NEXT:    %D = linalg.matmul {test_tile_sizes = array<i32: 0, 0, 0>} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
+// CHECK-NEXT:    func.return %D : tensor<4x4xf32>
+// CHECK-NEXT:  }
+
+// -----
+
+// Empty tile sizes generate no loops, but must clone the matmul before
+// replacement. The return keeps its result live: replacing the original with
+// its own results would fail when the original is erased.
+func.func @empty_tile_sizes(%A: tensor<4x6xf32>, %B: tensor<6x4xf32>, %C: tensor<4x4xf32>) -> tensor<4x4xf32> {
+  %D = linalg.matmul {test_tile_sizes = array<i32>} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
+  func.return %D : tensor<4x4xf32>
+}
+
+// CHECK-LABEL: func.func @empty_tile_sizes(%A: tensor<4x6xf32>, %B: tensor<6x4xf32>, %C: tensor<4x4xf32>) -> tensor<4x4xf32> {
+// CHECK-NEXT:    %D = linalg.matmul {test_tile_sizes = array<i32>} ins(%A, %B : tensor<4x6xf32>, tensor<6x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
+// CHECK-NEXT:    func.return %D : tensor<4x4xf32>
+// CHECK-NEXT:  }
