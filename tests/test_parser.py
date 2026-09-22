@@ -2,7 +2,7 @@ import builtins
 import re
 from collections.abc import Sequence
 from io import StringIO
-from typing import cast
+from typing import Self, cast
 
 import pytest
 
@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     prop_def,
     region_def,
 )
@@ -1550,3 +1551,32 @@ def test_parse_affine_map_of_ssa_ids(
     for operand, name in zip(operands, expected_names, strict=True):
         assert operand.type == IndexType()
         assert operand is values_by_name[name]
+
+
+@irdl_op_definition
+class ParseOperandOp(IRDLOperation):
+    name = "test.parse_operand"
+
+    operand = operand_def(i32)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        operand = parser.parse_operand(type=i32)
+        return cls(operands=(operand,))
+
+    def print(self, printer: Printer):
+        # Not used in this test
+        return
+
+
+def test_parse_operand_forward_reference():
+    prog = """
+    test.parse_operand %0
+    %0 = "test.op"() : () -> i32
+    """
+
+    ctx = Context()
+    ctx.load_op(ParseOperandOp)
+    ctx.load_dialect(Test)
+    parser = Parser(ctx, prog)
+    parser.parse_module()

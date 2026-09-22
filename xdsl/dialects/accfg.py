@@ -318,7 +318,7 @@ class SetupOp(IRDLOperation):
         def parse_itm() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal("accelerator field name")
             parser.parse_punctuation("=")
-            val = parser.parse_operand(f'expected value for field "{name}"')
+            val = parser.parse_operand(msg=f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
             assert val.type == typ, (
