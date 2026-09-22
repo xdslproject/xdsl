@@ -53,6 +53,41 @@ class TransformFunctions(InterpreterFunctions):
     ) -> PythonValues:
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
+    @impl(transform.MatchOp)
+    def run_match_op(
+        self,
+        interpreter: Interpreter,
+        op: transform.MatchOp,
+        args: PythonValues,
+    ) -> PythonValues:
+        (roots,) = args
+        assert isa(roots, OperationHandle)
+        if len(roots) != 1:
+            raise InterpretationError(
+                "transform.structured.match requires exactly one target operation"
+            )
+
+        for name, value in (
+            ("interface", op.interface),
+            ("op_attrs", op.op_attrs),
+            ("filter_result_type", op.filter_result_type),
+            ("filter_operand_types", op.filter_operand_types),
+        ):
+            if value is not None:
+                raise InterpretationError(
+                    f"transform.structured.match does not yet support the {name} filter"
+                )
+
+        names = None if op.ops is None else {name.data for name in op.ops}
+        # MLIR walks the root and its descendants in post-order. An absent name
+        # filter matches everything, whereas an explicitly empty one matches nothing.
+        matches = tuple(
+            candidate
+            for candidate in roots[0].walk(region_first=True)
+            if names is None or candidate.name in names
+        )
+        return (matches,)
+
     @impl(transform.ApplyRegisteredPassOp)
     def run_apply_registered_pass_op(
         self,
