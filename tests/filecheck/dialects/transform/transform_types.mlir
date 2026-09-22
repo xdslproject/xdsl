@@ -81,5 +81,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:  %16 = "test.op"() : () -> !transform.any_param
 //CHECK-NEXT:  "transform.match.param.cmpi"(%15, %16) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
 //CHECK-NEXT:  %17, %18 = "transform.split_handle"(%14) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
-//CHECK-NEXT:  %19 = "transform.structured.match"(%14) <{op_attrs = {qmatmul_0}}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %19 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:}

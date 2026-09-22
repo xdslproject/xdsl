@@ -87,8 +87,8 @@
 %tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i64: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
 
 %to_match = "test.op"() : () -> !transform.any_op
-// CHECK: %matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op
-%matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op
+// CHECK: %matched = transform.structured.match ops{[]} attributes {} in %to_match : (!transform.any_op) -> !transform.any_op
+%matched = transform.structured.match ops{[]} attributes {} in %to_match : (!transform.any_op) -> !transform.any_op
 
 %to_apply_registered_pass = "test.op"() : () -> !transform.op<"builtin.module">
 // CHECK: %applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
@@ -101,3 +101,7 @@
 %dyn_size = "test.op"() : () -> !transform.param<i64>
 // CHECK: %tiled_dyn, %loops_dyn, %loops_dyn_1, %loops_dyn_2 = transform.structured.tile_using_for %to_tile_dyn tile_sizes [%dyn_size, [4], 8] interchange = [1, 0, 2] : (!transform.any_op, !transform.param<i64>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
 %tiled_dyn, %loops_dyn:3 = transform.structured.tile_using_for %to_tile_dyn tile_sizes [%dyn_size, [4], 8] interchange = [1, 0, 2] : (!transform.any_op, !transform.param<i64>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+
+%to_match_full = "test.op"() : () -> !transform.any_op
+// CHECK: %matched_full = transform.structured.match ops{["linalg.matmul", "linalg.generic"]} interface{TilingInterface} attributes {foo = 1 : i64} filter_result_type = f32 filter_operand_types = [f32, f32] in %to_match_full : (!transform.any_op) -> !transform.any_op
+%matched_full = transform.structured.match ops{["linalg.matmul", "linalg.generic"]} interface{TilingInterface} attributes {foo = 1 : i64} filter_result_type = f32 filter_operand_types = [f32, f32] in %to_match_full : (!transform.any_op) -> !transform.any_op

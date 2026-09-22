@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
@@ -15,6 +16,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     i1,
+    i32,
     i64,
 )
 from xdsl.dialects.func import FuncOpCallableInterface
@@ -49,10 +51,18 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    irdl_custom_directive,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -854,6 +864,48 @@ class CastOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
+class MatchInterfaceEnum(StrEnum):
+    """
+    The interfaces `transform.structured.match` can match on. The order must
+    match upstream's `MatchInterfaceEnum`: the position of each case is the
+    `i32` value MLIR stores for it.
+    """
+
+    LINALG_OP = "LinalgOp"
+    TILING_INTERFACE = "TilingInterface"
+    LOOP_LIKE_INTERFACE = "LoopLikeInterface"
+
+
+MATCH_INTERFACES = tuple(MatchInterfaceEnum)
+
+
+@irdl_custom_directive
+class MatchInterface(CustomDirective):
+    """
+    Parses and prints the `interface` property of `transform.structured.match`
+    as its upstream enum keyword (e.g. `TilingInterface`) rather than as the
+    `i32` it is stored as.
+    """
+
+    interface: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return self.interface.get(op) is not None
+
+    def parse(self, parser: Parser, state: ParsingState):
+        interface = parser.parse_str_enum(MatchInterfaceEnum)
+        self.interface.set(state, IntegerAttr(MATCH_INTERFACES.index(interface), i32))
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        attr = self.interface.get(op)
+        # The op verifier guarantees the value indexes MATCH_INTERFACES.
+        assert isa(attr, IntegerAttr[I32])
+        printer.print_string(MATCH_INTERFACES[attr.value.data].value)
+
+
 @irdl_op_definition
 class MatchOp(IRDLOperation):
     """
@@ -863,51 +915,68 @@ class MatchOp(IRDLOperation):
     name = "transform.structured.match"
 
     ops = opt_prop_def(ArrayAttr[StringAttr])
-    interface = opt_prop_def(IntegerAttr)
+    interface = opt_prop_def(IntegerAttr[I32])
     op_attrs = opt_prop_def(DictionaryAttr)
-    filter_result_types = opt_prop_def(TypeAttribute)
-    filter_operand_types = opt_prop_def(TypeAttribute)
+    filter_result_type = opt_prop_def(TypeAttribute)
+    filter_operand_types = opt_prop_def(ArrayAttr[TypeAttribute])
 
     target = operand_def(TransformOpHandleType)
     result = result_def(TransformOpHandleType)
+
+    assembly_format = (
+        "(`ops` `{` $ops^ `}`)? "
+        "(`interface` `{` custom<MatchInterface>($interface)^ `}`)? "
+        "(`attributes` $op_attrs^)? "
+        "(`filter_result_type` `=` $filter_result_type^)? "
+        "(`filter_operand_types` `=` $filter_operand_types^)? "
+        "`in` $target attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (MatchInterface,)
 
     def __init__(
         self,
         target: SSAValue,
         ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
-        interface: int | IntegerAttr | str | None = None,
+        interface: int | IntegerAttr | MatchInterfaceEnum | None = None,
         op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
-        filter_result_types: TypeAttribute | None = None,
-        filter_operand_types: TypeAttribute | None = None,
+        filter_result_type: TypeAttribute | None = None,
+        filter_operand_types: Sequence[TypeAttribute]
+        | ArrayAttr[TypeAttribute]
+        | None = None,
     ):
         if isinstance(ops, Sequence):
             ops = ArrayAttr([StringAttr(op) for op in ops])
-        if isinstance(interface, str):
-            match interface:
-                case "LinalgOp":
-                    interface = IntegerAttr(0, IntegerType(32))
-                case "TilingInterface":
-                    interface = IntegerAttr(1, IntegerType(32))
-                case "LoopLikeInterface":
-                    interface = IntegerAttr(2, IntegerType(32))
-                case _:
-                    raise ValueError(f"Unknown interface: {interface}")
+        if isinstance(interface, MatchInterfaceEnum):
+            interface = MATCH_INTERFACES.index(interface)
         if isinstance(interface, int):
-            interface = IntegerAttr(interface, IntegerType(32))
+            interface = IntegerAttr(interface, i32)
 
         if isinstance(op_attrs, Mapping):
             op_attrs = DictionaryAttr(op_attrs)
+        if isinstance(filter_operand_types, Sequence):
+            filter_operand_types = ArrayAttr(filter_operand_types)
         super().__init__(
             properties={
                 "ops": ops,
                 "interface": interface,
                 "op_attrs": op_attrs,
-                "filter_result_types": filter_result_types,
+                "filter_result_type": filter_result_type,
                 "filter_operand_types": filter_operand_types,
             },
             operands=[target],
             result_types=[AnyOpType()],
         )
+
+    def verify_(self):
+        if self.interface is not None and not (
+            0 <= self.interface.value.data < len(MATCH_INTERFACES)
+        ):
+            raise VerifyException(
+                f"interface must be one of {', '.join(MatchInterfaceEnum)} "
+                f"(0 to {len(MATCH_INTERFACES) - 1}), got "
+                f"{self.interface.value.data}"
+            )
 
 
 Transform = Dialect(
