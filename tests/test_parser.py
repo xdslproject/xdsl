@@ -2,9 +2,10 @@ import builtins
 import re
 from collections.abc import Sequence
 from io import StringIO
-from typing import Self, cast
+from typing import cast
 
 import pytest
+from typing_extensions import Self
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
