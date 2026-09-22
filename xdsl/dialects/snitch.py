@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Generic
+from typing import Generic, cast
 
 from typing_extensions import TypeVar
 
@@ -63,8 +63,9 @@ class ReadableStreamType(
     def constr(
         element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
-            ReadableStreamType, (element_type,)
+        return cast(
+            ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]],
+            ParamAttrConstraint.get(ReadableStreamType, element_type),
         )
 
 
@@ -86,8 +87,9 @@ class WritableStreamType(
     def constr(
         element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
-            WritableStreamType, (element_type,)
+        return cast(
+            ParamAttrConstraint[WritableStreamType[_StreamTypeElement]],
+            ParamAttrConstraint.get(WritableStreamType, element_type),
         )
 
 
