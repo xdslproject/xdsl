@@ -134,7 +134,6 @@ class TransformFunctions(InterpreterFunctions):
         for target in targets:
             rewriter = PatternRewriter(target)
             result = tile_structured_op(rewriter, target, sizes)
-            rewriter.replace(target, [], result.replacements)
             tiled_ops.append(result.tiled_op)
             # Each transform result groups the corresponding loop across targets.
             for loop_handle, loop in zip(loops, result.loops, strict=True):

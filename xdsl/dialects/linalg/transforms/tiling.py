@@ -708,9 +708,7 @@ def tile_structured_op(
         raise PassFailedException(str(e)) from e
 
     if not plan.tiled_dims:
-        cloned_op = op.clone()
-        rewriter.insert(cloned_op, InsertPoint.before(op))
-        return TilingResult(cloned_op, (), tuple(cloned_op.results))
+        return TilingResult(op, (), tuple(op.results))
 
     # Outputs with value semantics are threaded through the loops, since each
     # tile produces a new value instead of writing through a view.
@@ -800,4 +798,5 @@ def tile_structured_op(
     # The outermost loop carries out the fully updated tensors. An op tiling
     # memrefs carries nothing and has no results, so its replacement results
     # are empty and the caller only needs to erase it.
-    return TilingResult(tiled_op, tuple(loops), tuple(loops[0].results))
+    rewriter.replace(op, (), new_results := loops[0].results)
+    return TilingResult(tiled_op, tuple(loops), new_results)

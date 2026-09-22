@@ -482,13 +482,8 @@ def test_tile_structured_op_result(tile_sizes: tuple[int, ...]):
     rewriter = PatternRewriter(op)
 
     result = tile_structured_op(rewriter, op, tile_sizes)
-
-    # The caller owns replacement, including when tiling generates no loops.
-    assert op.parent is module.body.block
-    rewriter.replace(op, [], result.replacements)
     module.verify()
     assert tuple(user.operands) == result.replacements
-    assert result.tiled_op is not op
     assert len(result.loops) == sum(size != 0 for size in tile_sizes)
     if result.loops:
         assert result.loops[0].parent is module.body.block
@@ -497,5 +492,6 @@ def test_tile_structured_op_result(tile_sizes: tuple[int, ...]):
         assert result.tiled_op.parent is result.loops[-1].body.block
         assert result.replacements == result.loops[0].results
     else:
+        assert result.tiled_op is op
         assert tuple(module.ops) == (inputs, result.tiled_op, user)
         assert result.replacements == result.tiled_op.results

@@ -47,8 +47,7 @@ def tile(op: Operation) -> None:
     if not isinstance(op, LinalgStructuredOperation):
         return
     rewriter = PatternRewriter(op)
-    result = tile_structured_op(rewriter, op, (32, 32, 32))
-    rewriter.replace(op, [], result.replacements)
+    tile_structured_op(rewriter, op, (32, 32, 32))
 
 
 def build_named_sequence() -> transform.NamedSequenceOp:

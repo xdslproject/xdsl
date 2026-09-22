@@ -55,8 +55,7 @@ class TileLinalgFromAttributePattern(RewritePattern):
                 rewriter.insert(tile_size_op, InsertPoint.before(op))
                 tile_sizes[dim] = tile_size_op.res[0]
 
-        result = tile_structured_op(rewriter, op, tile_sizes)
-        rewriter.replace(op, [], result.replacements)
+        _result = tile_structured_op(rewriter, op, tile_sizes)
 
 
 @dataclass(frozen=True)
