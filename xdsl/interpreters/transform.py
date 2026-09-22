@@ -1,4 +1,8 @@
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, transform
@@ -13,12 +17,36 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
+
+_OperationT = TypeVar("_OperationT", bound=Operation, covariant=True, default=Operation)
+
+
+@dataclass(frozen=True)
+class OperationHandle(Generic[_OperationT]):
+    """
+    The payload operations associated with one transform handle. Like MLIR's
+    TransformState mapping, this preserves storage order, but that order has no
+    semantic meaning unless the transform operation specifies otherwise.
+    """
+
+    ops: tuple[_OperationT]
+
+    def __init__(self, *ops: _OperationT):
+        object.__setattr__(self, "ops", ops)
 
 
 @register_impls
 class TransformFunctions(InterpreterFunctions):
+    """
+    Interpret transform operations with each operation handle represented by an
+    `OperationHandle`, including empty and single-operation handles. Each handle
+    occupies one element of the interpreter's argument or result tuple.
+    """
+
     ctx: Context
     passes: dict[str, Callable[[], type[ModulePass]]]
 
@@ -44,16 +72,16 @@ class TransformFunctions(InterpreterFunctions):
         op: transform.ApplyRegisteredPassOp,
         args: PythonValues,
     ) -> PythonValues:
-        (target,) = args
-        pass_name = op.pass_name.data
-        if not isinstance(target, builtin.ModuleOp):
+        (targets,) = args
+        assert isa(targets, OperationHandle)
+        if not isa(targets.ops, tuple[builtin.ModuleOp, ...]):
             raise InterpretationError(
                 "transform.apply_registered_pass currently supports only builtin.module targets"
             )
-
-        pipeline = PassPipeline.parse_spec(self.passes, pass_name)
-        pipeline.apply(self.ctx, target)
-        return (target,)
+        pipeline = PassPipeline.parse_spec(self.passes, op.pass_name.data)
+        for target in targets.ops:
+            pipeline.apply(self.ctx, target)
+        return (targets,)
 
     @impl_terminator(transform.YieldOp)
     def run_yield_op(
