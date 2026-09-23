@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
@@ -11,6 +10,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.hints import isa
 
 
 class InferFillPattern(RewritePattern):
@@ -36,10 +36,8 @@ class InferFillPattern(RewritePattern):
         output = op.outputs[0]
         input = op.inputs[0]
 
-        if not isinstance(output_type := output.type, memref.MemRefType):
+        if not isa(output_type := output.type, memref.MemRefType):
             return
-
-        output_type = cast(memref.MemRefType, output.type)
 
         type_shape = output_type.get_shape()
         bounds = tuple(attr.value.data for attr in op.bounds)

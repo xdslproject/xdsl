@@ -12,13 +12,13 @@ from xdsl.utils.hints import isa
 class ListLangType:
     @staticmethod
     def from_xdsl(xdsl_type: Attribute) -> "ListLangType":
-        if isa(xdsl_type, builtin.IntegerType[32]):
+        if isa(xdsl_type, builtin.I32):
             return ListLangInt()
-        if isa(xdsl_type, builtin.IntegerType[1]):
+        if isa(xdsl_type, builtin.I1):
             return ListLangBool()
-        if isa(xdsl_type, builtin.TensorType[builtin.IntegerType[32]]):
+        if isa(xdsl_type, builtin.TensorType[builtin.I32]):
             return ListLangList(ListLangInt())
-        if isa(xdsl_type, builtin.TensorType[builtin.IntegerType[1]]):
+        if isa(xdsl_type, builtin.TensorType[builtin.I1]):
             return ListLangList(ListLangBool())
         raise ValueError("unknown type")
 
