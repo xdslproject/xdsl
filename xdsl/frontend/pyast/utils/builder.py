@@ -48,6 +48,9 @@ class PyASTBuilder:
     post_transforms: PassPipeline
     """An ordered list of passes and callbacks to apply to the built module."""
 
+    code_generation_visitor: type[CodeGenerationVisitor] = CodeGenerationVisitor
+    """Visitor used to lower the Python AST."""
+
     function_definition_constructor: FunctionDefinitionConstructor = build_func
     """Construct the enclosing operation before visiting function statements."""
 
@@ -64,7 +67,7 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(
+        self.code_generation_visitor(
             type_converter,
             module,
             self.file,

@@ -8,9 +8,7 @@ import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
-from xdsl.frontend.pyast.utils.exceptions import (
-    CodeGenerationException,
-)
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
@@ -135,8 +133,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -386,6 +403,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value is None:
+            return
         if (
             literal_op := self.type_converter.literal_registry.resolve_operation(
                 node.value
@@ -402,7 +421,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
@@ -496,6 +518,16 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             ]
         for stmt in statements:
             self.visit(stmt)
+
+        # Omitted return operations cannot preserve early-return control flow.
+        for child in ast.walk(node):
+            if isinstance(child, ast.Return) and child is not statements[-1]:
+                raise CodeGenerationException(
+                    self.file,
+                    child.lineno,
+                    child.col_offset,
+                    "Return statement should be placed only at the end of the function body.",
+                )
 
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
