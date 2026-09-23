@@ -113,3 +113,27 @@ builtin.module {
 }
 
 // CHECK: Result %0#1 is defined with type !test.type<"foo2">, but used with type !test.type<"bar">
+
+// -----
+
+// Conflicting forward uses must fail even when the definition matches the first use.
+
+builtin.module {
+  "test.op"(%x) : (i32) -> ()
+  "test.op"(%x) : (index) -> ()
+  %x = "test.op"() : () -> i32
+}
+
+// CHECK: operand is used with type index, but has been previously used or defined with type i32
+
+// -----
+
+// Forward-reference type checking also applies to individual tuple elements.
+
+builtin.module {
+  "test.op"(%x#1) : (i32) -> ()
+  "test.op"(%x#1) : (i64) -> ()
+  %x:2 = "test.op"() : () -> (index, i32)
+}
+
+// CHECK: operand is used with type i64, but has been previously used or defined with type i32

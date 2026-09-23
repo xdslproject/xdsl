@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 

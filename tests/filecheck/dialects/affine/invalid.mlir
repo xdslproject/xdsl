@@ -105,3 +105,24 @@ affine.for %i = 0 to affine_map<()[s0] -> (s0)>() {
 %min = affine.min 42 : i32 (%zero)
 
 // CHECK: Expected affine map attr
+
+// -----
+
+// A previously forward-referenced affine index must have index type.
+
+"test.op"(%i) : (i32) -> ()
+%result = affine.load %m[%i] : memref<2xi32>
+%i = "test.op"() : () -> i32
+%m = "test.op"() : () -> memref<2xi32>
+
+// CHECK: operand is used with type index, but has been previously used or defined with type i32
+
+// -----
+
+// The memref annotation must match earlier forward uses as well.
+
+"test.op"(%m) : (i32) -> ()
+%result = affine.load %m[0] : memref<2xi32>
+%m = "test.op"() : () -> i32
+
+// CHECK: operand is used with type memref<2xi32>, but has been previously used or defined with type i32
