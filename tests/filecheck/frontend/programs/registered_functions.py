@@ -29,7 +29,7 @@ print(test_add.module)
 # CHECK-NEXT: }
 
 
-# CHECK-NEXT: Function arguments must be declared variables.
+# CHECK-NEXT: Unsupported constant '1' of type 'int'.
 @ctx.parse_program
 def test_args():
     return add_i32(1, 2)  # pyright: ignore[reportArgumentType]
@@ -47,7 +47,7 @@ except CodeGenerationException as e:
 ctx.post_transforms = []
 
 
-# CHECK-NEXT: Function arguments must be declared variables.
+# CHECK-NEXT: Unsupported constant '1' of type 'int'.
 @ctx.parse_program
 def test_more_args():
     return add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]

@@ -13,7 +13,7 @@ from xdsl.frontend.pyast.utils.exceptions import (
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Region, TypeAttribute
+from xdsl.ir import Attribute, Block, Region, SSAValue, TypeAttribute
 
 
 @dataclass(init=False)
@@ -93,8 +93,40 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
+
+    def visit_single_value(self, node: ast.expr) -> SSAValue:
+        """Visit an expression that must produce exactly one SSA value."""
+        stack_size = len(self.inserter.stack)
+        self.visit(node)
+        if len(self.inserter.stack) != stack_size + 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected an expression with exactly one result.",
+            )
+        return self.inserter.get_operand()
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -197,38 +229,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
-        # Resolve arguments
-        assert self.symbol_table is not None
-        args: list[symref.FetchOp] = []
-        for arg in node.args:
-            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
-                )
-            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
-            self.inserter.insert_op(arg_op)
-
-        # Resolve keyword arguments
-        kwargs: dict[str, symref.FetchOp] = {}
+        args = [self.visit_single_value(arg) for arg in node.args]
+        kwargs: dict[str, SSAValue] = {}
         for keyword in node.keywords:
-            if (
-                not isinstance(keyword.value, ast.Name)
-                or keyword.value.id not in self.symbol_table
-            ):
+            if keyword.arg is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
+                    "Unpacking keyword arguments is not supported.",
                 )
-            assert keyword.arg is not None
-            kwargs[keyword.arg] = symref.FetchOp(
-                keyword.value.id, self.symbol_table[keyword.value.id]
-            )
-            self.inserter.insert_op(kwargs[keyword.arg])
+            kwargs[keyword.arg] = self.visit_single_value(keyword.value)
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
 
@@ -381,7 +392,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
@@ -457,7 +471,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
 
         # Parse function body.
-        for stmt in node.body:
+        statements = node.body
+        if ast.get_docstring(node, clean=False) is not None:
+            statements = statements[1:]
+        for stmt in statements:
             self.visit(stmt)
 
         # If function does not end with a return statement to be visited, we

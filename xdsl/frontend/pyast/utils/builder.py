@@ -42,6 +42,9 @@ class PyASTBuilder:
     post_transforms: PassPipeline
     """An ordered list of passes and callbacks to apply to the built module."""
 
+    code_generation_visitor: type[CodeGenerationVisitor] = CodeGenerationVisitor
+    """Visitor used to lower the Python AST."""
+
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
         # Convert the Python AST into xDSL IR objects
@@ -52,7 +55,7 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(type_converter, module, self.file).visit(
+        self.code_generation_visitor(type_converter, module, self.file).visit(
             self.function_ast
         )
         module.verify()
