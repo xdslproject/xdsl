@@ -6,9 +6,12 @@ from dataclasses import dataclass, field
 from inspect import getsource
 from typing import Any, NamedTuple
 
+from typing_extensions import TypeForm
+
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import (
+    CodeGenerationVisitor,
     FunctionDefinitionConstructor,
     ReturnConstructor,
     build_func,
@@ -73,6 +76,9 @@ class PyASTContext:
     )
     """The xDSL context to use when applying transformations to the built module."""
 
+    code_generation_visitor: type[CodeGenerationVisitor] = CodeGenerationVisitor
+    """Visitor used to lower the Python AST."""
+
     function_definition_constructor: FunctionDefinitionConstructor = build_func
     """Construct the enclosing operation before visiting function statements."""
 
@@ -81,7 +87,7 @@ class PyASTContext:
 
     def register_type(
         self,
-        source_type: type,
+        source_type: TypeForm[Any],
         ir_type: TypeAttribute,
     ) -> None:
         """Associate a type in the source code with its type in the IR."""
@@ -168,6 +174,7 @@ class PyASTContext:
             function_ast=func_ast,
             build_context=self.ir_context,
             post_transforms=self.pass_pipeline,
+            code_generation_visitor=self.code_generation_visitor,
             function_definition_constructor=self.function_definition_constructor,
             return_constructor=self.return_constructor,
         )
