@@ -15,9 +15,10 @@ from xdsl.dialects.py import (
     PassOp,
     ReturnOp,
 )
-from xdsl.dialects.py.attrs import Object
+from xdsl.dialects.py.attrs import PyObject
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pydialect.pysemantics import dunder_op_name, type_name
+from xdsl.frontend.pydialect.pythongen import PythonGenerator
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
@@ -187,11 +188,11 @@ class PyBuilder(ast.NodeVisitor):
             self.visit(node.right)
             rhs = self.inserter.get_operand()
 
-        dunder = dunder_op_name(node.op)
+        dunder: str = dunder_op_name(node.op)
 
         result_type = lhs.type if (lhs.type == rhs.type) else ObjectType("Unknown")
 
-        self.inserter.insert_op(CallOp(dunder, [lhs, rhs], [result_type]))
+        self.inserter.insert_op(CallOp(dunder, [rhs], [result_type], lhs))
 
     def visit_Name(self, node: ast.Name):
         return extract_Name_id(node)
@@ -199,7 +200,7 @@ class PyBuilder(ast.NodeVisitor):
     def visit_Constant(self, node: ast.Constant) -> Any:
         self.inserter.insert_op(
             ConstantOp(
-                value=Object(node.value),
+                value=PyObject(node.value),
                 result_type=ObjectType(type_name(node.value)),
             )
         )
@@ -229,6 +230,39 @@ class PyBuilder(ast.NodeVisitor):
 
         # Call(expr func, expr* args, keyword* keywords)
         self.inserter.insert_op(CallOp(name, args, [ObjectType("Unknown")]))
+
+    def visit_If(self, node: ast.If):
+        self.visit(node.test)
+        for stmt in node.body:
+            self.visit(stmt)
+
+        for stmt in node.body:
+            self.visit(stmt)
+
+    def visit_Compare(self, node: ast.Compare):
+        if len(node.ops) != 1:
+            raise NotImplementedError("Only Unary comparaison op have been implemented")
+
+        if len(node.comparators) != 1:
+            raise NotImplementedError("Comparaison with ")
+
+        lhs = self.symbol_table.get_symbol_ssa(extract_Name_id(node.left))
+        rhs = self.symbol_table.get_symbol_ssa(extract_Name_id(node.comparators[0]))
+
+        op_name = extract_cmpop(node.ops[0])
+
+        self.inserter.insert_op(
+            CallOp(
+                op_name,
+                [rhs],
+                [PyObject(ObjectType("bool"))],
+                lhs,
+            )
+        )
+
+
+def extract_cmpop(node: ast.cmpop) -> str:
+    return dunder_op_name(node)
 
 
 def extract_arguments(node: ast.arguments) -> tuple[list[str], list[ObjectType]]:
@@ -265,7 +299,8 @@ def extract_return(node: ast.expr | None) -> ObjectType:
     return ObjectType(extract_Name_id(node))
 
 
-def extract_Name_id(node: ast.Name) -> str:
+def extract_Name_id(node: ast.expr) -> str:
+    assert isinstance(node, ast.Name)
     return node.id
 
 
@@ -289,9 +324,10 @@ class PyFrontend:
         show_source: bool = False,
         show_disassemble: bool = False,
         show_ast: bool = False,
+        show_python: bool = False,
     ):
         program = ast.parse(self.source)
-        module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
+
         if show_source:
             print(f"-=-=-=-=-=[ Source ]=-=-=-=-=-\n{self.source}\n")
 
@@ -303,41 +339,52 @@ class PyFrontend:
         if show_ast:
             print(f"-=-=-=-=-=[ AST ]=-=-=-=-=-\n{ast.dump(program, indent=4)}\n")
 
-        if any([show_ast, show_disassemble, show_source]):
-            print("-=-=-=-=-=[ Module ]=-=-=-=-=-\n")
-        print(module)
+        module = PyBuilder(ModuleOp(Region(Block()))).gen_py(program)
+        if not any([show_ast, show_disassemble, show_source]):
+            print("-=-=-=-=-=[ Py ]=-=-=-=-=-\n", module)
+
+        if show_python:
+            print("-=-=-=-=-=[ Back To Python ]=-=-=-=-=-\n")
+            print(PythonGenerator().gen_python_module(module))
+
+        print("Frontend Not implemented")
         exit(0)  # Full pass not implemented
         return module
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process Toy file")
-    parser.add_argument("source", type=Path, help="toy source file")
+    parser = argparse.ArgumentParser(description="Process Python file")
+    parser.add_argument("source", type=Path, help="python source file")
     parser.add_argument(
         "-a",
         dest="all",
         action="store_true",
-        help="More text please",
+        help="Show everything",
     )
     parser.add_argument(
         "-s",
         dest="src",
         action="store_true",
-        help="More text please",
+        help="Show source",
     )
     parser.add_argument(
         "-d",
         dest="disassemble",
         action="store_true",
-        help="More text please",
+        help="Show bytecode",
     )
     parser.add_argument(
         "-t",
         dest="tree",
         action="store_true",
-        help="More text please",
+        help="Show Ast",
     )
-
+    parser.add_argument(
+        "-p",
+        dest="python",
+        action="store_true",
+        help="Show regenerated python",
+    )
     args = parser.parse_args()
 
     with open(args.source) as f:
@@ -347,4 +394,5 @@ if __name__ == "__main__":
         args.all or args.src,
         args.all or args.disassemble,
         args.all or args.tree,
+        args.all or args.python,
     )

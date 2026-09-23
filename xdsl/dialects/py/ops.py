@@ -13,17 +13,18 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     attr_def,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
-    var_result_def,
 )
 from xdsl.traits import (
     CallableOpInterface,
@@ -40,6 +41,17 @@ from .attrs import (
     ObjectType,
 )
 
+"""
+Are these ops well-defined ?
+Weird definition
+Missing attributs
+Traits
+
+
+Handling types ?
+
+"""
+
 
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
@@ -55,6 +67,9 @@ class ConstantOp(IRDLOperation):
 
     def __init__(self, value: Any, result_type: ObjectType):
         super().__init__(properties={"value": value}, result_types=[result_type])
+
+    def get_value(self):
+        return self.value
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -74,6 +89,12 @@ class FuncOpCallableInterface(CallableOpInterface):
         return op.function_type.outputs.data
 
 
+"""
+Should I make a MethodOp ?
+(I guess so, because the bytecode is different)
+"""
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "py.func"
@@ -81,18 +102,23 @@ class FuncOp(IRDLOperation):
     body = region_def("single_block")
     sym_name = prop_def(SymbolNameConstraint())
     function_type = attr_def(FunctionType)
+    sym_owner = opt_prop_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface(), FuncOpCallableInterface())
 
     def __init__(
         self,
-        name: str,
+        name: str | StringAttr,
         arg_names: list[str],
         ftype: FunctionType,
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
+
+        if isinstance(name, str):
+            name = StringAttr(name)
+
         properties: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
+            "sym_name": name,
             "function_type": ftype,
         }
         if not isinstance(region, Region):
@@ -174,13 +200,20 @@ class AssertOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[result_type])
 
 
+"""
+"""
+
+
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "py.call"
 
-    callee = prop_def()
-    arguments = var_operand_def()
-    res = var_result_def()
+    irdl_options = (AttrSizedOperandSegments(),)
+
+    caller = opt_operand_def(Attribute)
+    arguments = var_operand_def(Attribute)
+    sym_name = prop_def(StringAttr)
+    res = result_def(Attribute)
 
     traits = traits_def(CallOpSymbolUserOpInterface())
 
@@ -189,14 +222,15 @@ class CallOp(IRDLOperation):
         callee: str | StringAttr,
         arguments: Sequence[SSAValue | Operation],
         return_type: Sequence[Attribute],
+        caller: SSAValue | None = None,
     ):
         if isinstance(callee, str):
             callee = StringAttr(callee)
 
         super().__init__(
-            operands=[arguments],
-            result_types=return_type,
-            properties={"callee": callee},
+            operands=[[caller] if caller is not None else [], arguments],
+            result_types=[return_type],
+            properties={"sym_name": callee},
         )
 
 
@@ -208,3 +242,18 @@ class PassOp(IRDLOperation):
 
     def __init__(self):
         super().__init__()
+
+
+"""
+Issue for defining this Op:
+How to handle the condition ?
+it should be a function call ?
+I should reference it in some way
+should i base it of the SSAValue referencing the result ?
+"""
+# @irdl_op_definition
+# class IfOp(IRDLOperation):
+#     name = "py.if"
+
+#     body   = region_def()
+#     orelse = region_def()
