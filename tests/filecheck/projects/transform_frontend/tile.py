@@ -4,18 +4,18 @@ from collections.abc import Callable
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import builtin, func, get_all_dialects, linalg, transform
-from xdsl.dialects.linalg.abstract_ops import LinalgStructuredOperation
+from xdsl.dialects import builtin, func, get_all_dialects, linalg, scf, transform
 from xdsl.dialects.linalg.transforms.tiling import tile_structured_op
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Block, Operation, OperationInvT, Region
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.transforms.transform_interpreter import TransformInterpreterPass
 
 
-def apply_func(op: func.FuncOp, func: Callable[[Operation], None]) -> func.FuncOp:
+def apply_func(
+    op: func.FuncOp, func: Callable[[tuple[Operation, ...]], None]
+) -> func.FuncOp:
     clone = op.clone()
-    for _op in tuple(clone.walk(region_first=True)):
-        func(_op)
+    func((clone,))
     clone.verify()
     return clone
 
@@ -42,12 +42,48 @@ def apply_transform(
     return transform_result.clone()
 
 
-def tile(op: Operation) -> None:
+def _match(
+    roots: tuple[Operation, ...], cls: type[OperationInvT]
+) -> tuple[OperationInvT, ...]:
+    matches = tuple(
+        candidate
+        for candidate in roots[0].walk(region_first=True)
+        if isinstance(candidate, cls)
+    )
+    return matches
+
+
+def _tile(
+    targets: tuple[linalg.MatmulOp, ...], sizes: tuple[int, int, int]
+) -> tuple[
+    tuple[linalg.MatmulOp, ...],
+    tuple[scf.ForOp, ...],
+    tuple[scf.ForOp, ...],
+    tuple[scf.ForOp, ...],
+]:
+    for target in targets:
+        num_loops = target.get_num_loops()
+        assert len(sizes) <= num_loops
+
+    tiled_ops: list[linalg.MatmulOp] = []
+    loops: list[list[scf.ForOp]] = [[] for _ in sizes]
+    for target in targets:
+        rewriter = PatternRewriter(target)
+        result = tile_structured_op(rewriter, target, sizes)
+        tiled_ops.append(result.tiled_op)
+        # Each transform result groups the corresponding loop across targets.
+        for loop_handle, loop in zip(loops, result.loops, strict=True):
+            loop_handle.append(loop)
+
+    l0, l1, l2 = loops
+
+    return (tuple(tiled_ops), tuple(l0), tuple(l1), tuple(l2))
+
+
+def tile(op: tuple[Operation, ...]) -> None:
     """Tile a structured linalg operation by 32 in each of its three dimensions."""
-    if not isinstance(op, LinalgStructuredOperation):
-        return
-    rewriter = PatternRewriter(op)
-    tile_structured_op(rewriter, op, (32, 32, 32))
+    targets = _match(op, linalg.ops.MatmulOp)
+    _tile(targets, (32, 32, 32))
 
 
 def build_named_sequence() -> transform.NamedSequenceOp:
