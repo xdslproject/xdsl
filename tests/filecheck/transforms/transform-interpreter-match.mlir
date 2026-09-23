@@ -54,11 +54,11 @@ module attributes {transform.with_named_sequence} {
   }
 }
 
-// CHECK: {{^}}all: ([[INNER:<ConstantOp [0-9]+\(([^>]|[^)]>)*\)>]], [[MODULE:<ModuleOp [0-9]+\(([^>]|[^)]>)*\)>]], [[OUTER:<ConstantOp [0-9]+\(([^>]|[^)]>)*\)>]], [[RETURN:<ReturnOp [0-9]+\(([^>]|[^)]>)*\)>]], [[FUNCTION:<FuncOp [0-9]+\(([^>]|[^)]>)*\)>]]){{$}}
-// CHECK-NEXT: empty: ()
-// CHECK-NEXT: missing: ()
-// CHECK-NEXT: function: ([[FUNCTION]],)
-// CHECK-NEXT: constants: ([[INNER]], [[OUTER]])
-// CHECK-NEXT: modules: ([[MODULE]],)
-// CHECK-NEXT: union: ([[INNER]], [[MODULE]], [[OUTER]])
-// CHECK-NEXT: duplicates: ([[INNER]], [[OUTER]])
+// CHECK: {{^}}all: OperationHandle(ops=([[INNER:<ConstantOp [0-9]+\(([^>]|[^)]>)*\)>]], [[MODULE:<ModuleOp [0-9]+\(([^>]|[^)]>)*\)>]], [[OUTER:<ConstantOp [0-9]+\(([^>]|[^)]>)*\)>]], [[RETURN:<ReturnOp [0-9]+\(([^>]|[^)]>)*\)>]], [[FUNCTION:<FuncOp [0-9]+\(([^>]|[^)]>)*\)>]])){{$}}
+// CHECK-NEXT: empty: OperationHandle(ops=())
+// CHECK-NEXT: missing: OperationHandle(ops=())
+// CHECK-NEXT: function: OperationHandle(ops=([[FUNCTION]],))
+// CHECK-NEXT: constants: OperationHandle(ops=([[INNER]], [[OUTER]]))
+// CHECK-NEXT: modules: OperationHandle(ops=([[MODULE]],))
+// CHECK-NEXT: union: OperationHandle(ops=([[INNER]], [[MODULE]], [[OUTER]]))
+// CHECK-NEXT: duplicates: OperationHandle(ops=([[INNER]], [[OUTER]]))

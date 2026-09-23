@@ -1,5 +1,8 @@
 from collections.abc import Callable
-from typing import TypeAlias
+from dataclasses import dataclass
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, transform
@@ -22,12 +25,21 @@ from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
-OperationHandle: TypeAlias = tuple[Operation, ...]
-"""
-The payload operations associated with one transform handle. Like MLIR's
-TransformState mapping, this preserves storage order, but that order has no
-semantic meaning unless the transform operation specifies otherwise.
-"""
+_OperationT = TypeVar("_OperationT", bound=Operation, covariant=True, default=Operation)
+
+
+@dataclass(frozen=True)
+class OperationHandle(Generic[_OperationT]):
+    """
+    The payload operations associated with one transform handle. Like MLIR's
+    TransformState mapping, this preserves storage order, but that order has no
+    semantic meaning unless the transform operation specifies otherwise.
+    """
+
+    ops: tuple[_OperationT]
+
+    def __init__(self, *ops: _OperationT):
+        object.__setattr__(self, "ops", ops)
 
 
 @register_impls
@@ -65,7 +77,7 @@ class TransformFunctions(InterpreterFunctions):
     ) -> PythonValues:
         (roots,) = args
         assert isa(roots, OperationHandle)
-        if len(roots) != 1:
+        if len(roots.ops) != 1:
             raise InterpretationError(
                 "transform.structured.match requires exactly one target operation"
             )
@@ -84,10 +96,12 @@ class TransformFunctions(InterpreterFunctions):
         names = None if op.ops is None else {name.data for name in op.ops}
         # MLIR walks the root and its descendants in post-order. An absent name
         # filter matches everything, whereas an explicitly empty one matches nothing.
-        matches = tuple(
-            candidate
-            for candidate in roots[0].walk(region_first=True)
-            if names is None or candidate.name in names
+        matches = OperationHandle(
+            *(
+                candidate
+                for candidate in roots.ops[0].walk(region_first=True)
+                if names is None or candidate.name in names
+            )
         )
         return (matches,)
 
@@ -117,11 +131,11 @@ class TransformFunctions(InterpreterFunctions):
             raise InterpretationError(
                 "transform.structured.tile_using_for requires nonnegative tile sizes"
             )
-        if not isa(targets, tuple[LinalgStructuredOperation, ...]):
+        if not isa(targets.ops, tuple[LinalgStructuredOperation, ...]):
             raise InterpretationError(
                 "transform.structured.tile_using_for supports only structured linalg targets"
             )
-        for target in targets:
+        for target in targets.ops:
             num_loops = target.get_num_loops()
             if len(sizes) > num_loops:
                 raise InterpretationError(
@@ -131,7 +145,7 @@ class TransformFunctions(InterpreterFunctions):
 
         tiled_ops: list[Operation] = []
         loops: list[list[Operation]] = [[] for _ in op.loops]
-        for target in targets:
+        for target in targets.ops:
             rewriter = PatternRewriter(target)
             result = tile_structured_op(rewriter, target, sizes)
             tiled_ops.append(result.tiled_op)
@@ -139,7 +153,10 @@ class TransformFunctions(InterpreterFunctions):
             for loop_handle, loop in zip(loops, result.loops, strict=True):
                 loop_handle.append(loop)
 
-        return (tuple(tiled_ops), *(tuple(loop_handle) for loop_handle in loops))
+        return (
+            OperationHandle(*tiled_ops),
+            *(OperationHandle(*loop_handle) for loop_handle in loops),
+        )
 
     @impl(transform.ApplyRegisteredPassOp)
     def run_apply_registered_pass_op(
@@ -150,13 +167,13 @@ class TransformFunctions(InterpreterFunctions):
     ) -> PythonValues:
         (targets,) = args
         assert isa(targets, OperationHandle)
-        if not isa(targets, tuple[builtin.ModuleOp, ...]):
+        if not isa(targets.ops, tuple[builtin.ModuleOp, ...]):
             raise InterpretationError(
                 "transform.apply_registered_pass currently supports only builtin.module targets"
             )
         pass_name = op.pass_name.data
         pipeline = PassPipeline.parse_spec(self.passes, pass_name)
-        for target in targets:
+        for target in targets.ops:
             pipeline.apply(self.ctx, target)
         return (targets,)
 

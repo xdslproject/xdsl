@@ -45,8 +45,8 @@ def test_empty_transform_module(num_targets: int):
     interpreter = Interpreter(module)
     interpreter.register_implementations(TransformFunctions(ctx, get_all_passes()))
 
-    expected: OperationHandle = tuple(
-        Parser(ctx, payload).parse_module() for _ in range(num_targets)
+    expected = OperationHandle(
+        *(Parser(ctx, payload).parse_module() for _ in range(num_targets))
     )
     (observed,) = interpreter.call_op(named_sequence, (expected,))
     assert expected is observed
@@ -63,7 +63,7 @@ def test_apply_registered_pass(num_targets: int):
         def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
             visited.append(op)
 
-    targets = tuple(builtin.ModuleOp([]) for _ in range(num_targets))
+    targets = OperationHandle(*(builtin.ModuleOp([]) for _ in range(num_targets)))
     block = Block(arg_types=[transform.AnyOpType()])
     op = transform.ApplyRegisteredPassOp("record", block.args[0])
     module = builtin.ModuleOp([op])
@@ -75,4 +75,4 @@ def test_apply_registered_pass(num_targets: int):
     (result,) = interpreter.run_op(op, (targets,))
 
     assert result is targets
-    assert visited == list(targets)
+    assert visited == list(targets.ops)
