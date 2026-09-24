@@ -498,12 +498,9 @@ class ElementwiseOperation(NamedOperation, ABC):
             "types."
         )
         operand_types = cast(Sequence[ShapedType], self.operand_types)
-        shapes = tuple(t.get_shape() for t in operand_types)
-        assert all(shape == shapes[0] for shape in shapes[1:]), (
-            "All shapes must be equal"
-        )
+        rank = len(operand_types[0].get_shape())
 
-        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+        return (AffineMap.identity(rank),) * len(operand_types)
 
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         num_loops = self.get_num_loops()
