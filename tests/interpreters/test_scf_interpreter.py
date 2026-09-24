@@ -116,3 +116,65 @@ def test_condition_op(cond_value: bool):
     assert res.terminator_value is not None
     assert isinstance(res.terminator_value, ReturnedValues)
     assert res.terminator_value.values == (cond_value, 1, 2)
+
+
+def sum_to_while_fn(ub: int) -> int:
+    """
+    Python implementation of sum_to_while_op
+    """
+    acc = 0
+    i = 0
+    while i != ub:
+        acc += i
+        i += 1
+    return acc
+
+
+@ModuleOp
+@Builder.implicit_region
+def sum_to_while_op():
+    with ImplicitBuilder(func.FuncOp("sum_to", ((index,), (index,))).body) as (ub,):
+        zero = arith.ConstantOp.from_int_and_width(0, index)
+
+        @Builder.implicit_region((index, index))
+        def before_region(args: tuple[BlockArgument, ...]):
+            (i, acc) = args
+            cond = arith.CmpiOp(i, ub, "ne")
+            scf.ConditionOp(cond, i, acc)
+
+        @Builder.implicit_region((index, index))
+        def after_region(args: tuple[BlockArgument, ...]):
+            (i, acc) = args
+            one = arith.ConstantOp.from_int_and_width(1, index)
+            new_acc = arith.AddiOp(acc, i)
+            new_i = arith.AddiOp(i, one)
+            scf.YieldOp(new_i, new_acc)
+
+        result = scf.WhileOp((zero, zero), (index, index), before_region, after_region)
+        func.ReturnOp(result.res[1])
+
+
+@pytest.mark.parametrize(("n", "res"), [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)])
+def test_while_via_sum_to(n: int, res: int):
+    assert res == sum_to_while_fn(ub=n)
+    assert res == scf_interp(sum_to_while_op, "sum_to", n)
+
+
+def test_while_tracer():
+    tracer = OpCounter()
+    interpreter = Interpreter(sum_to_while_op.clone(), listeners=(tracer,))
+    interpreter.register_implementations(ScfFunctions())
+    interpreter.register_implementations(FuncFunctions())
+    interpreter.register_implementations(ArithFunctions())
+    (result,) = interpreter.call_op("sum_to", (5,))
+
+    assert result == 10
+    assert dict(tracer.ops) == {
+        "arith.constant": 6,
+        "scf.while": 1,
+        "scf.condition": 6,
+        "scf.yield": 5,
+        "arith.cmpi": 6,
+        "arith.addi": 10,
+        "func.return": 1,
+    }
