@@ -24,12 +24,12 @@ dependencies = [
   "typing-extensions>=4.13,<5",
 ]
 optional-dependencies.dev = [
+  "basedpyright==1.39.9",
   "coverage<8",
   "filecheck==1.0.6",
   "lit<19",
   "marimo>=0.23,<0.24",
   "prek~=0.4.0",
-  "pyright==1.1.411",
   "pytest<9.2",
   "pytest-asyncio",
   "pytest-cov",
@@ -137,23 +137,6 @@ lint.mccabe.max-complexity = 10
 # these should be ignored separately.
 lint.pycodestyle.max-line-length = 130
 
-[tool.pyright]
-typeCheckingMode = "strict"
-include = [ "benchmarks", "docs", "tests", "xdsl" ]
-exclude = [ "docs/notebooks" ]
-extraPaths = [ "tests" ]
-# We need this for TypeForm, should remove it once that's in
-enableExperimentalFeatures = true
-# Use specific rule ignore instead if necessary
-enableTypeIgnoreComments = false
-reportAssertAlwaysTrue = true
-reportImportCycles = false
-# Allow importing from irdl files
-reportMissingModuleSource = false
-reportUnnecessaryCast = true
-reportUnnecessaryIsInstance = true
-reportUnnecessaryTypeIgnoreComment = true
-
 [tool.pytest]
 ini_options.testpaths = [ "docs/notebooks", "tests" ]
 # HTML exports contain executable copies of the source notebooks.
@@ -190,3 +173,21 @@ report.format = "markdown"
 # we should investigate whether this is still necessary once the online codecov reporting is fixed
 # https://github.com/nedbat/coveragepy/blob/1aecfa7ae2a81aa9c278cbb43718ae7e4bdcf5b5/coverage/report_core.py#L108
 report.ignore_errors = true
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+include = [ "benchmarks", "docs", "tests", "xdsl" ]
+# Ignore local Jupyter checkpoints left over from the former notebook sources.
+exclude = [ "**/.ipynb_checkpoints", "docs/notebooks" ]
+extraPaths = [ "tests" ]
+# We need this for TypeForm, should remove it once that's in
+enableExperimentalFeatures = true
+# Use specific rule ignore instead if necessary
+enableTypeIgnoreComments = false
+reportAssertAlwaysTrue = true
+reportImportCycles = false
+# Allow importing from irdl files
+reportMissingModuleSource = false
+reportUnnecessaryCast = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryTypeIgnoreComment = true
