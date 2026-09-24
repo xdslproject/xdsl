@@ -3572,7 +3572,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'gui'", specifier = ">=8,<9" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.8" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
-    { name = "typing-extensions", specifier = ">=4.7,<5" },
+    { name = "typing-extensions", specifier = ">=4.13.0,<5" },
 ]
 provides-extras = ["dev", "gui", "heir", "llvm"]
 
