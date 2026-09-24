@@ -196,15 +196,20 @@ docs-wheels: uv-installed
 docs-notebooks: uv-installed
 	uv run python scripts/gen_notebooks.py
 
+.PHONY: docs-reference
+docs-reference: uv-installed
+	SKIP_GEN_PAGES=$(SKIP_GEN_PAGES) uv run python scripts/gen_ref_pages.py
+
 
 .PHONY: docs-serve
-docs-serve: docs-wheels docs-notebooks
+docs-serve: docs-wheels docs-notebooks docs-reference
 	uv run mkdocs serve
 
 .PHONY: docs-serve-fast
-docs-serve-fast: docs-wheels docs-notebooks
-	SKIP_GEN_PAGES=1 uv run mkdocs serve
+docs-serve-fast: SKIP_GEN_PAGES=1
+docs-serve-fast: docs-wheels docs-notebooks docs-reference
+	uv run mkdocs serve
 
 .PHONY: docs-build
-docs-build: docs-wheels docs-notebooks
+docs-build: docs-wheels docs-notebooks docs-reference
 	uv run mkdocs build
