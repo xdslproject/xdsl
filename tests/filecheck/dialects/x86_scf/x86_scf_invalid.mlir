@@ -21,12 +21,12 @@
 
 %lb, %ub, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64)
 
-"x86_scf.for"(%lb, %ub, %step) <{ub_attr = 10 : si32, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
+"x86_scf.for"(%lb, %ub, %step) <{stop_attr = 10 : si32, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 ^bb0(%i: !x86.reg64):
     x86_scf.yield
 }) : (!x86.reg64, !x86.reg64, !x86.reg64) -> (!x86.reg64)
 
-// CHECK: Operation does not verify: Exactly one of ub_attr or ub_val must be set
+// CHECK: Operation does not verify: Exactly one of stop_attr or stop_val must be set
 
 // -----
 
@@ -37,7 +37,7 @@
     x86_scf.yield
 }) : (!x86.reg64, !x86.reg64) -> (!x86.reg64)
 
-// CHECK: Operation does not verify: Exactly one of ub_attr or ub_val must be set
+// CHECK: Operation does not verify: Exactly one of stop_attr or stop_val must be set
 
 // -----
 
@@ -103,9 +103,9 @@ x86_scf.for %i : !x86.reg64 = %lb to 1 : si32 step 1 : i64 {
 
 // -----
 
-%ub = "test.op"() : () -> !x86.reg64
+%lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.rof %i : !x86.reg64 = %ub down to 0 : si32 step 1 : si32 {
+x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
     x86_scf.yield
 }
 
@@ -115,12 +115,12 @@ x86_scf.rof %i : !x86.reg64 = %ub down to 0 : si32 step 1 : si32 {
 
 %lb = "test.op"() : () -> !x86.reg64<rax>
 
-"x86_scf.for"(%lb) <{ub_attr = 10 : si32, step_attr = 1 : si32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> ({
+"x86_scf.for"(%lb) <{stop_attr = 10 : si32, step_attr = 1 : si32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> ({
 ^bb0(%i: !x86.reg64<rbx>):
     x86_scf.yield
 }) : (!x86.reg64<rax>) -> (!x86.reg64<rax>)
 
-// CHECK: Operation does not verify: Expected induction var to be same type as lb
+// CHECK: Operation does not verify: Expected induction var to be same type as start
 
 // -----
 
@@ -163,3 +163,25 @@ x86_scf.rof %i : !x86.reg64 = %ub down to 0 : si32 step 1 : si32 {
 }
 
 // CHECK: Expected !x86.reg64<r11>, got !x86.reg64<r10>. The x86_scf.rof's x86_scf.yield must match carried variables types.
+
+// -----
+
+%ub = "test.op"() : () -> !x86.reg64
+
+"x86_scf.for"(%ub) <{step_attr = 1 : si32, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64) -> !x86.reg64
+
+// CHECK: expected 1 value for start, but got 0
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+"x86_scf.rof"(%lb) <{step_attr = 1 : si32, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64) -> !x86.reg64
+
+// CHECK: expected 1 value for start, but got 0

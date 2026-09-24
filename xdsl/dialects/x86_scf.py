@@ -63,16 +63,27 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
 
 
 class ForRofOperation(X86HasRegisterConstraints, ABC):
-    lb = operand_def(GeneralRegisterType)
-    ub_val = opt_operand_def(GeneralRegisterType)
-    ub_attr = opt_prop_def(IntegerAttr[SI32])
+    """
+    Loops where `start` initializes the IV and `stop` is the exclusive termination
+    bound.
+    Both `stop` and `step` may be immediates, whereas `start` must be in a register,
+    which will be updated throughout loop iteration.
+    """
+
+    start = operand_def(GeneralRegisterType)
+    stop_val = opt_operand_def(GeneralRegisterType)
+    stop_attr = opt_prop_def(IntegerAttr[SI32])
     step_val = opt_operand_def(GeneralRegisterType)
     step_attr = opt_prop_def(IntegerAttr[SI32])
 
     iter_args = var_operand_def(X86RegisterType)
 
-    lb_end = result_def(GeneralRegisterType)
-    """Final value of the lower-bound / induction-variable register (inout with `lb`)."""
+    iv_end = result_def(GeneralRegisterType)
+    """
+    Induction variable on exit, in the same register as `start`.
+    For a zero-trip loop this is `start`, otherwise it is the value after the final
+    increment (`for`) or decrement (`rof`), which may overshoot `stop`.
+    """
 
     res = var_result_def(X86RegisterType)
 
@@ -82,17 +93,17 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     @property
-    def ub(self) -> IntegerAttr[SI32] | SSAValue:
-        """Static upper bound (typed integer) or dynamic register SSA value."""
-        match (ub_attr := self.ub_attr, ub_val := self.ub_val):
+    def stop(self) -> IntegerAttr[SI32] | SSAValue:
+        """Static termination bound (typed integer) or dynamic register SSA value."""
+        match (stop_attr := self.stop_attr, stop_val := self.stop_val):
             case (None, None):
-                raise ValueError("Exactly one of ub_attr or ub_val must be set")
+                raise ValueError("Exactly one of stop_attr or stop_val must be set")
             case (None, _):
-                return ub_val
+                return stop_val
             case (_, None):
-                return ub_attr
+                return stop_attr
             case (_, _):
-                raise ValueError("Exactly one of ub_attr or ub_val must be set")
+                raise ValueError("Exactly one of stop_attr or stop_val must be set")
 
     @property
     def step(self) -> IntegerAttr[SI32] | SSAValue:
@@ -109,27 +120,27 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation | IntegerAttr,
+        start: SSAValue | Operation,
+        stop: SSAValue | Operation | IntegerAttr,
         step: SSAValue | Operation | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
-        lb = SSAValue.get(lb)
+        start = SSAValue.get(start)
         if body is None:
             body = Region(
-                Block(arg_types=(lb.type, *(iter_arg.type for iter_arg in iter_args)))
+                Block(
+                    arg_types=(start.type, *(iter_arg.type for iter_arg in iter_args))
+                )
             )
 
         if isinstance(body, Block):
             body = [body]
 
-        if isinstance(ub, IntegerAttr):
-            ub_attr = ub
-            ub_val = None
+        if isinstance(stop, IntegerAttr):
+            stop_attr, stop_val = stop, None
         else:
-            ub_attr = None
-            ub_val = ub
+            stop_attr, stop_val = None, stop
 
         if isinstance(step, IntegerAttr):
             step_attr = step
@@ -139,15 +150,15 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             step_val = step
 
         super().__init__(
-            operands=[lb, ub_val, step_val, iter_args],
-            properties={"ub_attr": ub_attr, "step_attr": step_attr},
-            result_types=[lb.type, [SSAValue.get(a).type for a in iter_args]],
+            operands=[start, stop_val, step_val, iter_args],
+            properties={"stop_attr": stop_attr, "step_attr": step_attr},
+            result_types=[start.type, [SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
 
     def verify_(self):
         try:
-            _ = self.ub
+            _ = self.stop
             _ = self.step
         except ValueError as exc:
             raise VerifyException(exc.args[0])
@@ -164,15 +175,16 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                     f"The first block argument of the body is of type {iter_var.type}"
                     " instead of x86 GeneralRegisterType"
                 )
-            if iter_var.type != self.lb.type:
+            start = self.start
+            if iter_var.type != start.type:
                 raise VerifyException(
-                    f"Expected induction var to be same type as lb, "
-                    f"got {iter_var.type} and {self.lb.type}"
+                    f"Expected induction var to be same type as start, "
+                    f"got {iter_var.type} and {start.type}"
                 )
-            if iter_var.type != self.lb_end.type:
+            if iter_var.type != self.iv_end.type:
                 raise VerifyException(
-                    f"Expected induction var to be same type as lb_end result, "
-                    f"got {iter_var.type} and {self.lb_end.type}"
+                    f"Expected induction var to be same type as iv_end result, "
+                    f"got {iter_var.type} and {self.iv_end.type}"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])
@@ -222,11 +234,11 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                 (block_arg, operand, yield_operand, op_result)
             )
 
-        allocator.allocate_values_same_reg((block_args[0], self.lb, self.lb_end))
+        allocator.allocate_values_same_reg((block_args[0], self.start, self.iv_end))
 
-        # ub and step are used throughout loop when dynamic
-        if self.ub_val is not None:
-            allocator.allocate_value(self.ub_val)
+        # stop and step are used throughout loop when dynamic
+        if self.stop_val is not None:
+            allocator.allocate_value(self.stop_val)
         if self.step_val is not None:
             allocator.allocate_value(self.step_val)
 
@@ -238,14 +250,12 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             allocator.allocate_block(self.body.block)
 
     def get_register_constraints(self) -> RegisterConstraints:
-        """`lb` and each iter_arg are inout; dynamic `ub`/`step` are in-only."""
-        ins: list[SSAValue] = []
-        if self.ub_val is not None:
-            ins.append(self.ub_val)
-        if self.step_val is not None:
-            ins.append(self.step_val)
-        inouts = ((self.lb, self.lb_end), *zip(self.iter_args, self.res, strict=True))
-        return RegisterConstraints(ins, (), inouts)
+        """`start` and each iter_arg are inout; dynamic `stop`/`step` are in-only."""
+        ins = tuple(
+            value for value in (self.stop_val, self.step_val) if value is not None
+        )
+        inouts = tuple(zip(self.iter_args, self.res, strict=True))
+        return RegisterConstraints(ins, (), ((self.start, self.iv_end), *inouts))
 
     def _body_live_outs(self, live_after: AbstractSet[SSAValue]) -> set[SSAValue]:
         """
@@ -254,9 +264,12 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
         block = self.body.block
         res = set(live_after)
         # The body runs repeatedly, so every value defined outside it and used inside
-        # must survive a whole iteration. This covers the dynamic bounds: the loop
-        # re-reads them on the back edge, and a clobber in the body is itself a use.
+        # must survive a whole iteration.
         res.update(live_ins_per_block(block)[block])
+        if self.stop_val is not None:
+            res.add(self.stop_val)
+        if self.step_val is not None:
+            res.add(self.step_val)
         # The induction variable is a block argument rather than a live-in, but the
         # loop reads it on the back edge to compute the next value.
         res.add(block.args[0])
@@ -276,7 +289,8 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 @irdl_op_definition
 class ForOp(ForRofOperation):
     """
-    A for loop, counting up from lb to ub by step each iteration.
+    A for loop over [start, stop), incrementing by a positive step.
+    If start >= stop the body does not execute.
     """
 
     name = "x86_scf.for"
@@ -284,8 +298,8 @@ class ForOp(ForRofOperation):
     def print(self, printer: Printer):
         print_for_op_like(
             printer,
-            self.lb,
-            self.ub,
+            self.start,
+            self.stop,
             self.step,
             self.iter_args,
             self.body,
@@ -293,12 +307,12 @@ class ForOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
+        start, stop, step, iter_arg_operands, body = parse_for_op_like(
             parser, allow_static_stop=True, allow_static_step=True
         )
         _, *iter_args = body.block.args
 
-        for_op = cls(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(start, stop, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
@@ -310,17 +324,8 @@ class ForOp(ForRofOperation):
 @irdl_op_definition
 class RofOp(ForRofOperation):
     """
-    Reverse Order For loop.
-
-    MLIR's for loops have the constraint of always executing from lb to ub,
-    so in order to express loops that count down from ub to lb, the rof op
-    is needed.
-
-    Rof has the semantics of going from ub to lb, decrementing by step each time.
-    The implicit constraints are that lb < ub, and step > 0.
-
-    In order to convert a for to a rof, one needs to switch lb and ub.
-    (for the normalized case that (ub - lb) % step == 0)
+    A reverse loop over (stop, start], decrementing by a positive step.
+    If start <= stop the body does not execute.
     """
 
     name = "x86_scf.rof"
@@ -328,8 +333,8 @@ class RofOp(ForRofOperation):
     def print(self, printer: Printer):
         print_for_op_like(
             printer,
-            self.ub,
-            self.lb,
+            self.start,
+            self.stop,
             self.step,
             self.iter_args,
             self.body,
@@ -338,7 +343,7 @@ class RofOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        ub, lb, step, iter_arg_operands, body = parse_for_op_like(
+        start, stop, step, iter_arg_operands, body = parse_for_op_like(
             parser,
             bound_words=["down", "to"],
             allow_static_stop=True,
@@ -346,10 +351,7 @@ class RofOp(ForRofOperation):
         )
         _, *iter_args = body.block.args
 
-        if isinstance(lb, IntegerAttr):
-            parser.raise_error("Expected an operand.")
-
-        rof_op = cls(lb, ub, step, iter_arg_operands, body)
+        rof_op = cls(start, stop, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in rof_op.get_traits_of_type(SingleBlockImplicitTerminator):

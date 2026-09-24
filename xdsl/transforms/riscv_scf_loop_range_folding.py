@@ -44,8 +44,8 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert(
                         [
                             shift := rv32.LiOp(constant),
-                            new_lb := riscv.AddOp(op.lb, shift),
-                            new_ub := riscv.AddOp(op.ub, shift),
+                            new_lb := riscv.AddOp(op.start, shift),
+                            new_ub := riscv.AddOp(op.stop, shift),
                         ]
                     )
                 case riscv.MulOp():
@@ -65,8 +65,8 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert(
                         [
                             factor := rv32.LiOp(constant),
-                            new_lb := riscv.MulOp(op.lb, factor),
-                            new_ub := riscv.MulOp(op.ub, factor),
+                            new_lb := riscv.MulOp(op.start, factor),
+                            new_ub := riscv.MulOp(op.stop, factor),
                         ]
                     )
                     if step_attr is not None:

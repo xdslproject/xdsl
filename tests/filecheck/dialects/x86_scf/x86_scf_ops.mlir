@@ -1,4 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_GENERIC_ROUNDTRIP
 
 %lb = x86.di.mov 0 : () -> !x86.reg64
 %ub = x86.di.mov 100 : () -> !x86.reg64
@@ -64,3 +65,44 @@
 // CHECK-NEXT:      x86_scf.yield %res_5 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+%lb = x86.di.mov 1 : () -> !x86.reg64<r12>
+%ub = x86.di.mov 8 : () -> !x86.reg64<r13>
+%step = x86.di.mov 3 : () -> !x86.reg64<r10>
+%init = x86.di.mov 0 : () -> !x86.reg64<r11>
+
+// The IV and its exit value use the upper bound's register.
+%iv_end, %res = x86_scf.rof %i : !x86.reg64<r13> = %ub down to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+  x86_scf.yield %acc : !x86.reg64<r11>
+}
+
+// A reverse loop may have an immediate lower (termination) bound.
+%iv_end_static = x86_scf.rof %j : !x86.reg64<r13> = %ub down to 1 : si32 step 3 : si32 {
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %lb = x86.di.mov 1 : () -> !x86.reg64<r12>
+// CHECK-NEXT:    %ub = x86.di.mov 8 : () -> !x86.reg64<r13>
+// CHECK-NEXT:    %step = x86.di.mov 3 : () -> !x86.reg64<r10>
+// CHECK-NEXT:    %init = x86.di.mov 0 : () -> !x86.reg64<r11>
+// CHECK-NEXT:    %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13>  = %ub down  to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+// CHECK-NEXT:      x86_scf.yield %acc : !x86.reg64<r11>
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %iv_end_static = x86_scf.rof %j : !x86.reg64<r13>  = %ub down  to 1 : si32 step 3 : si32 {
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// CHECK-GENERIC:         %lb = "x86.di.mov"() {immediate = 1 : si32} : () -> !x86.reg64<r12>
+// CHECK-GENERIC-NEXT:    %ub = "x86.di.mov"() {immediate = 8 : si32} : () -> !x86.reg64<r13>
+// CHECK-GENERIC-NEXT:    %step = "x86.di.mov"() {immediate = 3 : si32} : () -> !x86.reg64<r10>
+// CHECK-GENERIC-NEXT:    %init = "x86.di.mov"() {immediate = 0 : si32} : () -> !x86.reg64<r11>
+// CHECK-GENERIC-NEXT:    %iv_end, %res = "x86_scf.rof"(%ub, %lb, %step, %init) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^bb0(%i: !x86.reg64<r13>, %acc: !x86.reg64<r11>):
+// CHECK-GENERIC-NEXT:      "x86_scf.yield"(%acc) : (!x86.reg64<r11>) -> ()
+// CHECK-GENERIC-NEXT:    }) : (!x86.reg64<r13>, !x86.reg64<r12>, !x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r13>, !x86.reg64<r11>)
+// CHECK-GENERIC-NEXT:    %iv_end_static = "x86_scf.rof"(%ub) <{stop_attr = 1 : si32, step_attr = 3 : si32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> ({
+// CHECK-GENERIC-NEXT:    ^bb0(%j: !x86.reg64<r13>):
+// CHECK-GENERIC-NEXT:      "x86_scf.yield"() : () -> ()
+// CHECK-GENERIC-NEXT:    }) : (!x86.reg64<r13>) -> !x86.reg64<r13>

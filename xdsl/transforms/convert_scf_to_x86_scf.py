@@ -57,7 +57,7 @@ class ScfForLowering(RewritePattern):
 
         new_op = rewriter.insert(x86_scf.ForOp(lb, ub, step, values, new_region))
         if lb.name_hint is not None:
-            new_op.lb_end.name_hint = f"{lb.name_hint}_end"
+            new_op.iv_end.name_hint = f"{lb.name_hint}_end"
         rewriter.insertion_point = InsertPoint.after(op)
 
         res_values = tuple(

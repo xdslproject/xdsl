@@ -255,3 +255,75 @@ x86_func.func @lb_live_after(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64
 // CHECK-NEXT:    "test.op"(%lb) : (!x86.reg64) -> ()
 // CHECK-NEXT:    x86_func.ret
 // CHECK-NEXT:  }
+
+// -----
+
+// Preserve the initial (upper) bound if it is read after the reverse loop.
+x86_func.func @start_live_after(%lb: !x86.reg64, %ub: !x86.reg64) {
+  %iv_end = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 {
+  }
+  "test.op"(%ub) : (!x86.reg64) -> ()
+  x86_func.ret
+}
+
+// CHECK-LABEL: x86_func.func @start_live_after(%lb: !x86.reg64, %ub: !x86.reg64) {
+// CHECK-NEXT:    %ub_1 = x86.ds.mov %ub : (!x86.reg64) -> !x86.reg64
+// CHECK-NEXT:    %iv_end = x86_scf.rof %i : !x86.reg64  = %ub_1 down  to %lb step 1 : si32 {
+// CHECK-NEXT:    }
+// CHECK-NEXT:    "test.op"(%ub) : (!x86.reg64) -> ()
+// CHECK-NEXT:    x86_func.ret
+// CHECK-NEXT:  }
+
+// -----
+
+// The termination (lower) bound is read-only, so it does not need a copy.
+x86_func.func @stop_live_after(%lb: !x86.reg64, %ub: !x86.reg64) {
+  %iv_end = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 {
+  }
+  "test.op"(%lb) : (!x86.reg64) -> ()
+  x86_func.ret
+}
+
+// CHECK-LABEL: x86_func.func @stop_live_after(%lb: !x86.reg64, %ub: !x86.reg64) {
+// CHECK-NEXT:    %iv_end = x86_scf.rof %i : !x86.reg64  = %ub down  to %lb step 1 : si32 {
+// CHECK-NEXT:    }
+// CHECK-NEXT:    "test.op"(%lb) : (!x86.reg64) -> ()
+// CHECK-NEXT:    x86_func.ret
+// CHECK-NEXT:  }
+
+// -----
+
+// A step that aliases the initial bound must survive the implicit back-edge use,
+// even with an empty body and no uses after the loop.
+x86_func.func @start_is_step(%lb: !x86.reg64, %ub: !x86.reg64) {
+  %iv_end = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step %ub {
+  }
+  x86_func.ret
+}
+
+// CHECK-LABEL: x86_func.func @start_is_step(%lb: !x86.reg64, %ub: !x86.reg64) {
+// CHECK-NEXT:    %ub_1 = x86.ds.mov %ub : (!x86.reg64) -> !x86.reg64
+// CHECK-NEXT:    %iv_end = x86_scf.rof %i : !x86.reg64  = %ub_1 down  to %lb step %ub {
+// CHECK-NEXT:    }
+// CHECK-NEXT:    x86_func.ret
+// CHECK-NEXT:  }
+
+// -----
+
+// A nested loop must not clobber the outer termination bound.
+x86_func.func @nested_rof(%lb: !x86.reg64, %ub: !x86.reg64, %inner_lb: !x86.reg64) {
+  %iv_end = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 {
+    %inner_end = x86_scf.rof %j : !x86.reg64 = %lb down to %inner_lb step 1 : si32 {
+    }
+  }
+  x86_func.ret
+}
+
+// CHECK-LABEL: x86_func.func @nested_rof(%lb: !x86.reg64, %ub: !x86.reg64, %inner_lb: !x86.reg64) {
+// CHECK-NEXT:    %iv_end = x86_scf.rof %i : !x86.reg64  = %ub down  to %lb step 1 : si32 {
+// CHECK-NEXT:      %lb_1 = x86.ds.mov %lb : (!x86.reg64) -> !x86.reg64
+// CHECK-NEXT:      %inner_end = x86_scf.rof %j : !x86.reg64  = %lb_1 down  to %inner_lb step 1 : si32 {
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    x86_func.ret
+// CHECK-NEXT:  }
