@@ -21,7 +21,7 @@ dynamic = [ "version" ]
 dependencies = [
   "immutabledict<4.3.2",
   "ordered-set==4.1",
-  "typing-extensions>=4.7,<5",
+  "typing-extensions>=4.13,<5",
 ]
 optional-dependencies.dev = [
   "coverage<8",
