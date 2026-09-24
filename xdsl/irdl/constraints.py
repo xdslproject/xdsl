@@ -332,7 +332,8 @@ class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     values: frozenset[AttributeCovT]
 
     def __repr__(self) -> str:
-        return f"AttrSetConstraint({{{', '.join(sorted(str(value) for value in self.values))}}})"
+        values = ", ".join(sorted(repr(value) for value in self.values))
+        return f"AttrSetConstraint(frozenset([{values}]))"
 
     @staticmethod
     def get(*values: AttributeInvT) -> AttrConstraint[AttributeInvT]:

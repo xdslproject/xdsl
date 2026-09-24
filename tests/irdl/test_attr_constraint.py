@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntAttrConstraint,
     IntegerType,
     MemRefType,
+    NoneType,
     Signedness,
     SignednessAttr,
     StringAttr,
@@ -222,11 +223,22 @@ def test_base_attr_constraint_inference():
             ParamAttrConstraint(AttrB, (AnyAttr(),)),
             "ParamAttrConstraint(AttrB, (AnyAttr(),))",
         ),
+        (AttrSetConstraint(frozenset[Attribute]()), "AttrSetConstraint(frozenset([]))"),
+        (
+            AttrSetConstraint(frozenset((AttrA(),))),
+            "AttrSetConstraint(frozenset([AttrA()]))",
+        ),
+        (
+            AttrSetConstraint.get(NoneType(), IntegerType(1, Signedness.UNSIGNED)),
+            "AttrSetConstraint(frozenset([IntegerType(1, Signedness.UNSIGNED), NoneType()]))",
+        ),
     ],
 )
 def test_constraint_repr(constr: AttrConstraint, expected: str):
     assert repr(constr) == expected
-    assert eval(repr(constr)) == constr
+    reconstructed = eval(repr(constr))
+    assert reconstructed == constr
+    assert hash(reconstructed) == hash(constr)
 
 
 @pytest.mark.parametrize(
