@@ -294,7 +294,7 @@ class ForOp(ForRofOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         lb, ub, step, iter_arg_operands, body = parse_for_op_like(
-            parser, allow_static_upper_bound=True, allow_static_step=True
+            parser, allow_static_stop=True, allow_static_step=True
         )
         _, *iter_args = body.block.args
 
@@ -341,7 +341,7 @@ class RofOp(ForRofOperation):
         ub, lb, step, iter_arg_operands, body = parse_for_op_like(
             parser,
             bound_words=["down", "to"],
-            allow_static_upper_bound=True,
+            allow_static_stop=True,
             allow_static_step=True,
         )
         _, *iter_args = body.block.args
