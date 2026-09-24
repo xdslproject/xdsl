@@ -26,7 +26,18 @@
     x86_scf.yield
 }) : (!x86.reg64, !x86.reg64, !x86.reg64) -> (!x86.reg64)
 
-// CHECK: Operation does not verify: Exactly one of ub_attr (static) or ub_val (dynamic) must be set
+// CHECK: Operation does not verify: Exactly one of ub_attr or ub_val must be set
+
+// -----
+
+%lb, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %step) <{operandSegmentSizes = array<i32: 1, 0, 1, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of ub_attr or ub_val must be set
 
 // -----
 
@@ -37,7 +48,18 @@
     x86_scf.yield
 }) : (!x86.reg64, !x86.reg64, !x86.reg64) -> (!x86.reg64)
 
-// CHECK: Operation does not verify: Exactly one of step_attr (static) or step_val (dynamic) must be set
+// CHECK: Operation does not verify: Exactly one of step_attr or step_val must be set
+
+// -----
+
+%lb, %ub = "test.op"() : () -> (!x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of step_attr or step_val must be set
 
 // -----
 
