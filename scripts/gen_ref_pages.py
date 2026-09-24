@@ -10,7 +10,7 @@ REFERENCE_DIR = ROOT / "docs" / "reference"
 
 
 def build_literate_nav(entries: list[tuple[tuple[str, ...], Path]]) -> str:
-    """Build the literate navigation previously provided by mkdocs-gen-files."""
+    """Build the literate navigation."""
     lines: list[str] = []
     previous_parts: tuple[str, ...] = ()
 
