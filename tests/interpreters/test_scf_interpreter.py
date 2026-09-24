@@ -12,6 +12,40 @@ from xdsl.ir import BlockArgument
 index = IndexType()
 
 
+def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
+    module_op.verify()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(ScfFunctions())
+    interpreter.register_implementations(FuncFunctions())
+    interpreter.register_implementations(ArithFunctions())
+    (result,) = interpreter.call_op(func_name, (n,))
+    return result
+
+
+def test_if():
+    @ModuleOp
+    @Builder.implicit_region
+    def module_op():
+        with ImplicitBuilder(func.FuncOp("indicator", ((i1,), (i32,))).body) as (cond,):
+
+            @Builder.implicit_region
+            def true_region():
+                one = arith.ConstantOp.from_int_and_width(1, i32)
+                scf.YieldOp(one)
+
+            @Builder.implicit_region
+            def false_region():
+                zero = arith.ConstantOp.from_int_and_width(0, i32)
+                scf.YieldOp(zero)
+
+            result = scf.IfOp(cond, (i32,), true_region, false_region)
+
+            func.ReturnOp(result)
+
+    assert scf_interp(module_op, "indicator", True) == 1
+    assert scf_interp(module_op, "indicator", False) == 0
+
+
 def sum_to_for_fn(n: int) -> int:
     """
     Python implementation of sum_to_for_op
@@ -40,46 +74,12 @@ def sum_to_for_op():
         func.ReturnOp(result)
 
 
-def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
-    module_op.verify()
-    interpreter = Interpreter(module_op)
-    interpreter.register_implementations(ScfFunctions())
-    interpreter.register_implementations(FuncFunctions())
-    interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op(func_name, (n,))
-    return result
-
-
 @pytest.mark.parametrize("n,res", [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)])
-def test_sum_to(n: int, res: int):
+def test_for_via_sum_to(n: int, res: int):
     assert res == scf_interp(sum_to_for_op, "sum_to", n)
 
 
-def test_if():
-    @ModuleOp
-    @Builder.implicit_region
-    def module_op():
-        with ImplicitBuilder(func.FuncOp("indicator", ((i1,), (i32,))).body) as (cond,):
-
-            @Builder.implicit_region
-            def true_region():
-                one = arith.ConstantOp.from_int_and_width(1, 32)
-                scf.YieldOp(one)
-
-            @Builder.implicit_region
-            def false_region():
-                zero = arith.ConstantOp.from_int_and_width(0, 32)
-                scf.YieldOp(zero)
-
-            result = scf.IfOp(cond, (i32,), true_region, false_region)
-
-            func.ReturnOp(result)
-
-    assert scf_interp(module_op, "indicator", True) == 1
-    assert scf_interp(module_op, "indicator", False) == 0
-
-
-def test_tracer():
+def test_for_tracer():
     tracer = OpCounter()
     interpreter = Interpreter(sum_to_for_op.clone(), listeners=(tracer,))
     interpreter.register_implementations(ScfFunctions())
