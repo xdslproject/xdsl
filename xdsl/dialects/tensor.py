@@ -826,10 +826,12 @@ class ExtractOp(IRDLOperation):
 
     name = "tensor.extract"
 
-    tensor = operand_def(TensorType)
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+
+    tensor = operand_def(TensorType.constr(ELEMENT))
     indices = var_operand_def(IndexType)
-    result = result_def(Attribute)
-    # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+    result = result_def(ELEMENT)
+    assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
     traits = traits_def(Pure())
 
     def __init__(
@@ -841,26 +843,6 @@ class ExtractOp(IRDLOperation):
         if isinstance(indices, SSAValue):
             indices = [indices]
         return super().__init__(operands=[tensor, indices], result_types=[result_type])
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.tensor)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_ssa_value)
-        printer.print_string("]")
-        printer.print_string(" : ")
-        printer.print_attribute(self.tensor.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        tensor = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
-        parser.parse_punctuation(":")
-        source_tensor_type = parser.parse_type()
-        tensor_type = cast(TensorType[Attribute], source_tensor_type)
-        return cls(tensor, indices, tensor_type.get_element_type())
 
 
 @irdl_op_definition
@@ -877,11 +859,14 @@ class InsertOp(IRDLOperation):
 
     name = "tensor.insert"
 
-    scalar = operand_def(Attribute)
-    dest = operand_def(TensorType)
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+    TENSOR: ClassVar = VarConstraint("TENSOR", TensorType.constr(ELEMENT))
+
+    scalar = operand_def(ELEMENT)
+    dest = operand_def(TENSOR)
     indices = var_operand_def(IndexType)
-    result = result_def(TensorType)
-    # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+    result = result_def(TENSOR)
+    assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
     traits = traits_def(Pure())
 
     def __init__(
@@ -893,29 +878,6 @@ class InsertOp(IRDLOperation):
         if isinstance(indices, SSAValue):
             indices = [indices]
         super().__init__(operands=(scalar, dest, indices), result_types=(dest.type,))
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.scalar)
-        printer.print_string(" into ")
-        printer.print_ssa_value(self.dest)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_ssa_value)
-        printer.print_string("]")
-        printer.print_string(" : ")
-        printer.print_attribute(self.dest.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        scalar = parser.parse_operand()
-        parser.parse_characters("into")
-        dest = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(scalar, dest, indices)
 
 
 @irdl_op_definition
