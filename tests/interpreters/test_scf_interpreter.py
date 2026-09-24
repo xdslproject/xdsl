@@ -15,22 +15,18 @@ from xdsl.utils.test_value import create_ssa_value
 index = IndexType()
 
 
-@ModuleOp
-@Builder.implicit_region
-def sum_to_for_op():
-    with ImplicitBuilder(func.FuncOp("sum_to", ((index,), (index,))).body) as (ub,):
-        lb = arith.ConstantOp.from_int_and_width(0, index)
-        step = arith.ConstantOp.from_int_and_width(1, index)
-        initial = arith.ConstantOp.from_int_and_width(0, index)
+@pytest.mark.parametrize("cond_value", [True, False])
+def test_if(cond_value: bool):
+    true_region = Region(Block())
+    false_region = Region(Block())
+    if_op = scf.IfOp(create_ssa_value(i1), (i32,), true_region, false_region)
 
-        @Builder.implicit_region((index, index))
-        def for_loop_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
-            res = arith.AddiOp(i, acc)
-            scf.YieldOp(res)
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(42,))
 
-        result = scf.ForOp(lb, ub, step, (initial,), for_loop_region)
-        func.ReturnOp(result)
+    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult((42,), None)
+    expected_region = true_region if cond_value else false_region
+    interpreter.run_ssacfg_region.assert_called_once_with(expected_region, ())
 
 
 @pytest.mark.parametrize(
@@ -57,20 +53,22 @@ def test_for(ub: int, body_args: tuple[tuple[int, int], ...], expected_result: i
     ]
 
 
-@pytest.mark.parametrize("cond_value", [True, False])
-def test_if(cond_value: bool):
-    true_region = Region(Block())
-    false_region = Region(Block())
-    if_op = scf.IfOp(create_ssa_value(i1), (i32,), true_region, false_region)
+@ModuleOp
+@Builder.implicit_region
+def sum_to_for_op():
+    with ImplicitBuilder(func.FuncOp("sum_to", ((index,), (index,))).body) as (ub,):
+        lb = arith.ConstantOp.from_int_and_width(0, index)
+        step = arith.ConstantOp.from_int_and_width(1, index)
+        initial = arith.ConstantOp.from_int_and_width(0, index)
 
-    interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(return_value=(42,))
+        @Builder.implicit_region((index, index))
+        def for_loop_region(args: tuple[BlockArgument, ...]):
+            (i, acc) = args
+            res = arith.AddiOp(i, acc)
+            scf.YieldOp(res)
 
-    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult(
-        (42,), None
-    )
-    expected_region = true_region if cond_value else false_region
-    interpreter.run_ssacfg_region.assert_called_once_with(expected_region, ())
+        result = scf.ForOp(lb, ub, step, (initial,), for_loop_region)
+        func.ReturnOp(result)
 
 
 def test_tracer():
