@@ -65,3 +65,20 @@ class ScfFunctions(InterpreterFunctions):
             loop_args = interpreter.run_ssacfg_region(
                 op.after_region, tuple(forwarded_args), "while.after_region"
             )
+
+    @impl(scf.IndexSwitchOp)
+    def run_index_switch(
+        self, interpreter: Interpreter, op: scf.IndexSwitchOp, args: PythonValues
+    ) -> PythonValues:
+        index = args[0]
+        cases: tuple[int, ...] = op.cases.get_values()
+        try:
+            case = cases.index(index)
+        except ValueError:
+            return interpreter.run_ssacfg_region(
+                op.default_region, (), "index_switch.case default"
+            )
+
+        return interpreter.run_ssacfg_region(
+            op.case_regions[case], (), f"index_switch.case {case}"
+        )
