@@ -96,7 +96,8 @@ class LowerX86ScfForPattern(RewritePattern):
         # Get the induction variable and its register
         iv = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
         iv_used = iv.first_use is not None
-        ub = op.ub
+        start = op.start
+        stop = op.stop
         step = op.step
 
         # Append the induction variable stepping logic to the last body block, add
@@ -112,11 +113,11 @@ class LowerX86ScfForPattern(RewritePattern):
         step_op.register_out.name_hint = iv.name_hint
         new_iv = step_op.register_out
 
-        match ub:
+        match stop:
             case SSAValue():
-                cmp_op = x86.ops.SS_CmpOp(new_iv, ub)
+                cmp_op = x86.ops.SS_CmpOp(new_iv, stop)
             case builtin.IntegerAttr():
-                cmp_op = x86.ops.SI_CmpOp(new_iv, ub)
+                cmp_op = x86.ops.SI_CmpOp(new_iv, stop)
 
         # Insert comparison and jump to beginning of loop
         rewriter.replace(
@@ -143,20 +144,20 @@ class LowerX86ScfForPattern(RewritePattern):
             else InsertPoint.at_start(first_body_block),
         )
 
-        end_block.args[0].name_hint = op.lb_end.name_hint
+        end_block.args[0].name_hint = op.iv_end.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         if (
-            isinstance(lb_owner := op.lb.owner, x86.DI_MovOp)
-            and isinstance(ub, builtin.IntegerAttr)
-            and lb_owner.immediate.value.data < ub.value.data
+            isinstance(start_owner := start.owner, x86.DI_MovOp)
+            and isinstance(stop, builtin.IntegerAttr)
+            and start_owner.immediate.value.data < stop.value.data
         ):
             # Loop executes at least once, fallthrough directly into it without runtime checks
             rewriter.insert(
                 (
                     x86.ops.FallthroughOp(
-                        (op.lb, *op.iter_args),
+                        (start, *op.iter_args),
                         first_body_block,
                     ),
                 ),
@@ -171,18 +172,18 @@ class LowerX86ScfForPattern(RewritePattern):
             )
         else:
             # Skip for loop if condition is not satisfied at start.
-            # lb is the IV register (inout); legalization inserts a copy when needed.
+            # start is the IV register (inout); legalization inserts a copy when needed.
             rewriter.insert(
                 (
                     cmp_op := (
-                        x86.ops.SS_CmpOp(op.lb, ub)
-                        if isinstance(ub, SSAValue)
-                        else x86.ops.SI_CmpOp(op.lb, ub)
+                        x86.ops.SS_CmpOp(start, stop)
+                        if isinstance(stop, SSAValue)
+                        else x86.ops.SI_CmpOp(start, stop)
                     ),
                     x86.ops.C_JgeOp(
                         cmp_op.result,
-                        (op.lb, *op.iter_args),
-                        (op.lb, *op.iter_args),
+                        (start, *op.iter_args),
+                        (start, *op.iter_args),
                         end_block,
                         first_body_block,
                     ),
