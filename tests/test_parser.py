@@ -59,27 +59,25 @@ from xdsl.utils.str_enum import StrEnum
 
 @pytest.mark.parametrize("defined", [False, True])
 @pytest.mark.parametrize(
-    "previous_type, requested_type",
+    "t",
     [
-        (IndexType(), IndexType()),
-        (IntegerType(32), IntegerType(32)),
-        (MemRefType(i32, [2]), MemRefType(i32, [2])),
+        (IndexType(),),
+        (IntegerType(32),),
+        (MemRefType(i32, [2]),),
     ],
 )
-def test_resolve_operand_matching_type(
-    defined: bool, previous_type: Attribute, requested_type: Attribute
-):
+def test_resolve_operand_matching_type(defined: bool, t: Attribute):
     parser = Parser(Context(), "%x %x")
     first = parser.parse_unresolved_operand()
     second = parser.parse_unresolved_operand()
     if defined:
-        value = TestOp.create(result_types=[previous_type]).results[0]
+        value = TestOp.create(result_types=[t]).results[0]
         parser._register_ssa_definition("x", (value,), first.span)
     else:
-        value = parser.resolve_operand(first, previous_type)
-        assert value.type is previous_type
+        value = parser.resolve_operand(first, t)
+        assert value.type is t
 
-    assert parser.resolve_operand(second, requested_type) is value
+    assert parser.resolve_operand(second, t) is value
 
 
 @pytest.mark.parametrize("defined", [False, True])
