@@ -64,7 +64,7 @@ class ScfForLowering(RewritePattern):
         rewriter.replace(
             op,
             (
-                iter_count := riscv.SubOp(op.ub, op.lb),
+                iter_count := riscv.SubOp(op.stop, op.start),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
                 riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,

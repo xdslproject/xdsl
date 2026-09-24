@@ -65,8 +65,13 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
-    lb = operand_def(IntRegisterType)
-    ub = operand_def(IntRegisterType)
+    """
+    Loops where `start` initializes the IV and `stop` is the exclusive termination bound.
+    For reverse loops these are the upper and lower bounds respectively.
+    """
+
+    start = operand_def(IntRegisterType)
+    stop = operand_def(IntRegisterType)
     step_val = opt_operand_def(IntRegisterType)
     step_attr = opt_prop_def(IntegerAttr[IntegerType])
 
@@ -92,16 +97,18 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     def __init__(
         self,
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
+        start: SSAValue | Operation,
+        stop: SSAValue | Operation,
         step: SSAValue | Operation | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
-        lb = SSAValue.get(lb)
+        start = SSAValue.get(start)
         if body is None:
             body = Region(
-                Block(arg_types=(lb.type, *(iter_arg.type for iter_arg in iter_args)))
+                Block(
+                    arg_types=(start.type, *(iter_arg.type for iter_arg in iter_args))
+                )
             )
 
         if isinstance(body, Block):
@@ -115,7 +122,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             step_val = step
 
         super().__init__(
-            operands=[lb, ub, step_val, iter_args],
+            operands=[start, stop, step_val, iter_args],
             properties={"step_attr": step_attr},
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
@@ -194,8 +201,8 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         # Induction variable
         allocator.allocate_value(block_args[0])
 
-        # ub is used throughout the loop; step_val only when dynamic
-        allocator.allocate_value(self.ub)
+        # stop is used throughout the loop; step_val only when dynamic
+        allocator.allocate_value(self.stop)
         if self.step_val is not None:
             allocator.allocate_value(self.step_val)
 
@@ -206,16 +213,17 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         with allocator.available_registers.reserve_registers(regs):
             allocator.allocate_block(self.body.block)
 
-        # lb is only used as an input to the loop, so free induction variable before
-        # allocating lb to it in case it's not yet allocated
+        # start is only used as an input to the loop, so free induction variable before
+        # allocating start to it in case it's not yet allocated
         allocator.free_value(self.body.block.args[0])
-        allocator.allocate_value(self.lb)
+        allocator.allocate_value(self.start)
 
 
 @irdl_op_definition
 class ForOp(ForRofOperation):
     """
-    A for loop, counting up from lb to ub by step each iteration.
+    A for loop over [start, stop), incrementing by a positive step.
+    If start >= stop the body does not execute.
     """
 
     name = "riscv_scf.for"
@@ -223,8 +231,8 @@ class ForOp(ForRofOperation):
     def print(self, printer: Printer):
         print_for_op_like(
             printer,
-            self.lb,
-            self.ub,
+            self.start,
+            self.stop,
             self.step,
             self.iter_args,
             self.body,
@@ -232,12 +240,12 @@ class ForOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
+        start, stop, step, iter_arg_operands, body = parse_for_op_like(
             parser, allow_static_step=True
         )
         _, *iter_args = body.block.args
 
-        for_op = cls(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(start, stop, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
@@ -249,17 +257,8 @@ class ForOp(ForRofOperation):
 @irdl_op_definition
 class RofOp(ForRofOperation):
     """
-    Reverse Order For loop.
-
-    MLIR's for loops have the constraint of always executing from lb to ub,
-    so in order to express loops that count down from ub to lb, the rof op
-    is needed.
-
-    Rof has the semantics of going from ub to lb, decrementing by step each time.
-    The implicit constraints are that lb < ub, and step > 0.
-
-    In order to convert a for to a rof, one needs to switch lb and ub.
-    (for the normalized case that (ub - lb) % step == 0)
+    A reverse loop over (stop, start], decrementing by a positive step.
+    If start <= stop the body does not execute.
     """
 
     name = "riscv_scf.rof"
@@ -267,8 +266,8 @@ class RofOp(ForRofOperation):
     def print(self, printer: Printer):
         print_for_op_like(
             printer,
-            self.ub,
-            self.lb,
+            self.start,
+            self.stop,
             self.step,
             self.iter_args,
             self.body,
@@ -277,12 +276,12 @@ class RofOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        ub, lb, step, iter_arg_operands, body = parse_for_op_like(
+        start, stop, step, iter_arg_operands, body = parse_for_op_like(
             parser, bound_words=["down", "to"], allow_static_step=True
         )
         _, *iter_args = body.block.args
 
-        rof_op = cls(lb, ub, step, iter_arg_operands, body)
+        rof_op = cls(start, stop, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in rof_op.get_traits_of_type(SingleBlockImplicitTerminator):

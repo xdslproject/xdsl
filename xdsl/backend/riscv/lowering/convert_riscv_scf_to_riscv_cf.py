@@ -125,7 +125,7 @@ class LowerRiscvScfForPattern(RewritePattern):
                 add_op,
                 riscv_cf.BltOp(
                     add_op.rd,
-                    op.ub,
+                    op.stop,
                     (add_op.rd, *yield_op.operands),
                     (add_op.rd, *yield_op.operands),
                     first_body_block,
@@ -140,10 +140,10 @@ class LowerRiscvScfForPattern(RewritePattern):
         # Skip for loop if condition is not satisfied at start.
         rewriter.insert(
             (
-                mv_op := riscv.MVOp(op.lb, rd=iv_reg),
+                mv_op := riscv.MVOp(op.start, rd=iv_reg),
                 riscv_cf.BgeOp(
                     mv_op.rd,
-                    op.ub,
+                    op.stop,
                     (mv_op.rd, *op.iter_args),
                     (mv_op.rd, *op.iter_args),
                     end_block,
