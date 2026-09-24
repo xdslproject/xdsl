@@ -99,3 +99,45 @@ x86_scf.rof %i : !x86.reg64 = %ub down to 0 : si32 step 1 : si32 {
 }) : (!x86.reg64<rax>) -> (!x86.reg64<rax>)
 
 // CHECK: Operation does not verify: Expected induction var to be same type as lb
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb to %ub step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The x86_scf.for must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+%wrong = "test.op"() : () -> !x86.reg64<r10>
+
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb to %ub step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield %wrong : !x86.reg64<r10>
+}
+
+// CHECK: Expected !x86.reg64<r11>, got !x86.reg64<r10>. The x86_scf.for's x86_scf.yield must match carried variables types.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The x86_scf.rof must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+%wrong = "test.op"() : () -> !x86.reg64<r10>
+
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield %wrong : !x86.reg64<r10>
+}
+
+// CHECK: Expected !x86.reg64<r11>, got !x86.reg64<r10>. The x86_scf.rof's x86_scf.yield must match carried variables types.
