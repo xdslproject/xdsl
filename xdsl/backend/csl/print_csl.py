@@ -393,10 +393,11 @@ class CslPrintContext:
                 return "bool"
             case IntegerType(
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
+                width=IntAttr(data=width),  # pyright: ignore[reportUnknownVariableType]
             ):
-                return f"u{type_attr.width.data}"
-            case IntegerType():
-                return f"i{type_attr.width.data}"
+                return f"u{width}"
+            case IntegerType(width=IntAttr(data=width)):  # pyright: ignore[reportUnknownVariableType]
+                return f"i{width}"
             case MemRefType(element_type=Attribute() as elem_t, shape=shape):
                 if any(dim.data == DYNAMIC_INDEX for dim in shape):
                     raise ValueError(
@@ -440,8 +441,8 @@ class CslPrintContext:
         and converts it to a csl expression representing that value literal (0, 3.14, ...)
         """
         match attr:
-            case IntAttr():
-                return str(attr.data)
+            case IntAttr(data=data):  # pyright: ignore[reportUnknownVariableType]
+                return f"{data}"
             case IntegerAttr(value=val, type=IntegerType(width=IntAttr(data=1))):
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):

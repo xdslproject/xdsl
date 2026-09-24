@@ -104,8 +104,7 @@ class DialectStubGenerator:
             case AnyAttr():
                 self._import(xdsl.ir, Attribute)
                 return "Attribute"
-            case ParamAttrConstraint():
-                base_type = constraint.base_attr
+            case ParamAttrConstraint(base_attr=base_type):  # pyright: ignore[reportUnknownVariableType]
                 return base_type.__name__
 
             case _:

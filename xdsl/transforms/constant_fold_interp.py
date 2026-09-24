@@ -23,6 +23,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -75,11 +76,8 @@ class ConstantFoldInterpPattern(RewritePattern):
         rewriter.replace(op, new_ops, [new_op.results[0] for new_op in new_ops])
 
     def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
-        match (value, value_type):
-            case int(), IntegerType():
-                return IntegerAttr(value, value_type)
-            case _:
-                return None
+        if isa(value, int) and isa(value_type, IntegerType):
+            return IntegerAttr(value, value_type)
 
 
 class ConstantFoldInterpPass(ModulePass):
