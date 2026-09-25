@@ -80,6 +80,6 @@ def test_apply_registered_pass():
                 "builtin.module targets"
             ),
         ):
-            (result,) = interpreter.run_op(op, (constant,))
+            interpreter.run_op(op, (constant,))
 
     apply_1.assert_not_called()
