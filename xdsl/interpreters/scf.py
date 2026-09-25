@@ -39,3 +39,46 @@ class ScfFunctions(InterpreterFunctions):
         self, _interpreter: Interpreter, op: scf.YieldOp, args: PythonValues
     ) -> tuple[TerminatorValue, PythonValues]:
         return ReturnedValues(args), ()
+
+    @impl_terminator(scf.ConditionOp)
+    def run_condition(
+        self, _interpreter: Interpreter, op: scf.ConditionOp, args: PythonValues
+    ) -> tuple[TerminatorValue, PythonValues]:
+        return ReturnedValues(args), ()
+
+    @impl(scf.WhileOp)
+    def run_while(
+        self, interpreter: Interpreter, op: scf.WhileOp, args: PythonValues
+    ) -> PythonValues:
+        loop_args = args
+
+        while True:
+            # while "before" region is terminated by an scf.condition op, of which `args[0]` is the i1 condition operand and
+            # `args[1:]` are the values forwarded to the after-region (if the condition holds) or returned as the results of the
+            # op (otherwise).
+            condition, *forwarded_args = interpreter.run_ssacfg_region(
+                op.before_region, loop_args, "while.before_region"
+            )
+            if not condition:
+                return tuple(forwarded_args)
+
+            loop_args = interpreter.run_ssacfg_region(
+                op.after_region, tuple(forwarded_args), "while.after_region"
+            )
+
+    @impl(scf.IndexSwitchOp)
+    def run_index_switch(
+        self, interpreter: Interpreter, op: scf.IndexSwitchOp, args: PythonValues
+    ) -> PythonValues:
+        index = args[0]
+        cases: tuple[int, ...] = op.cases.get_values()
+        try:
+            case = cases.index(index)
+        except ValueError:
+            return interpreter.run_ssacfg_region(
+                op.default_region, (), "index_switch.case default"
+            )
+
+        return interpreter.run_ssacfg_region(
+            op.case_regions[case], (), f"index_switch.case {case}"
+        )
