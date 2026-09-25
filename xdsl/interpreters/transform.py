@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from xdsl.context import Context
-from xdsl.dialects import transform
+from xdsl.dialects import builtin, transform
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -14,6 +14,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.passes import ModulePass, PassPipeline
+from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
@@ -43,10 +44,16 @@ class TransformFunctions(InterpreterFunctions):
         op: transform.ApplyRegisteredPassOp,
         args: PythonValues,
     ) -> PythonValues:
+        (target,) = args
         pass_name = op.pass_name.data
+        if not isinstance(target, builtin.ModuleOp):
+            raise InterpretationError(
+                "transform.apply_registered_pass currently supports only builtin.module targets"
+            )
+
         pipeline = PassPipeline.parse_spec(self.passes, pass_name)
-        pipeline.apply(self.ctx, args[0])
-        return (args[0],)
+        pipeline.apply(self.ctx, target)
+        return (target,)
 
     @impl_terminator(transform.YieldOp)
     def run_yield_op(

@@ -1,11 +1,19 @@
+import re
+from unittest.mock import patch
+
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import builtin, func, transform
+from xdsl.dialects import arith, builtin, func, transform
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.transform import TransformFunctions
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.transforms import get_all_passes
+from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_empty_transform_module():
@@ -42,3 +50,36 @@ def test_empty_transform_module():
     expected = Parser(ctx, payload).parse_module()
     (observed,) = interpreter.call_op(named_sequence, (expected,))
     assert expected is observed
+
+
+def test_apply_registered_pass():
+    ctx = Context()
+
+    op = transform.ApplyRegisteredPassOp(
+        "canonicalize", create_ssa_value(transform.AnyOpType())
+    )
+    payload = builtin.ModuleOp([op])
+    interpreter = Interpreter(payload)
+    interpreter.register_implementations(
+        TransformFunctions(ctx, {"canonicalize": lambda: CanonicalizePass})
+    )
+
+    payload = builtin.ModuleOp([])
+    with patch.object(CanonicalizePass, "apply", autospec=True) as apply_0:
+        (result,) = interpreter.run_op(op, (payload,))
+
+    assert result is payload
+    apply_0.assert_called_once_with(CanonicalizePass(), ctx, payload)
+
+    constant = arith.ConstantOp(builtin.IntegerAttr(1, builtin.i32))
+    with patch.object(CanonicalizePass, "apply", autospec=True) as apply_1:
+        with pytest.raises(
+            InterpretationError,
+            match=re.escape(
+                "transform.apply_registered_pass currently supports only "
+                "builtin.module targets"
+            ),
+        ):
+            interpreter.run_op(op, (constant,))
+
+    apply_1.assert_not_called()
