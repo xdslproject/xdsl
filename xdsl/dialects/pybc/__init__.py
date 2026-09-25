@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from enum import Enum
 
 from xdsl.dialects.builtin import (
-    FloatAttr,
     IntegerAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -61,7 +60,7 @@ class FunctionOp(IRDLOperation):
 
     sym_name = prop_def(SymbolNameConstraint())
     # var_list = prop_def(ArrayAttr[StringAttr])
-    body = region_def("single_block")
+    body = region_def()
 
     assembly_format = "$sym_name `(`  `)` $body attr-dict"
 
@@ -82,6 +81,10 @@ class FunctionOp(IRDLOperation):
             },
             regions=[Region([block])],
         )
+
+    def get_args(self):
+        assert self.body.first_block
+        return self.body.first_block.args
 
 
 @irdl_op_definition
@@ -121,10 +124,10 @@ class StoreFastOp(IRDLOperation):
 @irdl_op_definition
 class LoadConstOp(IRDLOperation):
     name = "pybc.load_const"
-    const = prop_def(FloatAttr)
+    const = prop_def(IntegerAttr)
 
-    def __init__(self, value: float):
-        super().__init__(properties={"const": FloatAttr(value, 64)})
+    def __init__(self, value: int):
+        super().__init__(properties={"const": IntegerAttr(value, 64)})
 
 
 class PybcOp(Enum):
