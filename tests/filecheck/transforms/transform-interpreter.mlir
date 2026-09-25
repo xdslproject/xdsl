@@ -20,9 +20,11 @@ module {
 
 // The string will be printed before the rest of the IR.
 
+//  CHECK-NOT:  {{^}}executed custom entry{{$}}
 //      CHECK:  executed default entry
 // CHECK-NEXT:  builtin.module
 
+//  ENTRY-NOT:  {{^}}executed default entry{{$}}
 //      ENTRY:  executed custom entry
 // ENTRY-NEXT:  builtin.module
 
