@@ -177,8 +177,8 @@ report.ignore_errors = true
 [tool.basedpyright]
 typeCheckingMode = "strict"
 include = [ "benchmarks", "docs", "tests", "xdsl" ]
-# Ignore local Jupyter checkpoints left over from the former notebook sources.
-exclude = [ "**/.ipynb_checkpoints", "docs/notebooks" ]
+# Ignore marimo.
+exclude = [ "docs/notebooks" ]
 extraPaths = [ "tests" ]
 # We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
