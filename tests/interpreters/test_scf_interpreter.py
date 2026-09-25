@@ -3,11 +3,12 @@ import pytest
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
-from xdsl.interpreter import Interpreter, OpCounter
+from xdsl.interpreter import Interpreter, OpCounter, ReturnedValues
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.ir import BlockArgument
+from xdsl.utils.test_value import create_ssa_value
 
 index = IndexType()
 
@@ -95,3 +96,23 @@ def test_tracer():
         "arith.addi": 5,
         "func.return": 1,
     }
+
+
+@pytest.mark.parametrize("cond_value", [True, False])
+def test_condition_op(cond_value: bool):
+    interpreter = Interpreter(ModuleOp([]))
+    scf_functions = ScfFunctions()
+    interpreter.register_implementations(scf_functions)
+
+    cond = create_ssa_value(i1)
+    a = create_ssa_value(i32)
+    b = create_ssa_value(i32)
+
+    condition_op = scf.ConditionOp(cond, a, b)
+
+    res = scf_functions.run_condition(interpreter, condition_op, (cond_value, 1, 2))
+
+    assert res.values == ()
+    assert res.terminator_value is not None
+    assert isinstance(res.terminator_value, ReturnedValues)
+    assert res.terminator_value.values == (cond_value, 1, 2)
