@@ -39,3 +39,9 @@ class ScfFunctions(InterpreterFunctions):
         self, _interpreter: Interpreter, op: scf.YieldOp, args: PythonValues
     ) -> tuple[TerminatorValue, PythonValues]:
         return ReturnedValues(args), ()
+
+    @impl_terminator(scf.ConditionOp)
+    def run_condition(
+        self, _interpreter: Interpreter, op: scf.ConditionOp, args: PythonValues
+    ) -> tuple[TerminatorValue, PythonValues]:
+        return ReturnedValues(args), ()
