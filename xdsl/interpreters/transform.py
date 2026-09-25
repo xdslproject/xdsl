@@ -15,7 +15,6 @@ from xdsl.interpreter import (
 )
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -47,7 +46,7 @@ class TransformFunctions(InterpreterFunctions):
     ) -> PythonValues:
         (target,) = args
         pass_name = op.pass_name.data
-        if not isa(target, builtin.ModuleOp):
+        if not isinstance(target, builtin.ModuleOp):
             raise InterpretationError(
                 "transform.apply_registered_pass currently supports only builtin.module targets"
             )
