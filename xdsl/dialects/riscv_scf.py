@@ -154,13 +154,13 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The riscv_scf.for must yield its carried variables."
+                    f"The {self.name} must yield its carried variables."
                 )
             for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
                 if iter_arg.type != yield_arg.type:
                     raise VerifyException(
                         f"Expected {iter_arg.type}, got {yield_arg.type}. The "
-                        f"riscv_scf.for's riscv_scf.yield must match carried"
+                        f"{self.name}'s {YieldOp.name} must match carried "
                         f"variables types."
                     )
 
@@ -178,7 +178,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
         yield_op = self.body.block.last_op
         assert yield_op is not None, (
-            "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+            f"last op of {self.name} is guaranteed to be {YieldOp.name}"
         )
         block_args = self.body.block.args
 
