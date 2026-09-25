@@ -3,19 +3,21 @@ from types import FunctionType
 
 from bytecode import Bytecode, Instr
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.builder import Builder
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.pybc import (
     BinaryOpOp,
-    CoOp,
+    FunctionOp,
     LoadConstOp,
     LoadFastOp,
     PybcOp,
-    ResumeOp,
+    # ResumeOp,
     ReturnValueOp,
     StoreFastOp,
 )
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import IRDLOperation
+from xdsl.rewriter import InsertPoint
 
 _BINARY_OP_MAP: dict[str, PybcOp] = {
     "+": PybcOp.OP_ADD,
@@ -25,47 +27,61 @@ _BINARY_OP_MAP: dict[str, PybcOp] = {
 }
 
 
+def ssavalue_name(ssa: SSAValue):
+    return ssa.name_hint
+
+
 class PybcGen:
     def __init__(self) -> None:
-        pass
+        self.stack: list[IRDLOperation] = []
+        self.str_ssa_mapping: dict[str, SSAValue] = dict()
 
-    def inst_to_pybc_op(self, inst: dis.Instruction) -> IRDLOperation:
+    def inst_to_pybc_op(self, inst: dis.Instruction) -> IRDLOperation | None:
         match inst.opname:
             case "RESUME":
-                return ResumeOp()
+                return None
 
             case "LOAD_FAST":
                 assert inst.arg is not None
-                return LoadFastOp(inst.arg)
+
+                self.stack.append(
+                    LoadFastOp(inst.arg, self.str_ssa_mapping[inst.argval])
+                )
+                return self.stack[-1]
 
             case "LOAD_CONST":
-                return LoadConstOp(inst.argval)
+                self.stack.append(LoadConstOp(inst.argval))
+                return self.stack[-1]
 
             case "STORE_FAST":
                 assert inst.arg is not None
-                return StoreFastOp(inst.arg)
+                self.stack.pop()
+                return StoreFastOp(inst.arg, self.str_ssa_mapping[inst.argval])
 
             case "BINARY_OP":
                 symbol = inst.argrepr
                 if symbol not in _BINARY_OP_MAP:
                     raise NotImplementedError(f"Unknown binary operator: {symbol!r}")
-                return BinaryOpOp(_BINARY_OP_MAP[symbol])
+
+                lhs = self.stack.pop()
+                rhs = self.stack.pop()
+                self.stack.append(BinaryOpOp(_BINARY_OP_MAP[symbol], lhs, rhs))
+
+                return self.stack[-1]
 
             case "RETURN_VALUE":
-                return ReturnValueOp()
+                return ReturnValueOp(self.stack.pop())
 
             case other:
                 raise NotImplementedError(f"Instruction not supported: {other}")
 
-    def pybcop_to_inst(
-        self, op: Operation, co_varname: list[StringAttr]
-    ) -> Instr | None:
+    def pybcop_to_inst(self, op: Operation) -> Instr | None:
         match op:
             case LoadFastOp():
-                return Instr("LOAD_FAST", co_varname[op.var_index.value.data].data)
+                return Instr("LOAD_FAST", op.var_name.name_hint)
 
             case StoreFastOp():
-                return Instr("STORE_FAST", co_varname[op.var_index.value.data].data)
+                return Instr("STORE_FAST", op.var_name.name_hint)
 
             case LoadConstOp():
                 return Instr("LOAD_CONST", op.const.value.data)
@@ -73,58 +89,71 @@ class PybcGen:
             case BinaryOpOp():
                 return Instr("BINARY_OP", op.op.data.value)
 
-            case ResumeOp():
-                return Instr("RESUME", 0)
-
             case ReturnValueOp():
                 return Instr("RETURN_VALUE")
 
             case other:
                 raise NotImplementedError(f"Instruction {other} not supported")
 
-    def gen_pybytecode(self, func) -> ModuleOp:
-        ops: list[Operation] = []
-        for inst in dis.get_instructions(func):
-            ops.append(self.inst_to_pybc_op(inst))
+    def gen_pybytecode(self, func: FunctionType) -> ModuleOp:
+        name = func.__name__
+        code = func.__code__
 
-        co_op = CoOp(
-            func.__name__,
-            list(func.__code__.co_varnames),
-            arg_count=func.__code__.co_argcount,
-            ops=ops,
+        arg_count = code.co_argcount + code.co_kwonlyargcount
+
+        sym_list = code.co_varnames
+        arg_list = sym_list[:arg_count]
+        var_list = sym_list[arg_count:]
+
+        funcop = FunctionOp(
+            name,
+            arg_list,
+            var_list,
+            ops=[],
         )
+        builder = Builder(insertion_point=InsertPoint.at_start(funcop.body.first_block))
+        assert funcop.body.first_block is not None
+        for i, arg in enumerate(funcop.body.first_block.args):
+            self.str_ssa_mapping[arg_list[i]] = arg
 
-        return ModuleOp([co_op])
+        for inst in dis.get_instructions(func):
+            op = self.inst_to_pybc_op(inst)
+            if op:
+                builder.insert(op)
+
+        self.stack = []
+        self.str_ssa_mapping = dict()
+
+        return ModuleOp([funcop])
 
     def gen_bytecode(self, module: ModuleOp) -> FunctionType | None:
         block = module.body.first_block
         if not block:
             return None
 
-        co_op = block.first_op
-        if not co_op:
+        func_op = block.first_op
+        if not func_op:
             return None
 
-        co_varname = list(co_op.var_names)
-        func_name = co_op.sym_name.data
-        arg_names = [s.data for s in co_varname[: co_op.arg_count.value.data]]
+        arg_names = [arg.name_hint for arg in func_op.body.first_block.args]
 
-        insts: list[Instr] = []
-        for op in co_op.walk():
-            if isinstance(op, CoOp):
+        insts: list[Instr] = [Instr("RESUME", 0)]
+        for op in func_op.walk():
+            if isinstance(op, FunctionOp):
                 continue
 
-            inst = self.pybcop_to_inst(op, co_varname)
+            inst = self.pybcop_to_inst(op)
             if inst:
                 insts.append(inst)
 
         bc = Bytecode(insts)
         bc.argnames = arg_names
         bc.argcount = len(arg_names)
-        bc.name = func_name
+        bc.name = func_op.sym_name.data.removeprefix('"').removesuffix('"')
 
         code = bc.to_code()
-        return FunctionType(code, globals(), func_name)
+        new_func = FunctionType(code, globals(), name=bc.name)
+        return new_func
 
 
 class PybcJIT:
@@ -136,11 +165,13 @@ class PybcJIT:
             dis.dis(func)
             generator = PybcGen()
             module = generator.gen_pybytecode(func)
-            rebuild = generator.gen_bytecode(module)
 
             print("Module: ")
             print(module)
 
+            rebuild = generator.gen_bytecode(module)
+            print(rebuild, func)
+            assert rebuild is not None
             print("Regenerated bytecode: ")
             dis.dis(rebuild)
 
