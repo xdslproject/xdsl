@@ -58,18 +58,18 @@ def test_apply_registered_pass():
     op = transform.ApplyRegisteredPassOp(
         "canonicalize", create_ssa_value(transform.AnyOpType())
     )
-    module = builtin.ModuleOp([op])
-    interpreter = Interpreter(module)
+    payload = builtin.ModuleOp([op])
+    interpreter = Interpreter(payload)
     interpreter.register_implementations(
         TransformFunctions(ctx, {"canonicalize": lambda: CanonicalizePass})
     )
 
-    module = builtin.ModuleOp([])
+    payload = builtin.ModuleOp([])
     with patch.object(CanonicalizePass, "apply", autospec=True) as apply_0:
-        (result,) = interpreter.run_op(op, (module,))
+        (result,) = interpreter.run_op(op, (payload,))
 
-    assert result is module
-    apply_0.assert_called_once_with(CanonicalizePass(), ctx, module)
+    assert result is payload
+    apply_0.assert_called_once_with(CanonicalizePass(), ctx, payload)
 
     constant = arith.ConstantOp(builtin.IntegerAttr(1, builtin.i32))
     with patch.object(CanonicalizePass, "apply", autospec=True) as apply_1:
