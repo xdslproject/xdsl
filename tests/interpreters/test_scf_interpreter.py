@@ -1,26 +1,18 @@
+from unittest.mock import Mock, call
+
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
-from xdsl.interpreter import Interpreter, OpCounter, ReturnedValues
+from xdsl.interpreter import Interpreter, OpCounter, OpImplResult, ReturnedValues
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.ir import BlockArgument
+from xdsl.ir import Block, BlockArgument, Region
 from xdsl.utils.test_value import create_ssa_value
 
 index = IndexType()
-
-
-def sum_to_for_fn(n: int) -> int:
-    """
-    Python implementation of sum_to_for_op
-    """
-    result = 0
-    for i in range(0, n, 1):
-        result += i
-    return result
 
 
 @ModuleOp
@@ -41,43 +33,44 @@ def sum_to_for_op():
         func.ReturnOp(result)
 
 
-def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
-    module_op.verify()
-    interpreter = Interpreter(module_op)
-    interpreter.register_implementations(ScfFunctions())
-    interpreter.register_implementations(FuncFunctions())
-    interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op(func_name, (n,))
-    return result
+@pytest.mark.parametrize(
+    "ub,body_args,expected_result",
+    [
+        (1, (), 10),
+        (4, ((1, 10),), 20),
+        (8, ((1, 10), (4, 20), (7, 30)), 40),
+    ],
+)
+def test_for(ub: int, body_args: tuple[tuple[int, int], ...], expected_result: int):
+    lb, upper_bound, step, initial = (create_ssa_value(index) for _ in range(4))
+    body = Region(Block(arg_types=(index, index)))
+    for_op = scf.ForOp(lb, upper_bound, step, (initial,), body)
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(side_effect=[(20,), (30,), (40,)])
+
+    assert ScfFunctions().run_for(interpreter, for_op, (1, ub, 3, 10)) == OpImplResult(
+        (expected_result,), None
+    )
+    assert interpreter.run_ssacfg_region.call_args_list == [
+        call(body, args, "for_loop") for args in body_args
+    ]
 
 
-@pytest.mark.parametrize("n,res", [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)])
-def test_sum_to(n: int, res: int):
-    assert res == scf_interp(sum_to_for_op, "sum_to", n)
+@pytest.mark.parametrize("cond_value", [True, False])
+def test_if(cond_value: bool):
+    true_region = Region(Block())
+    false_region = Region(Block())
+    if_op = scf.IfOp(create_ssa_value(i1), (i32,), true_region, false_region)
 
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(42,))
 
-def test_if():
-    @ModuleOp
-    @Builder.implicit_region
-    def module_op():
-        with ImplicitBuilder(func.FuncOp("indicator", ((i1,), (i32,))).body) as (cond,):
-
-            @Builder.implicit_region
-            def true_region():
-                one = arith.ConstantOp.from_int_and_width(1, 32)
-                scf.YieldOp(one)
-
-            @Builder.implicit_region
-            def false_region():
-                zero = arith.ConstantOp.from_int_and_width(0, 32)
-                scf.YieldOp(zero)
-
-            result = scf.IfOp(cond, (i32,), true_region, false_region)
-
-            func.ReturnOp(result)
-
-    assert scf_interp(module_op, "indicator", True) == 1
-    assert scf_interp(module_op, "indicator", False) == 0
+    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult(
+        (42,), None
+    )
+    expected_region = true_region if cond_value else false_region
+    interpreter.run_ssacfg_region.assert_called_once_with(expected_region, ())
 
 
 def test_tracer():
