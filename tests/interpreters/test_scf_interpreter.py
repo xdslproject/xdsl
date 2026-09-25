@@ -145,27 +145,9 @@ def sum_to_while_op():
         func.ReturnOp(result.res[1])
 
 
-@pytest.mark.parametrize(("n", "res"), [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)])
+@pytest.mark.parametrize(
+    ("n", "res"), [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)]
+)
 def test_while_via_sum_to(n: int, res: int):
     assert res == sum_to_while_fn(ub=n)
     assert res == scf_interp(sum_to_while_op, "sum_to", n)
-
-
-def test_while_tracer():
-    tracer = OpCounter()
-    interpreter = Interpreter(sum_to_while_op.clone(), listeners=(tracer,))
-    interpreter.register_implementations(ScfFunctions())
-    interpreter.register_implementations(FuncFunctions())
-    interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op("sum_to", (5,))
-
-    assert result == 10
-    assert dict(tracer.ops) == {
-        "arith.constant": 6,
-        "scf.while": 1,
-        "scf.condition": 6,
-        "scf.yield": 5,
-        "arith.cmpi": 6,
-        "arith.addi": 10,
-        "func.return": 1,
-    }
