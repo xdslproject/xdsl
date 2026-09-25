@@ -83,7 +83,7 @@ class FunctionOp(IRDLOperation):
         )
 
     def get_args(self):
-        assert self.body.first_block
+        assert self.body.first_block is not None
         return self.body.first_block.args
 
 

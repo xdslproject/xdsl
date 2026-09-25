@@ -20,7 +20,6 @@ from xdsl.dialects.pybc import (
     StoreFastOp,
 )
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.irdl import IRDLOperation
 from xdsl.rewriter import InsertPoint
 
 _BINARY_OP_MAP: dict[str, PybcOp] = {
@@ -32,26 +31,27 @@ _BINARY_OP_MAP: dict[str, PybcOp] = {
 
 
 def expect_name_hint(ssa: SSAValue | Block) -> str:
-    assert ssa.name_hint
+    assert ssa.name_hint is not None
     return ssa.name_hint
 
 
 def expect_first_op(b: Block) -> Operation:
-    assert b.first_op
+    assert b.first_op is not None
     return b.first_op
 
 
 def expect_first_block(b: Region) -> Block:
-    assert b.first_block
+    assert b.first_block is not None
     return b.first_block
 
 
 class PybcGen:
-    def __init__(self) -> None:
-        self.stack: list[IRDLOperation] = []
-        self.str_ssa_mapping: dict[str, SSAValue] = dict()
-
-    def inst_to_pybc_op(self, inst: dis.Instruction) -> IRDLOperation | None:
+    def inst_to_pybc_op(
+        self,
+        inst: dis.Instruction,
+        stack: list[Operation],
+        variable_ssavalues: dict[str, SSAValue],
+    ) -> Operation | None:
         match inst.opname:
             case "RESUME":
                 return None
@@ -59,33 +59,31 @@ class PybcGen:
             case "LOAD_FAST":
                 assert inst.arg is not None
 
-                self.stack.append(
-                    LoadFastOp(inst.arg, self.str_ssa_mapping[inst.argval])
-                )
-                return self.stack[-1]
+                stack.append(LoadFastOp(inst.arg, variable_ssavalues[inst.argval]))
+                return stack[-1]
 
             case "LOAD_CONST":
-                self.stack.append(LoadConstOp(inst.argval))
-                return self.stack[-1]
+                stack.append(LoadConstOp(inst.argval))
+                return stack[-1]
 
             case "STORE_FAST":
                 assert inst.arg is not None
-                self.stack.pop()
-                return StoreFastOp(inst.arg, self.str_ssa_mapping[inst.argval])
+                stack.pop()
+                return StoreFastOp(inst.arg, variable_ssavalues[inst.argval])
 
             case "BINARY_OP":
                 symbol = inst.argrepr
                 if symbol not in _BINARY_OP_MAP:
                     raise NotImplementedError(f"Unknown binary operator: {symbol!r}")
 
-                lhs = self.stack.pop()
-                rhs = self.stack.pop()
-                self.stack.append(BinaryOpOp(_BINARY_OP_MAP[symbol], lhs, rhs))
+                lhs = stack.pop()
+                rhs = stack.pop()
+                stack.append(BinaryOpOp(_BINARY_OP_MAP[symbol], lhs, rhs))
 
-                return self.stack[-1]
+                return stack[-1]
 
             case "RETURN_VALUE":
-                return ReturnValueOp(self.stack.pop())
+                return ReturnValueOp(stack.pop())
 
             case other:
                 raise NotImplementedError(f"Instruction not supported: {other}")
@@ -111,6 +109,9 @@ class PybcGen:
                 raise NotImplementedError(f"Instruction {other} not supported")
 
     def gen_pybytecode(self, func: FunctionType) -> ModuleOp:
+        stack: list[Operation] = []
+        variable_ssavalues: dict[str, SSAValue] = dict()
+
         name = func.__name__
         code = func.__code__
 
@@ -118,38 +119,32 @@ class PybcGen:
 
         sym_list = code.co_varnames
         arg_list = sym_list[:arg_count]
-        var_list = sym_list[arg_count:]
 
         funcop = FunctionOp(
             name,
             arg_list,
-            var_list,
+            [],
             ops=[],
         )
         builder = Builder(
             insertion_point=InsertPoint.at_start(expect_first_block(funcop.body))
         )
         assert funcop.body.first_block is not None
+
         for i, arg in enumerate(funcop.body.first_block.args):
-            self.str_ssa_mapping[arg_list[i]] = arg
+            variable_ssavalues[arg_list[i]] = arg
 
         for inst in dis.get_instructions(func):
-            op = self.inst_to_pybc_op(inst)
-            if op:
+            op = self.inst_to_pybc_op(inst, stack, variable_ssavalues)
+            if op is not None:
                 builder.insert(op)
-
-        self.stack = []
-        self.str_ssa_mapping = dict()
 
         return ModuleOp([funcop])
 
     def gen_bytecode(self, module: ModuleOp) -> FunctionType | None:
-        block = module.body.first_block
-        if not block:
-            return None
+        block = expect_first_block(module.body)
 
-        func_op = block.first_op
-        assert func_op
+        func_op = expect_first_op(block)
         assert isinstance(func_op, FunctionOp)
 
         arg_names = [expect_name_hint(arg) for arg in func_op.get_args()]
@@ -160,7 +155,7 @@ class PybcGen:
                 continue
 
             inst = self.pybcop_to_inst(op)
-            if inst:
+            if inst is not None:
                 insts.append(inst)
 
         bc = Bytecode(insts)
