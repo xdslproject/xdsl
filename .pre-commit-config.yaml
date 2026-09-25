@@ -28,7 +28,11 @@ repos:
     rev: 4923370d55631aa5b66f612f52d67b2e0ca2a38c # frozen: v3.9.1
     hooks:
       - id: prettier
-        types_or: [yaml]
+        types_or: [yaml, toml]
+        exclude: pyproject.toml|uv.lock # pyproject file formatted by pyproject.fmt
+        additional_dependencies:
+          - prettier@3.9.1
+          - prettier-plugin-toml@3.0.2
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: 67cd950188cc8e2611e9ac21d1b032fdd446c601 # frozen: v2.28.0
     hooks:

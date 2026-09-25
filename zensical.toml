@@ -1,0 +1,74 @@
+[project]
+site_name = "xDSL"
+site_url = "https://xdsl.dev/"
+site_description = "xDSL -- a Python-native compiler framework"
+site_author = "xDSL developers"
+copyright = "Copyright &copy xDSL developers"
+repo_name = "xdslproject/xdsl"
+repo_url = "https://github.com/xdslproject/xdsl"
+exclude_docs = "notebooks/README.md"
+extra_css = ["stylesheets/extra.css"]
+nav = [
+  { xDSL = "https://xdsl.dev/" },
+  { "Getting Started" = "index.md" },
+  { "Tutorial Notebooks" = "notebooks" },
+  { "API Reference" = "reference" },
+  { "User Guide" = "guides" },
+  { News = "https://xdsl.dev/news/" },
+  { Events = "https://xdsl.dev/events/2025-HiPEAC/" },
+  { About = "https://xdsl.dev/about/challenge/" },
+]
+
+[project.theme]
+logo = "assets/img/logos/xdsl-transparent-single.png"
+favicon = "assets/img/logos/xdsl-transparent-single.png"
+language = "en"
+features = [
+  "content.code.annotate",
+  "content.code.copy",
+  "navigation.instant",
+  "navigation.tracking",
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.expand",
+  "navigation.indexes",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "xdsl"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/weather-sunny"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/weather-night"
+toggle.name = "Switch to light mode"
+
+[[project.extra.social]]
+icon = "material/rss"
+link = "https://xdsl.dev/feed.xml"
+name = "Subscribe to our RSS Feed"
+
+[[project.extra.social]]
+icon = "material/chat"
+link = "https://xdsl.zulipchat.com/"
+name = "Chat on Zulip"
+
+[[project.extra.social]]
+icon = "material/github"
+link = "https://github.com/xdslproject"
+name = "Contribute on Github"
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+members_order = "source"
+show_root_heading = true
+show_root_full_path = false
+show_signature_annotations = true
+show_if_no_docstring = true
