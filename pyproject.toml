@@ -19,6 +19,7 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "bytecode>=0.17",
   "immutabledict<4.3.2",
   "ordered-set==4.1",
   "typing-extensions>=4.7,<5",
