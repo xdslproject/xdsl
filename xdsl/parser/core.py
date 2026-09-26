@@ -5,13 +5,15 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Literal, cast, overload
+from typing import Generic, Literal, cast, overload
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, IndexType, LocationAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
+    AttributeInvT,
     Block,
     Operation,
     Region,
@@ -29,7 +31,7 @@ from .generic_parser import ParserState, Position  # noqa: TID251
 
 
 @dataclass(eq=False)
-class ForwardDeclaredValue(SSAValue):
+class ForwardDeclaredValue(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     """
     An SSA value that is used before it is defined.
     It will be replaced to an operation result or a block argument when it is defined.
@@ -294,40 +296,42 @@ class Parser(AttrParser):
         """
         return self.expect(self.parse_optional_unresolved_operand, msg)
 
-    def resolve_operand(self, operand: UnresolvedOperand, type: Attribute) -> SSAValue:
+    def resolve_operand(
+        self, operand: UnresolvedOperand, type: AttributeInvT
+    ) -> SSAValue[AttributeInvT]:
         """
         Resolve an unresolved operand.
         If the operand is not yet defined, it creates a forward reference.
-        If the operand is already defined, it returns the corresponding SSA value,
-        and checks that the type is consistent.
+        If the operand is already defined or forward referenced, it checks that
+        its type equals the requested type before returning the existing SSA value.
         """
         name = operand.operand_name
 
-        # If the indexed operand is already used as a forward reference, return it
+        # Look up an existing forward reference or definition.
+        resolved: SSAValue
         if (
             name in self.forward_ssa_references
             and operand.index in self.forward_ssa_references[name]
         ):
-            return self.forward_ssa_references[name][operand.index]
-
-        # If the operand is not yet defined, create a forward reference
-        if name not in self.ssa_values:
+            resolved = self.forward_ssa_references[name][operand.index]
+        elif name not in self.ssa_values:
+            # A new forward reference has the requested type by construction.
             forward_value = ForwardDeclaredValue(type)
             reference_tuple = self.forward_ssa_references.setdefault(name, {})
             reference_tuple[operand.index] = forward_value
             return forward_value
-
-        # If the operand is already defined, check that the tuple index is in range
-        tuple_size = len(self.ssa_values[name])
-        if operand.index >= tuple_size:
-            self.raise_error(
-                "SSA value tuple index out of bounds. "
-                f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
-                operand.span,
-            )
+        else:
+            # If the operand is already defined, check that the tuple index is in range.
+            tuple_size = len(self.ssa_values[name])
+            if operand.index >= tuple_size:
+                self.raise_error(
+                    "SSA value tuple index out of bounds. "
+                    f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
+                    operand.span,
+                )
+            resolved = self.ssa_values[name][operand.index]
 
         # Check that the type is consistent
-        resolved = self.ssa_values[name][operand.index]
         if resolved.type != type:
             self.raise_error(
                 f"operand is used with type {type}, but has been "
@@ -335,7 +339,8 @@ class Parser(AttrParser):
                 operand.span,
             )
 
-        return resolved
+        # Attribute equality ensures Python type equality.
+        return cast(SSAValue[AttributeInvT], resolved)
 
     def parse_affine_map_of_ssa_ids(
         self,
@@ -352,7 +357,6 @@ class Parser(AttrParser):
             for span in spans
         ]
 
-        operands = cast(Sequence[SSAValue[IndexType]], operands)
         return affine_map, operands
 
     def parse_optional_operand(self) -> SSAValue | None:

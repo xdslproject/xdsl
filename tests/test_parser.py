@@ -5,11 +5,13 @@ from io import StringIO
 from typing import cast
 
 import pytest
+from typing_extensions import assert_type
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I32,
     ArrayAttr,
     Builtin,
     CallSiteLoc,
@@ -21,6 +23,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     NameLoc,
     NoneAttr,
     StringAttr,
@@ -28,10 +31,11 @@ from xdsl.dialects.builtin import (
     UnknownLoc,
     bf16,
     i32,
+    i64,
 )
 from xdsl.dialects.func import Func, FuncOp
-from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, Block, ParametrizedAttribute
+from xdsl.dialects.test import Test, TestOp
+from xdsl.ir import Attribute, Block, ParametrizedAttribute, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     IRDLOperation,
@@ -40,7 +44,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser, ForwardDeclaredValue, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import (
@@ -51,6 +55,137 @@ from xdsl.utils.mlir_lexer import (
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize(
+    "t",
+    [
+        (IndexType(),),
+        (IntegerType(32),),
+        (MemRefType(i32, [2]),),
+    ],
+)
+def test_resolve_operand_matching_type(defined: bool, t: Attribute):
+    parser = Parser(Context(), "%x %x")
+    first = parser.parse_unresolved_operand()
+    second = parser.parse_unresolved_operand()
+    if defined:
+        value = TestOp.create(result_types=[t]).results[0]
+        parser._register_ssa_definition("x", (value,), first.span)
+    else:
+        value = parser.resolve_operand(first, t)
+        assert value.type is t
+
+    assert parser.resolve_operand(second, t) is value
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize(
+    "previous_type, requested_type",
+    [
+        (i32, IndexType()),
+        (i32, i64),
+        (MemRefType(i32, [2]), MemRefType(IndexType(), [2])),
+        (MemRefType(i32, [2]), MemRefType(i32, [3])),
+    ],
+)
+def test_resolve_operand_conflicting_type(
+    defined: bool, previous_type: Attribute, requested_type: Attribute
+):
+    parser = Parser(Context(), "%x %x")
+    first = parser.parse_unresolved_operand()
+    second = parser.parse_unresolved_operand()
+    if defined:
+        value = TestOp.create(result_types=[previous_type]).results[0]
+        parser._register_ssa_definition("x", (value,), first.span)
+    else:
+        parser.resolve_operand(first, previous_type)
+
+    with pytest.raises(
+        ParseError,
+        match=re.escape(
+            f"operand is used with type {requested_type}, but has been "
+            f"previously used or defined with type {previous_type}"
+        ),
+    ) as exc:
+        parser.resolve_operand(second, requested_type)
+    assert exc.value.span == second.span
+
+
+@pytest.mark.parametrize("block_argument", [False, True])
+def test_resolve_operand_forward_definition(block_argument: bool):
+    parser = Parser(Context(), "%x#0 %x#1 %x#0")
+    first, second, repeated = (parser.parse_unresolved_operand() for _ in range(3))
+    first_value = parser.resolve_operand(first, i32)
+    second_value = parser.resolve_operand(second, IndexType())
+    repeated_value = parser.resolve_operand(repeated, i32)
+    assert repeated_value is first_value
+    user = TestOp.create(operands=[first_value, second_value, repeated_value])
+    types = [i32, IndexType()]
+    values = (
+        Block(arg_types=types).args
+        if block_argument
+        else TestOp.create(result_types=types).results
+    )
+
+    parser._register_ssa_definition("x", values, first.span)
+
+    assert tuple(user.operands) == (values[0], values[1], values[0])
+    assert not first_value.uses
+    assert not second_value.uses
+    assert not parser.forward_ssa_references
+    assert parser.resolve_operand(first, i32) is values[0]
+    assert parser.resolve_operand(second, IndexType()) is values[1]
+
+
+@pytest.mark.parametrize("block_argument", [False, True])
+def test_resolve_operand_conflicting_definition(block_argument: bool):
+    parser = Parser(Context(), "%x")
+    operand = parser.parse_unresolved_operand()
+    value = parser.resolve_operand(operand, i32)
+    user = TestOp.create(operands=[value])
+    values = (
+        Block(arg_types=[IndexType()]).args
+        if block_argument
+        else TestOp.create(result_types=[IndexType()]).results
+    )
+
+    with pytest.raises(
+        ParseError, match="Result %x is defined with type index, but used with type i32"
+    ):
+        parser._register_ssa_definition("x", values, operand.span)
+    assert user.operands[0] is value
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize("attribute", [i32])
+def test_resolve_operand_typing(defined: bool, attribute: Attribute):
+    parser = Parser(Context(), "%i %m %a")
+    index, memref, attr = (parser.parse_unresolved_operand() for _ in range(3))
+    index_type = IndexType()
+    memref_type = MemRefType(i32, [2])
+    if defined:
+        for operand, typ in (
+            (index, index_type),
+            (memref, memref_type),
+            (attr, attribute),
+        ):
+            value = TestOp.create(result_types=[typ]).results[0]
+            parser._register_ssa_definition(
+                operand.operand_name, (value,), operand.span
+            )
+
+    # Check inference on both the initial lookup and reuse of a cached value.
+    for _ in range(2):
+        assert_type(parser.resolve_operand(index, index_type), SSAValue[IndexType])
+        assert_type(
+            parser.resolve_operand(memref, memref_type),
+            SSAValue[MemRefType[I32]],
+        )
+        assert_type(parser.resolve_operand(attr, attribute), SSAValue[Attribute])
+
+    assert_type(ForwardDeclaredValue(index_type), ForwardDeclaredValue[IndexType])
 
 
 @pytest.mark.parametrize(
