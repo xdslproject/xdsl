@@ -69,7 +69,7 @@ about missing dependencies, so run `make tests-functional` instead of
 
 The xDSL project uses pytest unit tests, LLVM-style filecheck tests and performance
 benchmarks. They can be executed from the root directory with `make tests` (which runs
-everything except benchmarks and also runs pyright for type checking).
+everything except benchmarks and also runs the type checker).
 
 ### Unit Tests
 
@@ -166,17 +166,17 @@ Configuration for linting and formatting is found in `pyproject.toml`.
 [Ruff](https://github.com/astral-sh/ruff) is used for linting and formatting.
 Configured in `[tool.ruff]`.
 
-[Pyright](https://github.com/microsoft/pyright) is used for static type checking.
-Configured in `[tool.pyright]`.
+[Basedpyright](https://github.com/DetachHead/basedpyright) is used for static type checking.
+Configured in `[tool.basedpyright]`.
 
 ```bash
 # Format code
 uv run ruff format
 
 # Type check code
-uv run pyright
+uv run basedpyright
 # or via makefile
-make pyright
+make typecheck
 ```
 
 > [!IMPORTANT]

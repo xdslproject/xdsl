@@ -124,7 +124,7 @@ tests-quiet: uv-installed ## run functional tests with minimal output
 	$(MAKE) tests-functional LIT_OPTIONS="$(LIT_OPTIONS_QUIET)" PYTEST_OPTIONS="$(PYTEST_OPTIONS_QUIET)"
 
 .PHONY: tests
-tests: tests-functional pyright ## run all tests
+tests: tests-functional typecheck ## run all tests
 	@echo All tests done.
 
 
@@ -136,10 +136,10 @@ precommit-install: uv-installed ## set up all precommit hooks
 precommit: uv-installed ## run all precommit hooks and apply them
 	uv run prek run --all-files
 
-.PHONY: pyright
-pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright
+.PHONY: typecheck
+typecheck: uv-installed ## generate typing stubs and type check staged Python files, or the project when none are staged
 	uv run xdsl-stubgen
-	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
+	uv run basedpyright $(shell git diff --staged --name-only  -- '*.py')
 
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files
