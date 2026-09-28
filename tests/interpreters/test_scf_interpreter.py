@@ -24,7 +24,9 @@ def test_if(cond_value: bool):
     interpreter = Mock(spec=Interpreter)
     interpreter.run_ssacfg_region = Mock(return_value=(42,))
 
-    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult((42,), None)
+    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult(
+        (42,), None
+    )
     expected_region = true_region if cond_value else false_region
     interpreter.run_ssacfg_region.assert_called_once_with(expected_region, ())
 
@@ -109,45 +111,65 @@ def test_condition_op(cond_value: bool):
     assert res.terminator_value.values == (cond_value, 1, 2)
 
 
-def sum_to_while_fn(ub: int) -> int:
-    """
-    Python implementation of sum_to_while_op
-    """
-    acc = 0
-    i = 0
-    while i != ub:
-        acc += i
-        i += 1
-    return acc
-
-
-@ModuleOp
-@Builder.implicit_region
-def sum_to_while_op():
-    with ImplicitBuilder(func.FuncOp("sum_to", ((index,), (index,))).body) as (ub,):
-        zero = arith.ConstantOp.from_int_and_width(0, index)
-
-        @Builder.implicit_region((index, index))
-        def before_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
-            cond = arith.CmpiOp(i, ub, "ne")
-            scf.ConditionOp(cond, i, acc)
-
-        @Builder.implicit_region((index, index))
-        def after_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
-            one = arith.ConstantOp.from_int_and_width(1, index)
-            new_acc = arith.AddiOp(acc, i)
-            new_i = arith.AddiOp(i, one)
-            scf.YieldOp(new_i, new_acc)
-
-        result = scf.WhileOp((zero, zero), (index, index), before_region, after_region)
-        func.ReturnOp(result.res[1])
-
-
 @pytest.mark.parametrize(
-    ("n", "res"), [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)]
+    # before's region_results = condition, *forwarded_args
+    # after's region_results = loop_args
+    ("initial_args", "region_results", "expected_calls", "expected_result"),
+    [
+        ((1,), ((False, 10),), (("before", (1,)),), (10,)),
+        (
+            (1,),
+            ((True, 10), (20,), (False, 30)),
+            (("before", (1,)), ("after", (10,)), ("before", (20,))),
+            (30,),
+        ),
+        (
+            (1,),
+            ((True, 10), (20,), (True, 30), (40,), (False, 50)),
+            (
+                ("before", (1,)),
+                ("after", (10,)),
+                ("before", (20,)),
+                ("after", (30,)),
+                ("before", (40,)),
+            ),
+            (50,),
+        ),
+        (
+            (1, 2, 3),
+            ((True, 10, 11, 12), (20, 21, 22), (False, 30, 31, 32)),
+            (
+                ("before", (1, 2, 3)),
+                ("after", (10, 11, 12)),
+                ("before", (20, 21, 22)),
+            ),
+            (30, 31, 32),
+        ),
+    ],
 )
-def test_while_via_sum_to(n: int, res: int):
-    assert res == sum_to_while_fn(ub=n)
-    assert res == scf_interp(sum_to_while_op, "sum_to", n)
+def test_while(
+    initial_args: tuple[int, ...],
+    region_results: tuple[tuple[int, ...], ...],
+    expected_calls: tuple[tuple[str, tuple[int, ...]], ...],
+    expected_result: tuple[int, ...],
+):
+    types = (i32,) * len(initial_args)
+    before = Region(Block(arg_types=types))
+    after = Region(Block(arg_types=types))
+    while_op = scf.WhileOp(
+        tuple(create_ssa_value(t) for t in types), types, before, after
+    )
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(side_effect=region_results)
+
+    assert ScfFunctions().run_while(
+        interpreter, while_op, initial_args
+    ) == OpImplResult(expected_result, None)
+    regions = {
+        "before": (before, "while.before_region"),
+        "after": (after, "while.after_region"),
+    }
+    assert interpreter.run_ssacfg_region.call_args_list == [
+        call(regions[name][0], args, regions[name][1]) for name, args in expected_calls
+    ]
