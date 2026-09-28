@@ -109,3 +109,67 @@ def test_condition_op(cond_value: bool):
     assert res.terminator_value is not None
     assert isinstance(res.terminator_value, ReturnedValues)
     assert res.terminator_value.values == (cond_value, 1, 2)
+
+
+@pytest.mark.parametrize(
+    # before's region_results = condition, *forwarded_args
+    # after's region_results = loop_args
+    ("initial_args", "region_results", "expected_calls", "expected_result"),
+    [
+        ((1,), ((False, 10),), (("before", (1,)),), (10,)),
+        (
+            (1,),
+            ((True, 10), (20,), (False, 30)),
+            (("before", (1,)), ("after", (10,)), ("before", (20,))),
+            (30,),
+        ),
+        (
+            (1,),
+            ((True, 10), (20,), (True, 30), (40,), (False, 50)),
+            (
+                ("before", (1,)),
+                ("after", (10,)),
+                ("before", (20,)),
+                ("after", (30,)),
+                ("before", (40,)),
+            ),
+            (50,),
+        ),
+        (
+            (1, 2, 3),
+            ((True, 10, 11, 12), (20, 21, 22), (False, 30, 31, 32)),
+            (
+                ("before", (1, 2, 3)),
+                ("after", (10, 11, 12)),
+                ("before", (20, 21, 22)),
+            ),
+            (30, 31, 32),
+        ),
+    ],
+)
+def test_while(
+    initial_args: tuple[int, ...],
+    region_results: tuple[tuple[int, ...], ...],
+    expected_calls: tuple[tuple[str, tuple[int, ...]], ...],
+    expected_result: tuple[int, ...],
+):
+    types = (i32,) * len(initial_args)
+    before = Region(Block(arg_types=types))
+    after = Region(Block(arg_types=types))
+    while_op = scf.WhileOp(
+        tuple(create_ssa_value(t) for t in types), types, before, after
+    )
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(side_effect=region_results)
+
+    assert ScfFunctions().run_while(
+        interpreter, while_op, initial_args
+    ) == OpImplResult(expected_result, None)
+    regions = {
+        "before": (before, "while.before_region"),
+        "after": (after, "while.after_region"),
+    }
+    assert interpreter.run_ssacfg_region.call_args_list == [
+        call(regions[name][0], args, regions[name][1]) for name, args in expected_calls
+    ]
