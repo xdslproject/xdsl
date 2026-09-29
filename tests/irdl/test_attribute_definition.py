@@ -69,7 +69,7 @@ def test_wrong_attribute_type():
     ):
 
         @irdl_attr_definition
-        class AbstractAttribute(Attribute):  # pyright: ignore[reportUnusedClass]
+        class AbstractAttribute(Attribute):
             name = "test.wrong"
             pass
 
@@ -214,9 +214,7 @@ def test_attribute_def_with_non_identifier_enum():
     """
 
     @irdl_attr_definition
-    class TestNonIdentifierEnumAttr(  # pyright: ignore[reportUnusedClass]
-        EnumAttribute[TestNonIdentifierEnum]
-    ):
+    class TestNonIdentifierEnumAttr(EnumAttribute[TestNonIdentifierEnum]):
         name = "test.non_identifier_enum"
 
 
@@ -422,9 +420,7 @@ def test_typed_attribute():
     ):
 
         @irdl_attr_definition
-        class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute
-        ):
+        class TypedAttr(TypedAttribute):
             name = "test.typed"
 
 
@@ -1181,9 +1177,7 @@ def test_non_builtin_name_fail():
     with pytest.raises(PyRDLAttrDefinitionError, match="is not a valid attribute name"):
 
         @irdl_attr_definition
-        class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-            ParametrizedAttribute
-        ):
+        class NonBuiltinNameAttr(ParametrizedAttribute):
             name = "vector"
 
 
@@ -1194,9 +1188,7 @@ def test_non_builtin_name():
     """
 
     @irdl_attr_definition
-    class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute
-    ):
+    class NonBuiltinNameAttr(ParametrizedAttribute):
         name = "test.vector"
 
 
@@ -1206,9 +1198,7 @@ def test_builtin_name():
     """
 
     @irdl_attr_definition
-    class BuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute, BuiltinAttribute
-    ):
+    class BuiltinNameAttr(ParametrizedAttribute, BuiltinAttribute):
         name = "builtin.vector"
 
 
@@ -1291,13 +1281,13 @@ def test_class_var_pass():
     """Test that ClassVar constants are allowed in attribute definitions."""
 
     @irdl_attr_definition
-    class ClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+    class ClassVarAttr(ParametrizedAttribute):
         name = "test.class_var"
         CONSTANT: ClassVar[int]
         param: IntData
 
     @irdl_attr_definition
-    class ClassVarAttr2(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+    class ClassVarAttr2(ParametrizedAttribute):
         name = "test.class_var"
         CONSTANT: ClassVar[int] = 2
         param: IntData
@@ -1311,7 +1301,7 @@ def test_class_var_fail():
     ):
 
         @irdl_attr_definition
-        class InvalidClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        class InvalidClassVarAttr(ParametrizedAttribute):
             name = "test.invalid_class_var"
             constant: ClassVar[int]  # Should be uppercase
             param: IntData
