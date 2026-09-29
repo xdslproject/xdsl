@@ -22,7 +22,7 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.14' }}
       XDSL_MLIR_OPT: /usr/bin/mlir-opt
       XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
       XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
@@ -78,7 +78,7 @@ jobs:
         run: make tests-marimo
 
       - name: Combine coverage data
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.14'
         run: |
           uv run coverage combine --append
           uv run coverage report
@@ -88,7 +88,7 @@ jobs:
         run: uv cache prune --ci
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.14'
         uses: Wandalen/wretry.action@v3
         with:
           action: codecov/codecov-action@v4
