@@ -1,9 +1,0 @@
-nav:
-  - xDSL: "https://xdsl.dev/"
-  - Getting Started: index.md
-  - Tutorial Notebooks: notebooks
-  - API Reference: reference
-  - User Guide: guides
-  - News: "https://xdsl.dev/news/"
-  - Events: "https://xdsl.dev/events/2025-HiPEAC/"
-  - About: "https://xdsl.dev/about/challenge/"

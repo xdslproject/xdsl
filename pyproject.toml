@@ -56,11 +56,8 @@ entry-points."xdsl.universe".xdsl = "xdsl.universe:XDSL_UNIVERSE"
 dev = [ "my-plugin", "toy", "xdsl[dev,gui,heir,llvm]" ]
 docs = [
   "micropip>=0.7",
-  "mkdocs>=1.6.1",
-  "mkdocs-awesome-nav>=3.1.2",
-  "mkdocs-material>=9.5.49",
   "mkdocstrings[python]>=0.27",
-  "pymdown-extensions>=10.7",
+  "zensical>=0.0.53",
 ]
 bench = [
   "asv>=0.6.4",
