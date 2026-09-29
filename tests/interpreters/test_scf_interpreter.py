@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
-from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
+from xdsl.dialects.builtin import DenseArrayBase, IndexType, ModuleOp, i1, i32, i64
 from xdsl.interpreter import Interpreter, OpCounter, OpImplResult, ReturnedValues
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
@@ -173,3 +173,32 @@ def test_while(
     assert interpreter.run_ssacfg_region.call_args_list == [
         call(regions[name][0], args, regions[name][1]) for name, args in expected_calls
     ]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected_case"),
+    [(3, 0), (1, 1), (5, 2), (0, None), (4, None)],
+)
+def test_index_switch(value: int, expected_case: int | None):
+    default_region = Region(Block())
+    case_regions = [Region(Block()) for _ in range(3)]
+    # deliberately out of order and non-contiguous
+    cases = DenseArrayBase.from_list(i64, (3, 1, 5))
+    switch_op = scf.IndexSwitchOp(
+        create_ssa_value(index), cases, default_region, case_regions, (i32,)
+    )
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(42,))
+
+    assert ScfFunctions().run_index_switch(
+        interpreter, switch_op, (value,)
+    ) == OpImplResult((42,), None)
+    if expected_case is None:
+        interpreter.run_ssacfg_region.assert_called_once_with(
+            default_region, (), "index_switch.case default"
+        )
+    else:
+        interpreter.run_ssacfg_region.assert_called_once_with(
+            case_regions[expected_case], (), f"index_switch.case {expected_case}"
+        )
