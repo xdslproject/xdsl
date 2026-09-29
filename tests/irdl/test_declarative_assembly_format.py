@@ -85,6 +85,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
     FormatProgram,
+    FunctionalTypeDirective,
     OperandsDirective,
     OperandVariable,
     ParsingState,
@@ -2164,6 +2165,43 @@ def test_functional_type(program: str):
     ctx.load_op(FunctionalTypeOp)
 
     check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "signature, expected_operand_types, expected_result_types",
+    [
+        ("", None, None),
+        ("() -> ()", [], []),
+        ("() -> i32", [], [i32]),
+        ("(i32) -> (i32)", [i32], [i32]),
+        ("(i32, f32) -> ()", [i32, f32], []),
+        ("(i32, f32) -> (f32, i32)", [i32, f32], [f32, i32]),
+    ],
+)
+def test_functional_type_optional(
+    signature: str,
+    expected_operand_types: list[Attribute] | None,
+    expected_result_types: list[Attribute] | Attribute | None,
+):
+    """Exercise optional parsing directly, without a declarative optional group."""
+    directive = FunctionalTypeDirective(OperandsDirective(), ResultsDirective())
+    state = ParsingState(test.TestOp)
+    parser = Parser(Context(), f"{signature} next")
+    start_pos = parser.pos
+
+    directive.parse_optional(parser, state)
+
+    operand_types = [
+        None if types is None else list(types) for types in state.operand_types
+    ]
+    result_types = [
+        None if types is None else list(types) for types in state.result_types
+    ]
+    assert operand_types == [expected_operand_types]
+    assert result_types == [expected_result_types]
+    if not signature:
+        assert parser.pos == start_pos
+    parser.parse_keyword("next")
 
 
 @pytest.mark.parametrize(

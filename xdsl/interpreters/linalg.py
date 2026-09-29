@@ -30,7 +30,6 @@ def run_linalg_structured_op(
     output_args = args[inputs_count:]
     results = op.results
     indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
-    loop_ranges = op.get_static_loop_ranges()
 
     if any(not isinstance(arg, ShapedArray) for arg in output_args):
         raise NotImplementedError("Only shaped out results are implemented")
@@ -43,6 +42,18 @@ def run_linalg_structured_op(
         outputs = output_args
 
     loop_shaped_args = input_args + outputs
+
+    # Static loop ranges use DYNAMIC_INDEX for dynamic dimensions, which makes
+    # ``range`` silently skip every iteration. Infer the operand shape list
+    # from the runtime shaped arguments instead, preserving the existing
+    # shapes-to-loops mapping (and scalar operand handling).
+    runtime_shapes = [
+        dim
+        for arg in loop_shaped_args
+        if isinstance(arg, ShapedArray)
+        for dim in arg.shape
+    ]
+    loop_ranges = op.get_shapes_to_loops_map().eval(runtime_shapes, [])
 
     output_indexing_maps = indexing_maps[inputs_count:]
 
