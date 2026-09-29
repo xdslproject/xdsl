@@ -18,7 +18,7 @@ def test_register_clashes():
     ):
 
         @irdl_attr_definition
-        class ClashRegister(RegisterType):  # pyright: ignore[reportUnusedClass]
+        class ClashRegister(RegisterType):
             name = "test.reg_clash"
 
             @classmethod
