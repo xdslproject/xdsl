@@ -340,3 +340,108 @@ func.func @omp_distribute_chunk_attr(%lb: index, %ub: index, %step: index) {
 }
 
 // CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
+
+// -----
+
+func.func @omp_task_depend_count(%dep: memref<1xi32>) {
+  "omp.task"(%dep) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many depend values as depend variables
+
+// -----
+
+func.func @omp_task_in_reduction_syms(%ir: memref<1xi32>) {
+  "omp.task"(%ir) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many in_reduction symbol references as in_reduction variables
+
+// -----
+
+func.func @omp_task_block_args(%p1: i32) {
+  "omp.task"(%p1) <{private_syms = [@p1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskloop_grainsize_num_tasks(%lb: index, %ub: index, %step: index, %g: i64) {
+  "omp.taskloop"(%g, %g) <{operandSegmentSizes = array<i32: 0, 0, 0, 1, 0, 0, 1, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+
+// CHECK: the grainsize clause and num_tasks clause are mutually exclusive and may not appear on the same taskloop directive
+
+// -----
+
+func.func @omp_taskloop_reduction_byref(%lb: index, %ub: index, %step: index, %r: memref<1xi32>) {
+  "omp.taskloop"(%r) <{reduction_syms = [@r1], reduction_byref = array<i1: false, false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>}> ({
+  ^bb0(%r_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many reduction byref flags as reduction variables
+
+// -----
+
+func.func @omp_taskloop_not_loop_wrapper() {
+  "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop is not a LoopWrapper: should have a single operation which is either another LoopWrapper or omp.loop_nest
+
+// -----
+
+func.func @omp_taskgroup_block_args(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskwait_depend_count(%d1: memref<1xi32>) {
+  "omp.taskwait"(%d1) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>]}> : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskwait expected as many depend values as depend variables
+
+// -----
+
+func.func @omp_single_copyprivate(%cp: memref<1xi32>) {
+  "omp.single"(%cp) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.single inconsistent number of copyprivate vars (1) and functions (0)
