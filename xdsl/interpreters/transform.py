@@ -33,7 +33,7 @@ class OperationHandle(Generic[_OperationT]):
     semantic meaning unless the transform operation specifies otherwise.
     """
 
-    ops: tuple[_OperationT]
+    ops: tuple[_OperationT, ...]
 
     def __init__(self, *ops: _OperationT):
         object.__setattr__(self, "ops", ops)
