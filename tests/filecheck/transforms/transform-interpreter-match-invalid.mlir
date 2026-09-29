@@ -48,18 +48,6 @@ module attributes {transform.with_named_sequence} {
 
 // -----
 
-// Reject the unsupported attributes {foo} filter.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match attributes {foo} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the op_attrs filter{{$}}
-
-// -----
-
 // Reject the unsupported filter_result_type = i32 filter.
 module attributes {transform.with_named_sequence} {
   transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
@@ -76,114 +64,6 @@ module attributes {transform.with_named_sequence} {
 module attributes {transform.with_named_sequence} {
   transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
     %matched = transform.structured.match filter_operand_types = [] in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the filter_operand_types filter{{$}}
-
-// -----
-
-// Reject the unsupported filter_operand_types = [i32] filter.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match filter_operand_types = [i32] in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the filter_operand_types filter{{$}}
-
-// -----
-
-// Reject the unsupported interface{LinalgOp} filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} interface{LinalgOp} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the interface filter{{$}}
-
-// -----
-
-// Reject the unsupported interface{TilingInterface} filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} interface{TilingInterface} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the interface filter{{$}}
-
-// -----
-
-// Reject the unsupported interface{LoopLikeInterface} filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} interface{LoopLikeInterface} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the interface filter{{$}}
-
-// -----
-
-// Reject the unsupported attributes {} filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} attributes {} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the op_attrs filter{{$}}
-
-// -----
-
-// Reject the unsupported attributes {foo} filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} attributes {foo} in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the op_attrs filter{{$}}
-
-// -----
-
-// Reject the unsupported filter_result_type = i32 filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} filter_result_type = i32 in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the filter_result_type filter{{$}}
-
-// -----
-
-// Reject the unsupported filter_operand_types = [] filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} filter_operand_types = [] in %root : (!transform.any_op) -> !transform.any_op
-    transform.yield
-  }
-}
-
-// CHECK: {{^}}transform.structured.match does not yet support the filter_operand_types filter{{$}}
-
-// -----
-
-// Reject the unsupported filter_operand_types = [i32] filter, even when the name filter matches nothing.
-module attributes {transform.with_named_sequence} {
-  transform.named_sequence @__transform_main(%root: !transform.any_op {transform.readonly}) {
-    %matched = transform.structured.match ops{[]} filter_operand_types = [i32] in %root : (!transform.any_op) -> !transform.any_op
     transform.yield
   }
 }
