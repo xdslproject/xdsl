@@ -700,7 +700,7 @@ def tile_structured_op(
     """
     Tile `op` with provided tile sizes.
     If no dimensions are tiled, then `op` is not replaced.
-    If dimensions are tiled, it's replaced with a for loop nests with specified
+    If dimensions are tiled, it's replaced with a for loop nest with specified
     iteration counts.
     """
     try:
