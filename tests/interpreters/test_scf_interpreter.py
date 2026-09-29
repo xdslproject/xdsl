@@ -175,64 +175,30 @@ def test_while(
     ]
 
 
-def square_or_default_fn(n: int) -> int:
-    """
-    Python implementation of square_or_default_op
-    """
-    cases = {3: 9, 1: 1, 5: 25}
-    return cases.get(n, -1)
+@pytest.mark.parametrize(
+    ("value", "expected_case"),
+    [(3, 0), (1, 1), (5, 2), (0, None), (4, None)],
+)
+def test_index_switch(value: int, expected_case: int | None):
+    default_region = Region(Block())
+    case_regions = [Region(Block()) for _ in range(3)]
+    # deliberately out of order and non-contiguous
+    cases = DenseArrayBase.from_list(i64, (3, 1, 5))
+    switch_op = scf.IndexSwitchOp(
+        create_ssa_value(index), cases, default_region, case_regions, (i32,)
+    )
 
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(42,))
 
-@ModuleOp
-@Builder.implicit_region
-def square_or_default_op():
-    cases = [3, 1, 5]  # deliberately out of order and non-contiguous
-    with ImplicitBuilder(func.FuncOp("square_or_default", ((index,), (i32,))).body) as (n,):
-
-        @Builder.implicit_region
-        def default_region():
-            default = arith.ConstantOp.from_int_and_width(-1, i32)
-            scf.YieldOp(default)
-
-        case_regions: list[Region] = []
-        for i in cases:
-
-            @Builder.implicit_region
-            def case_region(i: int = i):
-                square = arith.ConstantOp.from_int_and_width(i * i, i32)
-                scf.YieldOp(square)
-
-            case_regions.append(case_region)
-
-        result = scf.IndexSwitchOp(
-            n,
-            DenseArrayBase.from_list(i64, cases),
-            default_region,
-            case_regions,
-            (i32,),
+    assert ScfFunctions().run_index_switch(
+        interpreter, switch_op, (value,)
+    ) == OpImplResult((42,), None)
+    if expected_case is None:
+        interpreter.run_ssacfg_region.assert_called_once_with(
+            default_region, (), "index_switch.case default"
         )
-        func.ReturnOp(result)
-
-
-@pytest.mark.parametrize(("n", "res"), [(0, -1), (1, 1), (2, -1), (3, 9), (4, -1), (5, 25)])
-def test_index_switch_via_square_or_default(n: int, res: int):
-    assert res == square_or_default_fn(n)
-    assert res == scf_interp(square_or_default_op, "square_or_default", n)
-
-
-@pytest.mark.parametrize(("n", "res"), [(3, 9), (4, -1)])
-def test_index_switch_tracer(n: int, res: int):
-    tracer = OpCounter()
-    interpreter = Interpreter(square_or_default_op.clone(), listeners=(tracer,))
-    interpreter.register_implementations(ScfFunctions())
-    interpreter.register_implementations(FuncFunctions())
-    interpreter.register_implementations(ArithFunctions())
-
-    (result,) = interpreter.call_op("square_or_default", (n,))
-    assert result == res
-    assert dict(tracer.ops) == {
-        "scf.index_switch": 1,
-        "arith.constant": 1,
-        "scf.yield": 1,
-        "func.return": 1,
-    }
+    else:
+        interpreter.run_ssacfg_region.assert_called_once_with(
+            case_regions[expected_case], (), f"index_switch.case {expected_case}"
+        )
