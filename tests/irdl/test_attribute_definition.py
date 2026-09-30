@@ -42,7 +42,6 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     GenericData,
     IntConstraint,
     MessageConstraint,
@@ -51,6 +50,7 @@ from xdsl.irdl import (
     ParamDef,
     TypeVarConstraint,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     param_def,
@@ -494,7 +494,7 @@ def test_parameterized_attribute_verify_constraints():
     """Test that a ParametrizedAttribute verifies its given child attribute constraints."""
 
     class FailConstraint(AttrConstraint[NoneAttr]):
-        def verify(self, attr: Attribute, constraint_context: ConstraintContext):
+        def verify(self, attr: Attribute, constraint_context: VerificationContext):
             raise VerifyException("Always fails")
 
         def mapping_type_vars(
@@ -638,7 +638,7 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -856,7 +856,7 @@ def test_informative_constraint():
             "User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>"
         ),
     ):
-        constr.verify(IntAttr(1), ConstraintContext())
+        constr.verify(IntAttr(1), VerificationContext())
     assert constr.can_infer(set())
     assert constr.get_bases() == {NoneAttr}
 
@@ -905,7 +905,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isa(attr, ListData):
             raise VerifyException(

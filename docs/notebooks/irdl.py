@@ -85,15 +85,15 @@ def _(mo):
 @app.cell
 def _():
     from xdsl.dialects.builtin import IndexType, IntegerType, StringAttr, i64
-    from xdsl.irdl import AnyAttr, ConstraintContext
+    from xdsl.irdl import AnyAttr, VerificationContext
 
     # Construct the constraint
     any_constraint = AnyAttr()
 
     # This will pass without triggering an exception
-    any_constraint.verify(i64, ConstraintContext())
-    any_constraint.verify(StringAttr("ga"), ConstraintContext())
-    return ConstraintContext, IndexType, IntegerType, StringAttr, i64
+    any_constraint.verify(i64, VerificationContext())
+    any_constraint.verify(StringAttr("ga"), VerificationContext())
+    return VerificationContext, IndexType, IntegerType, StringAttr, i64
 
 
 @app.cell(hide_code=True)
@@ -107,18 +107,18 @@ def _(mo):
 
 
 @app.cell
-def _(ConstraintContext, i32, i64):
+def _(VerificationContext, i32, i64):
     from xdsl.irdl import EqAttrConstraint
 
     # Construct the constraint
     eq_constraint = EqAttrConstraint(i64)
 
     # This will pass without triggering an exception
-    eq_constraint.verify(i64, ConstraintContext())
+    eq_constraint.verify(i64, VerificationContext())
 
     # This will trigger an exception
     try:
-        eq_constraint.verify(i32, ConstraintContext())
+        eq_constraint.verify(i32, VerificationContext())
     except Exception as e:
         print(e)
     return (EqAttrConstraint,)
@@ -135,7 +135,7 @@ def _(mo):
 
 
 @app.cell
-def _(ConstraintContext, StringAttr, VerifyException, i32):
+def _(VerificationContext, StringAttr, VerifyException, i32):
     from xdsl.dialects.builtin import IntAttr
     from xdsl.irdl import BaseAttr
 
@@ -143,22 +143,22 @@ def _(ConstraintContext, StringAttr, VerifyException, i32):
     base_constraint = BaseAttr(StringAttr)
 
     # This will pass without triggering an exception
-    base_constraint.verify(StringAttr("ga"), ConstraintContext())
-    base_constraint.verify(StringAttr("bu"), ConstraintContext())
+    base_constraint.verify(StringAttr("ga"), VerificationContext())
+    base_constraint.verify(StringAttr("bu"), VerificationContext())
 
     # This will trigger an exception
     try:
-        base_constraint.verify(i32, ConstraintContext())
+        base_constraint.verify(i32, VerificationContext())
     except VerifyException as e:
         print(e)
     return BaseAttr, IntAttr, base_constraint
 
 
 @app.cell
-def _(ConstraintContext, IntAttr, VerifyException, base_constraint):
+def _(VerificationContext, IntAttr, VerifyException, base_constraint):
     # This too
     try:
-        base_constraint.verify(IntAttr(3), ConstraintContext())
+        base_constraint.verify(IntAttr(3), VerificationContext())
     except VerifyException as e:
         print(e)
     return
@@ -195,20 +195,20 @@ def _(mo):
 
 
 @app.cell
-def _(AnyOf, ConstraintContext, StringAttr, i32, i64):
+def _(AnyOf, VerificationContext, StringAttr, i32, i64):
     # Construct the constraint. Note that we are using the coercion defined previously.
     or_constraint = AnyOf.get(i32, StringAttr)
 
     # This will pass without triggering an exception, since the first constraint is satisfied
-    or_constraint.verify(i32, ConstraintContext())
+    or_constraint.verify(i32, VerificationContext())
 
     # This will pass without triggering an exception, since the second constraint is satisfied
-    or_constraint.verify(StringAttr("ga"), ConstraintContext())
-    or_constraint.verify(StringAttr("bu"), ConstraintContext())
+    or_constraint.verify(StringAttr("ga"), VerificationContext())
+    or_constraint.verify(StringAttr("bu"), VerificationContext())
 
     # This will trigger an exception, since none of the constraints are satisfied
     try:
-        or_constraint.verify(i64, ConstraintContext())
+        or_constraint.verify(i64, VerificationContext())
     except Exception as e:
         print(e)
     return
@@ -225,7 +225,7 @@ def _(mo):
 
 
 @app.cell
-def _(ConstraintContext, IntAttr, VerifyException, i32, i64):
+def _(VerificationContext, IntAttr, VerifyException, i32, i64):
     from xdsl.dialects.builtin import IntegerAttr
     from xdsl.irdl import ParamAttrConstraint
 
@@ -233,12 +233,12 @@ def _(ConstraintContext, IntAttr, VerifyException, i32, i64):
     param_constraint = ParamAttrConstraint.get(IntegerAttr, IntAttr, i32)
 
     # This will pass without triggering an exception.
-    param_constraint.verify(IntegerAttr(IntAttr(42), i32), ConstraintContext())
-    param_constraint.verify(IntegerAttr(IntAttr(23), i32), ConstraintContext())
+    param_constraint.verify(IntegerAttr(IntAttr(42), i32), VerificationContext())
+    param_constraint.verify(IntegerAttr(IntAttr(23), i32), VerificationContext())
 
     # This will trigger an exception since the attribute type is not the expected one
     try:
-        param_constraint.verify(i64, ConstraintContext())
+        param_constraint.verify(i64, VerificationContext())
     except VerifyException as e:
         print(e)
     return IntegerAttr, param_constraint
@@ -246,7 +246,7 @@ def _(ConstraintContext, IntAttr, VerifyException, i32, i64):
 
 @app.cell
 def _(
-    ConstraintContext,
+    VerificationContext,
     IntAttr,
     IntegerAttr,
     VerifyException,
@@ -256,7 +256,7 @@ def _(
     # This will trigger an exception since the second parameter constraint is not satisfied
 
     try:
-        param_constraint.verify(IntegerAttr(IntAttr(42), i64), ConstraintContext())
+        param_constraint.verify(IntegerAttr(IntAttr(42), i64), VerificationContext())
     except VerifyException as e:
         print(e)
     return
@@ -274,11 +274,11 @@ def _(mo):
 
 
 @app.cell
-def _(BaseAttr, ConstraintContext, IndexType, IntegerType, VerifyException):
+def _(BaseAttr, VerificationContext, IndexType, IntegerType, VerifyException):
     from xdsl.irdl import VarConstraint
 
     var_constraint = VarConstraint("T", BaseAttr(IntegerType))
-    constraint_context = ConstraintContext()
+    constraint_context = VerificationContext()
 
     # The underlying constraint is not satisfied by the given attribute
     try:
@@ -317,7 +317,7 @@ def _(mo):
 
 
 @app.cell
-def _(ConstraintContext, IntAttr, VerifyException, irdl_to_attr_constraint):
+def _(VerificationContext, IntAttr, VerifyException, irdl_to_attr_constraint):
     from dataclasses import dataclass
 
     from xdsl.dialects.builtin import ArrayAttr
@@ -336,7 +336,7 @@ def _(ConstraintContext, IntAttr, VerifyException, irdl_to_attr_constraint):
             object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(constr))
 
         # Check that an attribute satisfies the constraints
-        def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
             # We first check that the attribute is an ArrayAttr
             if not isa(attr, ArrayAttr[Attribute]):
                 raise VerifyException(f"expected attribute ArrayData but got {attr}")
@@ -352,27 +352,27 @@ def _(ConstraintContext, IntAttr, VerifyException, irdl_to_attr_constraint):
     array_constraint = ArrayOfConstraint(IntAttr)
 
     # This will pass without triggering an exception
-    array_constraint.verify(ArrayAttr([IntAttr(42)]), ConstraintContext())
-    array_constraint.verify(ArrayAttr([IntAttr(3), IntAttr(7)]), ConstraintContext())
+    array_constraint.verify(ArrayAttr([IntAttr(42)]), VerificationContext())
+    array_constraint.verify(ArrayAttr([IntAttr(3), IntAttr(7)]), VerificationContext())
     return ArrayAttr, array_constraint
 
 
 @app.cell
-def _(ConstraintContext, array_constraint, i32):
+def _(VerificationContext, array_constraint, i32):
     # This will trigger an exception, since the attribute is not an array
     try:
-        array_constraint.verify(i32, ConstraintContext())
+        array_constraint.verify(i32, VerificationContext())
     except Exception as e:
         print(e)
     return
 
 
 @app.cell
-def _(ArrayAttr, ConstraintContext, IntAttr, StringAttr, array_constraint):
+def _(ArrayAttr, VerificationContext, IntAttr, StringAttr, array_constraint):
     # This will trigger an exception, since the array contains attribute that do not satisfies the constraint
     try:
         array_constraint.verify(
-            ArrayAttr([IntAttr(42), StringAttr("ga")]), ConstraintContext()
+            ArrayAttr([IntAttr(42), StringAttr("ga")]), VerificationContext()
         )
     except Exception as e:
         print(e)

@@ -66,13 +66,14 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
     EqIntConstraint,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1910,7 +1911,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     element_constr: AttrConstraint
     mask_constr: VarConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         VectorType.constr(
             self.element_constr,
             shape=ArrayAttr.constr(
@@ -1924,7 +1925,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
             and self.mask_constr.name in var_constraint_names
         )
 
-    def infer(self, context: ConstraintContext) -> VectorType:
+    def infer(self, context: InferenceContext) -> VectorType:
         mask = context.get_variable(self.mask_constr.name)
         assert mask is not None
         mask = cast(DenseArrayBase[IntegerType], mask)

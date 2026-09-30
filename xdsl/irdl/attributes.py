@@ -64,7 +64,6 @@ from .constraints import (  # noqa: TID251
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
@@ -74,6 +73,7 @@ from .constraints import (  # noqa: TID251
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    VerificationContext,
 )
 
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
@@ -282,7 +282,7 @@ class ParamAttrDef:
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
-        constraint_context = ConstraintContext()
+        constraint_context = VerificationContext()
         for field, param_def in self.parameters:
             try:
                 param_def.constr.verify(getattr(attr, field), constraint_context)

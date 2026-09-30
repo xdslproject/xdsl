@@ -32,7 +32,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     BaseAccessor,
-    ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     Successor,
     VarIRConstruct,
     VarOperand,
+    VerificationContext,
     get_construct_defs,
     is_const_classvar,
     verify_variadic_same_size,
@@ -68,7 +68,7 @@ class ParsingState:
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     op_type: type[IRDLOperation]
-    context: ConstraintContext
+    context: VerificationContext
 
     def __init__(self, op_type: type[IRDLOperation]):
         op_def = op_type.get_irdl_definition()
@@ -80,7 +80,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.context = ConstraintContext()
+        self.context = VerificationContext()
 
 
 @dataclass

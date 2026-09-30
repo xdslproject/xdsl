@@ -10,12 +10,12 @@ from xdsl.irdl import (
     AtLeast,
     AtMost,
     BaseAttr,
-    ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
     IntVarConstraint,
+    VerificationContext,
     get_int_constraint,
     get_optional_int_constraint,
 )
@@ -27,49 +27,49 @@ def test_failing_inference():
         ValueError,
         match=re.escape(r"Cannot infer integer from constraint AtLeast(bound=3)"),
     ):
-        AtLeast(3).infer(ConstraintContext())
+        AtLeast(3).infer(VerificationContext())
 
 
 def test_at_least():
-    AtLeast(0).verify(0, ConstraintContext())
+    AtLeast(0).verify(0, VerificationContext())
 
-    AtLeast(1).verify(1, ConstraintContext())
-    AtLeast(1).verify(2, ConstraintContext())
+    AtLeast(1).verify(1, VerificationContext())
+    AtLeast(1).verify(2, VerificationContext())
     with pytest.raises(VerifyException):
-        AtLeast(1).verify(0, ConstraintContext())
+        AtLeast(1).verify(0, VerificationContext())
 
-    AtLeast(2).verify(2, ConstraintContext())
-    AtLeast(2).verify(3, ConstraintContext())
+    AtLeast(2).verify(2, VerificationContext())
+    AtLeast(2).verify(3, VerificationContext())
     with pytest.raises(VerifyException):
-        AtLeast(2).verify(1, ConstraintContext())
+        AtLeast(2).verify(1, VerificationContext())
     with pytest.raises(VerifyException):
-        AtLeast(2).verify(0, ConstraintContext())
+        AtLeast(2).verify(0, VerificationContext())
 
 
 def test_at_most():
-    AtMost(0).verify(0, ConstraintContext())
+    AtMost(0).verify(0, VerificationContext())
 
-    AtMost(1).verify(1, ConstraintContext())
-    AtMost(1).verify(0, ConstraintContext())
+    AtMost(1).verify(1, VerificationContext())
+    AtMost(1).verify(0, VerificationContext())
     with pytest.raises(VerifyException, match="Expected integer <= 0, got 1"):
-        AtMost(0).verify(1, ConstraintContext())
+        AtMost(0).verify(1, VerificationContext())
 
-    AtMost(2).verify(2, ConstraintContext())
-    AtMost(2).verify(1, ConstraintContext())
+    AtMost(2).verify(2, VerificationContext())
+    AtMost(2).verify(1, VerificationContext())
     with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
-        AtMost(2).verify(3, ConstraintContext())
+        AtMost(2).verify(3, VerificationContext())
 
 
 def test_int_var_constraint_verify():
-    IntVarConstraint("I", EqIntConstraint(1)).verify(1, ConstraintContext())
-    IntVarConstraint("I", EqIntConstraint(2)).verify(2, ConstraintContext())
-    IntVarConstraint("I", AnyInt()).verify(3, ConstraintContext())
-    IntVarConstraint("I", AnyInt()).verify(4, ConstraintContext({}, {}, {"I": 4}))
+    IntVarConstraint("I", EqIntConstraint(1)).verify(1, VerificationContext())
+    IntVarConstraint("I", EqIntConstraint(2)).verify(2, VerificationContext())
+    IntVarConstraint("I", AnyInt()).verify(3, VerificationContext())
+    IntVarConstraint("I", AnyInt()).verify(4, VerificationContext({}, {}, {"I": 4}))
 
     with pytest.raises(
         VerifyException, match="integer 2 expected from int variable 'I', but got 1"
     ):
-        IntVarConstraint("I", AnyInt()).verify(1, ConstraintContext({}, {}, {"I": 2}))
+        IntVarConstraint("I", AnyInt()).verify(1, VerificationContext({}, {}, {"I": 2}))
 
 
 @pytest.mark.parametrize(
@@ -90,16 +90,16 @@ def test_int_var_constraint_infer(
         assert not constraint.can_infer(context_dict.keys())
     else:
         assert constraint.can_infer(context_dict.keys())
-        assert constraint.infer(ConstraintContext({}, {}, context_dict)) == inferred
+        assert constraint.infer(VerificationContext({}, {}, context_dict)) == inferred
 
 
 def test_eq():
     one_constr = EqIntConstraint(1)
-    one_constr.verify(1, ConstraintContext())
+    one_constr.verify(1, VerificationContext())
     with pytest.raises(VerifyException, match="Invalid value 2, expected 1"):
-        one_constr.verify(2, ConstraintContext())
+        one_constr.verify(2, VerificationContext())
     assert one_constr.can_infer(set())
-    assert one_constr.infer(ConstraintContext()) == 1
+    assert one_constr.infer(VerificationContext()) == 1
 
 
 def test_set():
@@ -108,24 +108,24 @@ def test_set():
     with pytest.raises(
         VerifyException, match=re.escape("Invalid value 2, expected one of {}")
     ):
-        empty_constr.verify(2, ConstraintContext())
+        empty_constr.verify(2, VerificationContext())
 
     one_constr = IntSetConstraint(frozenset((0,)))
-    one_constr.verify(0, ConstraintContext())
+    one_constr.verify(0, VerificationContext())
     assert one_constr.can_infer(set())
-    assert one_constr.infer(ConstraintContext()) == 0
+    assert one_constr.infer(VerificationContext()) == 0
     with pytest.raises(
         VerifyException, match=re.escape("Invalid value 2, expected one of {0}")
     ):
-        one_constr.verify(2, ConstraintContext())
+        one_constr.verify(2, VerificationContext())
 
     two_constr = IntSetConstraint(frozenset((0, 1)))
-    two_constr.verify(0, ConstraintContext())
+    two_constr.verify(0, VerificationContext())
     assert not two_constr.can_infer(set())
     with pytest.raises(
         VerifyException, match=re.escape("Invalid value 2, expected one of {0, 1}")
     ):
-        two_constr.verify(2, ConstraintContext())
+        two_constr.verify(2, VerificationContext())
 
 
 def test_mapping_type_vars():

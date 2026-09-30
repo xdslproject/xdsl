@@ -22,10 +22,11 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     VarConstraint,
+    VerificationContext,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -72,12 +73,12 @@ class TensorFromMemRefConstraint(
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
-        self, context: ConstraintContext
+        self, context: InferenceContext
     ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         memref_type = self.memref_constraint.infer(context)
         return self.memref_to_tensor(memref_type)
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isa(attr, TensorType | UnrankedTensorType):
             memref_type = self.tensor_to_memref(attr)
         else:
