@@ -13,7 +13,7 @@ ctx.register_type(int, bigint.bigint)
 # CHECK-NEXT:   func.return
 # CHECK-NEXT: }
 @ctx.parse_program
-def f1(x: int):
+def f1(x: int) -> None:
     return
 
 
@@ -24,7 +24,7 @@ print(f1.module)
 # CHECK-NEXT:   func.return
 # CHECK-NEXT: }
 @ctx.parse_program
-def f2():
+def f2() -> None:
     return
 
 
