@@ -90,6 +90,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
 
+    def visit_single_value(self, node: ast.expr) -> SSAValue:
+        """Visit an expression that must produce exactly one SSA value."""
+        stack_size = len(self.inserter.stack)
+        self.visit(node)
+        if len(self.inserter.stack) != stack_size + 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected an expression with exactly one result.",
+            )
+        return self.inserter.get_operand()
+
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
             self.file,
@@ -226,38 +239,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
-        # Resolve arguments
-        assert self.symbol_table is not None
-        args: list[symref.FetchOp] = []
-        for arg in node.args:
-            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
-                )
-            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
-            self.inserter.insert_op(arg_op)
-
-        # Resolve keyword arguments
-        kwargs: dict[str, symref.FetchOp] = {}
+        args = [self.visit_single_value(arg) for arg in node.args]
+        kwargs: dict[str, SSAValue] = {}
         for keyword in node.keywords:
-            if (
-                not isinstance(keyword.value, ast.Name)
-                or keyword.value.id not in self.symbol_table
-            ):
+            if keyword.arg is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
+                    "Unpacking keyword arguments is not supported.",
                 )
-            assert keyword.arg is not None
-            kwargs[keyword.arg] = symref.FetchOp(
-                keyword.value.id, self.symbol_table[keyword.value.id]
-            )
-            self.inserter.insert_op(kwargs[keyword.arg])
+            kwargs[keyword.arg] = self.visit_single_value(keyword.value)
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
 
@@ -583,8 +575,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             operands = ()
         else:
             # TODO: Support multiple return values if we allow multiple assignments.
-            self.visit(value)
-            operands = (self.inserter.get_operand(),)
+            operands = (self.visit_single_value(value),)
         op = self.return_constructor(
             operands,
             Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
