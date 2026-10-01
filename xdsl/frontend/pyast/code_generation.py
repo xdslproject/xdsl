@@ -461,13 +461,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
 
         # Parse function body.
-        for stmt in node.body:
+        statements = node.body
+        if not statements or not isinstance(statements[-1], ast.Return):
+            # Handle implicit returns by modifying the AST
+            statements = [
+                *statements,
+                ast.copy_location(ast.Return(value=None), node),
+            ]
+        for stmt in statements:
             self.visit(stmt)
-
-        # If function does not end with a return statement to be visited, we
-        # must insert a ReturnOp here.
-        if not isinstance(node.body[-1], ast.Return):
-            self.inserter.insert_op(func.ReturnOp())
 
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
