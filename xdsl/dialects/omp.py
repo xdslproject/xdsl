@@ -1080,6 +1080,39 @@ class TargetDataOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskwaitOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskwait
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskwait-omptaskwaitop).
+    """
+
+    name = "omp.taskwait"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    nowait = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class TaskyieldOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskyield
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskyield-omptaskyieldop).
+    """
+
+    name = "omp.taskyield"
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1100,6 +1133,8 @@ OMP = Dialect(
         TargetUpdateOp,
         TargetDataOp,
         DeclareReductionOp,
+        TaskwaitOp,
+        TaskyieldOp,
     ],
     [
         ClauseRequiresKindAttr,

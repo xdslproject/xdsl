@@ -340,3 +340,12 @@ func.func @omp_distribute_chunk_attr(%lb: index, %ub: index, %step: index) {
 }
 
 // CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
+
+// -----
+
+func.func @omp_taskwait_depend_count(%d1: memref<1xi32>) {
+  "omp.taskwait"(%d1) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>]}> : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: integer 1 expected from int variable 'DEP_COUNT', but got 2
