@@ -420,11 +420,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             argument_types.append(xdsl_type)
 
         returns = node.returns
+        if returns is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Function return type must be annotated",
+            )
         return_types: list[Attribute] = []
-        if not (
-            returns is None
-            or (isinstance(returns, ast.Constant) and returns.value is None)
-        ):
+        if not (isinstance(returns, ast.Constant) and returns.value is None):
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
                 ast.unparse(returns), self.type_converter.globals
             )

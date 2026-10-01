@@ -12,6 +12,8 @@ between Python and IR types, operations, and literals.
 For each type, method, and literal used in the program, we must specify a
 mapping using `register_type`, `register_function`, and `register_literal`
 respectively.
+All function arguments and return types must be annotated.
+Use `-> None` for functions that return no value.
 Using this, we can write our first simple program:
 
 ```python
