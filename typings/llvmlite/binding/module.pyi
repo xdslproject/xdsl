@@ -48,7 +48,7 @@ class ModuleRef(ffi.ObjectRef):
         """
         ...
 
-    def verify(self):  # -> None:
+    def verify(self) -> None:
         """
         Verify the module IR's correctness.  RuntimeError is raised on error.
         """

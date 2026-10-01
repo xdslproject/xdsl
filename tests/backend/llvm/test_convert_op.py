@@ -75,7 +75,7 @@ def test_calls_without_bundles_still_emit(intrinsic: bool):
     convert_op(op, builder, {})
     builder.ret_void()
     assert isinstance(block.instructions[0], ir.CallInstr)
-    binding.parse_assembly(str(module)).verify()  # pyright: ignore[reportUnknownMemberType]
+    binding.parse_assembly(str(module)).verify()
 
 
 def test_call_intrinsic_fastmath_raises():
