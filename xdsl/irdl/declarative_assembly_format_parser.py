@@ -23,7 +23,6 @@ from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
-    ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -43,6 +42,7 @@ from xdsl.irdl import (
     VarResultDef,
     VarSingleBlockRegionDef,
     VarSuccessorDef,
+    VerificationContext,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
@@ -571,7 +571,7 @@ class FormatParser(BaseParser):
                     if unique_base is DenseArrayBase and (
                         elt_type_constr := constr.param_constrs[0]
                     ).can_infer(set()):
-                        elt_type = elt_type_constr.infer(ConstraintContext())
+                        elt_type = elt_type_constr.infer(VerificationContext())
                         return DenseArrayAttributeVariable(
                             variable_name,
                             is_property,
@@ -587,7 +587,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(ConstraintContext())
+                            unique_type = type_constraint.infer(VerificationContext())
                             return TypedAttributeVariable(
                                 variable_name,
                                 is_property,

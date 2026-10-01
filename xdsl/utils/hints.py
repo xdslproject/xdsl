@@ -26,7 +26,7 @@ _T = TypeVar("_T")
 
 
 def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
-    from xdsl.irdl import ConstraintContext
+    from xdsl.irdl import VerificationContext
 
     """
     Check if `arg` is of the type described by `hint`.
@@ -97,7 +97,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
         hint_type = cast(type[GenericData[Any] | ParametrizedAttribute], hint)
         constraint = irdl_to_attr_constraint(hint_type)
         try:
-            constraint.verify(arg, ConstraintContext())
+            constraint.verify(arg, VerificationContext())
             return True
         except VerifyException:
             return False

@@ -55,10 +55,10 @@ from .attributes import (  # noqa: TID251
 from .constraints import (  # noqa: TID251
     AnyAttr,
     AttrConstraint,
-    ConstraintContext,
     IntConstraint,
     RangeConstraint,
     RangeOf,
+    VerificationContext,
 )
 
 if TYPE_CHECKING:
@@ -1165,7 +1165,7 @@ class OpDef:
         """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
         # Mapping from type variables to their concrete types.
-        constraint_context = ConstraintContext()
+        constraint_context = VerificationContext()
 
         # Verify operands.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND, constraint_context)
@@ -1429,7 +1429,7 @@ def verify_variadic_size(op: Operation, op_def: OpDef, construct: VarIRConstruct
 
 
 def irdl_op_verify_regions(
-    op: Operation, op_def: OpDef, constraint_context: ConstraintContext
+    op: Operation, op_def: OpDef, constraint_context: VerificationContext
 ):
     verify_variadic_size(op, op_def, VarIRConstruct.REGION)
 
@@ -1475,7 +1475,7 @@ def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
     construct: Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT],
-    constraint_context: ConstraintContext,
+    constraint_context: VerificationContext,
 ) -> None:
     """Verify the argument list of an operation."""
     verify_variadic_size(op, op_def, construct)

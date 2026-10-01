@@ -53,13 +53,14 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     MessageConstraint,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -168,7 +169,7 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
     v2_shape_constr: VarConstraint
     mask_constraint: VarConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         # We can only verify the element type here, and not the relations to other shapes
         VectorType.constr(self.element_constr).verify(attr, constraint_context)
         attr = cast(VectorType, attr)
@@ -184,7 +185,7 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
         assert res
         return res
 
-    def infer(self, context: ConstraintContext) -> VectorType:
+    def infer(self, context: InferenceContext) -> VectorType:
         v1_shape = context.get_variable(self.v1_shape_constr.name)
         v2_shape = context.get_variable(self.v2_shape_constr.name)
         mask = context.get_variable(self.mask_constraint.name)
