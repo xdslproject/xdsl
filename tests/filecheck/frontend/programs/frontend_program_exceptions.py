@@ -3,6 +3,7 @@
 from xdsl.dialects import bigint, builtin
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
+from xdsl.utils.exceptions import VerifyException
 
 ctx = PyASTContext()
 ctx.register_type(int, bigint.bigint)
@@ -43,7 +44,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
-# CHECK-NEXT: Expected non-zero number of return types in function 'missing_return_value', but got 0.
+# CHECK-NEXT: Expected arguments to have the same types as the function output types
 @ctx.parse_program
 def missing_return_value() -> int:
     return  # pyright: ignore[reportReturnType]
@@ -51,8 +52,8 @@ def missing_return_value() -> int:
 
 try:
     missing_return_value.module
-except FrontendProgramException as e:
-    print(e.msg)
+except VerifyException as e:
+    print(e)
 
 
 try:
@@ -84,7 +85,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
-# CHECK: Expected non-zero number of return types in function 'test_no_return_type', but got 0.
+# CHECK: Expected arguments to have the same types as the function output types
 @ctx.parse_program
 def test_no_return_type(a: int) -> int:
     return  # pyright: ignore[reportReturnType]
@@ -92,11 +93,11 @@ def test_no_return_type(a: int) -> int:
 
 try:
     test_no_return_type.module
-except FrontendProgramException as e:
-    print(e.msg)
+except VerifyException as e:
+    print(e)
 
 
-# CHECK: Type signature and the type of the return value do not match at position 0: expected i1, got !bigint.bigint.
+# CHECK: Expected arguments to have the same types as the function output types
 @ctx.parse_program
 def test_wrong_return_type(a: bool, b: int) -> bool:
     return b  # pyright: ignore[reportReturnType]
@@ -104,8 +105,8 @@ def test_wrong_return_type(a: bool, b: int) -> bool:
 
 try:
     test_wrong_return_type.module
-except FrontendProgramException as e:
-    print(e.msg)
+except VerifyException as e:
+    print(e)
 
 
 # CHECK: Expected the same types for binary operation 'Add', but got !bigint.bigint and i1.

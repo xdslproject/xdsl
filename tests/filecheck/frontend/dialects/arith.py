@@ -6,6 +6,7 @@ from xdsl.dialects import arith, bigint, builtin
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import LiteralRegistry
+from xdsl.utils.exceptions import VerifyException
 
 
 def add_i32(operand1: c_int32, operand2: c_int32) -> c_int32: ...
@@ -264,7 +265,7 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
-# CHECK: Type signature and the type of the return value do not match at position 0: expected f32, got f64.
+# CHECK: Expected arguments to have the same types as the function output types
 @ctx.parse_program
 def test_constant_float_wrong_return_type_f32() -> c_float:
     return 0.0  # pyright: ignore[reportReturnType]
@@ -272,8 +273,8 @@ def test_constant_float_wrong_return_type_f32() -> c_float:
 
 try:
     test_constant_float_wrong_return_type_f32.module
-except CodeGenerationException as e:
-    print(e.msg)
+except VerifyException as e:
+    print(e)
 
 
 ctx_c_float_literal = PyASTContext(

@@ -564,44 +564,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "function body.",
             )
 
-        callee = parent_op.sym_name.data
-        func_return_types = parent_op.function_type.outputs.data
-
         value = node.value
         if value is None or (isinstance(value, ast.Constant) and value.value is None):
-            # Return nothing, check function signature matches.
-            if func_return_types:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Expected non-zero number of return types in function "
-                    f"'{callee}', but got 0.",
-                )
             self.inserter.insert_op(func.ReturnOp())
         else:
-            # Return some type, check function signature matches as well.
-            # TODO: Support multiple return values if we allow multiple assignemnts.
+            # TODO: Support multiple return values if we allow multiple assignments.
             self.visit(value)
             operands = [self.inserter.get_operand()]
-
-            if not func_return_types:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Expected no return types in function '{callee}'.",
-                )
-
-            for i in range(len(operands)):
-                if func_return_types[i] != operands[i].type:
-                    raise CodeGenerationException(
-                        self.file,
-                        node.lineno,
-                        node.col_offset,
-                        f"Type signature and the type of the return value do "
-                        f"not match at position {i}: expected {func_return_types[i]},"
-                        f" got {operands[i].type}.",
-                    )
-
             self.inserter.insert_op(func.ReturnOp(*operands))
