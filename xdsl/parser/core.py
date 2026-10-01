@@ -301,37 +301,36 @@ class Parser(AttrParser):
     ) -> SSAValue[AttributeInvT]:
         """
         Resolve an unresolved operand.
-        If the operand is not yet defined, it creates a forward reference.
-        If the operand is already defined or forward referenced, it checks that
-        its type equals the requested type before returning the existing SSA value.
+        If the operand is not yet defined, create or reuse a forward reference.
+        If the operand is defined or has been referenced, then the types must match,
+        else a `ParseError` is raised.
         """
         name = operand.operand_name
 
-        # Look up an existing forward reference or definition.
-        resolved: SSAValue
-        if (
-            name in self.forward_ssa_references
-            and operand.index in self.forward_ssa_references[name]
-        ):
-            resolved = self.forward_ssa_references[name][operand.index]
-        elif name not in self.ssa_values:
-            # A new forward reference has the requested type by construction.
-            forward_value = ForwardDeclaredValue(type)
-            reference_tuple = self.forward_ssa_references.setdefault(name, {})
-            reference_tuple[operand.index] = forward_value
-            return forward_value
+        values = self.ssa_values.get(name)
+
+        if values is None:
+            # Not yet declared, either resolve or store as typed forward reference
+            references = self.forward_ssa_references.setdefault(name, {})
+            forward_value = references.get(operand.index)
+            if forward_value is None:
+                # Forward reference
+                forward_value = ForwardDeclaredValue(type)
+                references[operand.index] = forward_value
+                return forward_value
+            resolved = forward_value
         else:
-            # If the operand is already defined, check that the tuple index is in range.
-            tuple_size = len(self.ssa_values[name])
-            if operand.index >= tuple_size:
+            # Declared, look up index in tuple
+            try:
+                resolved = values[operand.index]
+            except IndexError:
                 self.raise_error(
                     "SSA value tuple index out of bounds. "
-                    f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
+                    f"Tuple is of size {len(values)} but tried to access "
+                    f"element {operand.index}.",
                     operand.span,
                 )
-            resolved = self.ssa_values[name][operand.index]
 
-        # Check that the type is consistent
         if resolved.type != type:
             self.raise_error(
                 f"operand is used with type {type}, but has been "
