@@ -137,3 +137,21 @@ builtin.module {
 }
 
 // CHECK: operand is used with type i64, but has been previously used or defined with type i32
+
+// -----
+
+// Forward references to distinct tuple elements are resolved independently.
+
+builtin.module {
+  "test.op"(%x#0) : (i32) -> ()
+  "test.op"(%x#1) : (i64) -> ()
+  "test.op"(%x#0) : (i32) -> ()
+  %x:2 = "test.op"() : () -> (i32, i64)
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   "test.op"(%x) : (i32) -> ()
+// CHECK-NEXT:   "test.op"(%x_1) : (i64) -> ()
+// CHECK-NEXT:   "test.op"(%x) : (i32) -> ()
+// CHECK-NEXT:   %x, %x_1 = "test.op"() : () -> (i32, i64)
+// CHECK-NEXT: }
