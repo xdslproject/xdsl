@@ -462,6 +462,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Parse function body.
         statements = node.body
+        if ast.get_docstring(node, clean=False) is not None:
+            # Skip docstring
+            statements = statements[1:]
         if not statements or not isinstance(statements[-1], ast.Return):
             # Handle implicit returns by modifying the AST
             statements = [
