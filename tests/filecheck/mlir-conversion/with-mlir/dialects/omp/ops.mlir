@@ -311,6 +311,12 @@ builtin.module {
     }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
     func.return
   }
+  func.func @omp_taskwait_taskyield(%d1: memref<1xi32>, %d2: memref<1xf32>) {
+    "omp.taskwait"() : () -> ()
+    "omp.taskwait"(%d1, %d2) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], nowait}> : (memref<1xi32>, memref<1xf32>) -> ()
+    "omp.taskyield"() : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -614,6 +620,12 @@ builtin.module {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}}: i32, %{{.*}}: memref<1xi32>):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_taskwait_taskyield(%{{.*}}: memref<1xi32>, %{{.*}}: memref<1xf32>) {
+// CHECK-NEXT:      "omp.taskwait"() : () -> ()
+// CHECK-NEXT:      "omp.taskwait"(%{{.*}}, %{{.*}}) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], nowait}> : (memref<1xi32>, memref<1xf32>) -> ()
+// CHECK-NEXT:      "omp.taskyield"() : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
