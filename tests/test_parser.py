@@ -60,11 +60,7 @@ from xdsl.utils.str_enum import StrEnum
 @pytest.mark.parametrize("defined", [False, True])
 @pytest.mark.parametrize(
     "t",
-    [
-        (IndexType(),),
-        (IntegerType(32),),
-        (MemRefType(i32, [2]),),
-    ],
+    [IndexType(), IntegerType(32), MemRefType(i32, [2])],
 )
 def test_resolve_operand_matching_type(defined: bool, t: Attribute):
     parser = Parser(Context(), "%x %x")
