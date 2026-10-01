@@ -85,6 +85,11 @@ class VerificationContext(InferenceContext):
         self._int_variables[key] = i
 
 
+@deprecated("Please use either VerificationContext or InferenceContext")
+class ConstraintContext(VerificationContext):
+    pass
+
+
 _AttributeCovT = TypeVar(
     "_AttributeCovT", bound=Attribute, default=Attribute, covariant=True
 )
