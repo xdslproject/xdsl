@@ -84,24 +84,28 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     @property
     def ub(self) -> IntegerAttr[SI32] | SSAValue:
         """Static upper bound (typed integer) or dynamic register SSA value."""
-        if self.ub_attr is not None:
-            return self.ub_attr
-        else:
-            assert self.ub_val is not None, (
-                "Exactly one of ub_attr or ub_val must be set"
-            )
-            return self.ub_val
+        match (ub_attr := self.ub_attr, ub_val := self.ub_val):
+            case (None, None):
+                raise ValueError("Exactly one of ub_attr or ub_val must be set")
+            case (None, _):
+                return ub_val
+            case (_, None):
+                return ub_attr
+            case (_, _):
+                raise ValueError("Exactly one of ub_attr or ub_val must be set")
 
     @property
     def step(self) -> IntegerAttr[SI32] | SSAValue:
         """Static step (typed integer) or dynamic register SSA value."""
-        if self.step_attr is not None:
-            return self.step_attr
-        else:
-            assert self.step_val is not None, (
-                "Exactly one of step_attr or step_val must be set"
-            )
-            return self.step_val
+        match (step_attr := self.step_attr, step_val := self.step_val):
+            case (None, None):
+                raise ValueError("Exactly one of step_attr or step_val must be set")
+            case (None, _):
+                return step_val
+            case (_, None):
+                return step_attr
+            case (_, _):
+                raise ValueError("Exactly one of step_attr or step_val must be set")
 
     def __init__(
         self,
@@ -142,16 +146,12 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
         )
 
     def verify_(self):
-        if (self.ub_attr is None) == (self.ub_val is None):
-            raise VerifyException(
-                "Exactly one of ub_attr (static) or ub_val (dynamic) must be set, "
-                f"got ub_attr={self.ub_attr}, ub_val={self.ub_val}"
-            )
-        if (self.step_attr is None) == (self.step_val is None):
-            raise VerifyException(
-                "Exactly one of step_attr (static) or step_val (dynamic) must be set, "
-                f"got step_attr={self.step_attr}, step_val={self.step_val}"
-            )
+        try:
+            _ = self.ub
+            _ = self.step
+        except ValueError as exc:
+            raise VerifyException(exc.args[0])
+
         if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got "
