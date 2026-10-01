@@ -108,6 +108,18 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
+# CHECK: Function return type must be annotated.
+@ctx.parse_program
+def test_no_return_types(a: int):
+    return a
+
+
+try:
+    test_no_return_types.module
+except FrontendProgramException as e:
+    print(e.msg)
+
+
 # CHECK: Expected the same types for binary operation 'Add', but got !bigint.bigint and i1.
 @ctx.parse_program
 def bin_op_type_mismatch(a: int, b: bool) -> int:

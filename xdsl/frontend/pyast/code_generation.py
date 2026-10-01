@@ -425,7 +425,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                "Function return type must be annotated",
+                "Function return type must be annotated.",
             )
         return_types: list[Attribute] = []
         if not (isinstance(returns, ast.Constant) and returns.value is None):
