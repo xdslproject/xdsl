@@ -261,7 +261,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
             assert block
             block_args = interpreter.get_values(block.args)
             scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
-            assert scope
+            assert scope is not None
             index = 0
             self.backtrack_stack.append(
                 BacktrackPoint(
@@ -524,7 +524,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
             assert block
             block_args = interpreter.get_values(block.args)
             scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
-            assert scope
+            assert scope is not None
             index = 0
             self.backtrack_stack.append(
                 BacktrackPoint(block, block_args, scope, op, index, len(op.choices))
