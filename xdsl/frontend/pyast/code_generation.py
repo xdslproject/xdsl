@@ -1,4 +1,5 @@
 import ast
+import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
@@ -461,7 +462,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
 
         # Parse function body.
-        for stmt in node.body:
+        has_docstring = ast.get_docstring(node, clean=False) is not None
+        visit_start_index = 1 if has_docstring else 0
+        for stmt in itertools.islice(node.body, visit_start_index, None):
             self.visit(stmt)
 
         # If function does not end with a return statement to be visited, we
