@@ -1149,6 +1149,65 @@ class SingleOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.task
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptask-omptaskop).
+    """
+
+    name = "omp.task"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+    final = opt_operand_def(i1)
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    priority = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    event_handle = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    mergeable = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    untied = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.in_reduction_vars) + len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.in_reduction_vars)
+        num_syms = 0 if self.in_reduction_syms is None else len(self.in_reduction_syms)
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction symbol references "
+                "as in_reduction variables"
+            )
+        byref = self.in_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction byref flags "
+                "as in_reduction variables"
+            )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1172,6 +1231,7 @@ OMP = Dialect(
         TaskwaitOp,
         TaskyieldOp,
         SingleOp,
+        TaskOp,
     ],
     [
         ClauseRequiresKindAttr,
