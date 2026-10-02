@@ -316,6 +316,16 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @omp_task(%a1: i32, %a2: i32, %dep: memref<1xi32>, %b: i1, %ir: memref<1xi32>, %prio: i32, %p1: i32, %ev: memref<1xi32>) {
+    "omp.task"(%a1, %a2, %dep, %b, %b, %ir, %prio, %p1, %ev) <{depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_byref = array<i1: false>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], untied, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+    ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32):
+      "omp.terminator"() : () -> ()
+    }) : (i32, i32, memref<1xi32>, i1, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+    "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -624,6 +634,16 @@ builtin.module {
 // CHECK-NEXT:        "omp.single"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
 // CHECK-NEXT:          "omp.terminator"() : () -> ()
 // CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_task(%a1: i32, %a2: i32, %dep: memref<1xi32>, %b: i1, %ir: memref<1xi32>, %prio: i32, %p1: i32, %ev: memref<1xi32>) {
+// CHECK-NEXT:      "omp.task"(%a1, %a2, %dep, %b, %b, %ir, %prio, %p1, %ev) <{depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_byref = array<i1: false>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], untied, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+// CHECK-NEXT:      ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i32, i32, memref<1xi32>, i1, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return

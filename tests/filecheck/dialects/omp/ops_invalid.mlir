@@ -360,3 +360,49 @@ func.func @omp_single_copyprivate(%cp: memref<1xi32>) {
 }
 
 // CHECK: omp.single inconsistent number of copyprivate vars (1) and functions (0)
+
+// -----
+
+func.func @omp_task_depend_count(%dep: memref<1xi32>) {
+  "omp.task"(%dep) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], operandSegmentSizes = array<i32: 0, 0, 1, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: integer 1 expected from int variable 'DEP_COUNT', but got 2
+
+// -----
+
+func.func @omp_task_in_reduction_syms(%ir: memref<1xi32>) {
+  "omp.task"(%ir) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many in_reduction symbol references as in_reduction variables
+
+// -----
+
+func.func @omp_task_in_reduction_byref(%ir: memref<1xi32>) {
+  "omp.task"(%ir) <{in_reduction_byref = array<i1: false, true>, in_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many in_reduction byref flags as in_reduction variables
+
+// -----
+
+func.func @omp_task_block_args(%p1: i32) {
+  "omp.task"(%p1) <{private_syms = [@p1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected to have at least 1 block argument(s), got 0
