@@ -12,7 +12,7 @@ ctx.register_type(int, bigint.bigint)
 
 # CHECK: cf.assert %{{.*}}, ""
 @ctx.parse_program
-def test_assert_I(cond: bool):
+def test_assert_I(cond: bool) -> None:
     assert cond
     return
 
@@ -22,7 +22,7 @@ print(test_assert_I.module)
 
 # CHECK: cf.assert %{{.*}}, "some message"
 @ctx.parse_program
-def test_assert_II(cond: bool):
+def test_assert_II(cond: bool) -> None:
     assert cond, "some message"
     return
 
@@ -32,7 +32,7 @@ print(test_assert_II.module)
 
 # CHECK: Expected a string constant for assertion message, found 'ast.Name'
 @ctx.parse_program
-def test_assert_message_type(cond: bool, a: int):
+def test_assert_message_type(cond: bool, a: int) -> None:
     assert cond, a
     return
 
