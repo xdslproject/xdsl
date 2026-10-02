@@ -1208,6 +1208,48 @@ class TaskOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskgroupOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.taskgroup
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskgroup-omptaskgroupop).
+    """
+
+    name = "omp.taskgroup"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    task_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    task_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    task_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.task_reduction_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.task_reduction_vars)
+        num_syms = (
+            0 if self.task_reduction_syms is None else len(self.task_reduction_syms)
+        )
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction symbol references "
+                "as task_reduction variables"
+            )
+        byref = self.task_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction byref flags "
+                "as task_reduction variables"
+            )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1232,6 +1274,7 @@ OMP = Dialect(
         TaskyieldOp,
         SingleOp,
         TaskOp,
+        TaskgroupOp,
     ],
     [
         ClauseRequiresKindAttr,
