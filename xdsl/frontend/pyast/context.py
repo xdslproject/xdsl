@@ -11,9 +11,9 @@ from typing_extensions import TypeForm
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import (
-    CodeGenerationVisitor,
     FunctionDefinitionConstructor,
     ReturnConstructor,
+    TupleConstructor,
     build_func,
     build_return,
 )
@@ -76,14 +76,14 @@ class PyASTContext:
     )
     """The xDSL context to use when applying transformations to the built module."""
 
-    code_generation_visitor: type[CodeGenerationVisitor] = CodeGenerationVisitor
-    """Visitor used to lower the Python AST."""
-
     function_definition_constructor: FunctionDefinitionConstructor = build_func
     """Construct the enclosing operation before visiting function statements."""
 
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
+
+    tuple_constructor: TupleConstructor | None = None
+    """Construct tuple expressions when registered."""
 
     def register_type(
         self,
@@ -104,6 +104,10 @@ class PyASTContext:
     ) -> None:
         """Associate a Python literal type with an IR constructor."""
         self.literal_registry.insert(value_type, ir_constructor)
+
+    def register_tuple(self, ir_constructor: TupleConstructor) -> None:
+        """Set the constructor for a tuple of SSA values, producing one result."""
+        self.tuple_constructor = ir_constructor
 
     def register_function_definition(
         self, ir_constructor: FunctionDefinitionConstructor
@@ -174,8 +178,8 @@ class PyASTContext:
             function_ast=func_ast,
             build_context=self.ir_context,
             post_transforms=self.pass_pipeline,
-            code_generation_visitor=self.code_generation_visitor,
             function_definition_constructor=self.function_definition_constructor,
             return_constructor=self.return_constructor,
+            tuple_constructor=self.tuple_constructor,
         )
         return self._get_wrapped_program(func, builder)
