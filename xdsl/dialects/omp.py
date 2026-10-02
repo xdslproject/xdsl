@@ -681,7 +681,7 @@ class PrivateClauseOp(IRDLOperation):
     copy_region = region_def()
     dealloc_region = region_def()
 
-    traits = traits_def(IsolatedFromAbove())
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
