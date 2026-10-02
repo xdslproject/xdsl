@@ -65,3 +65,13 @@
 %result:1 = "transform.structured.tile_using_for"(%target) <{scalable_sizes = array<i1: false>}> : (!transform.any_op) -> !transform.any_op
 
 // CHECK: expected 0 scalable size flags, got 1
+
+// -----
+
+// Yield
+
+transform.named_sequence @wrong_type(%arg: !transform.any_op) -> !transform.any_value {
+  transform.yield %arg : !transform.any_op
+}
+
+// CHECK: Expected yielded values to have the same types as the named sequence output types
