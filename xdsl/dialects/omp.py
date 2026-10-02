@@ -1113,6 +1113,42 @@ class TaskyieldOp(IRDLOperation):
     name = "omp.taskyield"
 
 
+@irdl_op_definition
+class SingleOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.single
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsingle-ompsingleop).
+    """
+
+    name = "omp.single"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    copyprivate_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars = var_operand_def()
+
+    copyprivate_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    nowait = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_syms = 0 if self.copyprivate_syms is None else len(self.copyprivate_syms)
+        if len(self.copyprivate_vars) != num_syms:
+            raise VerifyException(
+                f"{self.name} inconsistent number of copyprivate vars "
+                f"({len(self.copyprivate_vars)}) and functions ({num_syms})"
+            )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1135,6 +1171,7 @@ OMP = Dialect(
         DeclareReductionOp,
         TaskwaitOp,
         TaskyieldOp,
+        SingleOp,
     ],
     [
         ClauseRequiresKindAttr,
