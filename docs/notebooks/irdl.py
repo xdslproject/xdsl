@@ -285,8 +285,8 @@ def _(BaseAttr, VerificationContext, IndexType, IntegerType, VerifyException):
         var_constraint.verify(IndexType(), constraint_context)
     except VerifyException as e:
         print(e)
+        constraint_context = VerificationContext()
     return VarConstraint, constraint_context, var_constraint
-
 
 @app.cell
 def _(constraint_context, i32, var_constraint):

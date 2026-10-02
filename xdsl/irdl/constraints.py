@@ -75,14 +75,59 @@ class VerificationContext(InferenceContext):
     Contains the assignment of constraint variables, allowing assignment.
     """
 
-    def set_attr_variable(self, key: str, attr: Attribute):
+    def set_attr_variable(self, key: str, attr: Attribute) -> bool:
+        """
+        Tries to assign the attribute 'attr' to key 'key'.
+        If a different attribute is already assigned to this key, then this function
+        throws a VerifyError.
+
+        The return value indicates whether this key was set by this call.
+        """
+        if (existing := self._variables.get(key)) is not None:
+            if existing != attr:
+                raise VerifyException(
+                    f"attribute {existing} expected from variable "
+                    f"'{key}', but got {attr}"
+                )
+            return False
         self._variables[key] = attr
+        return True
 
-    def set_range_variable(self, key: str, attrs: tuple[Attribute, ...]):
+    def set_range_variable(self, key: str, attrs: tuple[Attribute, ...]) -> bool:
+        """
+        Tries to assign the attributes 'attrs' to key 'key'.
+        If a different attribute range is already assigned to this key, then this
+        function throws a VerifyError.
+
+        The return value indicates whether this key was set by this call.
+        """
+        if (existing := self._range_variables.get(key)) is not None:
+            if existing != attrs:
+                raise VerifyException(
+                    f"attributes {tuple(str(x) for x in existing)} expected from range variable "
+                    f"'{key}', but got {tuple(str(x) for x in attrs)}"
+                )
+            return False
         self._range_variables[key] = attrs
+        return True
 
-    def set_int_variable(self, key: str, i: int):
+    def set_int_variable(self, key: str, i: int) -> bool:
+        """
+        Tries to assign the integer 'i' to key 'key'.
+        If a different integer is already assigned to this key, then this function throws
+        a VerifyError.
+
+        The return value indicates whether this key was set by this call.
+        """
+        if (existing := self._int_variables.get(key)) is not None:
+            if existing != i:
+                raise VerifyException(
+                    f"integer {existing} expected from int variable "
+                    f"'{key}', but got {i}"
+                )
+            return False
         self._int_variables[key] = i
+        return True
 
 
 @deprecated("Please use either VerificationContext or InferenceContext")
@@ -231,16 +276,8 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
         attr: Attribute,
         constraint_context: VerificationContext,
     ) -> None:
-        ctx_attr = constraint_context.get_variable(self.name)
-        if ctx_attr is not None:
-            if attr != ctx_attr:
-                raise VerifyException(
-                    f"attribute {constraint_context.get_variable(self.name)} expected from variable "
-                    f"'{self.name}', but got {attr}"
-                )
-        else:
+        if constraint_context.set_attr_variable(self.name, attr):
             self.constraint.verify(attr, constraint_context)
-            constraint_context.set_attr_variable(self.name, attr)
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -1029,15 +1066,8 @@ class IntVarConstraint(IntConstraint):
         i: int,
         constraint_context: VerificationContext,
     ) -> None:
-        if self.name in constraint_context.int_variables:
-            if i != constraint_context.get_int_variable(self.name):
-                raise VerifyException(
-                    f"integer {constraint_context.get_int_variable(self.name)} expected from int variable "
-                    f"'{self.name}', but got {i}"
-                )
-        else:
+        if constraint_context.set_int_variable(self.name, i):
             self.constraint.verify(i, constraint_context)
-            constraint_context.set_int_variable(self.name, i)
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -1336,16 +1366,8 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
         attrs: Sequence[Attribute],
         constraint_context: VerificationContext,
     ) -> None:
-        ctx_attrs = constraint_context.get_range_variable(self.name)
-        if ctx_attrs is not None:
-            if tuple(attrs) != ctx_attrs:
-                raise VerifyException(
-                    f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
-                    f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
-                )
-        else:
+        if constraint_context.set_range_variable(self.name, tuple(attrs)):
             self.constraint.verify(attrs, constraint_context)
-            constraint_context.set_range_variable(self.name, tuple(attrs))
 
     def verify_length(
         self, length: int, constraint_context: VerificationContext
