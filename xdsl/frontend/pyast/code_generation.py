@@ -22,6 +22,9 @@ FunctionDefinitionConstructor = Callable[
 ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
 """Construct a return operation, or return None when no terminator is needed."""
 
+TupleConstructor = Callable[[Sequence[SSAValue]], Operation]
+"""Construct an operation with one result representing a tuple of SSA values."""
+
 
 def build_func(
     name: str, signature: builtin.FunctionType, body: Region, location: Location
@@ -58,6 +61,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     return_constructor: ReturnConstructor
     """Construct return operations, optionally omitting the terminator."""
 
+    tuple_constructor: TupleConstructor | None
+    """Construct tuple expressions when registered."""
+
     def __init__(
         self,
         type_converter: TypeConverter,
@@ -65,11 +71,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         file: str | None,
         function_definition_constructor: FunctionDefinitionConstructor = build_func,
         return_constructor: ReturnConstructor = build_return,
+        tuple_constructor: TupleConstructor | None = None,
     ) -> None:
         self.type_converter = type_converter
         self.file = file
         self.function_definition_constructor = function_definition_constructor
         self.return_constructor = return_constructor
+        self.tuple_constructor = tuple_constructor
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
@@ -419,6 +427,25 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             node.col_offset,
             f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
+
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        if self.tuple_constructor is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Tuple construction is not registered.",
+            )
+        elements = [self.visit_single_value(element) for element in node.elts]
+        op = self.tuple_constructor(elements)
+        if len(op.results) != 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected a tuple constructor with exactly one result.",
+            )
+        self.inserter.insert_op(op)
 
     def visit_Expr(self, node: ast.Expr) -> None:
         stack_size = len(self.inserter.stack)

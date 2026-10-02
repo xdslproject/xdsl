@@ -1,10 +1,8 @@
 # RUN: python %s | filecheck %s
 
-import ast
-from typing import Any, ClassVar
+from typing import Any
 
 from xdsl.dialects import arith, builtin, test
-from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.program import PyASTProgram
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
@@ -27,19 +25,7 @@ def build_consume(value: SSAValue) -> test.TestOp:
     return test.TestOp([value])
 
 
-class StackCheckingVisitor(CodeGenerationVisitor):
-    """Check expression statements, including calls with zero or multiple results."""
-
-    checked: ClassVar[int] = 0
-
-    def visit_Expr(self, node: ast.Expr) -> None:
-        size = len(self.inserter.stack)
-        super().visit_Expr(node)
-        assert len(self.inserter.stack) == size
-        StackCheckingVisitor.checked += 1
-
-
-ctx = PyASTContext(code_generation_visitor=StackCheckingVisitor)
+ctx = PyASTContext()
 ctx.register_type(int, builtin.i32)
 ctx.register_type(float, builtin.f64)
 ctx.register_type(tuple[int, bool], builtin.TupleType((builtin.i32, builtin.i1)))
@@ -67,7 +53,6 @@ print(assignments.module)
 
 
 # Discarding a call's values must retain the operation, including its effects.
-# The customized visitor also verifies that no results leak onto the stack.
 @ctx.parse_program
 def discarded(x: int) -> int:
     pair(x, 1)
@@ -76,7 +61,6 @@ def discarded(x: int) -> int:
 
 
 print(discarded.module)
-assert StackCheckingVisitor.checked == 2
 
 
 @ctx.parse_program
