@@ -14,6 +14,14 @@
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
+// CHECK:      pdl_interp.func @matcher(%a: !pdl.value, %b: !pdl.value) {
+// CHECK-NEXT:   ematch.are_equivalent %a, %b -> ^bb1, ^bb2
+// CHECK-NEXT: ^bb1:
+// CHECK-NEXT:   pdl_interp.finalize
+// CHECK-NEXT: ^bb2:
+// CHECK-NEXT:   pdl_interp.finalize
+// CHECK-NEXT: }
+
 // CHECK-GENERIC:     "func.func"() <{sym_name = "main", function_type = (!pdl.value, !pdl.range<value>, !pdl.operation) -> ()}> ({
 // CHECK-GENERIC-NEXT: ^bb0(%val: !pdl.value, %valrange: !pdl.range<value>, %op: !pdl.operation):
 // CHECK-GENERIC-NEXT:   %class_vals = "ematch.get_class_vals"(%val) : (!pdl.value) -> !pdl.range<value>
@@ -25,6 +33,15 @@
 // CHECK-GENERIC-NEXT:   "ematch.union"(%valrange, %valrange) : (!pdl.range<value>, !pdl.range<value>) -> ()
 // CHECK-GENERIC-NEXT:   %newop = "ematch.dedup"(%op) : (!pdl.operation) -> !pdl.operation
 // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
+// CHECK-GENERIC-NEXT: }) : () -> ()
+
+// CHECK-GENERIC:      "pdl_interp.func"() <{sym_name = "matcher", function_type = (!pdl.value, !pdl.value) -> ()}> ({
+// CHECK-GENERIC-NEXT: ^bb0(%a: !pdl.value, %b: !pdl.value):
+// CHECK-GENERIC-NEXT:   "ematch.are_equivalent"(%a, %b) [^bb1, ^bb2] : (!pdl.value, !pdl.value) -> ()
+// CHECK-GENERIC-NEXT: ^bb1:
+// CHECK-GENERIC-NEXT:   "pdl_interp.finalize"() : () -> ()
+// CHECK-GENERIC-NEXT: ^bb2:
+// CHECK-GENERIC-NEXT:   "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
 
 
@@ -46,4 +63,12 @@ func.func @main(%val: !pdl.value, %valrange: !pdl.range<value>, %op: !pdl.operat
     %newop = ematch.dedup %op
     
     func.return
+}
+
+pdl_interp.func @matcher(%a: !pdl.value, %b: !pdl.value) {
+    ematch.are_equivalent %a, %b -> ^bb0, ^bb1
+^bb0:
+    pdl_interp.finalize
+^bb1:
+    pdl_interp.finalize
 }
