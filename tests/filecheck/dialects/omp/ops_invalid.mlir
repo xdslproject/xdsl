@@ -349,3 +349,14 @@ func.func @omp_taskwait_depend_count(%d1: memref<1xi32>) {
 }
 
 // CHECK: integer 1 expected from int variable 'DEP_COUNT', but got 2
+
+// -----
+
+func.func @omp_single_copyprivate(%cp: memref<1xi32>) {
+  "omp.single"(%cp) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.single inconsistent number of copyprivate vars (1) and functions (0)
