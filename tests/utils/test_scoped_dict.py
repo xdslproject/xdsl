@@ -51,3 +51,41 @@ def test_get():
 
     assert child.get("a", 5) == 3
     assert child.get("d", 5) == 5
+
+
+def test_contains():
+    grand_parent = ScopedDict(local_scope={"a": 0, "b": 1})
+    parent = ScopedDict(grand_parent, local_scope={"b": 2, "a": 3})
+    child = ScopedDict(parent, local_scope={"a": 4, "c": 5})
+
+    assert "a" in grand_parent
+    assert "b" in grand_parent
+    assert "c" not in grand_parent
+
+    assert "a" in parent
+    assert "b" in parent
+    assert "c" not in parent
+
+    assert "a" in child
+    assert "b" in child
+    assert "c" in child
+
+
+def test_len():
+    grand_parent = ScopedDict(local_scope={"a": 0, "b": 1})
+    parent = ScopedDict(grand_parent, local_scope={"b": 2, "a": 3})
+    child = ScopedDict(parent, local_scope={"a": 4, "c": 5})
+
+    assert len(grand_parent) == 2
+    assert len(parent) == 2
+    assert len(child) == 3
+
+
+def test_iter():
+    grand_parent = ScopedDict(local_scope={"a": 0, "b": 1})
+    parent = ScopedDict(grand_parent, local_scope={"b": 2, "a": 3})
+    child = ScopedDict(parent, local_scope={"a": 4, "c": 5})
+
+    assert (*grand_parent,) == ("a", "b")
+    assert (*parent,) == ("b", "a")
+    assert (*child,) == ("a", "c", "b")
