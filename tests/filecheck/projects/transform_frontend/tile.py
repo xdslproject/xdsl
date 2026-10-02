@@ -1,54 +1,50 @@
 # RUN: python %s | filecheck %s
 
-import ast
 from collections.abc import Callable
 from typing import Any
 
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, func, get_all_dialects, linalg, scf, transform
+from xdsl.dialects import builtin, func, get_all_dialects, linalg, py, scf, transform
+from xdsl.dialects.linalg.abstract_ops import LinalgStructuredOperation
 from xdsl.dialects.linalg.transforms.tiling import tile_structured_op
-from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.program import PyASTProgram
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.interpreters.transform import OperationHandle
-from xdsl.ir import Dialect, Operation, OperationInvT, OpResult, Region, SSAValue
+from xdsl.ir import Dialect, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     operand_def,
     result_def,
-    traits_def,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import Rewriter
-from xdsl.traits import Pure
 from xdsl.transforms.dead_code_elimination import region_dce
 from xdsl.transforms.desymref import FrontendDesymrefyPass
+from xdsl.transforms.linalg_generalize_named_ops import LinalgGeneralizeNamedOpsPass
 from xdsl.transforms.transform_interpreter import TransformInterpreterPass
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, InterpretationError
+from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Location
-
-SIZES_TYPE = builtin.TupleType((builtin.i32, builtin.i32, builtin.i32))
 
 
 @irdl_op_definition
-class SizesOp(IRDLOperation):
-    """Pack three integer SSA values, preserving the Python tuple until lowering."""
+class MatchOp(IRDLOperation):
+    """Match payload operations by a name resolved to a property during lowering."""
 
-    name = "pytransform.sizes"
+    name = "pytransform.match"
 
-    i = operand_def(builtin.i32)
-    j = operand_def(builtin.i32)
-    k = operand_def(builtin.i32)
-    result = result_def(SIZES_TYPE)
+    root = operand_def(transform.AnyOpType)
+    operation_name = operand_def(py.PyObjectType)
+    result = result_def(transform.AnyOpType)
 
-    traits = traits_def(Pure())
-
-    def __init__(self, i: SSAValue, j: SSAValue, k: SSAValue):
-        super().__init__(operands=[i, j, k], result_types=[SIZES_TYPE])
+    def __init__(self, roots: SSAValue, name: SSAValue):
+        super().__init__(operands=[roots, name], result_types=[transform.AnyOpType()])
 
 
 @irdl_op_definition
@@ -63,19 +59,19 @@ class TileOp(IRDLOperation):
     name = "pytransform.tile"
 
     target = operand_def(transform.AnyOpType)
-    sizes = operand_def(SIZES_TYPE)
+    sizes = operand_def(py.PyObjectType)
     tiled = result_def(transform.AnyOpType)
     i = result_def(transform.AnyOpType)
     j = result_def(transform.AnyOpType)
     k = result_def(transform.AnyOpType)
 
-    def __init__(self, target: SSAValue, sizes: SSAValue):
+    def __init__(self, targets: SSAValue, sizes: SSAValue):
         super().__init__(
-            operands=[target, sizes], result_types=[transform.AnyOpType()] * 4
+            operands=[targets, sizes], result_types=[transform.AnyOpType()] * 4
         )
 
 
-PyTransform = Dialect("pytransform", [SizesOp, TileOp], [])
+PyTransform = Dialect("pytransform", [MatchOp, TileOp], [])
 
 
 class LowerPyTransformPass(ModulePass):
@@ -104,23 +100,36 @@ class LowerPyTransformPass(ModulePass):
             raise DiagnosticException("expected a schedule ending in a bare return")
 
         for helper in tuple(block.ops):
+            if isinstance(helper, MatchOp):
+                if (
+                    not isinstance(helper.operation_name, OpResult)
+                    or not isinstance(
+                        constant := helper.operation_name.owner, py.PyConstOp
+                    )
+                    or not isinstance(constant.const, builtin.StringAttr)
+                ):
+                    raise DiagnosticException("expected a constant operation name")
+                Rewriter.replace_op(
+                    helper, transform.MatchOp(helper.root, ops=[constant.const.data])
+                )
+                continue
             if not isinstance(helper, TileOp):
                 continue
             if not isinstance(helper.sizes, OpResult) or not isinstance(
-                sizes_op := helper.sizes.owner, SizesOp
+                sizes_op := helper.sizes.owner, py.PyBuildTupleOp
             ):
-                raise DiagnosticException("expected tile sizes from pytransform.sizes")
+                raise DiagnosticException("expected tile sizes from py.build_tuple")
+            if len(sizes_op.elements) != 3:
+                raise DiagnosticException("expected a tuple of three tile sizes")
             sizes: list[int] = []
             for operand in sizes_op.operands:
                 if (
                     not isinstance(operand, OpResult)
-                    or not isinstance(constant := operand.owner, arith.ConstantOp)
-                    or not isinstance(constant.value, builtin.IntegerAttr)
+                    or not isinstance(constant := operand.owner, py.PyConstOp)
+                    or not isinstance(constant.const, builtin.IntAttr)
                 ):
-                    raise DiagnosticException(
-                        "expected tile sizes from arith.constant i32 operations"
-                    )
-                size = constant.value.value.data
+                    raise DiagnosticException("expected constant integer tile sizes")
+                size = constant.const.data
                 if size <= 0:
                     raise DiagnosticException(
                         "the Python transform prototype requires positive tile sizes"
@@ -146,64 +155,6 @@ class LowerPyTransformPass(ModulePass):
             )
 
 
-class TransformCodeGenerationVisitor(CodeGenerationVisitor):
-    """Recognize the prototype's size tuple and MatmulOp class argument."""
-
-    def visit_Tuple(self, node: ast.Tuple) -> None:
-        if len(node.elts) != 3:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "expected a tuple of three tile sizes",
-            )
-        i, j, k = (self.visit_single_value(element) for element in node.elts)
-        self.inserter.insert_op(SizesOp(i, j, k))
-
-    def visit_Call(self, node: ast.Call) -> None:
-        # The registered MatchOp constructor has a prototype-specific Python
-        # signature: (root, MatmulOp). All other calls use normal PyAST lowering.
-        source = (
-            self.type_converter.globals.get(node.func.id)
-            if isinstance(node.func, ast.Name)
-            else None
-        )
-        if not callable(source) or (
-            self.type_converter.function_registry.get_operation_constructor(source)
-            is not transform.MatchOp
-        ):
-            return super().visit_Call(node)
-        if len(node.args) != 2 or node.keywords:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "expected match(root, MatmulOp)",
-            )
-
-        class_expr = node.args[1]
-        attributes: list[str] = []
-        while isinstance(class_expr, ast.Attribute):
-            attributes.append(class_expr.attr)
-            class_expr = class_expr.value
-        value: Any = None
-        if isinstance(class_expr, ast.Name) and (
-            self.symbol_table is None or class_expr.id not in self.symbol_table
-        ):
-            value = self.type_converter.globals.get(class_expr.id)
-            for attribute in reversed(attributes):
-                value = getattr(value, attribute, None)
-        if value is not linalg.ops.MatmulOp:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "the Python transform prototype only supports matching MatmulOp",
-            )
-        root = self.visit_single_value(node.args[0])
-        self.inserter.insert_op(transform.MatchOp(root, ops=[linalg.ops.MatmulOp.name]))
-
-
 def build_named_sequence(
     name: str, signature: builtin.FunctionType, body: Region, location: Location
 ) -> transform.NamedSequenceOp:
@@ -219,7 +170,7 @@ class PyTransformContext(PyASTContext):
     """
     Keep Python execution and lower the same function to a named sequence.
 
-    Register matching helpers with transform.MatchOp and tiling helpers with
+    Register matching helpers with MatchOp and tiling helpers with
     TileOp. The generated module only contains the sequence;
     callers construct the outer transform.with_named_sequence module themselves.
     """
@@ -227,14 +178,16 @@ class PyTransformContext(PyASTContext):
     def __init__(self):
         super().__init__(
             post_transforms=[FrontendDesymrefyPass(), LowerPyTransformPass()],
-            code_generation_visitor=TransformCodeGenerationVisitor,
         )
         self.register_function_definition(build_named_sequence)
         self.register_return(lambda values, location: transform.YieldOp(*values))
         self.register_type(OperationHandle[Operation], transform.AnyOpType())
+        self.register_literal(int, lambda value: py.PyConstOp(builtin.IntAttr(value)))
         self.register_literal(
-            int, lambda value: arith.ConstantOp.from_int_and_width(value, 32)
+            str, lambda value: py.PyConstOp(builtin.StringAttr(value))
         )
+        self.register_tuple(py.PyBuildTupleOp)
+        self.register_dialect(py.Py)
         self.register_dialect(PyTransform)
 
 
@@ -265,37 +218,36 @@ def apply_transform(
     return transform_result.clone()
 
 
-def _match(
-    roots: OperationHandle[Operation], cls: type[OperationInvT]
-) -> OperationHandle[OperationInvT]:
+def _match(roots: OperationHandle[Operation], name: str) -> OperationHandle[Operation]:
     matches = OperationHandle(
         *(
             candidate
             for candidate in roots.ops[0].walk(region_first=True)
-            if isinstance(candidate, cls)
+            if candidate.name == name
         )
     )
     return matches
 
 
 def _tile(
-    targets: OperationHandle[linalg.ops.MatmulOp], sizes: tuple[int, int, int]
+    targets: OperationHandle[Operation], sizes: tuple[int, int, int]
 ) -> tuple[
-    OperationHandle[linalg.ops.MatmulOp],
+    OperationHandle[Operation],
     OperationHandle[scf.ForOp],
     OperationHandle[scf.ForOp],
     OperationHandle[scf.ForOp],
 ]:
+    if not isa(targets.ops, tuple[LinalgStructuredOperation, ...]):
+        raise ValueError("tiling requires structured linalg operations")
     for target in targets.ops:
         num_loops = target.get_num_loops()
         assert len(sizes) <= num_loops
 
-    tiled_ops: list[linalg.ops.MatmulOp] = []
+    tiled_ops: list[Operation] = []
     loops: list[list[scf.ForOp]] = [[] for _ in sizes]
     for target in targets.ops:
         rewriter = PatternRewriter(target)
         result = tile_structured_op(rewriter, target, sizes)
-        assert isinstance(result.tiled_op, linalg.ops.MatmulOp)
         tiled_ops.append(result.tiled_op)
         # Each transform result groups the corresponding loop across targets.
         for loop_handle, loop in zip(loops, result.loops, strict=True):
@@ -312,7 +264,7 @@ def _tile(
 
 
 ctx = PyTransformContext()
-ctx.register_function(_match, transform.MatchOp)
+ctx.register_function(_match, MatchOp)
 ctx.register_function(_tile, TileOp)
 
 
@@ -330,7 +282,7 @@ ctx.post_callback = print_intermediate
 @ctx.parse_program
 def tile(op: OperationHandle[Operation]) -> None:
     """Tile a structured linalg operation by 32 in each of its three dimensions."""
-    targets = _match(op, linalg.ops.MatmulOp)
+    targets = _match(op, "linalg.matmul")
     _tile(targets, (32, 32, 32))
 
 
@@ -365,13 +317,11 @@ assert python_result.is_structurally_equivalent(transform_result), (
     "Python execution and the compiled named sequence produced different IR"
 )
 
-print(python_result)
-
 
 # Different constants must be read from the helper IR, not hardcoded to 32.
 @ctx.parse_program
 def different_sizes(op: OperationHandle[Operation]) -> None:
-    targets = _match(op, linalg.ops.MatmulOp)
+    targets = _match(op, "linalg.matmul")
     _tile(targets, (16, 8, 4))
 
 
@@ -392,21 +342,61 @@ def print_compile_error(program: PyASTProgram[..., Any]) -> None:
         raise AssertionError("expected a prototype diagnostic")
 
 
-# Report unsupported forms instead of silently changing the Python schedule.
 ctx.post_callback = None
 
 
+# Other structured operations work, including locally bound names and sizes.
 @ctx.parse_program
-def wrong_class(op: OperationHandle[Operation]) -> None:
-    _match(op, scf.ForOp)
+def tile_generic(op: OperationHandle[Operation]) -> None:
+    name = "linalg.generic"
+    sizes = (16, 8, 4)
+    targets = _match(op, name=name)
+    _tile(targets=targets, sizes=sizes)
 
 
-print_compile_error(wrong_class)
+generic_input = build_input()
+LinalgGeneralizeNamedOpsPass().apply(Context(), builtin.ModuleOp([generic_input]))
+sequence = tile_generic.module.body.block.first_op
+assert isinstance(sequence, transform.NamedSequenceOp)
+assert apply_func(generic_input, tile_generic).is_structurally_equivalent(
+    apply_transform(generic_input, sequence.clone())
+)
+
+
+# Report unsupported forms instead of silently changing the Python schedule.
+@ctx.parse_program
+def wrong_name(op: OperationHandle[Operation]) -> None:
+    _match(op, 1)  # pyright: ignore[reportArgumentType]
+
+
+print_compile_error(wrong_name)
+
+
+# Matching is name-based; tiling checks the payload type in both execution paths.
+@ctx.parse_program
+def non_structured(op: OperationHandle[Operation]) -> None:
+    targets = _match(op, "func.func")
+    _tile(targets, (32, 32, 32))
+
+
+try:
+    apply_func(build_input(), non_structured)
+except ValueError as error:
+    print(error)
+else:
+    raise AssertionError("expected a structured operation diagnostic")
+
+sequence = non_structured.module.body.block.first_op
+assert isinstance(sequence, transform.NamedSequenceOp)
+with pytest.raises(
+    InterpretationError, match="supports only structured linalg targets"
+):
+    apply_transform(build_input(), sequence.clone())
 
 
 @ctx.parse_program
 def wrong_size_count(op: OperationHandle[Operation]) -> None:
-    targets = _match(op, linalg.ops.MatmulOp)
+    targets = _match(op, "linalg.matmul")
     _tile(targets, (32, 32))  # pyright: ignore[reportArgumentType]
 
 
@@ -415,7 +405,7 @@ print_compile_error(wrong_size_count)
 
 @ctx.parse_program
 def zero_size(op: OperationHandle[Operation]) -> None:
-    targets = _match(op, linalg.ops.MatmulOp)
+    targets = _match(op, "linalg.matmul")
     _tile(targets, (32, 0, 32))
 
 
@@ -426,12 +416,16 @@ def add_sizes(lhs: int, rhs: int) -> int:
     return lhs + rhs
 
 
-ctx.register_function(add_sizes, arith.AddiOp)
+def build_add_sizes(lhs: SSAValue, rhs: SSAValue) -> py.PyBinOp:
+    return py.PyBinOp(builtin.StringAttr("add"), lhs, rhs)
+
+
+ctx.register_function(add_sizes, build_add_sizes)
 
 
 @ctx.parse_program
 def computed_size(op: OperationHandle[Operation]) -> None:
-    targets = _match(op, linalg.ops.MatmulOp)
+    targets = _match(op, "linalg.matmul")
     _tile(targets, (add_sizes(16, 16), 32, 32))
 
 
@@ -439,12 +433,13 @@ print_compile_error(computed_size)
 
 # CHECK:       builtin.module {
 # CHECK-NEXT:    transform.named_sequence @__transform_main(%op: !transform.any_op {transform.readonly}) {
-# CHECK-NEXT:      %0 = transform.structured.match ops{["linalg.matmul"]} in %op : (!transform.any_op) -> !transform.any_op
-# CHECK-NEXT:      %1 = arith.constant 32 : i32
-# CHECK-NEXT:      %2 = arith.constant 32 : i32
-# CHECK-NEXT:      %3 = arith.constant 32 : i32
-# CHECK-NEXT:      %4 = "pytransform.sizes"(%1, %2, %3) : (i32, i32, i32) -> tuple<i32, i32, i32>
-# CHECK-NEXT:      %5, %6, %7, %8 = "pytransform.tile"(%0, %4) : (!transform.any_op, tuple<i32, i32, i32>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+# CHECK-NEXT:      %0 = py.const "linalg.matmul"
+# CHECK-NEXT:      %1 = "pytransform.match"(%op, %0) : (!transform.any_op, !py.object) -> !transform.any_op
+# CHECK-NEXT:      %2 = py.const 32
+# CHECK-NEXT:      %3 = py.const 32
+# CHECK-NEXT:      %4 = py.const 32
+# CHECK-NEXT:      %5 = py.build_tuple(%2, %3, %4)
+# CHECK-NEXT:      %6, %7, %8, %9 = "pytransform.tile"(%1, %5) : (!transform.any_op, !py.object) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
 # CHECK-NEXT:      transform.yield
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
@@ -455,38 +450,15 @@ print_compile_error(computed_size)
 # CHECK-NEXT:      transform.yield
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
-# CHECK-NEXT:  func.func @matmul(%A: tensor<128x128xf32>, %B: tensor<128x128xf32>, %C: tensor<128x128xf32>) -> tensor<128x128xf32> {
-# CHECK-NEXT:    %0 = arith.constant 0 : index
-# CHECK-NEXT:    %1 = arith.constant 128 : index
-# CHECK-NEXT:    %2 = arith.constant 128 : index
-# CHECK-NEXT:    %3 = arith.constant 128 : index
-# CHECK-NEXT:    %4 = arith.constant 32 : index
-# CHECK-NEXT:    %5 = arith.constant 32 : index
-# CHECK-NEXT:    %6 = arith.constant 32 : index
-# CHECK-NEXT:    %7 = scf.for %8 = %0 to %1 step %4 iter_args(%9 = %C) -> (tensor<128x128xf32>) {
-# CHECK-NEXT:      %10 = scf.for %11 = %0 to %2 step %5 iter_args(%12 = %9) -> (tensor<128x128xf32>) {
-# CHECK-NEXT:        %13 = scf.for %14 = %0 to %3 step %6 iter_args(%15 = %12) -> (tensor<128x128xf32>) {
-# CHECK-NEXT:          %16 = tensor.extract_slice %A[%8, %14] [32, 32] [1, 1] : tensor<128x128xf32> to tensor<32x32xf32>
-# CHECK-NEXT:          %17 = tensor.extract_slice %B[%14, %11] [32, 32] [1, 1] : tensor<128x128xf32> to tensor<32x32xf32>
-# CHECK-NEXT:          %18 = tensor.extract_slice %15[%8, %11] [32, 32] [1, 1] : tensor<128x128xf32> to tensor<32x32xf32>
-# CHECK-NEXT:          %19 = linalg.matmul ins(%16, %17 : tensor<32x32xf32>, tensor<32x32xf32>) outs(%18 : tensor<32x32xf32>) -> tensor<32x32xf32>
-# CHECK-NEXT:          %20 = tensor.insert_slice %19 into %15[%8, %11] [32, 32] [1, 1] : tensor<32x32xf32> into tensor<128x128xf32>
-# CHECK-NEXT:          scf.yield %20 : tensor<128x128xf32>
-# CHECK-NEXT:        }
-# CHECK-NEXT:        scf.yield %13 : tensor<128x128xf32>
-# CHECK-NEXT:      }
-# CHECK-NEXT:      scf.yield %10 : tensor<128x128xf32>
-# CHECK-NEXT:    }
-# CHECK-NEXT:    func.return %7 : tensor<128x128xf32>
-# CHECK-NEXT:  }
 # CHECK-NEXT:  builtin.module {
 # CHECK-NEXT:    transform.named_sequence @__transform_main(%op: !transform.any_op {transform.readonly}) {
-# CHECK-NEXT:      %0 = transform.structured.match ops{["linalg.matmul"]} in %op : (!transform.any_op) -> !transform.any_op
-# CHECK-NEXT:      %1 = arith.constant 16 : i32
-# CHECK-NEXT:      %2 = arith.constant 8 : i32
-# CHECK-NEXT:      %3 = arith.constant 4 : i32
-# CHECK-NEXT:      %4 = "pytransform.sizes"(%1, %2, %3) : (i32, i32, i32) -> tuple<i32, i32, i32>
-# CHECK-NEXT:      %5, %6, %7, %8 = "pytransform.tile"(%0, %4) : (!transform.any_op, tuple<i32, i32, i32>) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+# CHECK-NEXT:      %0 = py.const "linalg.matmul"
+# CHECK-NEXT:      %1 = "pytransform.match"(%op, %0) : (!transform.any_op, !py.object) -> !transform.any_op
+# CHECK-NEXT:      %2 = py.const 16
+# CHECK-NEXT:      %3 = py.const 8
+# CHECK-NEXT:      %4 = py.const 4
+# CHECK-NEXT:      %5 = py.build_tuple(%2, %3, %4)
+# CHECK-NEXT:      %6, %7, %8, %9 = "pytransform.tile"(%1, %5) : (!transform.any_op, !py.object) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
 # CHECK-NEXT:      transform.yield
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
@@ -497,7 +469,8 @@ print_compile_error(computed_size)
 # CHECK-NEXT:      transform.yield
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
-# CHECK-NEXT:  the Python transform prototype only supports matching MatmulOp
+# CHECK-NEXT:  expected a constant operation name
+# CHECK-NEXT:  tiling requires structured linalg operations
 # CHECK-NEXT:  expected a tuple of three tile sizes
 # CHECK-NEXT:  the Python transform prototype requires positive tile sizes
-# CHECK-NEXT:  expected tile sizes from arith.constant i32 operations
+# CHECK-NEXT:  expected constant integer tile sizes
