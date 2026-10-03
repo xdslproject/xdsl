@@ -4,7 +4,14 @@ from typing import Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
+from xdsl.frontend.pyast.code_generation import (
+    CodeGenerationVisitor,
+    FunctionDefinitionConstructor,
+    ReturnConstructor,
+    TupleConstructor,
+    build_func,
+    build_return,
+)
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     LiteralRegistry,
@@ -42,6 +49,15 @@ class PyASTBuilder:
     post_transforms: PassPipeline
     """An ordered list of passes and callbacks to apply to the built module."""
 
+    function_definition_constructor: FunctionDefinitionConstructor = build_func
+    """Construct the enclosing operation before visiting function statements."""
+
+    return_constructor: ReturnConstructor = build_return
+    """Construct return operations, optionally omitting the terminator."""
+
+    tuple_constructor: TupleConstructor | None = None
+    """Construct tuple expressions when registered."""
+
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
         # Convert the Python AST into xDSL IR objects
@@ -52,9 +68,14 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(type_converter, module, self.file).visit(
-            self.function_ast
-        )
+        CodeGenerationVisitor(
+            type_converter,
+            module,
+            self.file,
+            self.function_definition_constructor,
+            self.return_constructor,
+            self.tuple_constructor,
+        ).visit(self.function_ast)
         module.verify()
 
         self.post_transforms.apply(self.build_context.clone(), module)

@@ -28,6 +28,7 @@ pdl.pattern : benefit(2) {
 
 from xdsl.dialects import arith, builtin, pdl
 from xdsl.frontend import pypdl
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.rewriter import Rewriter
 
 ctx = pypdl.PyPDLContext()
@@ -36,7 +37,7 @@ ctx.register_function(Rewriter.erase_op, pdl.EraseOp)
 
 
 @ctx.parse_program
-def constant_replace(matched_operation: arith.ConstantOp):
+def constant_replace(matched_operation: arith.ConstantOp) -> None:
     Rewriter.erase_op(matched_operation)
 
 
@@ -55,12 +56,51 @@ print(module)
 # CHECK-NEXT:  }
 
 # Check that the extracted module results in the correct PDL rewrite
+constant_replace.module.verify()
 print(constant_replace.module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:    pdl.pattern @constant_replace : benefit(1) {
-# CHECK-NEXT:      %matched_operation = "test.pureop"() : () -> !pdl.operation
+# CHECK-NEXT:      %0 = pdl.operands
+# CHECK-NEXT:      %1 = pdl.types
+# CHECK-NEXT:      %matched_operation = pdl.operation (%0 : !pdl.range<value>) -> (%1 : !pdl.range<type>)
 # CHECK-NEXT:      pdl.rewrite %matched_operation {
 # CHECK-NEXT:        pdl.erase %matched_operation
 # CHECK-NEXT:      }
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def missing_root() -> None:
+    pass
+
+
+try:
+    missing_root.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: PDL rewrites require one !pdl.operation argument and no results.
+
+
+@ctx.parse_program
+def result_annotation(matched_operation: arith.ConstantOp) -> arith.ConstantOp:
+    return matched_operation
+
+
+try:
+    result_annotation.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK-NEXT: PDL rewrites require one !pdl.operation argument and no results.
+
+
+@ctx.parse_program
+def return_value(matched_operation: arith.ConstantOp) -> None:
+    return matched_operation  # pyright: ignore[reportReturnType]
+
+
+try:
+    return_value.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK-NEXT: Return values are not supported in PDL rewrites.
