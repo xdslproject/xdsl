@@ -578,8 +578,6 @@ def _parse_affine_memref_access(
         parser.raise_error("Expected memref type")
 
     memref = parser.resolve_operand(memref, memref_type)
-    # parser errors above if not
-    memref = cast(SSAValue[MemRefType], memref)
 
     return memref, affine_map, indices, memref_type
 
