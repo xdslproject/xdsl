@@ -253,6 +253,14 @@ class ReductionModifier(StrEnum):
     TASK = auto()
 
 
+class GrainsizeType(StrEnum):
+    STRICT = auto()
+
+
+class NumTasksType(StrEnum):
+    STRICT = auto()
+
+
 class LoopWrapper(NoTerminator):
     """
     Check that the omp operation is a loop wrapper as defined upstream.
@@ -361,6 +369,26 @@ class ReductionModifierAttr(
 @irdl_attr_definition
 class OrderModifierAttr(EnumAttribute[OrderModifier], SpacedOpaqueSyntaxAttribute):
     name = "omp.order_mod"
+
+
+@irdl_attr_definition
+class GrainsizeTypeAttr(EnumAttribute[GrainsizeType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.grainsizetype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#grainsizetypeattr).
+    """
+
+    name = "omp.grainsizetype"
+
+
+@irdl_attr_definition
+class NumTasksTypeAttr(EnumAttribute[NumTasksType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.numtaskstype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#numtaskstypeattr).
+    """
+
+    name = "omp.numtaskstype"
 
 
 @irdl_attr_definition
@@ -1293,5 +1321,7 @@ OMP = Dialect(
         VersionAttr,
         ReductionModifierAttr,
         OrderModifierAttr,
+        GrainsizeTypeAttr,
+        NumTasksTypeAttr,
     ],
 )
