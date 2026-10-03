@@ -406,3 +406,38 @@ func.func @omp_task_block_args(%p1: i32) {
 }
 
 // CHECK: omp.task expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskgroup_task_reduction_syms(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+  ^bb0(%tr_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected as many task_reduction symbol references as task_reduction variables
+
+// -----
+
+func.func @omp_taskgroup_task_reduction_byref(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{task_reduction_byref = array<i1: false, true>, task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+  ^bb0(%tr_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected as many task_reduction byref flags as task_reduction variables
+
+// -----
+
+func.func @omp_taskgroup_block_args(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected to have at least 1 block argument(s), got 0
