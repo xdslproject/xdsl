@@ -355,9 +355,10 @@ class Parser(AttrParser):
         operands = cast(Sequence[SSAValue[IndexType]], operands)
         return affine_map, operands
 
-    def parse_optional_operand(self) -> SSAValue | None:
+    def parse_optional_operand(self, type: Attribute | None = None) -> SSAValue | None:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        If an optional `type` is specified, then the operand can be forward declared.
         """
         unresolved_operand = self.parse_optional_unresolved_operand()
         if unresolved_operand is None:
@@ -365,6 +366,9 @@ class Parser(AttrParser):
 
         name = unresolved_operand.operand_name
         index = unresolved_operand.index
+
+        if type is not None:
+            return self.resolve_operand(unresolved_operand, type)
 
         if name not in self.ssa_values.keys():
             self.raise_error(
@@ -381,9 +385,14 @@ class Parser(AttrParser):
 
         return self.ssa_values[name][index]
 
-    def parse_operand(self, msg: str = "Expected an operand.") -> SSAValue:
-        """Parse an operand with format `%<value-id>`."""
-        return self.expect(self.parse_optional_operand, msg)
+    def parse_operand(
+        self, type: Attribute | None = None, msg: str = "Expected an operand."
+    ) -> SSAValue:
+        """
+        Parse an operand with format `%<value-id>`.
+        If an optional `type` is specified, then the operand can be forward declared.
+        """
+        return self.expect(lambda: self.parse_optional_operand(type=type), msg)
 
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
