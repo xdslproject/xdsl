@@ -441,3 +441,88 @@ func.func @omp_taskgroup_block_args(%tr: memref<1xi32>) {
 }
 
 // CHECK: omp.taskgroup expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskloop_grainsize_num_tasks(%lb: index, %ub: index, %step: index, %g: i64) {
+  "omp.taskloop"(%g, %g) <{operandSegmentSizes = array<i32: 0, 0, 0, 1, 0, 0, 1, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+
+// CHECK: the grainsize clause and num_tasks clause are mutually exclusive and may not appear on the same taskloop directive
+
+// -----
+
+func.func @omp_taskloop_reduction_byref(%lb: index, %ub: index, %step: index, %r: memref<1xi32>) {
+  "omp.taskloop"(%r) <{reduction_syms = [@r1], reduction_byref = array<i1: false, false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>}> ({
+  ^bb0(%r_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many reduction byref flags as reduction variables
+
+// -----
+
+func.func @omp_taskloop_not_loop_wrapper() {
+  "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop is not a LoopWrapper: should have a single operation which is either another LoopWrapper or omp.loop_nest
+
+// -----
+
+func.func @omp_taskloop_in_reduction_syms(%lb: index, %ub: index, %step: index, %ir: memref<1xi32>) {
+  "omp.taskloop"(%ir) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many in_reduction symbol references as in_reduction variables
+
+// -----
+
+func.func @omp_taskloop_in_reduction_byref(%lb: index, %ub: index, %step: index, %ir: memref<1xi32>) {
+  "omp.taskloop"(%ir) <{in_reduction_byref = array<i1: false, true>, in_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many in_reduction byref flags as in_reduction variables
+
+// -----
+
+func.func @omp_taskloop_reduction_syms(%lb: index, %ub: index, %step: index, %r: memref<1xi32>) {
+  "omp.taskloop"(%r) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>}> ({
+  ^bb0(%r_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many reduction symbol references as reduction variables

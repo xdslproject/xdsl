@@ -336,6 +336,22 @@ builtin.module {
     }) : (i32, i32, memref<1xi32>) -> ()
     func.return
   }
+  func.func @omp_taskloop(%lb: index, %ub: index, %step: index, %b: i1, %g: i64, %ir: memref<1xi32>, %prio: i32, %p1: i32, %r: memref<1xi32>) {
+    "omp.taskloop"(%b, %g, %b, %ir, %prio, %p1, %r) <{grainsize_mod = #omp<grainsizetype strict>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], reduction_mod = #omp<reduction_modifier (defaultmod)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], untied, operandSegmentSizes = array<i32: 0, 0, 1, 1, 1, 1, 0, 1, 1, 1>}> ({
+    ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32, %r_arg: memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^bb1(%iv: index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i1, i64, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+    "omp.taskloop"(%g) <{nogroup, num_tasks_mod = #omp<numtaskstype strict>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %lb, %ub, %ub, %step, %step) ({
+      ^bb1(%iv0: index, %iv1: index):
+        omp.yield
+      }) : (index, index, index, index, index, index) -> ()
+    }) : (i64) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -666,6 +682,22 @@ builtin.module {
 // CHECK-NEXT:        }) : () -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_taskloop(%lb: index, %ub: index, %step: index, %b: i1, %g: i64, %ir: memref<1xi32>, %prio: i32, %p1: i32, %r: memref<1xi32>) {
+// CHECK-NEXT:      "omp.taskloop"(%b, %g, %b, %ir, %prio, %p1, %r) <{grainsize_mod = #omp<grainsizetype strict>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], reduction_mod = #omp<reduction_modifier (defaultmod)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], untied, operandSegmentSizes = array<i32: 0, 0, 1, 1, 1, 1, 0, 1, 1, 1>}> ({
+// CHECK-NEXT:      ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32, %r_arg: memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^bb0(%iv: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i1, i64, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      "omp.taskloop"(%g) <{nogroup, num_tasks_mod = #omp<numtaskstype strict>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %lb, %ub, %ub, %step, %step) ({
+// CHECK-NEXT:        ^bb0(%iv0: index, %iv1: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index, index, index, index) -> ()
+// CHECK-NEXT:      }) : (i64) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

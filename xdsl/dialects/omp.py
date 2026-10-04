@@ -1278,6 +1278,94 @@ class TaskgroupOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskloopOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.taskloop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskloop-omptaskloopop).
+    """
+
+    name = "omp.taskloop"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    final = opt_operand_def(i1)
+    grainsize = opt_operand_def(IntegerType | IndexType)
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    num_tasks = opt_operand_def(IntegerType | IndexType)
+    priority = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    grainsize_mod = opt_prop_def(GrainsizeTypeAttr)
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    mergeable = opt_prop_def(UnitAttr)
+    nogroup = opt_prop_def(UnitAttr)
+    num_tasks_mod = opt_prop_def(NumTasksTypeAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    reduction_mod = opt_prop_def(ReductionModifierAttr)
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    untied = opt_prop_def(UnitAttr)
+
+    region = region_def("single_block")
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return (
+            len(self.in_reduction_vars)
+            + len(self.private_vars)
+            + len(self.reduction_vars)
+        )
+
+    def verify_(self) -> None:
+        if self.grainsize is not None and self.num_tasks is not None:
+            raise VerifyException(
+                "the grainsize clause and num_tasks clause are mutually exclusive "
+                "and may not appear on the same taskloop directive"
+            )
+        num_in_reduction_vars = len(self.in_reduction_vars)
+        num_in_reduction_syms = (
+            0 if self.in_reduction_syms is None else len(self.in_reduction_syms)
+        )
+        if num_in_reduction_vars != num_in_reduction_syms:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction symbol references "
+                "as in_reduction variables"
+            )
+        in_reduction_byref = self.in_reduction_byref
+        if (
+            in_reduction_byref is not None
+            and len(in_reduction_byref) != num_in_reduction_vars
+        ):
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction byref flags "
+                "as in_reduction variables"
+            )
+        num_reduction_vars = len(self.reduction_vars)
+        num_reduction_syms = (
+            0 if self.reduction_syms is None else len(self.reduction_syms)
+        )
+        if num_reduction_vars != num_reduction_syms:
+            raise VerifyException(
+                f"{self.name} expected as many reduction symbol references "
+                "as reduction variables"
+            )
+        reduction_byref = self.reduction_byref
+        if reduction_byref is not None and len(reduction_byref) != num_reduction_vars:
+            raise VerifyException(
+                f"{self.name} expected as many reduction byref flags "
+                "as reduction variables"
+            )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1303,6 +1391,7 @@ OMP = Dialect(
         SingleOp,
         TaskOp,
         TaskgroupOp,
+        TaskloopOp,
     ],
     [
         ClauseRequiresKindAttr,
