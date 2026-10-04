@@ -24,7 +24,7 @@
 // CHECK-NEXT:   pdl_interp.is_not_null %4 : !pdl.value -> ^bb10, ^bb8
 // CHECK-NEXT: ^bb8:
 // CHECK-NEXT:   %5 = pdl_interp.get_operand 1 of %0
-// CHECK-NEXT:   pdl_interp.are_equal %3, %5 : !pdl.value -> ^bb9, ^bb2
+// CHECK-NEXT:   ematch.are_equivalent %3, %5 -> ^bb9, ^bb2
 // CHECK-NEXT: ^bb9:
 // CHECK-NEXT:   %6 = pdl_interp.get_value_type of %2 : !pdl.type
 // CHECK-NEXT:   pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%6, %0 : !pdl.type, !pdl.operation) : benefit(1), loc([]), root("arith.divui") -> ^bb2
@@ -54,7 +54,7 @@
 // CHECK-NEXT:     %13 = ematch.get_class_result %12
 // CHECK-NEXT:     pdl_interp.is_not_null %13 : !pdl.value -> ^bb9, ^bb1
 // CHECK-NEXT:   ^bb9:
-// CHECK-NEXT:     pdl_interp.are_equal %13, %3 : !pdl.value -> ^bb10, ^bb1
+// CHECK-NEXT:     ematch.are_equivalent %13, %3 -> ^bb10, ^bb1
 // CHECK-NEXT:   ^bb10:
 // CHECK-NEXT:     %14 = pdl_interp.get_value_type of %13 : !pdl.type
 // CHECK-NEXT:     %15 = pdl_interp.get_value_type of %2 : !pdl.type
@@ -95,7 +95,7 @@
 // CHECK-NEXT:     %25 = ematch.get_class_result %24
 // CHECK-NEXT:     pdl_interp.is_not_null %25 : !pdl.value -> ^bb7, ^bb1
 // CHECK-NEXT:   ^bb7:
-// CHECK-NEXT:     pdl_interp.are_equal %25, %20 : !pdl.value -> ^bb8, ^bb1
+// CHECK-NEXT:     ematch.are_equivalent %25, %20 -> ^bb8, ^bb1
 // CHECK-NEXT:   ^bb8:
 // CHECK-NEXT:     %26 = pdl_interp.get_value_type of %25 : !pdl.type
 // CHECK-NEXT:     %27 = pdl_interp.get_value_type of %2 : !pdl.type
@@ -122,7 +122,7 @@
 // CHECK-NEXT:     %34 = ematch.get_class_result %33
 // CHECK-NEXT:     pdl_interp.is_not_null %34 : !pdl.value -> ^bb16, ^bb1
 // CHECK-NEXT:   ^bb16:
-// CHECK-NEXT:     pdl_interp.are_equal %34, %20 : !pdl.value -> ^bb17, ^bb1
+// CHECK-NEXT:     ematch.are_equivalent %34, %20 -> ^bb17, ^bb1
 // CHECK-NEXT:   ^bb17:
 // CHECK-NEXT:     %35 = pdl_interp.get_value_type of %34 : !pdl.type
 // CHECK-NEXT:     %36 = pdl_interp.get_value_type of %2 : !pdl.type
