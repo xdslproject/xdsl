@@ -369,7 +369,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 self.known_ops.pop(use.operation)
 
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        rewriter.replace(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
     @impl(eqsat_pdl_interp.CreateOperationOp)
@@ -428,7 +428,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
         if should_insert_new_op:
-            rewriter.insert_op(new_op)
+            rewriter.insert(new_op)
 
         # No existing eclass for this operation yet
         new_eclasses: list[equivalence.AnyClassOp] = []
@@ -458,7 +458,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                     assert len(results) == 1
                     analysis.visit_operation_impl(x, operands, results)
 
-            rewriter.insert_op(
+            rewriter.insert(
                 eclass_op,
                 InsertPoint.after(new_op),
             )
@@ -478,7 +478,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         self.pending_rewrites.append(
             (
                 op.rewriter,
-                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                PDLInterpFunctions.get_root(interpreter),
                 args,
             )
         )
@@ -564,7 +564,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
 
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.
-                rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+                rewriter.replace(op1, new_ops=(), new_results=op2.results)
 
                 if eclass1 == eclass2:
                     eclass1.operands = OrderedSet(
@@ -618,7 +618,6 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         """Execute all pending rewrites that were aggregated during matching."""
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         for rewriter_op, root, args in self.pending_rewrites:
-            rewriter.current_operation = root
             rewriter.insertion_point = InsertPoint.before(root)
 
             self.is_matching = False

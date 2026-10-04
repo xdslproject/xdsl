@@ -7,7 +7,7 @@ from xdsl.utils.mlir_lexer import MLIRLexer
 
 
 @pytest.mark.parametrize(
-    "text, expected_map, expected_syms",
+    "text, expected_map, expected_names",
     [
         # Only constants
         ("[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
@@ -58,10 +58,10 @@ from xdsl.utils.mlir_lexer import MLIRLexer
     ],
 )
 def test_parse_affine_map_of_ssa_ids(
-    text: str, expected_map: AffineMap, expected_syms: list[str]
+    text: str, expected_map: AffineMap, expected_names: tuple[str, ...]
 ):
     parser = AffineParser(ParserState(MLIRLexer(Input(text, ""))))
-    amap, syms = parser.parse_affine_map_of_ssa_ids()
+    amap, spans = parser.parse_affine_map_of_ssa_ids()
 
     assert amap == expected_map
-    assert syms == expected_syms
+    assert tuple(span.text for span in spans) == expected_names

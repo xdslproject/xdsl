@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -224,6 +225,7 @@ def _make_interpreter_with_rewriter():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     return interpreter, ematch_funcs, block
 
@@ -280,6 +282,7 @@ def test_get_or_create_class_creates_new_class_for_block_arg():
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_root(interpreter, root)
 
     result = ematch_funcs.get_or_create_class(interpreter, block_arg)
     assert isinstance(result, equivalence.ClassOp)
@@ -426,7 +429,8 @@ def test_eclass_union_two_different_constants_fails():
     ematch_funcs.eclass_union_find.add(const_eclass2)
 
     with pytest.raises(
-        AssertionError, match="Trying to union two different constant eclasses."
+        AssertionError,
+        match=re.escape("Trying to union two different constant eclasses."),
     ):
         ematch_funcs.eclass_union(interpreter, const_eclass1, const_eclass2)
 

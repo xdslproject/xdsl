@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.builder import Builder
@@ -207,11 +209,22 @@ def test_memref_dealloc():
 def test_memref_dim():
     idx = arith.ConstantOp.from_int_and_width(1, IndexType())
     alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
-    dim_1 = memref.DimOp.from_source_and_index(alloc0, idx)
+    dim_1 = memref.DimOp(alloc0, idx)
 
     assert dim_1.source is alloc0.memref
     assert dim_1.index is idx.result
     assert isinstance(dim_1.result.type, IndexType)
+
+
+def test_memref_dim_from_source_and_index_is_deprecated():
+    idx = arith.ConstantOp.from_int_and_width(1, IndexType())
+    alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
+
+    with pytest.deprecated_call():
+        dim_1 = memref.DimOp.from_source_and_index(alloc0, idx)  # pyright: ignore[reportDeprecated]
+
+    assert dim_1.source is alloc0.memref
+    assert dim_1.index is idx.result
 
 
 def test_memref_rank():
@@ -242,10 +255,10 @@ def test_memref_matmul_verify():
 
             lit0 = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
             lit1 = arith.ConstantOp.from_int_and_width(1, builtin.IndexType())
-            dim_a0 = memref.DimOp.from_source_and_index(a, lit0)
-            dim_a1 = memref.DimOp.from_source_and_index(a, lit1)
-            dim_b0 = memref.DimOp.from_source_and_index(b, lit0)
-            dim_b1 = memref.DimOp.from_source_and_index(b, lit1)
+            dim_a0 = memref.DimOp(a, lit0)
+            dim_a1 = memref.DimOp(a, lit1)
+            dim_b0 = memref.DimOp(b, lit0)
+            dim_b1 = memref.DimOp(b, lit1)
             out = memref.AllocaOp.get(
                 builtin.f64, None, [DYNAMIC_INDEX] * 2, [dim_a0, dim_b1]
             )
@@ -551,12 +564,15 @@ def test_memref_memory_space_cast():
 
     with pytest.raises(
         VerifyException,
-        match="Expected source and destination to have the same element type.",
+        match=re.escape(
+            "Expected source and destination to have the same element type."
+        ),
     ):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_type).verify()
 
     with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
+        VerifyException,
+        match=re.escape("Expected source and destination to have the same shape."),
     ):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_shape).verify()
 
@@ -672,7 +688,8 @@ def test_memref_copy():
     copy = CopyOp(source, destination)
 
     with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
+        VerifyException,
+        match=re.escape("Expected source and destination to have the same shape."),
     ):
         copy.verify()
 
@@ -682,7 +699,9 @@ def test_memref_copy():
 
     with pytest.raises(
         VerifyException,
-        match="Expected source and destination to have the same element type.",
+        match=re.escape(
+            "Expected source and destination to have the same element type."
+        ),
     ):
         copy.verify()
 

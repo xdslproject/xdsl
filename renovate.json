@@ -9,8 +9,6 @@
   "labels": [
     "dependencies"
   ],
-  "minimumReleaseAge": "7 days",
-  "internalChecksFilter": "strict",
   "pre-commit": {
     "enabled": true
   },

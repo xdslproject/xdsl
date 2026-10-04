@@ -30,7 +30,7 @@ class PtrAddToX86(RewritePattern):
         reg = self.arch.register_type_for_type(ptr.PtrType()).unallocated()
         assert isinstance(reg, GeneralRegisterType)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 ptr_cast_op := asm.ToRegOp.get(op.addr, reg),
@@ -81,7 +81,7 @@ class PtrStoreToX86(RewritePattern):
             x86_data = cast_op.register
             mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
 
-        rewriter.replace_op(op, [addr_cast_op, cast_op, mov_op])
+        rewriter.replace(op, [addr_cast_op, cast_op, mov_op])
 
 
 @dataclass
@@ -121,7 +121,7 @@ class PtrLoadToX86(RewritePattern):
             mov_op = x86.DM_MovOp(addr_x86, memory_offset=0, destination=x86_reg_type)
 
         res_cast_op = asm.FromRegOp.get(mov_op.results[0], value_type)
-        rewriter.replace_op(op, [cast_op, mov_op, res_cast_op])
+        rewriter.replace(op, [cast_op, mov_op, res_cast_op])
 
 
 @dataclass(frozen=True)

@@ -4,23 +4,33 @@ from typing import Any
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects import linalg
+from xdsl.dialects import linalg, memref, tensor, test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
+    DenseArrayBase,
+    IndexType,
     MemRefType,
     ModuleOp,
     TensorType,
+    VectorType,
     f32,
+    i64,
 )
 from xdsl.dialects.linalg.transforms.tiling import (
     OperandTileInfo,
+    SliceParameters,
     TilingPlan,
-    tile_linalg_generic,
+    _build_tile_loops,  # pyright: ignore[reportPrivateUsage]
+    _build_tiled_insert,  # pyright: ignore[reportPrivateUsage]
+    _build_tiled_slice,  # pyright: ignore[reportPrivateUsage]
+    tile_structured_op,
 )
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -28,22 +38,20 @@ def test_operand_tile_info_analyze_identity_map():
     source_type = MemRefType(f32, [4, 5])
     indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
 
-    info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+    info = OperandTileInfo.analyze(indexing_map, source_type)
 
     assert info.source_type == source_type
     assert info.loop_dims == (0, 1)
-    assert info.result_shape == (2, 5)
 
 
 def test_operand_tile_info_analyze_transpose_map():
     source_type = MemRefType(f32, [5, 4])
     indexing_map = AffineMap.from_callable(lambda i, j: (j, i))
 
-    info = OperandTileInfo.analyze(indexing_map, source_type, (2, 0))
+    info = OperandTileInfo.analyze(indexing_map, source_type)
 
     assert info.source_type == source_type
     assert info.loop_dims == (1, 0)
-    assert info.result_shape == (5, 2)
 
 
 def _generic_2d_copy_op(
@@ -88,10 +96,10 @@ def _generic_2d_copy_op(
     )
 
 
-def test_tiling_plan_analyze_generic_op():
+def test_tiling_plan_analyze():
     op = _generic_2d_copy_op()
 
-    plan = TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
 
     assert plan.loop_ranges == (4, 5)
     assert plan.tiled_dims == (0,)
@@ -100,16 +108,14 @@ def test_tiling_plan_analyze_generic_op():
     assert len(plan.operand_infos) == 2
 
     assert plan.operand_infos[0].loop_dims == (0, 1)
-    assert plan.operand_infos[0].result_shape == (2, 5)
 
     assert plan.operand_infos[1].loop_dims == (0, 1)
-    assert plan.operand_infos[1].result_shape == (2, 5)
 
 
-def test_tiling_plan_analyze_generic_op_without_tiled_dims():
+def test_tiling_plan_analyze_without_tiled_dims():
     op = _generic_2d_copy_op()
 
-    plan = TilingPlan.analyze_generic_op(op, (0, 0))
+    plan = TilingPlan.analyze(op, (0, 0))
 
     assert plan.loop_ranges == ()
     assert plan.tiled_dims == ()
@@ -122,24 +128,32 @@ def test_tiling_plan_rejects_negative_tile_size():
     op = _generic_2d_copy_op()
 
     with pytest.raises(ValueError, match="negative tile sizes"):
-        TilingPlan.analyze_generic_op(op, (-1, 0))
+        TilingPlan.analyze(op, (-1, 0))
 
 
-def test_tiling_plan_rejects_tensor_results():
-    op = _generic_2d_copy_op(result_types=(TensorType(f32, [4, 5]),))
+def test_tiling_plan_accepts_tensor_operands():
+    op = _generic_2d_copy_op(
+        input_type=TensorType(f32, [4, 5]),
+        output_type=TensorType(f32, [4, 5]),
+        result_types=(TensorType(f32, [4, 5]),),
+    )
 
-    with pytest.raises(NotImplementedError, match="tensor results"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.loop_ranges == (4, 5)
+    assert plan.tiled_dims == (0,)
+    assert plan.operand_infos[0].source_type == TensorType(f32, [4, 5])
 
 
-def test_tiling_plan_rejects_linalg_index():
+def test_tiling_plan_tiles_linalg_index():
     op = _generic_2d_copy_op(use_index=True)
 
-    with pytest.raises(ValueError, match="using linalg.index"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
 
 
-def test_tiling_plan_rejects_non_parallel_tiled_iterator():
+def test_tiling_plan_tiles_a_non_parallel_iterator():
     op = _generic_2d_copy_op(
         iterator_types=[
             linalg.attrs.IteratorTypeAttr(linalg.attrs.IteratorType.PARALLEL),
@@ -147,25 +161,47 @@ def test_tiling_plan_rejects_non_parallel_tiled_iterator():
         ]
     )
 
-    with pytest.raises(ValueError, match="non-parallel iterator dimensions"):
-        TilingPlan.analyze_generic_op(op, (0, 2))
+    plan = TilingPlan.analyze(op, (0, 2))
+
+    assert plan.tiled_dims == (1,)
 
 
-def test_tiling_plan_rejects_non_memref_operand():
-    op = _generic_2d_copy_op(input_type=TensorType(f32, [4, 5]))
+def test_tiling_plan_rejects_operand_that_is_neither_memref_nor_tensor():
+    op = _generic_2d_copy_op(input_type=VectorType(f32, [4, 5]))
 
-    with pytest.raises(NotImplementedError, match="non-memref operands"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
-
-
-def test_tiling_plan_rejects_dynamic_operand_shape():
-    op = _generic_2d_copy_op(input_type=MemRefType(f32, [DYNAMIC_INDEX, 5]))
-
-    with pytest.raises(ValueError, match="dynamic operand shapes"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    with pytest.raises(NotImplementedError, match="neither memrefs nor tensors"):
+        TilingPlan.analyze(op, (2, 0))
 
 
-def test_tiling_plan_rejects_non_projected_permutation_map():
+def test_tiling_plan_marks_a_dynamic_range_partial():
+    # The range is not known until the op runs, so it cannot be shown to divide
+    # by the tile size and has to be treated as leaving a leftover tile.
+    op = _generic_2d_copy_op(
+        input_type=MemRefType(f32, [DYNAMIC_INDEX, 5]),
+        output_type=MemRefType(f32, [DYNAMIC_INDEX, 5]),
+    )
+
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
+
+
+def test_tiling_plan_tiles_a_dim_whose_tile_size_is_not_static():
+    op = _generic_2d_copy_op()
+    tile_size = create_ssa_value(IndexType())
+
+    # Tiling by zero means leaving a dimension alone, and a size that is not
+    # known until the op runs cannot be shown to be zero, so the dimension is
+    # tiled. It cannot be shown to divide the range either, so it is partial.
+    plan = TilingPlan.analyze(op, (tile_size, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
+    assert plan.tile_sizes == (tile_size, 0)
+
+
+def test_tiling_plan_accepts_non_projected_permutation_map():
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)
 
@@ -177,20 +213,303 @@ def test_tiling_plan_rejects_non_projected_permutation_map():
         ],
     )
 
-    with pytest.raises(ValueError, match="non-projected-permutation indexing maps"):
-        TilingPlan.analyze_generic_op(op, (2, 0))
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    # The input reads both loops in one result, which no single loop range can
+    # be read back from, so no loop dimension is recorded for it.
+    assert plan.operand_infos[0].loop_dims == (None,)
+    assert plan.operand_infos[1].loop_dims == (0, 1)
 
 
-def test_tiling_plan_rejects_partial_tiles():
+def test_slice_parameters_span_a_result_reading_two_loops():
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+    iv = create_ssa_value(IndexType())
+
+    # d0 + d1 over a tile of 2 in d0 and the whole of d1, which is 5 long, is
+    # read from where d0 is and spans the two of them together, 2 + 5 - 1.
+    parameters = _compute_slice(
+        AffineMap(2, 0, (i + j,)),
+        MemRefType(f32, [8]),
+        {0: iv},
+        {0: 2},
+        loop_ranges=(4, 5),
+    )
+
+    assert parameters.sizes == (6,)
+    assert parameters.strides == (1,)
+
+
+def test_tiling_plan_marks_dims_with_a_leftover_tile():
     op = _generic_2d_copy_op()
 
-    with pytest.raises(ValueError, match="partial tiles"):
-        TilingPlan.analyze_generic_op(op, (3, 0))
+    # Dim 0 has range 4 and tile size 3, so its last tile holds one element.
+    plan = TilingPlan.analyze(op, (3, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset({0})
 
 
-def test_tile_linalg_generic_returns_false_without_tiled_dims():
+def test_tiling_plan_marks_no_dims_partial_when_tiles_divide():
+    op = _generic_2d_copy_op()
+
+    # Range 4 divides by tile size 2, so every tile is whole.
+    plan = TilingPlan.analyze(op, (2, 0))
+
+    assert plan.tiled_dims == (0,)
+    assert plan.partial_tiled_dims == frozenset()
+
+
+def test_tiling_plan_marks_a_tile_larger_than_its_range_partial():
+    op = _generic_2d_copy_op()
+
+    # A tile bigger than the range gives one iteration covering the whole range.
+    plan = TilingPlan.analyze(op, (8, 0))
+
+    assert plan.partial_tiled_dims == frozenset({0})
+
+
+def _compute_slice(
+    indexing_map: AffineMap,
+    source_type: MemRefType[Attribute] | TensorType[Attribute],
+    tiled_loop_ivs: dict[int, SSAValue],
+    effective_tile_sizes: dict[int, SSAValue | int],
+    loop_ranges: Sequence[int] = (4, 5),
+) -> SliceParameters:
+    """Compute one operand's slice, into a module the built ops can go in."""
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    return SliceParameters.compute(
+        PatternRewriter(op),
+        InsertPoint.before(op),
+        indexing_map,
+        OperandTileInfo.analyze(indexing_map, source_type),
+        tiled_loop_ivs,
+        effective_tile_sizes,
+        loop_ranges,
+    )
+
+
+def test_slice_parameters_compute_tiled_and_untiled_dims():
+    source_type = MemRefType(f32, [4, 5])
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
+
+    # Dim 0's loop is tiled, so it starts at the induction variable and spans one
+    # tile; dim 1's loop is not, so it starts at zero and spans the whole operand.
+    assert parameters.offsets == (iv, 0)
+    assert parameters.sizes == (2, 5)
+    assert parameters.strides == (1, 1)
+
+
+def test_slice_parameters_compute_without_tiled_dims():
+    source_type = MemRefType(f32, [4, 5])
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+
+    parameters = _compute_slice(indexing_map, source_type, {}, {})
+
+    # Nothing is tiled, so the slice covers the whole operand.
+    assert parameters.offsets == (0, 0)
+    assert parameters.sizes == (4, 5)
+
+
+def test_slice_parameters_compute_follows_indexing_map():
+    # The operand is indexed transposed, so loop dim 0 addresses the operand's
+    # second dimension. The induction variable has to land there, not first.
+    source_type = MemRefType(f32, [5, 4])
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (j, i))
+
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
+
+    assert parameters.offsets == (0, iv)
+    assert parameters.sizes == (5, 2)
+
+
+def _tiled_slice_for(source_type: MemRefType[Attribute] | TensorType[Attribute]):
+    """Slice dim 0 of a 2d operand at a loop induction variable, tile size 2."""
     op = _generic_2d_copy_op()
     ModuleOp([op])
     rewriter = PatternRewriter(op)
 
-    assert not tile_linalg_generic(rewriter, op, (0, 0))
+    operand = create_ssa_value(source_type)
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    parameters = _compute_slice(indexing_map, source_type, {0: iv}, {0: 2})
+
+    result = _build_tiled_slice(
+        rewriter, InsertPoint.before(op), operand, source_type, parameters
+    )
+    return result.owner
+
+
+def test_build_tiled_slice_memref_emits_subview():
+    slice_op = _tiled_slice_for(MemRefType(f32, [4, 5]))
+
+    assert isinstance(slice_op, memref.SubviewOp)
+    assert slice_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert slice_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert len(slice_op.offsets) == 1
+    assert isa(slice_op.result.type, MemRefType)
+    assert slice_op.result.type.get_shape() == (2, 5)
+
+
+def test_build_tiled_slice_tensor_emits_extract_slice():
+    slice_op = _tiled_slice_for(TensorType(f32, [4, 5]))
+
+    assert isinstance(slice_op, tensor.ExtractSliceOp)
+    # Dim 0 is tiled, so its offset is the induction variable and its size the
+    # tile size; dim 1 is untiled, so it takes the whole extent at offset 0.
+    assert slice_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert slice_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert slice_op.static_strides == DenseArrayBase.from_list(i64, [1, 1])
+    assert len(slice_op.offsets) == 1
+    assert slice_op.result.type == TensorType(f32, [2, 5])
+
+
+def _tiled_insert_for(
+    destination_type: TensorType[Attribute], tile_shape: Sequence[int]
+) -> tuple[tensor.InsertSliceOp, SSAValue, SSAValue]:
+    """Write a tile of dim 0 back at a loop induction variable, tile size 2."""
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    iv = create_ssa_value(IndexType())
+    indexing_map = AffineMap.from_callable(lambda i, j: (i, j))
+    parameters = _compute_slice(indexing_map, destination_type, {0: iv}, {0: 2})
+
+    destination = create_ssa_value(destination_type)
+    tiled_value = create_ssa_value(
+        TensorType(destination_type.get_element_type(), tile_shape)
+    )
+
+    result = _build_tiled_insert(
+        rewriter, InsertPoint.before(op), tiled_value, destination, parameters
+    )
+    insert_op = result.owner
+    assert isinstance(insert_op, tensor.InsertSliceOp)
+    return insert_op, tiled_value, destination
+
+
+def test_build_tiled_insert_writes_tile_back_where_it_came_from():
+    insert_op, tiled_value, destination = _tiled_insert_for(
+        TensorType(f32, [4, 5]), [2, 5]
+    )
+
+    assert insert_op.source is tiled_value
+    # The tile goes back into the destination it was extracted from, which during
+    # tiling is the value carried by the enclosing loops rather than the original.
+    assert insert_op.dest is destination
+
+    # The same parameters the tile was extracted with, so it lands where it came
+    # from: dim 0 at the induction variable spanning one tile, dim 1 whole.
+    assert insert_op.static_offsets == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 0])
+    assert insert_op.static_sizes == DenseArrayBase.from_list(i64, [2, 5])
+    assert insert_op.static_strides == DenseArrayBase.from_list(i64, [1, 1])
+    assert len(insert_op.offsets) == 1
+
+
+def test_build_tiled_insert_result_is_the_whole_updated_tensor():
+    destination_type = TensorType(f32, [4, 5])
+    insert_op, _, _ = _tiled_insert_for(destination_type, [2, 5])
+
+    # Inserting a tile yields the whole tensor updated, not the tile, which is
+    # what lets the enclosing loops carry it on to the next iteration.
+    assert insert_op.result.type == destination_type
+
+
+def test_build_tile_loops_without_iter_args():
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    loops, tiled_loop_ivs, _ = _build_tile_loops(
+        rewriter, InsertPoint.before(op), (4, 5), (2, 0), (0,), {}
+    )
+
+    (loop,) = loops
+    assert loop.iter_args == ()
+    assert loop.results == ()
+    assert loop.body.block.args == (tiled_loop_ivs[0],)
+
+
+def test_build_tile_loops_threads_iter_args():
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    init = create_ssa_value(TensorType(f32, [4, 5]))
+
+    loops, tiled_loop_ivs, _ = _build_tile_loops(
+        rewriter, InsertPoint.before(op), (4, 5), (2, 2), (0, 1), {}, (init,)
+    )
+
+    outer, inner = loops
+
+    # The outermost loop initialises the carried value from the original value,
+    # and every nested loop from the enclosing loop's block argument. Initialising
+    # a nested loop from the original would discard the surrounding iterations.
+    assert outer.iter_args == (init,)
+    assert inner.iter_args == (outer.body.block.args[1],)
+
+    # Each loop carries the value back out as a result.
+    assert outer.result_types == (init.type,)
+    assert inner.result_types == (init.type,)
+
+    # Body blocks gain one argument per carried value, after the induction variable.
+    for loop, iv in ((outer, tiled_loop_ivs[0]), (inner, tiled_loop_ivs[1])):
+        assert len(loop.body.block.args) == 2
+        assert loop.body.block.args[0] is iv
+        assert loop.body.block.args[1].type == init.type
+
+
+@pytest.mark.parametrize("tile_sizes", [(2, 0), (2, 5)])
+def test_tile_structured_op_result(tile_sizes: tuple[int, ...]):
+    tensor_type = TensorType(f32, [4, 5])
+    op = _generic_2d_copy_op(
+        input_type=tensor_type,
+        output_type=tensor_type,
+        result_types=(tensor_type,),
+    )
+    inputs = test.TestOp(result_types=[tensor_type, tensor_type])
+    op.operands = inputs.results
+    user = test.TestOp(operands=[op.res[0]])
+    module = ModuleOp([inputs, op, user])
+    rewriter = PatternRewriter(op)
+
+    result = tile_structured_op(rewriter, op, tile_sizes)
+    module.verify()
+    assert tuple(user.operands) == result.replacements
+    assert len(result.loops) == sum(size != 0 for size in tile_sizes)
+    assert result.loops[0].parent is module.body.block
+    for outer, inner in zip(result.loops, result.loops[1:]):
+        assert inner.parent is outer.body.block
+    assert result.tiled_op.parent is result.loops[-1].body.block
+    assert result.replacements == result.loops[0].results
+
+
+@pytest.mark.parametrize("tile_sizes", [(), (0, 0)])
+def test_tile_structured_op_without_tiled_dims(tile_sizes: tuple[int, ...]):
+    tensor_type = TensorType(f32, [4, 5])
+    op = _generic_2d_copy_op(
+        input_type=tensor_type,
+        output_type=tensor_type,
+        result_types=(tensor_type,),
+    )
+    inputs = test.TestOp(result_types=[tensor_type, tensor_type])
+    op.operands = inputs.results
+    user = test.TestOp(operands=[op.res[0]])
+    module = ModuleOp([inputs, op, user])
+    rewriter = PatternRewriter(op)
+    result = tile_structured_op(rewriter, op, tile_sizes)
+
+    module.verify()
+    assert tuple(user.operands) == result.replacements
+    assert result.tiled_op is op
+    assert not result.loops
+    assert tuple(module.ops) == (inputs, result.tiled_op, user)
+    assert result.replacements == op.results

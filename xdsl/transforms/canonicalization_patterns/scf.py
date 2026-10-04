@@ -26,8 +26,8 @@ class RehoistConstInLoops(RewritePattern):
         for child_op in op.body.ops:
             if child_op.has_trait(ConstantLike):
                 # we only rehoist consts that are not embeded in another region inside the loop
-                rewriter.insert_op(new_const := child_op.clone())
-                rewriter.replace_op(child_op, (), new_const.results)
+                rewriter.insert(new_const := child_op.clone())
+                rewriter.replace(child_op, (), new_const.results)
 
 
 class SimplifyTrivialLoops(RewritePattern):
@@ -47,12 +47,12 @@ class SimplifyTrivialLoops(RewritePattern):
             return
 
         if lb == ub:
-            rewriter.replace_op(op, (), op.iter_args)
+            rewriter.replace(op, (), op.iter_args)
             return
 
         # If the loop is known to have 0 iterations, remove it.
         if (diff := ub - lb) <= 0:
-            rewriter.replace_op(op, (), op.iter_args)
+            rewriter.replace(op, (), op.iter_args)
             return
 
         if (step := const_evaluate_operand(op.step)) is None:
@@ -86,7 +86,7 @@ class IfPropagateConstantCondition(RewritePattern):
             return
         if not cond and not op.false_region.blocks:
             # Cannot use helper below as false region is not single-block
-            rewriter.erase_op(op)
+            rewriter.erase(op)
             return
         region = op.true_region if cond else op.false_region
         replace_op_with_region(rewriter, op, region)
@@ -120,5 +120,5 @@ def replace_op_with_region(
     terminator = block.last_op
     assert terminator is not None
     rewriter.inline_block(block, InsertPoint.before(op), args)
-    rewriter.replace_op(op, (), terminator.operands)
-    rewriter.erase_op(terminator)
+    rewriter.replace(op, (), terminator.operands)
+    rewriter.erase(terminator)

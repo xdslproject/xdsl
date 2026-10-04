@@ -170,9 +170,11 @@ class IRegion:
                             op,
                             "successors",
                             IList(
-                                op.successors[:dummy_index]
-                                + [imm_block]
-                                + op.successors[dummy_index + 1 :]
+                                [
+                                    *op.successors[:dummy_index],
+                                    imm_block,
+                                    *op.successors[dummy_index + 1 :],
+                                ]
                             ),
                         )
 

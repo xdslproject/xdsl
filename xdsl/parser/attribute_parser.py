@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast, overload
+from typing import Any, ClassVar, Literal, NoReturn, cast, overload
 
 from immutabledict import immutabledict
 
@@ -1299,7 +1299,7 @@ class AttrParser(BaseParser):
                 self.raise_error(
                     "Tensor literal has inconsistent ranks between elements"
                 )
-            shape = [len(res)] + sub_literal_shape
+            shape = [len(res), *sub_literal_shape]
             values = [elem for sub_list in res for elem in sub_list[0]]
             return values, shape
         else:
@@ -1570,7 +1570,7 @@ class AttrParser(BaseParser):
         )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
-    _builtin_float_types = {
+    _builtin_float_types: ClassVar = {
         "bf16": bf16,
         "f16": f16,
         "f32": f32,

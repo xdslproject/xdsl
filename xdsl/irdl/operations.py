@@ -39,7 +39,11 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType, get_type_var_mapping, isa
+from xdsl.utils.hints import (
+    PropertyType,
+    get_type_var_mapping_with_defaults,
+    isa,
+)
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -51,10 +55,10 @@ from .attributes import (  # noqa: TID251
 from .constraints import (  # noqa: TID251
     AnyAttr,
     AttrConstraint,
-    ConstraintContext,
     IntConstraint,
     RangeConstraint,
     RangeOf,
+    VerificationContext,
 )
 
 if TYPE_CHECKING:
@@ -98,10 +102,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -166,10 +170,10 @@ class IRDLOperation(Operation):
         regions: (
             Sequence[
                 Region
-                | None
                 | Sequence[Operation]
                 | Sequence[Block]
                 | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
             ]
             | None
         ) = None,
@@ -919,7 +923,7 @@ class OpDef:
         if issubclass(pyrdl_def, Generic):
             type_var_mapping = {
                 k: irdl_to_attr_constraint(v)
-                for k, v in get_type_var_mapping(pyrdl_def)[1].items()
+                for k, v in get_type_var_mapping_with_defaults(pyrdl_def).items()
             }
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
@@ -1161,7 +1165,7 @@ class OpDef:
         """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
         # Mapping from type variables to their concrete types.
-        constraint_context = ConstraintContext()
+        constraint_context = VerificationContext()
 
         # Verify operands.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND, constraint_context)
@@ -1425,15 +1429,15 @@ def verify_variadic_size(op: Operation, op_def: OpDef, construct: VarIRConstruct
 
 
 def irdl_op_verify_regions(
-    op: Operation, op_def: OpDef, constraint_context: ConstraintContext
+    op: Operation, op_def: OpDef, constraint_context: VerificationContext
 ):
     verify_variadic_size(op, op_def, VarIRConstruct.REGION)
 
     idx = 0
     for region_def_name, region_def in op_def.regions:
-        regions: None | Region | tuple[Region, ...] = getattr(op, region_def_name)
+        regions: Region | tuple[Region, ...] | None = getattr(op, region_def_name)
         block_counts: list[int] = []
-        entry_arg_types_list: list[None | Sequence[Attribute]] = []
+        entry_arg_types_list: list[Sequence[Attribute] | None] = []
         if isinstance(regions, tuple):
             for region in regions:
                 block_counts.append(len(region.blocks))
@@ -1471,7 +1475,7 @@ def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
     construct: Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT],
-    constraint_context: ConstraintContext,
+    constraint_context: VerificationContext,
 ) -> None:
     """Verify the argument list of an operation."""
     verify_variadic_size(op, op_def, construct)
@@ -1480,7 +1484,7 @@ def irdl_op_verify_arg_list(
     idx = 0
 
     for arg_name, arg_def in defs:
-        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        args: SSAValue | SSAValues | None = getattr(op, arg_name)
         if args is None:
             arg_types = ()
         elif not isinstance(args, Sequence):

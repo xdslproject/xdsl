@@ -39,6 +39,7 @@ builtin.module {
     %20 = arith.constant 2 : index
     %21 = memref.expand_shape %19 [[0, 1]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
     %22 = memref.reinterpret_cast %5 to offset: [0], sizes: [5, 4], strides: [1, 1] : memref<10x2xindex> to memref<5x4xindex>
+    %23 = memref.assume_alignment %5, 16 : memref<10x2xindex>
     memref.dealloc %2 : memref<1xindex>
     memref.dealloc %5 : memref<10x2xindex>
     memref.dealloc %8 : memref<1xindex>
@@ -103,6 +104,7 @@ builtin.module {
 // CHECK-NEXT:    %{{.*}} = memref.expand_shape %{{\S*}}
 // CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
 // CHECK-NEXT:     %{{.*}} = memref.reinterpret_cast %5 to offset: [0], sizes: [5, 4], strides: [1, 1] : memref<10x2xindex> to memref<5x4xindex>
+// CHECK-NEXT:     %{{.*}} = memref.assume_alignment %{{.*}}, 16 : memref<10x2xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<10x2xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>

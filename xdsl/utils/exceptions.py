@@ -90,7 +90,7 @@ class ShrinkException(Exception):
     pass
 
 
-class InterpretationError(Exception):
+class InterpretationError(DiagnosticException):
     """
     An error that can be raised during interpretation, or Interpreter setup.
     """
@@ -149,4 +149,10 @@ class ArgSpecParseError(BaseException):
 class LLVMTranslationException(DiagnosticException):
     """
     Exception raised during LLVM translation.
+    """
+
+
+class JITException(DiagnosticException):
+    """
+    Exception raised during JIT compilation.
     """

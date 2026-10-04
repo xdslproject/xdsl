@@ -34,7 +34,7 @@ class DimensionList(CustomDirective):
 
     dimensions: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         dims = []
 
         if not parse_empty_dimension_list_directive(parser):

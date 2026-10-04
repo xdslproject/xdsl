@@ -154,7 +154,7 @@ def _(AddiOp, ConstantOp, MuliOp, Operation, RewritePattern, Rewriter):
             # The second argument is the replacement for the results of the matched
             # operation (op). As we replace `x + 0` with `x`, we replace the
             # `arith.addi` results with its first argument.
-            rewriter.replace_op(op, [], new_results=[op.lhs])
+            rewriter.replace(op, [], new_results=[op.lhs])
 
     # The rewrite x * 2 -> x + x
     class MulTwoPattern(RewritePattern):
@@ -176,7 +176,7 @@ def _(AddiOp, ConstantOp, MuliOp, Operation, RewritePattern, Rewriter):
             # The results of the `arith.muli` operation are by default the results of the
             # last operation added, so here the `arith.addi`
             add = AddiOp(x, x)
-            rewriter.replace_op(op, [add])
+            rewriter.replace(op, [add])
 
     return AddZeroPattern, MulTwoPattern
 

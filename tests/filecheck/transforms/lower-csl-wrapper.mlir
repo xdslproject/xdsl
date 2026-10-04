@@ -262,7 +262,7 @@ builtin.module {
 // CHECK-NEXT:         "csl.fadds"(%15, %15, %11) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:         csl_stencil.yield %arg4 : memref<510xf32>
 // CHECK-NEXT:       }, {
-// CHECK-NEXT:       ^bb1(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
+// CHECK-NEXT:       ^bb0(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
 // CHECK-NEXT:         %16 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
 // CHECK-NEXT:         %17 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
 // CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %17) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()

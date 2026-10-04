@@ -175,6 +175,24 @@ builtin.module {
 // -----
 
 builtin.module {
+  %0 = memref.alloc() : memref<2x2xindex>
+  %1 = memref.assume_alignment %0, 0 : memref<2x2xindex>
+}
+
+// CHECK: Alignment must be positive, got 0
+
+// -----
+
+builtin.module {
+  %0 = memref.alloc() : memref<2x2xindex>
+  %1 = memref.assume_alignment %0, -8 : memref<2x2xindex>
+}
+
+// CHECK: Alignment must be positive, got -8
+
+// -----
+
+builtin.module {
   %0 = memref.alloc() {alignment = -8 : i64} : memref<2x2xindex>
 }
 

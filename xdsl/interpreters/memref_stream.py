@@ -41,7 +41,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
 
-        inits: list[None | int | float] = [None] * len(op.outputs)
+        inits: list[int | float | None] = [None] * len(op.outputs)
         for index, init in zip(op.init_indices, init_values, strict=True):
             inits[index.data] = init
 

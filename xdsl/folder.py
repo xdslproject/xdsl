@@ -73,7 +73,7 @@ class Folder:
                     "Can't insert_with_fold fold an operation that already has a parent."
                 )
             values, new_ops = results
-            builder.insert_op(new_ops)
+            builder.insert(new_ops)
             return values
 
     def replace_with_fold(
@@ -88,5 +88,5 @@ class Folder:
         if results is None:
             return None
         values, new_ops = results
-        rewriter.replace_op(op, new_ops, values, safe_erase)
+        rewriter.replace(op, new_ops, values, safe_erase)
         return values

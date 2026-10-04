@@ -95,7 +95,7 @@ class VectorizeMatmulOp(RewritePattern):
             for m in range(M):
                 vector.StoreOp(c_rows[m], c, (constants[m], c0))
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass(frozen=True)

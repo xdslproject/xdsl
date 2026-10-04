@@ -719,9 +719,11 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         else:
             if shape is None:
                 shape = [1]
+
             shape_array_attr = ArrayAttr(
-                [(IntegerAttr(d, 32) if isinstance(d, int) else d) for d in shape]
+                [(IntegerAttr(d, 64) if isinstance(d, int) else d) for d in shape]
             )
+
             super().__init__(
                 shape_array_attr,
                 type1,

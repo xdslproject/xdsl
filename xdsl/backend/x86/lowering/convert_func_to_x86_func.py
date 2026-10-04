@@ -91,7 +91,7 @@ class LowerFuncOp(RewritePattern):
                 source=register, destination=register_type.unallocated()
             )
             cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
-            rewriter.insert_op([mov_op, cast_op], insertion_point)
+            rewriter.insert([mov_op, cast_op], insertion_point)
             arg.replace_all_uses_with(cast_op.value)
             first_block.erase_arg(arg)
 
@@ -116,7 +116,7 @@ class LowerFuncOp(RewritePattern):
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
-            rewriter.insert_op([mov_op, cast_op], insertion_point)
+            rewriter.insert([mov_op, cast_op], insertion_point)
             arg.replace_all_uses_with(cast_op.results[0])
             first_block.erase_arg(arg)
 
@@ -130,11 +130,11 @@ class LowerFuncOp(RewritePattern):
         new_func = x86_func.FuncOp(
             op.sym_name.data,
             new_region,
-            (reg_args_types + (x86.registers.RSP,), outputs_types),
+            ((*reg_args_types, x86.registers.RSP), outputs_types),
             visibility=op.sym_visibility,
         )
 
-        rewriter.replace_op(op, new_func)
+        rewriter.replace(op, new_func)
 
 
 @dataclass
@@ -144,7 +144,7 @@ class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
         if not op.arguments:
-            rewriter.replace_op(op, [x86_func.RetOp()])
+            rewriter.replace(op, [x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
@@ -173,7 +173,7 @@ class LowerReturnOp(RewritePattern):
         )
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_op(op, [cast_op, mov_op, ret_op])
+        rewriter.replace(op, [cast_op, mov_op, ret_op])
 
 
 @dataclass(frozen=True)

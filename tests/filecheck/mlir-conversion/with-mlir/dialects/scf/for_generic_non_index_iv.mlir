@@ -27,7 +27,7 @@
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32, i32) -> i32
 // CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^bb1(%{{.*}}: i32):
+// CHECK-NEXT:   ^bb0(%{{.*}}: i32):
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32) -> ()
 // CHECK-NEXT: }) : () -> ()

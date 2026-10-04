@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects import omp
@@ -101,7 +103,9 @@ def test_loop_wrapper_many_ops():
 def test_loop_wrapper_wrong_op():
     with pytest.raises(
         VerifyException,
-        match="is not a LoopWrapper: should have a single operation which is either another LoopWrapper or omp.loop_nest",
+        match=re.escape(
+            "is not a LoopWrapper: should have a single operation which is either another LoopWrapper or omp.loop_nest"
+        ),
     ):
         mod = dummy_wrapper_module(DummyLoopWrapper, [[omp.TerminatorOp()]])
         mod.verify()

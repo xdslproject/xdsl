@@ -20,7 +20,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "riscv.fastmath"
 
-    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: Iterable[FastMathFlag] | Literal["none", "fast"] | None):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)

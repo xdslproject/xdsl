@@ -597,14 +597,14 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "data_task", function_type = (i32) -> (), kind = #csl<task_kind data>, id = 1 : ui5}> ({
-// CHECK-GENERIC-NEXT:     ^bb1(%a: i32):
+// CHECK-GENERIC-NEXT:     ^bb0(%a: i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task", function_type = () -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task_args", function_type = (i32) -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
-// CHECK-GENERIC-NEXT:     ^bb2(%a_1: i32):
+// CHECK-GENERIC-NEXT:     ^bb0(%a_1: i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "runtime_bound_local_task", function_type = () -> (), kind = #csl<task_kind local>}> ({

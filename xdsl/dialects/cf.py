@@ -222,7 +222,7 @@ class SwitchOpCases(CustomDirective):
         (block, ops, types) = cls._parse_case_body(parser)
         return (i, block, ops, types)
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         parser.parse_keyword("default")
         (default_block, default_operands, default_operand_types) = (
             self._parse_case_body(parser)

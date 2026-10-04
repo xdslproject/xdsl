@@ -40,7 +40,7 @@ class GetDsdAndOffsetFolding(RewritePattern):
             )
             if op.tensor_access:
                 tensor_access = tensor_access.compose(op.tensor_access.data)
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
@@ -51,7 +51,7 @@ class GetDsdAndOffsetFolding(RewritePattern):
                     },
                 ),
             )
-            rewriter.replace_op(offset_op, [], new_results=[new_op.result])
+            rewriter.replace(offset_op, [], new_results=[new_op.result])
 
 
 class GetDsdAndLengthFolding(RewritePattern):
@@ -70,7 +70,7 @@ class GetDsdAndLengthFolding(RewritePattern):
         if len(op.sizes) > 1:
             return
 
-        rewriter.replace_op(
+        rewriter.replace(
             size_op,
             csl.GetMemDsdOp.build(
                 operands=[op.base_addr, [size_op.length]],
@@ -78,7 +78,7 @@ class GetDsdAndLengthFolding(RewritePattern):
                 properties=op.properties.copy(),
             ),
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class GetDsdAndStrideFolding(RewritePattern):
@@ -106,7 +106,7 @@ class GetDsdAndStrideFolding(RewritePattern):
             tensor_access = AffineMap.from_callable(
                 lambda x: (x * attr_val.value.data,)
             )
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
@@ -117,7 +117,7 @@ class GetDsdAndStrideFolding(RewritePattern):
                     },
                 ),
             )
-            rewriter.replace_op(stride_op, [], new_results=[new_op.result])
+            rewriter.replace(stride_op, [], new_results=[new_op.result])
 
 
 class ChainedDsdOffsetFolding(RewritePattern):
@@ -137,7 +137,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
 
         # check if we can promote arith.const to property
         if op.elem_type == next_op.elem_type:
-            rewriter.replace_op(
+            rewriter.replace(
                 next_op,
                 [
                     new_offset := arith.AddiOp(op.offset, next_op.offset),
@@ -148,7 +148,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
                     ),
                 ],
             )
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 class ChainedDsdLengthFolding(RewritePattern):
@@ -167,7 +167,7 @@ class ChainedDsdLengthFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             rebuilt := csl.SetDsdLengthOp(
                 operands=[op.op, next_op.length],
@@ -175,7 +175,7 @@ class ChainedDsdLengthFolding(RewritePattern):
                 result_types=op.result_types,
             ),
         )
-        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
+        rewriter.replace(next_op, [], new_results=[rebuilt.result])
 
 
 class ChainedDsdStrideFolding(RewritePattern):
@@ -194,7 +194,7 @@ class ChainedDsdStrideFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             rebuilt := csl.SetDsdStrideOp(
                 operands=[op.op, next_op.stride],
@@ -202,4 +202,4 @@ class ChainedDsdStrideFolding(RewritePattern):
                 result_types=op.result_types,
             ),
         )
-        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
+        rewriter.replace(next_op, [], new_results=[rebuilt.result])

@@ -41,15 +41,15 @@ def materialize_loop_bound(
 
     if dim_size == DYNAMIC_INDEX:
         dim_index_op = arith.ConstantOp.from_int_and_width(dim_index, IndexType())
-        rewriter.insert_op(dim_index_op, insertion_point)
+        rewriter.insert(dim_index_op, insertion_point)
 
-        dim_op = memref.DimOp.from_source_and_index(operand, dim_index_op.result)
-        rewriter.insert_op(dim_op, insertion_point)
+        dim_op = memref.DimOp(operand, dim_index_op.result)
+        rewriter.insert(dim_op, insertion_point)
         return dim_op.result
 
     else:
         const_op = arith.ConstantOp.from_int_and_width(dim_size, IndexType())
-        rewriter.insert_op(const_op, insertion_point)
+        rewriter.insert(const_op, insertion_point)
         return const_op.result
 
 
@@ -111,7 +111,7 @@ class LowerLinalgStructuredOpPattern(RewritePattern):
                     rewriter, insertion_target, affine_map_attr.data, ind_vars
                 )
                 load_op = memref.LoadOp.get(value, indices)
-                rewriter.insert_op(load_op, insertion_target)
+                rewriter.insert(load_op, insertion_target)
                 return load_op.res
             else:
                 return value
@@ -132,12 +132,13 @@ class LowerLinalgStructuredOpPattern(RewritePattern):
                 rewriter, insertion_target, affine_map_attr.data, ind_vars
             )
             store_op = memref.StoreOp.get(value, destination, indices)
-            rewriter.insert_op(store_op, insertion_target)
+            rewriter.insert(store_op, insertion_target)
             return store_op
 
         insertion_point = InsertPoint.before(op)
         rewrite_linalg_structured_to_loops(
             rewriter,
+            op,
             insertion_point,
             create_loop_bounds(rewriter, insertion_point, op),
             op.get_indexing_maps().data,

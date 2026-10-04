@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I32,
     I64,
     AnyFloatConstr,
     BoolAttr,
@@ -71,6 +72,8 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     NoMemoryEffect,
+    Pure,
+    SameOperandsAndResultType,
     SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
@@ -381,6 +384,42 @@ class AllocaOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AssumeAlignmentOp(IRDLOperation):
+    """Assert that a memref has the given byte alignment."""
+
+    name = "memref.assume_alignment"
+
+    T: ClassVar = VarConstraint("T", base(MemRefType))
+
+    memref = operand_def(T)
+    alignment = prop_def(IntegerAttr[I32])
+    result = result_def(T)
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    assembly_format = "$memref `,` $alignment attr-dict `:` type($memref)"
+
+    def __init__(
+        self,
+        memref: SSAValue | Operation,
+        alignment: int | IntegerAttr[I32],
+    ) -> None:
+        memref = SSAValue.get(memref)
+        if isinstance(alignment, int):
+            alignment = IntegerAttr(alignment, i32)
+        super().__init__(
+            operands=[memref],
+            result_types=[memref.type],
+            properties={"alignment": alignment},
+        )
+
+    def verify_(self) -> None:
+        alignment = self.alignment.value.data
+        if alignment <= 0:
+            raise VerifyException(f"Alignment must be positive, got {alignment}")
+
+
+@irdl_op_definition
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
@@ -489,11 +528,22 @@ class DimOp(IRDLOperation):
 
     assembly_format = "$source `,` $index attr-dict `:` type($source)"
 
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        index: SSAValue | Operation,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        super().__init__(
+            operands=(source, index), result_types=(IndexType(),), attributes=attributes
+        )
+
     @staticmethod
+    @deprecated("Use DimOp(source, index) instead")
     def from_source_and_index(
         source: SSAValue | Operation, index: SSAValue | Operation
-    ):
-        return DimOp.build(operands=[source, index], result_types=[IndexType()])
+    ) -> DimOp:
+        return DimOp(source, index)
 
 
 @irdl_op_definition
@@ -909,8 +959,6 @@ class MemorySpaceCastOp(IRDLOperation):
 
 @irdl_op_definition
 class ReinterpretCastOp(IRDLOperation):
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-
     name = "memref.reinterpret_cast"
 
     source = operand_def(MemRefType)
@@ -979,15 +1027,9 @@ class ReinterpretCastOp(IRDLOperation):
         """
         Construct a `ReinterpretCastOp` from dynamic offsets, sizes, and strides.
         """
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, ReinterpretCastOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
 
         return ReinterpretCastOp(
             source,
@@ -1006,13 +1048,13 @@ class ReinterpretCastOp(IRDLOperation):
         static_strides = self.static_strides.get_values()
 
         verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+            static_sizes, self.sizes, DYNAMIC_INDEX, " in the size arguments"
         )
         verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+            static_offsets, self.offsets, DYNAMIC_INDEX, " in the offset arguments"
         )
         verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+            static_strides, self.strides, DYNAMIC_INDEX, " in the stride arguments"
         )
 
         assert isa(self.source.type, MemRefType)
@@ -1031,11 +1073,11 @@ class ReinterpretCastOp(IRDLOperation):
                 strict=True,
             )
         ):
-            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
+            if expected == DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
                 raise VerifyException(
                     f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
                 )
-            elif expected != ReinterpretCastOp.DYNAMIC_INDEX and expected != actual:
+            elif expected != DYNAMIC_INDEX and expected != actual:
                 raise VerifyException(
                     f"Expected result type with size = {expected} instead of {actual} in dim = {dim}"
                 )
@@ -1246,6 +1288,7 @@ MemRef = Dialect(
         StoreOp,
         AllocOp,
         AllocaOp,
+        AssumeAlignmentOp,
         AllocaScopeOp,
         AllocaScopeReturnOp,
         AtomicRMWOp,

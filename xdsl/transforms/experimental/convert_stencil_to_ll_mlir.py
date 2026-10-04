@@ -81,7 +81,7 @@ class CastOpToMemRef(RewritePattern):
 
         cast = memref.CastOp.get(op.field, result_type)
 
-        rewriter.replace_op(op, cast)
+        rewriter.replace(op, cast)
 
 
 # Collect up to 'number' block arguments by walking up the region tree
@@ -164,14 +164,12 @@ class ReturnOpToMemRef(RewritePattern):
                     subview_op = target.owner
                     field = subview_op.source
                     if isinstance(field.owner, Operation):
-                        rewriter.insert_op(subview_op, InsertPoint.after(field.owner))
+                        rewriter.insert(subview_op, InsertPoint.after(field.owner))
                     else:
-                        rewriter.insert_op(
-                            subview_op, InsertPoint.at_start(field.owner)
-                        )
+                        rewriter.insert(subview_op, InsertPoint.at_start(field.owner))
             else:
                 target = apply.dest[j]
-                rewriter.insert_op(
+                rewriter.insert(
                     subview := field_subview(target), InsertPoint.before(apply)
                 )
                 target = subview
@@ -212,22 +210,22 @@ class ReturnOpToMemRef(RewritePattern):
                                 store = memref.StoreOp.get(owner.arg, target, index_ops)
                             else:
                                 store = list[Operation]()
-                            rewriter.replace_op(
+                            rewriter.replace(
                                 owner,
                                 store,
                                 new_results=[owner.arg],
                             )
                         else:
                             dummy = UnrealizedConversionCastOp.get([], [arg.type.elem])
-                            rewriter.replace_op(owner, dummy)
+                            rewriter.replace(owner, dummy)
 
                 else:
                     if target is not None:
                         store = memref.StoreOp.get(arg, target, index_ops)
                         store_list.append(store)
 
-        rewriter.insert_op(store_list)
-        rewriter.erase_op(op)
+        rewriter.insert(store_list)
+        rewriter.erase(op)
 
 
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
@@ -270,7 +268,7 @@ class LoadOpToMemRef(RewritePattern):
             op.field, StencilToMemRefType(field), offsets, sizes, strides
         )
 
-        rewriter.replace_op(op, subview)
+        rewriter.replace(op, subview)
         name = None
         if subview.source.name_hint:
             name = subview.source.name_hint + "_loadview"
@@ -328,19 +326,19 @@ class BufferOpToMemRef(RewritePattern):
         alloc_type = alloc.memref.type
         assert isa(alloc_type, MemRefType)
 
-        rewriter.insert_op(alloc, InsertPoint.before(first_op))
+        rewriter.insert(alloc, InsertPoint.before(first_op))
 
         update_return_target(self.return_targets, op.temp, alloc.memref)
 
         dealloc = memref.DeallocOp.get(alloc.memref)
 
         if not op.res.uses:
-            rewriter.insert_op(dealloc, InsertPoint.after(op))
-            rewriter.erase_op(op)
+            rewriter.insert(dealloc, InsertPoint.after(op))
+            rewriter.erase(op)
             return
 
-        rewriter.insert_op(dealloc, InsertPoint.before(last_op))
-        rewriter.replace_op(op, [], [alloc.memref])
+        rewriter.insert(dealloc, InsertPoint.before(last_op))
+        rewriter.replace(op, [], [alloc.memref])
 
 
 def field_subview(field: SSAValue):
@@ -363,7 +361,7 @@ class AllocOpToMemRef(RewritePattern):
         alloc = memref.AllocOp(
             [], [], StencilToMemRefType(cast(StencilType[Attribute], op.field.type))
         )
-        rewriter.replace_op(op, alloc)
+        rewriter.replace(op, alloc)
 
 
 @dataclass
@@ -384,7 +382,7 @@ class ApplyOpFieldSubviews(RewritePattern):
             attributes=op.attributes,
             properties=op.properties,
         )
-        rewriter.replace_op(
+        rewriter.replace(
             op, [*(arg for arg in args if isinstance(arg, Operation)), new_apply]
         )
 
@@ -464,14 +462,14 @@ class ApplyOpToParallel(RewritePattern):
                         add := arith.AddiOp(body.args[index.dim.value.data], cst),
                     ]
                     res = [add.result]
-                rewriter.replace_op(index, ops, res)
+                rewriter.replace(index, ops, res)
 
         # Get the maybe updated results
         new_results = self.return_targets[op] if op in self.return_targets else []
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
-        rewriter.insert_op([*boilerplate_ops, p])
-        rewriter.replace_op(op, [], new_results)
+        rewriter.insert([*boilerplate_ops, p])
+        rewriter.replace(op, [], new_results)
 
 
 @dataclass
@@ -523,8 +521,8 @@ class AccessOpToMemRef(RewritePattern):
             operands=[op.temp, memref_load_args], result_types=[temp.element_type]
         )
 
-        rewriter.insert_op(args)
-        rewriter.replace_op(op, [*off_const_ops, load], [load.res])
+        rewriter.insert(args)
+        rewriter.replace(op, [*off_const_ops, load], [load.res])
 
 
 @dataclass
@@ -568,7 +566,7 @@ class StencilStoreToSubview(RewritePattern):
         # The subview will be inserted when ReturnOpToMemRef processes the
         # corresponding return operation and needs this target.
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
         update_return_target(self.return_targets, field, subview.result)
 
@@ -582,14 +580,14 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
         )
 
         if op.field.type == op.result.type:
-            rewriter.replace_op(op, [], [op.field])
+            rewriter.replace(op, [], [op.field])
         pass
 
 
 class TrivialExternalStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class CombineOpCleanup(RewritePattern):
@@ -599,7 +597,7 @@ class CombineOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 def _get_use_target(use: Use) -> SSAValue | None:

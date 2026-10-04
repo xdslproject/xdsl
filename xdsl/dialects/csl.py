@@ -39,12 +39,11 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
 )
-from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
+from xdsl.dialects.utils import EnumAttribute, parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     Region,
     SpacedOpaqueSyntaxAttribute,

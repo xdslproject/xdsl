@@ -243,10 +243,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %init : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output2 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb1(%in: tensor<1024xi32>):
+// CHECK-NEXT:         ^bb0(%in: tensor<1024xi32>):
 // CHECK-NEXT:           %init_1 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %2 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init_1 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb2(%a2: i32, %a3: i32):
+// CHECK-NEXT:           ^bb0(%a2: i32, %a3: i32):
 // CHECK-NEXT:             %one = arith.constant 1 : i32
 // CHECK-NEXT:             %3 = arith.addi %a2, %one : i32
 // CHECK-NEXT:             linalg.yield %3 : i32
@@ -254,10 +254,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %2 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output3 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb3(%in_1: tensor<1024xi32>):
+// CHECK-NEXT:         ^bb0(%in_1: tensor<1024xi32>):
 // CHECK-NEXT:           %init_2 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %4 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_1 : tensor<1024xi32>) outs(%init_2 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb4(%a2_1: i32, %a3_1: i32):
+// CHECK-NEXT:           ^bb0(%a2_1: i32, %a3_1: i32):
 // CHECK-NEXT:             %two = arith.constant 2 : i32
 // CHECK-NEXT:             %5 = arith.addi %a2_1, %two : i32
 // CHECK-NEXT:             linalg.yield %5 : i32
@@ -265,10 +265,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %4 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb5(%in_2: tensor<1024xi32>):
+// CHECK-NEXT:         ^bb0(%in_2: tensor<1024xi32>):
 // CHECK-NEXT:           %init_3 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %6 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_2 : tensor<1024xi32>) outs(%init_3 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb6(%a2_2: i32, %a3_2: i32):
+// CHECK-NEXT:           ^bb0(%a2_2: i32, %a3_2: i32):
 // CHECK-NEXT:             %three = arith.constant 3 : i32
 // CHECK-NEXT:             %7 = arith.addi %a2_2, %three : i32
 // CHECK-NEXT:             linalg.yield %7 : i32

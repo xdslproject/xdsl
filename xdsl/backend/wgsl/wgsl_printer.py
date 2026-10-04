@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from typing import IO, cast
 
@@ -13,9 +13,12 @@ from xdsl.utils.hints import isa
 from xdsl.utils.target import Target
 
 
+@dataclass(eq=False, repr=False)
 class WGSLPrinter(BasePrinter):
-    name_dict: dict[SSAValue, str] = dict()
-    count = 0
+    name_dict: dict[SSAValue, str] = field(
+        default_factory=dict[SSAValue, str], init=False
+    )
+    count: int = field(default=0, init=False)
 
     def wgsl_name(self, v: SSAValue):
         if v not in self.name_dict:

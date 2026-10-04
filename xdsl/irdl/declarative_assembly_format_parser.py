@@ -23,7 +23,6 @@ from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
-    ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -43,6 +42,7 @@ from xdsl.irdl import (
     VarResultDef,
     VarSingleBlockRegionDef,
     VarSuccessorDef,
+    VerificationContext,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
@@ -60,7 +60,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandDirective,
     OperandsDirective,
     OperandVariable,
-    OptionalFormatDirective,
     OptionalGroupDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
@@ -572,7 +571,7 @@ class FormatParser(BaseParser):
                     if unique_base is DenseArrayBase and (
                         elt_type_constr := constr.param_constrs[0]
                     ).can_infer(set()):
-                        elt_type = elt_type_constr.infer(ConstraintContext())
+                        elt_type = elt_type_constr.infer(VerificationContext())
                         return DenseArrayAttributeVariable(
                             variable_name,
                             is_property,
@@ -588,7 +587,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(ConstraintContext())
+                            unique_type = type_constraint.infer(VerificationContext())
                             return TypedAttributeVariable(
                                 variable_name,
                                 is_property,
@@ -708,17 +707,13 @@ class FormatParser(BaseParser):
                 "An optional group's anchor must be an anchorable directive."
             )
 
-        then_first = cast(
-            OptionalFormatDirective, then_elements[first_non_whitespace_index]
-        )
-
         return OptionalGroupDirective(
             anchor,
             cast(
                 tuple[WhitespaceDirective, ...],
                 then_elements[:first_non_whitespace_index],
             ),
-            then_first,
+            then_elements[first_non_whitespace_index],
             then_elements[first_non_whitespace_index + 1 :],
             else_elements,
         )

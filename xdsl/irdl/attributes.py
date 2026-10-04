@@ -64,7 +64,6 @@ from .constraints import (  # noqa: TID251
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
@@ -73,8 +72,8 @@ from .constraints import (  # noqa: TID251
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
-    SingleOf,
     TypeVarConstraint,
+    VerificationContext,
 )
 
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
@@ -283,7 +282,7 @@ class ParamAttrDef:
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
-        constraint_context = ConstraintContext()
+        constraint_context = VerificationContext()
         for field, param_def in self.parameters:
             try:
                 param_def.constr.verify(getattr(attr, field), constraint_context)
@@ -665,7 +664,7 @@ def range_constr_coercion(
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
-    return SingleOf(irdl_to_attr_constraint(attr))
+    return RangeOf(irdl_to_attr_constraint(attr)).of_length(1)
 
 
 @overload

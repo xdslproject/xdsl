@@ -11,7 +11,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 
 from abc import ABC
 from collections.abc import Hashable, Iterable, Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import TypeVar
 
@@ -32,17 +32,19 @@ from xdsl.dialects.builtin import (
     i1,
     i32,
 )
-from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    BitEnumAttribute,
+    EnumAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -90,6 +92,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 
 class DeviceType(StrEnum):
@@ -922,7 +925,7 @@ class DeviceTypeOperands(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         triples = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
         )
@@ -1059,7 +1062,7 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         operands, types, device_types, keyword_only = _parse_dt_kw_only_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1103,7 +1106,7 @@ class NumGangs(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1283,7 +1286,7 @@ class WaitClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         operands, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1345,7 +1348,7 @@ class KernelEnvironmentClauses(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait")
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1441,16 +1444,16 @@ class OperandWithKeywordOnly(CustomDirective):
         self.operand.set(state, None)
         self.operand_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operand.set(state, None)
             self.operand_type.set(state, ())
-            return
-        operand, ty = _parse_typed_operand(parser)
-        parser.parse_punctuation(")")
-        self.operand.set(state, operand)
-        self.operand_type.set(state, (ty,))
+        else:
+            operand, ty = _parse_typed_operand(parser)
+            parser.parse_punctuation(")")
+            self.operand.set(state, operand)
+            self.operand_type.set(state, (ty,))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # Mirror upstream's `if (attr) return;`: when the bare-keyword
@@ -1491,22 +1494,22 @@ class OperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
-        )
-        parser.parse_punctuation(":")
-        types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
-        )
-        parser.parse_punctuation(")")
-        self.operands.set(state, operands)
-        self.operand_types.set(state, types)
+        else:
+            operands = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            self.operands.set(state, operands)
+            self.operand_types.set(state, types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.attr.get(op) is not None:
@@ -1542,15 +1545,13 @@ class AtomicIfClause(CustomDirective):
         self.if_cond.set(state, None)
         self.if_cond_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
-        if parser.parse_optional_keyword("if") is None:
-            return
-        parser.parse_punctuation("(")
-        operand = parser.parse_unresolved_operand()
-        parser.parse_punctuation(")")
-        self.if_cond.set(state, operand)
-        self.if_cond_type.set(state, (i1,))
+        if parser.parse_optional_keyword("if"):
+            with parser.in_parens():
+                operand = parser.parse_unresolved_operand()
+            self.if_cond.set(state, operand)
+            self.if_cond_type.set(state, (i1,))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if_cond = self.if_cond.get(op)
@@ -1591,7 +1592,7 @@ class AccVar(CustomDirective):
     acc_var: OperandVariable
     acc_var_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("accPtr") is None:
             parser.parse_keyword("accVar")
         with parser.in_parens():
@@ -1629,7 +1630,7 @@ class Var(CustomDirective):
     var_type: TypeDirective
     var_type_attr: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("varPtr") is None:
             parser.parse_keyword("var")
         with parser.in_parens():
@@ -1694,7 +1695,7 @@ class DataEntryOilist(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("varPtrPtr", "bounds", "async", "recipe")
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1796,12 +1797,12 @@ class CombinedConstructsLoop(CustomDirective):
     combined: AttributeVariable
 
     _KEYWORDS = ("kernels", "parallel", "serial")
-    _BY_KEYWORD = {
+    _BY_KEYWORD: ClassVar = {
         "kernels": CombinedConstructsType.KERNELS_LOOP,
         "parallel": CombinedConstructsType.PARALLEL_LOOP,
         "serial": CombinedConstructsType.SERIAL_LOOP,
     }
-    _BY_VALUE = {v: k for k, v in _BY_KEYWORD.items()}
+    _BY_VALUE: ClassVar = {v: k for k, v in _BY_KEYWORD.items()}
 
     def is_anchorable(self) -> bool:
         return True
@@ -1809,7 +1810,7 @@ class CombinedConstructsLoop(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.combined.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         for kw in self._KEYWORDS:
             if parser.parse_optional_keyword(kw) is not None:
                 self.combined.set(
@@ -1851,7 +1852,7 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1860,7 +1861,6 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # `is_present = bool(self.operands.get(op))` — when this `print` is
@@ -1976,7 +1976,7 @@ class GangClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.gang_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             self.operands.set(state, ())
@@ -2112,7 +2112,7 @@ class LoopControl(CustomDirective):
     step: VariadicOperandVariable
     step_types: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("control") is None:
             self.lowerbound.set(state, ())
             self.lowerbound_types.set(state, ())
@@ -2225,7 +2225,7 @@ class BindName(CustomDirective):
             or self.bind_str_name.get(op) is not None
         )
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         id_names: list[SymbolRefAttr] = []
         str_names: list[StringAttr] = []
         id_dts: list[DeviceTypeAttr] = []
@@ -2306,7 +2306,7 @@ class RoutineGangClause(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.gang.get(op) is not None or self.gang_dim.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.gang.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             return
@@ -2401,7 +2401,7 @@ class DeviceTypeArrayClause(CustomDirective):
         # `hasDeviceTypeValues`-gated emission.
         return isa(attr := self.device_types.get(op), ArrayAttr) and bool(attr.data)
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.device_types.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             return

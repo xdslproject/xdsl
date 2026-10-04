@@ -109,10 +109,10 @@ class ConvertParallel(RewritePattern):
         else:
             new_ops = [loop.body.block.detach_op(o) for o in loop.body.block.ops]
             last_op = new_ops.pop()
-            rewriter.erase_op(last_op)
-        rewriter.insert_op(new_ops, InsertPoint.before(scope_terminator))
+            rewriter.erase(last_op)
+        rewriter.insert(new_ops, InsertPoint.before(scope_terminator))
 
-        rewriter.replace_op(loop, parallel)
+        rewriter.replace(loop, parallel)
 
 
 @dataclass(frozen=True)

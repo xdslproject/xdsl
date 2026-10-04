@@ -101,7 +101,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         )
 
         patterns = ArrayAttr(input_patterns + output_patterns)
-        rewriter.insert_op(
+        rewriter.insert(
             streaming_region_op := memref_stream.StreamingRegionOp(
                 tuple(op.inputs[index] for index, _ in streamed_input_indices),
                 tuple(op.outputs[index] for index, _ in streamable_output_indices),
@@ -120,7 +120,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
 
-        rewriter.insert_op(
+        rewriter.insert(
             memref_stream.GenericOp(
                 new_operands[:input_count],
                 new_operands[input_count:],
@@ -135,7 +135,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             ),
             InsertPoint.at_end(new_body),
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass(frozen=True)

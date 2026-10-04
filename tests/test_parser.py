@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     FileLineColLoc,
     FloatAttr,
     FusedLoc,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -31,6 +32,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.test import Test
 from xdsl.ir import Attribute, Block, ParametrizedAttribute
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -1030,7 +1032,7 @@ def test_parse_location():
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 
-    with pytest.raises(ParseError, match="Unsupported location type."):
+    with pytest.raises(ParseError, match=re.escape("Unsupported location type.")):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
 
     parser = Parser(ctx, "loc(#loc1)")
@@ -1052,10 +1054,10 @@ def test_parse_location():
 
     parser = Parser(ctx, "loc(#not_loc)")
     parser.attribute_aliases["#not_loc"] = IntAttr(42)
-    with pytest.raises(ParseError, match="Expected location alias."):
+    with pytest.raises(ParseError, match=re.escape("Expected location alias.")):
         parser.parse_optional_location()
 
-    with pytest.raises(ParseError, match="Unexpected location syntax."):
+    with pytest.raises(ParseError, match=re.escape("Unexpected location syntax.")):
         Parser(ctx, "loc(1)").parse_optional_location()
 
 
@@ -1492,3 +1494,59 @@ def test_parse_keyword_in_non_matching():
     parser = Parser(Context(), "other remaining")
     with pytest.raises(ParseError, match="Expected one of"):
         parser.parse_keyword_in({"fastcc", "ccc"})
+
+
+@pytest.mark.parametrize(
+    "text, expected_map, expected_names",
+    [
+        # Only constants
+        ("[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
+        # Just SSA dims
+        (
+            "[%i0, %i1]",
+            AffineMap.from_callable(lambda s0, s1: (s0, s1), dim_symbol_split=(0, 2)),
+            ("%i0", "%i1"),
+        ),
+        # SSA dims + const sums
+        (
+            "[%i0 + 3, %i1 + 7]",
+            AffineMap.from_callable(
+                lambda s0, s1: (s0 + 3, s1 + 7), dim_symbol_split=(0, 2)
+            ),
+            ("%i0", "%i1"),
+        ),
+        # SSA dims + complex expression
+        (
+            "[%i0 + 3, 7 * %i1 + 7]",
+            AffineMap.from_callable(
+                lambda s0, s1: (s0 + 3, 7 * s1 + 7), dim_symbol_split=(0, 2)
+            ),
+            ("%i0", "%i1"),
+        ),
+        # Same SSA value used twice resolves to the same operand
+        (
+            "[%i0, %i0 + 7]",
+            AffineMap.from_callable(lambda s0: (s0, s0 + 7), dim_symbol_split=(0, 1)),
+            ("%i0",),
+        ),
+    ],
+)
+def test_parse_affine_map_of_ssa_ids(
+    text: str, expected_map: AffineMap, expected_names: tuple[str, ...]
+):
+    ctx = Context()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+
+    definitions = '%i0, %i1 = "test.op"() : () -> (index, index)\n'
+    parser = Parser(ctx, definitions + text)
+    op = parser.parse_op()
+    affine_map, operands = parser.parse_affine_map_of_ssa_ids()
+
+    assert affine_map == expected_map
+
+    values_by_name = {"%i0": op.results[0], "%i1": op.results[1]}
+
+    for operand, name in zip(operands, expected_names, strict=True):
+        assert operand.type == IndexType()
+        assert operand is values_by_name[name]

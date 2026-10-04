@@ -1,5 +1,6 @@
 """Unit tests for IRDL."""
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
@@ -23,10 +24,9 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyOf,
     AttrConstraint,
+    AttrSetConstraint,
     BaseAttr,
-    ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
     EqIntConstraint,
@@ -34,6 +34,7 @@ from xdsl.irdl import (
     IntSetConstraint,
     ParamAttrConstraint,
     VarConstraint,
+    VerificationContext,
     eq,
     get_constraint,
     irdl_attr_definition,
@@ -105,7 +106,7 @@ def test_eq_attr_verify():
     """Check that an EqAttrConstraint verifies the expected attribute"""
     bool_true = BoolData(True)
     eq_true_constraint = EqAttrConstraint(bool_true)
-    eq_true_constraint.verify(bool_true, ConstraintContext())
+    eq_true_constraint.verify(bool_true, VerificationContext())
 
 
 def test_eq_attr_verify_wrong_parameters_fail():
@@ -119,7 +120,7 @@ def test_eq_attr_verify_wrong_parameters_fail():
     with pytest.raises(
         VerifyException, match=f"Expected attribute {bool_true} but got {bool_false}"
     ):
-        eq_true_constraint.verify(bool_false, ConstraintContext())
+        eq_true_constraint.verify(bool_false, VerificationContext())
 
 
 def test_eq_attr_verify_wrong_base_fail():
@@ -133,7 +134,7 @@ def test_eq_attr_verify_wrong_base_fail():
     with pytest.raises(
         VerifyException, match=f"Expected attribute {bool_true} but got {int_zero}"
     ):
-        eq_true_constraint.verify(int_zero, ConstraintContext())
+        eq_true_constraint.verify(int_zero, VerificationContext())
 
 
 def test_base_attr_verify():
@@ -142,8 +143,8 @@ def test_base_attr_verify():
     base attribute.
     """
     eq_true_constraint = BaseAttr(BoolData)
-    eq_true_constraint.verify(BoolData(True), ConstraintContext())
-    eq_true_constraint.verify(BoolData(False), ConstraintContext())
+    eq_true_constraint.verify(BoolData(True), VerificationContext())
+    eq_true_constraint.verify(BoolData(False), VerificationContext())
 
 
 def test_base_attr_verify_wrong_base_fail():
@@ -156,7 +157,7 @@ def test_base_attr_verify_wrong_base_fail():
     with pytest.raises(
         VerifyException, match=f"{int_zero} should be of base attribute {BoolData.name}"
     ):
-        eq_true_constraint.verify(int_zero, ConstraintContext())
+        eq_true_constraint.verify(int_zero, VerificationContext())
 
 
 def test_base_attr_verify_wrong_abstractbase_fail():
@@ -170,15 +171,15 @@ def test_base_attr_verify_wrong_abstractbase_fail():
         VerifyException,
         match=f"{parametrized_attr} should be of attribute subclassing `Data`",
     ):
-        any_data_constraint.verify(parametrized_attr, ConstraintContext())
+        any_data_constraint.verify(parametrized_attr, VerificationContext())
 
 
 def test_any_attr_verify():
     """Check that an AnyAttr verifies any attribute."""
     any_constraint = AnyAttr()
-    any_constraint.verify(BoolData(True), ConstraintContext())
-    any_constraint.verify(BoolData(False), ConstraintContext())
-    any_constraint.verify(IntData(0), ConstraintContext())
+    any_constraint.verify(BoolData(True), VerificationContext())
+    any_constraint.verify(BoolData(False), VerificationContext())
+    any_constraint.verify(IntData(0), VerificationContext())
 
 
 @dataclass(frozen=True)
@@ -188,7 +189,7 @@ class LessThan(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
@@ -205,7 +206,7 @@ class LessThan(AttrConstraint):
 class GreaterThan(AttrConstraint):
     bound: int
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
         if attr.data <= self.bound:
@@ -225,10 +226,10 @@ def test_anyof_verify():
     verify.
     """
     constraint = BaseAttr(BoolData) | BaseAttr(IntData)
-    constraint.verify(IntData(1), ConstraintContext())
-    constraint.verify(IntData(-10), ConstraintContext())
-    constraint.verify(BoolData(True), ConstraintContext())
-    constraint.verify(BoolData(False), ConstraintContext())
+    constraint.verify(IntData(1), VerificationContext())
+    constraint.verify(IntData(-10), VerificationContext())
+    constraint.verify(BoolData(True), VerificationContext())
+    constraint.verify(BoolData(False), VerificationContext())
 
 
 def test_anyof_verify_fail():
@@ -243,7 +244,7 @@ def test_anyof_verify_fail():
     with pytest.raises(
         VerifyException, match=r"Unexpected attribute #test.float<10.0>"
     ):
-        constraint.verify(f, ConstraintContext())
+        constraint.verify(f, VerificationContext())
 
 
 def test_allof_verify():
@@ -252,9 +253,9 @@ def test_allof_verify():
     verify.
     """
     constraint = AllOf((LessThan(10), GreaterThan(0)))
-    constraint.verify(IntData(1), ConstraintContext())
-    constraint.verify(IntData(9), ConstraintContext())
-    constraint.verify(IntData(5), ConstraintContext())
+    constraint.verify(IntData(1), VerificationContext())
+    constraint.verify(IntData(9), VerificationContext())
+    constraint.verify(IntData(5), VerificationContext())
 
 
 def test_allof_verify_fail():
@@ -267,12 +268,12 @@ def test_allof_verify_fail():
     with pytest.raises(
         VerifyException, match=f"{IntData(10)} should hold a value less than 10"
     ):
-        constraint.verify(IntData(10), ConstraintContext())
+        constraint.verify(IntData(10), VerificationContext())
 
     with pytest.raises(
         VerifyException, match=f"{IntData(0)} should hold a value greater than 0"
     ):
-        constraint.verify(IntData(0), ConstraintContext())
+        constraint.verify(IntData(0), VerificationContext())
 
 
 def test_allof_verify_multiple_failures():
@@ -287,7 +288,7 @@ def test_allof_verify_multiple_failures():
         match=f"The following constraints were not satisfied:\n{IntData(7)} should "
         f"hold a value less than 5\n{IntData(7)} should hold a value greater than 8",
     ):
-        constraint.verify(IntData(7), ConstraintContext())
+        constraint.verify(IntData(7), VerificationContext())
 
 
 def test_param_attr_verify():
@@ -295,8 +296,8 @@ def test_param_attr_verify():
     constraint = ParamAttrConstraint(
         DoubleParamAttr, (EqAttrConstraint(bool_true), BaseAttr(IntData))
     )
-    constraint.verify(DoubleParamAttr(bool_true, IntData(0)), ConstraintContext())
-    constraint.verify(DoubleParamAttr(bool_true, IntData(42)), ConstraintContext())
+    constraint.verify(DoubleParamAttr(bool_true, IntData(0)), VerificationContext())
+    constraint.verify(DoubleParamAttr(bool_true, IntData(42)), VerificationContext())
 
 
 def test_param_attr_verify_base_fail():
@@ -308,7 +309,7 @@ def test_param_attr_verify_base_fail():
         VerifyException,
         match=f"{bool_true} should be of base attribute {DoubleParamAttr.name}",
     ):
-        constraint.verify(bool_true, ConstraintContext())
+        constraint.verify(bool_true, VerificationContext())
 
 
 def test_param_attr_verify_params_num_params_fail():
@@ -316,7 +317,7 @@ def test_param_attr_verify_params_num_params_fail():
     constraint = ParamAttrConstraint(DoubleParamAttr, (EqAttrConstraint(bool_true),))
     attr = DoubleParamAttr(bool_true, IntData(0))
     with pytest.raises(VerifyException, match="1 parameters expected, but got 2"):
-        constraint.verify(attr, ConstraintContext())
+        constraint.verify(attr, VerificationContext())
 
 
 def test_param_attr_verify_params_fail():
@@ -334,12 +335,14 @@ def test_param_attr_verify_params_fail():
         VerifyException,
         match=f"{bool_false} should be of base attribute {IntData.name}",
     ):
-        constraint.verify(DoubleParamAttr(bool_true, bool_false), ConstraintContext())
+        constraint.verify(DoubleParamAttr(bool_true, bool_false), VerificationContext())
 
     with pytest.raises(
         VerifyException, match=f"Expected attribute {bool_true} but got {bool_false}"
     ):
-        constraint.verify(DoubleParamAttr(bool_false, IntData(0)), ConstraintContext())
+        constraint.verify(
+            DoubleParamAttr(bool_false, IntData(0)), VerificationContext()
+        )
 
 
 def test_constraint_vars_success():
@@ -347,11 +350,11 @@ def test_constraint_vars_success():
 
     constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
 
-    constraint_context = ConstraintContext()
+    constraint_context = VerificationContext()
     constraint.verify(BoolData(False), constraint_context)
     constraint.verify(BoolData(False), constraint_context)
 
-    constraint_context = ConstraintContext()
+    constraint_context = VerificationContext()
     constraint.verify(IntData(0), constraint_context)
     constraint.verify(IntData(0), constraint_context)
 
@@ -361,7 +364,7 @@ def test_constraint_vars_fail_different():
 
     constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
 
-    constraint_context = ConstraintContext()
+    constraint_context = VerificationContext()
     constraint.verify(IntData(0), constraint_context)
 
     with pytest.raises(VerifyException):
@@ -377,7 +380,7 @@ def test_constraint_vars_fail_underlying_constraint():
     constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
 
     with pytest.raises(VerifyException):
-        constraint.verify(IntData(1), ConstraintContext())
+        constraint.verify(IntData(1), VerificationContext())
 
 
 # region: irdl_to_attr_constraint
@@ -408,9 +411,11 @@ def test_data_with_generic_missing_generic_data_failure():
     with pytest.raises(
         PyRDLTypeError,
         match=(
-            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
-            "attribute constraint. Consider making it inherit from `GenericData` "
-            "instead of `Data`."
+            re.escape(
+                "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+                "attribute constraint. Consider making it inherit from `GenericData` "
+                "instead of `Data`."
+            )
         ),
     ):
         irdl_to_attr_constraint(MissingGenericDataData[int])
@@ -453,11 +458,11 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert irdl_to_attr_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(  # pyright: ignore[reportArgumentType]
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert irdl_to_attr_constraint(
+        Literal[TestEnum.A, TestEnum.B]  # pyright: ignore[reportArgumentType]
+    ) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
     assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
     assert irdl_to_attr_constraint(IntAttr[int]) == BaseAttr(IntAttr)
@@ -539,11 +544,9 @@ def test_get_constraint():
     assert get_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
-    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(
-        (
-            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
-            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
-        )
+    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AttrSetConstraint.get(
+        TestEnumAttr(TestEnum.A),
+        TestEnumAttr(TestEnum.B),
     )
 
     with pytest.raises(

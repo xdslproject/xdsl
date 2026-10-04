@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
@@ -218,11 +220,13 @@ def test_immediate_jalr_inst():
 
 def test_float_register():
     with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
+        VerifyException,
+        match=re.escape("Invalid register name ft9 for register type riscv.reg."),
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register type riscv.freg."
+        VerifyException,
+        match=re.escape("Invalid register name a0 for register type riscv.freg."),
     ):
         riscv.FloatRegisterType.from_name("a0")
 

@@ -9,6 +9,10 @@ builtin.module {
 
   %div_clk = seq.clock_div %clk by 4
   // CHECK:      %div_clk = seq.clock_div %clk by 4
+  // CHECK-GENERIC: %div_clk = "seq.clock_div"(%clk) {pow2 = 4 : i8} : (!seq.clock) -> !seq.clock
+  %div_clk_attr = seq.clock_div %clk by 2 {foo}
+  // CHECK: %div_clk_attr = seq.clock_div %clk by 2 {foo}
+  // CHECK-GENERIC: %div_clk_attr = "seq.clock_div"(%clk) {pow2 = 2 : i8, foo} : (!seq.clock) -> !seq.clock
   %compreg = seq.compreg %data, %clk : i14
   // CHECK: %compreg = seq.compreg %data, %clk : i14
   %compreg_reset = seq.compreg %data, %clk reset %bool, %data : i14

@@ -106,6 +106,7 @@ _CAST_OP_NAMES: dict[type[Operation], str] = {
     llvm.IntToPtrOp: "inttoptr",
     llvm.BitcastOp: "bitcast",
     llvm.FPExtOp: "fpext",
+    llvm.FPTruncOp: "fptrunc",
     llvm.SIToFPOp: "sitofp",
 }
 
@@ -126,9 +127,7 @@ class CastInstrWithFlags(instructions.CastInstr):
         )
 
     def descr(self, buf: list[str]) -> None:
-        opname = (
-            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
-        )
+        opname = " ".join((self.opname, *self.flags))
         op = self.operands[0]
         buf.append(
             f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
@@ -221,12 +220,16 @@ def _convert_fneg(
     op: llvm.FNegOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     operand = val_map[op.arg]
-    val_map[op.res] = builder.fneg(operand)
+    val_map[op.res] = builder.fneg(
+        operand, flags=[f.value for f in op.fastmathFlags.data]
+    )
 
 
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
+    if op.op_bundle_operands or op.op_bundle_sizes:
+        raise NotImplementedError("Operand bundles not supported")
     args = [val_map[arg] for arg in op.args]
     if op.callee is None:
         raise NotImplementedError("Indirect calls not yet implemented")
@@ -456,7 +459,7 @@ def _convert_call_intrinsic(
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
 ):
-    if op.op_bundle_operands:
+    if op.op_bundle_operands or op.op_bundle_sizes:
         raise NotImplementedError("Operand bundles not supported")
     if any(op.fastmathFlags.data):
         raise NotImplementedError("Fast-math flags not supported")

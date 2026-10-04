@@ -81,7 +81,7 @@
 // CHECK-NEXT:     %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:     "csl_wrapper.yield"(%14, %13, %25) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
+// CHECK-NEXT:   ^bb0(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
 // CHECK-NEXT:     %33 = "csl_wrapper.import"(%memcpy_params) <{module = "<memcpy/memcpy>", fields = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{module = "stencil_comms.csl", fields = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %arg0 = memref.alloc() : memref<512xf32>
@@ -255,7 +255,7 @@
 // CHECK-NEXT:    %16 = arith.ori %15, %13 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%5, %4, %16) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
+// CHECK-NEXT:  ^bb0(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
 // CHECK-NEXT:    %17 = "csl_wrapper.import"(%arg7_1) <{fields = [""], module = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{fields = ["pattern", "chunkSize", ""], module = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %19 = memref.alloc() : memref<512xf32>
@@ -425,7 +425,7 @@
 // CHECK-NEXT:    %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%14, %13, %25) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
+// CHECK-NEXT:  ^bb0(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
 // CHECK-NEXT:    %33 = "csl_wrapper.import"(%memcpy_params) <{module = "<memcpy/memcpy>", fields = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{module = "stencil_comms.csl", fields = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %arg0 = memref.alloc() : memref<512xf32>
@@ -600,7 +600,7 @@
 // CHECK-NEXT:    %16 = arith.ori %15, %13 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%6, %5, %16) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
+// CHECK-NEXT:  ^bb0(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
 // CHECK-NEXT:    %17 = "csl_wrapper.import"(%arg7_1) <{fields = [""], module = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{fields = ["pattern", "chunkSize", ""], module = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %19 = memref.alloc() : memref<511xf32>

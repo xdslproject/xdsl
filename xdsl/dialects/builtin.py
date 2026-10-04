@@ -53,11 +53,11 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
     EqIntConstraint,
     GenericData,
+    InferenceContext,
     IntConstraint,
     IntTypeVarConstraint,
     IRDLAttrConstraint,
@@ -68,6 +68,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    VerificationContext,
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -252,7 +253,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isa(attr, ArrayAttr):
             raise VerifyException(
@@ -265,7 +266,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
             var_constraint_names, length_known=False
         )
 
-    def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
+    def infer(self, context: InferenceContext) -> ArrayAttr[AttributeCovT]:
         return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
 
     def get_bases(self) -> set[type[Attribute]] | None:
@@ -300,7 +301,7 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isinstance(attr, StringAttr):
             raise VerifyException(f"{attr} should be a string")
@@ -341,6 +342,12 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
             )
         super().__init__(root, nested)
 
+    @staticmethod
+    def get(value: str | SymbolRefAttr) -> SymbolRefAttr:
+        if isinstance(value, str):
+            return SymbolRefAttr(value)
+        return value
+
     def string_value(self):
         root = self.root_reference.data
         for ref in self.nested_references.data:
@@ -359,7 +366,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         if attr.data:
@@ -380,18 +387,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
-IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
+_IntCovT = TypeVar("_IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
+class IntAttr(GenericData[_IntCovT], Generic[_IntCovT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> IntCovT:
+    def parse_parameter(cls, parser: AttrParser) -> _IntCovT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return cast(IntCovT, data)
+            return cast(_IntCovT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -407,7 +414,7 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
         constr: IntConstraint | int | TypeForm[int] | None = None,
     ) -> AttrConstraint[IntAttr]:
         return IntAttrConstraint.get(
-            IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
+            IntTypeVarConstraint(_IntCovT, AnyInt()) if constr is None else constr
         )
 
 
@@ -433,7 +440,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
     int_constraint: IntConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
@@ -444,7 +451,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
-    def infer(self, context: ConstraintContext) -> IntAttr:
+    def infer(self, context: InferenceContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
     def get_bases(self) -> set[type[Attribute]] | None:
@@ -510,17 +517,17 @@ class Signedness(ConstraintConvertible, Enum):
         return EqAttrConstraint(SignednessAttr(self))
 
 
-SignednessCovT = TypeVar(
-    "SignednessCovT", bound=Signedness, default=Signedness, covariant=True
+_SignednessCovT = TypeVar(
+    "_SignednessCovT", bound=Signedness, default=Signedness, covariant=True
 )
 
 
 @irdl_attr_definition
-class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
+class SignednessAttr(GenericData[_SignednessCovT], Generic[_SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> SignednessCovT:
+    def parse_parameter(cls, parser: AttrParser) -> _SignednessCovT:
         with parser.in_angle_brackets():
             if parser.parse_optional_keyword("signless") is not None:
                 return Signedness.SIGNLESS  # pyright: ignore[reportReturnType]
@@ -544,7 +551,7 @@ class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
 
     @staticmethod
     def constr() -> AttrConstraint:
-        return TypeVarConstraint(SignednessCovT, BaseAttr(SignednessAttr))
+        return TypeVarConstraint(_SignednessCovT, BaseAttr(SignednessAttr))
 
 
 class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
@@ -717,17 +724,17 @@ class IntegerType(
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
-    Generic[IntCovT, SignednessCovT],
+    Generic[_IntCovT, _SignednessCovT],
 ):
     name = "integer_type"
-    width: IntAttr[IntCovT]
-    signedness: SignednessAttr[SignednessCovT]
+    width: IntAttr[_IntCovT]
+    signedness: SignednessAttr[_SignednessCovT]
 
     def __init__(
         self,
-        data: IntCovT | IntAttr[IntCovT],
-        signedness: SignednessCovT
-        | SignednessAttr[SignednessCovT] = Signedness.SIGNLESS,
+        data: _IntCovT | IntAttr[_IntCovT],
+        signedness: _SignednessCovT
+        | SignednessAttr[_SignednessCovT] = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
             data = IntAttr(data)
@@ -861,7 +868,7 @@ class LocationConstraint(AttrConstraint):
     Check if an attribute is one of the supported location types.
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
             return
         raise VerifyException(f"{attr} is not a location attribute")
@@ -881,7 +888,7 @@ class LocationsArrayConstraint(AttrConstraint):
     def __init__(self):
         self.location_constraint = LocationConstraint()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         array = cast(ArrayAttr[Attribute], attr)
         element: Attribute
         for element in array:
@@ -1034,44 +1041,40 @@ class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]
 
 IndexTypeConstr = BaseAttr(IndexType)
 
-_IntegerAttrType = TypeVar(
-    "_IntegerAttrType",
+_IntegerAttrTypeCovT = TypeVar(
+    "_IntegerAttrTypeCovT",
     bound=IntegerType | IndexType,
     covariant=True,
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
-AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
-]
-"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
 class IntegerAttr(
     BuiltinAttribute,
     TypedAttribute,
-    Generic[_IntegerAttrType],
+    Generic[_IntegerAttrTypeCovT],
 ):
     name = "integer"
     value: IntAttr
-    type: _IntegerAttrType
+    type: _IntegerAttrTypeCovT
 
     @overload
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: _IntegerAttrType,
+        value_type: _IntegerAttrTypeCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]],
+        self: IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]],
         value: int | IntAttr,
-        value_type: IntCovT,
+        value_type: _IntCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
@@ -1079,7 +1082,7 @@ class IntegerAttr(
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: IntCovT | IntegerType[IntCovT] | IndexType,
+        value_type: _IntCovT | IntegerType[_IntCovT] | IndexType,
         *,
         truncate_bits: bool = False,
     ) -> None:
@@ -1094,13 +1097,6 @@ class IntegerAttr(
             if normalized_value is not None:
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
-
-    @deprecated("Please use IntegerAttr(value, width) instead")
-    @staticmethod
-    def from_int_and_width(
-        value: int, width: IntCovT
-    ) -> IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]]:
-        return IntegerAttr(value, width)
 
     @staticmethod
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
@@ -1139,14 +1135,14 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
-    ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
+    ) -> AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]]:
         if isinstance(value, IntConstraint):
             value = IntAttrConstraint.get(value)
         return cast(
-            AttrConstraint[IntegerAttr[_IntegerAttrType]],
+            AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]],
             ParamAttrConstraint.get(IntegerAttr, value, type),
         )
 
@@ -1829,38 +1825,43 @@ class FloatData(Data[float]):
         with printer.in_angle_brackets():
             printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: object):
-        # avoid triggering `float('nan') != float('nan')` inequality
-        return isinstance(other, FloatData) and (
-            (math.isnan(self.data) and math.isnan(other.data))
-            or self.data == other.data
-        )
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, FloatData):
+            return False
+        if math.isnan(self.data) and math.isnan(other.data):
+            # Treat all NaNs as equal
+            return True
+        if math.copysign(1.0, self.data) != math.copysign(1.0, other.data):
+            # Avoid dropping sign on -0.0
+            return False
+        # If the floats are not NaNs or +-0.0, use float equality
+        return self.data == other.data
 
     def __hash__(self):
         return hash(self.data)
 
 
-_FloatAttrType = TypeVar(
-    "_FloatAttrType", bound=AnyFloat, covariant=True, default=AnyFloat
+_FloatAttrTypeCovT = TypeVar(
+    "_FloatAttrTypeCovT", bound=AnyFloat, covariant=True, default=AnyFloat
 )
 _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
+class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
     name = "float"
 
     value: FloatData
-    type: _FloatAttrType
+    type: _FloatAttrTypeCovT
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
+    def __init__(self, data: float | FloatData, type: _FloatAttrTypeCovT) -> None: ...
 
     @overload
     def __init__(self, data: float | FloatData, type: int) -> None: ...
 
     def __init__(
-        self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
+        self, data: float | FloatData, type: int | _FloatAttrTypeCovT | AnyFloat
     ) -> None:
         if isinstance(type, int):
             if type == 16:
@@ -1930,10 +1931,10 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
-    ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
+        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloatConstr,
+    ) -> AttrConstraint[FloatAttr[_FloatAttrTypeCovT]]:
         return cast(
-            AttrConstraint[FloatAttr[_FloatAttrType]],
+            AttrConstraint[FloatAttr[_FloatAttrTypeCovT]],
             ParamAttrConstraint.get(
                 FloatAttr,
                 None,
@@ -1942,8 +1943,8 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         )
 
 
-ComplexElementCovT = TypeVar(
-    "ComplexElementCovT",
+_ComplexElementCovT = TypeVar(
+    "_ComplexElementCovT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
     covariant=True,
@@ -1955,19 +1956,19 @@ class ComplexType(
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
-    ContainerType[ComplexElementCovT],
+    ContainerType[_ComplexElementCovT],
     TypeAttribute,
-    Generic[ComplexElementCovT],
+    Generic[_ComplexElementCovT],
 ):
     name = "complex"
-    element_type: ComplexElementCovT
+    element_type: _ComplexElementCovT
 
     def print_builtin(self, printer: Printer):
         printer.print_string("complex")
         with printer.in_angle_brackets():
             printer.print_attribute(self.element_type)
 
-    def get_element_type(self) -> ComplexElementCovT:
+    def get_element_type(self) -> _ComplexElementCovT:
         return self.element_type
 
     @property
@@ -2027,10 +2028,10 @@ class ComplexType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
-    ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
+        element_type: IRDLAttrConstraint[_ComplexElementCovT] | None = None,
+    ) -> AttrConstraint[ComplexType[_ComplexElementCovT]]:
         return cast(
-            AttrConstraint[ComplexType[ComplexElementCovT]],
+            AttrConstraint[ComplexType[_ComplexElementCovT]],
             ParamAttrConstraint.get(
                 ComplexType,
                 element_type,
@@ -2146,15 +2147,15 @@ class VectorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[AttributeCovT] | None = None,
+        element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         *,
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
-    ) -> AttrConstraint[VectorType[AttributeCovT]]:
+    ) -> AttrConstraint[VectorType[AttributeInvT]]:
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
         return cast(
-            AttrConstraint[VectorType[AttributeCovT]],
+            AttrConstraint[VectorType[AttributeInvT]],
             ParamAttrConstraint.get(
                 VectorType,
                 element_type,
@@ -2252,40 +2253,19 @@ AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
-@dataclass(frozen=True, init=False)
-class ContainerOf(
-    AttrConstraint[
-        AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
-    ],
-    Generic[AttributeCovT],
+def container_of(
+    constr: IRDLAttrConstraint[AttributeInvT],
+) -> AttrConstraint[
+    AttributeInvT | VectorType[AttributeInvT] | TensorType[AttributeInvT]
+]:
+    return AnyOf.get(constr, VectorType.constr(constr), TensorType.constr(constr))
+
+
+@deprecated("Please use `container_of` instead")
+def ContainerOf(
+    constr: IRDLAttrConstraint[AttributeInvT],
 ):
-    """A type constraint that can be nested once in a vector or a tensor."""
-
-    elem_constr: AttrConstraint[AttributeCovT]
-
-    def __init__(
-        self,
-        elem_constr: (
-            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
-        ),
-    ) -> None:
-        object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isa(attr, VectorType) or isa(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_context)
-        else:
-            self.elem_constr.verify(attr, constraint_context)
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        bases = self.elem_constr.get_bases()
-        if bases is not None:
-            return {*bases, TensorType, VectorType}
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> ContainerOf[AttributeCovT]:
-        return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
+    container_of(constr)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -2304,7 +2284,7 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -2327,7 +2307,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.element_type != self.expected_type:
@@ -2353,7 +2333,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         constraint = VectorBaseTypeConstraint(
             self.expected_type
         ) & VectorRankConstraint(self.expected_rank)
@@ -2389,15 +2369,15 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
         return DenseResourceAttr(handle, type)
 
 
-DenseArrayT = TypeVar(
-    "DenseArrayT",
+_DenseArrayElementCovT = TypeVar(
+    "_DenseArrayElementCovT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
     covariant=True,
 )
 
-DenseArrayInvT = TypeVar(
-    "DenseArrayInvT",
+_DenseArrayElementInvT = TypeVar(
+    "_DenseArrayElementInvT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
 )
@@ -2405,14 +2385,14 @@ DenseArrayInvT = TypeVar(
 
 @irdl_attr_definition
 class DenseArrayBase(
-    ContainerType[DenseArrayT],
+    ContainerType[_DenseArrayElementCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
-    Generic[DenseArrayT],
+    Generic[_DenseArrayElementCovT],
 ):
     name = "array"
 
-    elt_type: DenseArrayT
+    elt_type: _DenseArrayElementCovT
     data: BytesAttr
 
     def print_builtin(self, printer: Printer):
@@ -2444,22 +2424,8 @@ class DenseArrayBase(
                 f"size {elt_size}"
             )
 
-    def get_element_type(self) -> DenseArrayT:
+    def get_element_type(self) -> _DenseArrayElementCovT:
         return self.elt_type
-
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_int(
-        data_type: _IntegerTypeInvT, data: Sequence[int]
-    ) -> DenseArrayBase[_IntegerTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
-
-    @deprecated("Please use from_list(data_type, data) instead.")
-    @staticmethod
-    def create_dense_float(
-        data_type: _FloatAttrTypeInvT, data: Sequence[float]
-    ) -> DenseArrayBase[_FloatAttrTypeInvT]:
-        return DenseArrayBase.from_list(data_type, data)
 
     @overload
     @staticmethod
@@ -2529,10 +2495,10 @@ class DenseArrayBase(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
-    ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
+        element_type: IRDLAttrConstraint[_DenseArrayElementInvT] | None = None,
+    ) -> AttrConstraint[DenseArrayBase[_DenseArrayElementInvT]]:
         return cast(
-            AttrConstraint[DenseArrayBase[DenseArrayInvT]],
+            AttrConstraint[DenseArrayBase[_DenseArrayElementInvT]],
             ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
         )
 
@@ -2649,9 +2615,9 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
     def __init__(
         self,
         strides: (
-            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr]
+            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | IntAttr | NoneAttr | None]
         ),
-        offset: int | None | IntAttr | NoneAttr = 0,
+        offset: int | IntAttr | NoneAttr | None = 0,
     ) -> None:
         if not isinstance(strides, ArrayAttr):
             strides_values: list[IntAttr | NoneAttr] = []
@@ -3065,15 +3031,6 @@ f6E3M2FN = Float6E3M2FNType()
 f4E2M1FN = Float4E2M1FNType()
 
 
-_MemRefTypeElement = TypeVar(
-    "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
-)
-_UnrankedMemRefTypeElems = TypeVar(
-    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True, default=Attribute
-)
-_UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
-
-
 @irdl_attr_definition
 class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "none_type"
@@ -3088,19 +3045,19 @@ class MemRefType(
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
-    ContainerType[_MemRefTypeElement],
-    Generic[_MemRefTypeElement],
+    ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "memref"
 
     shape: ArrayAttr[IntAttr]
-    element_type: _MemRefTypeElement
+    element_type: AttributeCovT
     layout: MemRefLayoutAttr | NoneAttr
     memory_space: Attribute
 
     def __init__(
         self,
-        element_type: _MemRefTypeElement,
+        element_type: AttributeCovT,
         shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
@@ -3122,7 +3079,7 @@ class MemRefType(
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape.data)
 
-    def get_element_type(self) -> _MemRefTypeElement:
+    def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
     @classmethod
@@ -3232,14 +3189,14 @@ class MemRefType(
 
     @staticmethod
     def constr(
-        element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[AttributeCovT] = AnyAttr(),
         *,
         shape: IRDLAttrConstraint | None = None,
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
-    ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
+    ) -> AttrConstraint[MemRefType[AttributeCovT]]:
         return cast(
-            AttrConstraint[MemRefType[_MemRefTypeElement]],
+            AttrConstraint[MemRefType[AttributeCovT]],
             ParamAttrConstraint.get(
                 MemRefType, shape, element_type, layout, memory_space
             ),
@@ -3251,12 +3208,12 @@ class UnrankedMemRefType(
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
-    ContainerType[_UnrankedMemRefTypeElems],
-    Generic[_UnrankedMemRefTypeElems],
+    ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "unranked_memref"
 
-    element_type: _UnrankedMemRefTypeElems
+    element_type: AttributeCovT
     memory_space: Attribute
 
     def print_builtin(self, printer: Printer):
@@ -3269,12 +3226,12 @@ class UnrankedMemRefType(
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedMemRefTypeElemsInit,
+        referenced_type: AttributeInvT,
         memory_space: Attribute = NoneAttr(),
-    ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
+    ) -> UnrankedMemRefType[AttributeInvT]:
         return UnrankedMemRefType(referenced_type, memory_space)
 
-    def get_element_type(self) -> _UnrankedMemRefTypeElems:
+    def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
 
@@ -3285,29 +3242,27 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
-DenseElementCovT = TypeVar(
-    "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
+_DenseElementCovT = TypeVar(
+    "_DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
-
-DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDenseElement)
 
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
     TypedAttribute,
     BuiltinAttribute,
-    ContainerType[DenseElementCovT],
-    Generic[DenseElementCovT],
+    ContainerType[_DenseElementCovT],
+    Generic[_DenseElementCovT],
 ):
     name = "dense"
-    type: RankedStructure[DenseElementCovT]
+    type: RankedStructure[_DenseElementCovT]
     data: BytesAttr
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
-    def get_element_type(self) -> DenseElementCovT:
+    def get_element_type(self) -> _DenseElementCovT:
         return self.type.get_element_type()
 
     def __len__(self) -> int:
@@ -3334,47 +3289,6 @@ class DenseIntOrFPElementsAttr(
             raise VerifyException(
                 f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
             )
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_int(
-        type: RankedStructure[_IntegerAttrType], data: int | Sequence[int]
-    ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
-        if isinstance(data, int):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_float(
-        type: RankedStructure[_FloatAttrType],
-        data: float | Sequence[float],
-    ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
-        if isinstance(data, int | float):
-            data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, data)
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
-        data: Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
-
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
-        data: Sequence[tuple[float, float]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
-
-    @staticmethod
-    @deprecated("Please use `from_list` instead")
-    def create_dense_complex(
-        type: RankedStructure[ComplexType],
-        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType]:
-        return DenseIntOrFPElementsAttr.from_list(type, data)  # pyright: ignore[reportCallIssue, reportUnknownVariableType, reportArgumentType]
 
     @overload
     @staticmethod
@@ -3444,38 +3358,6 @@ class DenseIntOrFPElementsAttr(
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
         return self.get_element_type().iter_unpack(self.data.data)
-
-    @deprecated("Please use `get_values` instead")
-    def get_int_values(self) -> Sequence[int]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are integers.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, IntegerType | IndexType), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_float_values(self) -> Sequence[float]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are floats.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, AnyFloat), el_type
-        return el_type.unpack(self.data.data, len(self))
-
-    @deprecated("Please use `get_values` instead")
-    def get_complex_values(
-        self,
-    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr,
-        checking that the elements are complex.
-        """
-        el_type = self.get_element_type()
-        assert isinstance(el_type, ComplexType), el_type
-        return el_type.unpack(self.data.data, len(self))
 
     @overload
     def get_values(

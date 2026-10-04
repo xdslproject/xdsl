@@ -340,3 +340,104 @@ func.func @omp_distribute_chunk_attr(%lb: index, %ub: index, %step: index) {
 }
 
 // CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
+
+// -----
+
+func.func @omp_taskwait_depend_count(%d1: memref<1xi32>) {
+  "omp.taskwait"(%d1) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>]}> : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: integer 1 expected from int variable 'DEP_COUNT', but got 2
+
+// -----
+
+func.func @omp_single_copyprivate(%cp: memref<1xi32>) {
+  "omp.single"(%cp) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.single inconsistent number of copyprivate vars (1) and functions (0)
+
+// -----
+
+func.func @omp_task_depend_count(%dep: memref<1xi32>) {
+  "omp.task"(%dep) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], operandSegmentSizes = array<i32: 0, 0, 1, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: integer 1 expected from int variable 'DEP_COUNT', but got 2
+
+// -----
+
+func.func @omp_task_in_reduction_syms(%ir: memref<1xi32>) {
+  "omp.task"(%ir) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many in_reduction symbol references as in_reduction variables
+
+// -----
+
+func.func @omp_task_in_reduction_byref(%ir: memref<1xi32>) {
+  "omp.task"(%ir) <{in_reduction_byref = array<i1: false, true>, in_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected as many in_reduction byref flags as in_reduction variables
+
+// -----
+
+func.func @omp_task_block_args(%p1: i32) {
+  "omp.task"(%p1) <{private_syms = [@p1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 1, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+
+// CHECK: omp.task expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskgroup_task_reduction_syms(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+  ^bb0(%tr_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected as many task_reduction symbol references as task_reduction variables
+
+// -----
+
+func.func @omp_taskgroup_task_reduction_byref(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{task_reduction_byref = array<i1: false, true>, task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+  ^bb0(%tr_arg: memref<1xi32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected as many task_reduction byref flags as task_reduction variables
+
+// -----
+
+func.func @omp_taskgroup_block_args(%tr: memref<1xi32>) {
+  "omp.taskgroup"(%tr) <{task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 1>}> ({
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskgroup expected to have at least 1 block argument(s), got 0

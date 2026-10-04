@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from io import StringIO
 
 import pytest
@@ -495,6 +496,24 @@ def test_print_block():
     )
 
 
+def test_print_region_twice_with_same_printer():
+    """A printer may print the same region more than once, keeping block names."""
+    block0 = Block()
+    block1 = Block()
+    block0.add_op(test.TestTermOp.create(successors=[block1]))
+    block1.add_op(test.TestTermOp.create())
+    region = Region([block0, block1])
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    first = io.getvalue()
+    io.truncate(0)
+    io.seek(0)
+    p.print_region(region)
+    assert io.getvalue() == first
+
+
 def test_print_block_without_arguments():
     """Print a block and its arguments separately."""
     block = Block(arg_types=[i32, i32])
@@ -556,6 +575,51 @@ def test_print_region():
     assert (
         io.getvalue()
         == """{\n^bb0(%0: i32, %1: i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+    )
+
+
+def test_print_region_block_names_follow_region_order():
+    """Assign block names in region order, not successor visitation order."""
+    second_block = Block([test.TestTermOp()])
+    third_block = Block([test.TestTermOp()])
+    fourth_block = Block([test.TestTermOp()])
+    first_block = Block([test.TestTermOp(successors=[fourth_block, second_block])])
+    region = Region([first_block, second_block, third_block, fourth_block])
+
+    io = StringIO()
+    Printer(stream=io).print_region(region)
+
+    assert (
+        io.getvalue()
+        == """{
+  "test.termop"() [^bb3, ^bb1] : () -> ()
+^bb1:
+  "test.termop"() : () -> ()
+^bb2:
+  "test.termop"() : () -> ()
+^bb3:
+  "test.termop"() : () -> ()
+}"""
+    )
+
+
+def test_print_region_block_names_include_hint_positions():
+    """Count hinted blocks when assigning names from region positions."""
+    second_block = Block([test.TestTermOp()])
+    first_block = Block([test.TestTermOp(successors=[second_block])])
+    first_block.name_hint = "entry"
+    region = Region([first_block, second_block])
+
+    io = StringIO()
+    Printer(stream=io).print_region(region)
+
+    assert (
+        io.getvalue()
+        == """{
+  "test.termop"() [^bb1] : () -> ()
+^bb1:
+  "test.termop"() : () -> ()
+}"""
     )
 
 
@@ -1111,7 +1175,9 @@ def test_print_properties_as_attributes_safeguard():
     parsed = parser.parse_op()
     with pytest.raises(
         ValueError,
-        match="Properties sym_name would overwrite the attributes of the same names.",
+        match=re.escape(
+            "Properties sym_name would overwrite the attributes of the same names."
+        ),
     ):
         assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 

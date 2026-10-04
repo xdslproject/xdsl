@@ -311,6 +311,46 @@ builtin.module {
     }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
     func.return
   }
+  func.func @omp_taskwait_taskyield(%d1: memref<1xi32>, %d2: memref<1xf32>) {
+    "omp.taskwait"() : () -> ()
+    "omp.taskwait"(%d1, %d2) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], nowait}> : (memref<1xi32>, memref<1xf32>) -> ()
+    "omp.taskyield"() : () -> ()
+    func.return
+  }
+  func.func private @omp_copy_i32(memref<1xi32>, memref<1xi32>)
+  func.func @omp_single(%a1: i32, %a2: i32, %cp: memref<1xi32>, %p1: i32) {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+      "omp.single"(%a1, %a2, %cp, %p1) <{copyprivate_syms = [@omp_copy_i32], private_syms = [@p1], operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
+      ^bb0(%p_arg: i32):
+        "omp.terminator"() : () -> ()
+      }) : (i32, i32, memref<1xi32>, i32) -> ()
+      "omp.single"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_task(%a1: i32, %a2: i32, %dep: memref<1xi32>, %b: i1, %ir: memref<1xi32>, %prio: i32, %p1: i32, %ev: memref<1xi32>) {
+    "omp.task"(%a1, %a2, %dep, %b, %b, %ir, %prio, %p1, %ev) <{depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_byref = array<i1: false>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], untied, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+    ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32):
+      "omp.terminator"() : () -> ()
+    }) : (i32, i32, memref<1xi32>, i1, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+    "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_taskgroup(%a1: i32, %a2: i32, %tr: memref<1xi32>) {
+    "omp.taskgroup"(%a1, %a2, %tr) <{task_reduction_byref = array<i1: false>, task_reduction_syms = [@r1], operandSegmentSizes = array<i32: 1, 1, 1>}> ({
+    ^bb0(%tr_arg: memref<1xi32>):
+      "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : (i32, i32, memref<1xi32>) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -614,6 +654,46 @@ builtin.module {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}}: i32, %{{.*}}: memref<1xi32>):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_taskwait_taskyield(%{{.*}}: memref<1xi32>, %{{.*}}: memref<1xf32>) {
+// CHECK-NEXT:      "omp.taskwait"() : () -> ()
+// CHECK-NEXT:      "omp.taskwait"(%{{.*}}, %{{.*}}) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>, #omp<clause_task_depend (taskdependout)>], nowait}> : (memref<1xi32>, memref<1xf32>) -> ()
+// CHECK-NEXT:      "omp.taskyield"() : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func private @omp_copy_i32(memref<1xi32>, memref<1xi32>) -> ()
+// CHECK-NEXT:    func.func @omp_single(%{{.*}}: i32, %{{.*}}: i32, %{{.*}}: memref<1xi32>, %{{.*}}: i32) {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.single"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{copyprivate_syms = [@omp_copy_i32], operandSegmentSizes = array<i32: 1, 1, 1, 1>, private_syms = [@p1]}> ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: i32):
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i32, i32, memref<1xi32>, i32) -> ()
+// CHECK-NEXT:        "omp.single"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_task(%{{.*}}: i32, %{{.*}}: i32, %{{.*}}: memref<1xi32>, %{{.*}}: i1, %{{.*}}: memref<1xi32>, %{{.*}}: i32, %{{.*}}: i32, %{{.*}}: memref<1xi32>) {
+// CHECK-NEXT:      "omp.task"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_byref = array<i1: false>, in_reduction_syms = [@r1], mergeable, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 1>, private_syms = [@p1], untied}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}}: memref<1xi32>, %{{.*}}: i32):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i32, i32, memref<1xi32>, i1, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_taskgroup(%{{.*}}: i32, %{{.*}}: i32, %{{.*}}: memref<1xi32>) {
+// CHECK-NEXT:      "omp.taskgroup"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 1>, task_reduction_byref = array<i1: false>, task_reduction_syms = [@r1]}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}}: memref<1xi32>):
+// CHECK-NEXT:        "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i32, i32, memref<1xi32>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

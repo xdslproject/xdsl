@@ -109,7 +109,7 @@ def _legalize_block(
             result_types=[_legalize_attr(res.type) for res in op.results],
             attributes=op.attributes,
         )
-        rewriter.replace_op(op, new_op)
+        rewriter.replace(op, new_op)
         to_be_legalized.update(
             use.operation for idx in illegal_results for use in new_op.results[idx].uses
         )
@@ -176,7 +176,7 @@ class MemRefStreamGenericLegalize(RewritePattern):
         # Legalize payload
         _legalize_block(new_body.block, to_be_legalized, rewriter)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             memref_stream.GenericOp(
                 op.inputs,

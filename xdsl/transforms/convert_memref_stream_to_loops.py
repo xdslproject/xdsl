@@ -43,7 +43,7 @@ def _insert_load(
         op = memref_stream.ReadOp(source)
     else:
         return source
-    rewriter.insert_op(op, insertion_point)
+    rewriter.insert(op, insertion_point)
     return op.res
 
 
@@ -54,7 +54,7 @@ class LowerGenericOpPattern(RewritePattern):
     ) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
-            rewriter.insert_op(
+            rewriter.insert(
                 interleaved_index_ops := tuple(
                     arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)
@@ -170,7 +170,7 @@ class LowerGenericOpPattern(RewritePattern):
                 store_op = memref.StoreOp.get(value, destination, indices)
             else:
                 store_op = memref_stream.WriteOp(value, destination)
-            rewriter.insert_op(store_op, insertion_point)
+            rewriter.insert(store_op, insertion_point)
             return store_op
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
@@ -178,6 +178,7 @@ class LowerGenericOpPattern(RewritePattern):
             # Imperfectly nested
             rewrite_generic_to_imperfect_loops(
                 rewriter,
+                op,
                 InsertPoint.before(op),
                 outer_ubs,
                 inner_ubs,
@@ -197,11 +198,12 @@ class LowerGenericOpPattern(RewritePattern):
             insertion_point = InsertPoint.before(op)
             index = IndexType()
             ub_ops = tuple(arith.ConstantOp(IntegerAttr(ub, index)) for ub in outer_ubs)
-            rewriter.insert_op(ub_ops, insertion_point)
+            rewriter.insert(ub_ops, insertion_point)
             bound_values = tuple(op.result for op in ub_ops)
 
             rewrite_linalg_structured_to_loops(
                 rewriter,
+                op,
                 insertion_point,
                 bound_values,
                 op.indexing_maps.data,

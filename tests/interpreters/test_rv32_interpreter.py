@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects import riscv, rv32
@@ -46,7 +48,7 @@ def test_riscv_interpreter():
     get_non_zero = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
     with pytest.raises(
         InterpretationError,
-        match="Cannot get value for unallocated register !riscv.reg",
+        match=re.escape("Cannot get value for unallocated register !riscv.reg"),
     ):
         interpreter.run_op(get_non_zero, ())
 

@@ -19,7 +19,7 @@ class LiftAddfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_op(
+            rewriter.replace(
                 op, linalg.ops.AddOp(op.operands, [op.lhs], [op.result.type])
             )
 
@@ -28,7 +28,7 @@ class LiftSubfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SubfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_op(
+            rewriter.replace(
                 op, linalg.ops.SubOp(op.operands, [op.lhs], [op.result.type])
             )
 
@@ -37,7 +37,7 @@ class LiftMulfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.MulfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_op(
+            rewriter.replace(
                 op, linalg.ops.MulOp(op.operands, [op.lhs], [op.result.type])
             )
 

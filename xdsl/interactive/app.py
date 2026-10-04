@@ -64,7 +64,7 @@ class InputApp(App[None]):
 
     CSS_PATH = "app.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "quit_app", "Quit"),
     ]

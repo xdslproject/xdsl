@@ -21,14 +21,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    BitEnumAttribute,
+    EnumAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -69,6 +71,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 class OpenMPOffloadMappingFlags(IntFlag):
@@ -250,6 +253,14 @@ class ReductionModifier(StrEnum):
     TASK = auto()
 
 
+class GrainsizeType(StrEnum):
+    STRICT = auto()
+
+
+class NumTasksType(StrEnum):
+    STRICT = auto()
+
+
 class LoopWrapper(NoTerminator):
     """
     Check that the omp operation is a loop wrapper as defined upstream.
@@ -358,6 +369,26 @@ class ReductionModifierAttr(
 @irdl_attr_definition
 class OrderModifierAttr(EnumAttribute[OrderModifier], SpacedOpaqueSyntaxAttribute):
     name = "omp.order_mod"
+
+
+@irdl_attr_definition
+class GrainsizeTypeAttr(EnumAttribute[GrainsizeType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.grainsizetype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#grainsizetypeattr).
+    """
+
+    name = "omp.grainsizetype"
+
+
+@irdl_attr_definition
+class NumTasksTypeAttr(EnumAttribute[NumTasksType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.numtaskstype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#numtaskstypeattr).
+    """
+
+    name = "omp.numtaskstype"
 
 
 @irdl_attr_definition
@@ -678,7 +709,7 @@ class PrivateClauseOp(IRDLOperation):
     copy_region = region_def()
     dealloc_region = region_def()
 
-    traits = traits_def(IsolatedFromAbove())
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
@@ -1077,6 +1108,176 @@ class TargetDataOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskwaitOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskwait
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskwait-omptaskwaitop).
+    """
+
+    name = "omp.taskwait"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    nowait = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class TaskyieldOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskyield
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskyield-omptaskyieldop).
+    """
+
+    name = "omp.taskyield"
+
+
+@irdl_op_definition
+class SingleOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.single
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsingle-ompsingleop).
+    """
+
+    name = "omp.single"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    copyprivate_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars = var_operand_def()
+
+    copyprivate_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    nowait = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_syms = 0 if self.copyprivate_syms is None else len(self.copyprivate_syms)
+        if len(self.copyprivate_vars) != num_syms:
+            raise VerifyException(
+                f"{self.name} inconsistent number of copyprivate vars "
+                f"({len(self.copyprivate_vars)}) and functions ({num_syms})"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TaskOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.task
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptask-omptaskop).
+    """
+
+    name = "omp.task"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+    final = opt_operand_def(i1)
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    priority = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    event_handle = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    mergeable = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    untied = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.in_reduction_vars) + len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.in_reduction_vars)
+        num_syms = 0 if self.in_reduction_syms is None else len(self.in_reduction_syms)
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction symbol references "
+                "as in_reduction variables"
+            )
+        byref = self.in_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction byref flags "
+                "as in_reduction variables"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TaskgroupOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.taskgroup
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskgroup-omptaskgroupop).
+    """
+
+    name = "omp.taskgroup"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    task_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    task_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    task_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.task_reduction_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.task_reduction_vars)
+        num_syms = (
+            0 if self.task_reduction_syms is None else len(self.task_reduction_syms)
+        )
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction symbol references "
+                "as task_reduction variables"
+            )
+        byref = self.task_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction byref flags "
+                "as task_reduction variables"
+            )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1097,6 +1298,11 @@ OMP = Dialect(
         TargetUpdateOp,
         TargetDataOp,
         DeclareReductionOp,
+        TaskwaitOp,
+        TaskyieldOp,
+        SingleOp,
+        TaskOp,
+        TaskgroupOp,
     ],
     [
         ClauseRequiresKindAttr,
@@ -1115,5 +1321,7 @@ OMP = Dialect(
         VersionAttr,
         ReductionModifierAttr,
         OrderModifierAttr,
+        GrainsizeTypeAttr,
+        NumTasksTypeAttr,
     ],
 )

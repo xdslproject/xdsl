@@ -22,4 +22,3 @@ pdl.pattern : benefit(1) {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  

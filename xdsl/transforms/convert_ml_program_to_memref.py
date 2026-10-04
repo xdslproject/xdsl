@@ -30,7 +30,7 @@ class ConvertGlobalPattern(RewritePattern):
         assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 memref.GlobalOp.get(
@@ -53,7 +53,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
                 mem := memref.GetGlobalOp(op.global_attr, new_type),

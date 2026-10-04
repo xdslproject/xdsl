@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 
 import pytest
@@ -440,7 +441,9 @@ def test_overflow_attr_int_conversion():
     assert attr_both.to_int() == 3
 
     # verify out of bounds raises
-    with pytest.raises(ValueError, match="OverflowAttr given out of bounds integer."):
+    with pytest.raises(
+        ValueError, match=re.escape("OverflowAttr given out of bounds integer.")
+    ):
         llvm.OverflowAttr.from_int(4)
 
 
@@ -500,6 +503,13 @@ def test_fpext_op():
     op = llvm.FPExtOp(val, builtin.f64)
     assert op.arg == val
     assert op.result.type == builtin.f64  # wider type
+
+
+def test_fptrunc_op():
+    val = create_ssa_value(builtin.f64)
+    op = llvm.FPTruncOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
 
 
 def test_trunc_op_handles_missing_overflow_property():

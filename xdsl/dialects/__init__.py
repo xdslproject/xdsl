@@ -338,11 +338,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Stencil
 
-    def get_stim():
-        from xdsl.dialects.stim import Stim
-
-        return Stim
-
     def get_symref():
         from xdsl.dialects.symref import Symref
 
@@ -475,7 +470,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
         "stencil": get_stencil,
-        "stim": get_stim,
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.utils.exceptions import ParseError
@@ -35,7 +37,7 @@ def test_invalid_escape_in_string_literal():
         0, len(input_string), Input(input_string, "test.mlir")
     )
     with pytest.raises(
-        ParseError, match="Incomplete escape sequence at end of string."
+        ParseError, match=re.escape("Incomplete escape sequence at end of string.")
     ):
         string_literal.bytes_contents
 

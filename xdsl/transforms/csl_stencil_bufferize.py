@@ -13,17 +13,14 @@ from xdsl.dialects import (
     tensor,
 )
 from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
     AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
-    DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
     MemRefType,
     ModuleOp,
     TensorType,
-    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -144,7 +141,7 @@ class ApplyOpBufferize(RewritePattern):
         ):
             # arg0 has special meaning and does not need a `to_tensor` op
             if isinstance(old_arg.type, TensorType) and idx != 0:
-                rewriter.insert_op(
+                rewriter.insert(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.receive_chunk.block),
@@ -158,7 +155,7 @@ class ApplyOpBufferize(RewritePattern):
             zip(op.done_exchange.block.args, buf_apply_op.done_exchange.block.args)
         ):
             if isinstance(old_arg.type, TensorType):
-                rewriter.insert_op(
+                rewriter.insert(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 1),
                     InsertPoint.at_end(buf_apply_op.done_exchange.block),
@@ -189,7 +186,7 @@ class ApplyOpBufferize(RewritePattern):
         )
 
         # insert new op
-        rewriter.replace_op(op, new_ops=[*to_memrefs, buf_apply_op])
+        rewriter.replace(op, new_ops=[*to_memrefs, buf_apply_op])
 
     @staticmethod
     def _get_empty_bufferized_region(args: Sequence[BlockArgument]) -> Region:
@@ -233,21 +230,15 @@ class ApplyOpBufferize(RewritePattern):
         if linalg_op is None:
             return
 
-        rewriter.replace_op(
+        rewriter.replace(
             linalg_op,
             [
                 extract_slice_op := tensor.ExtractSliceOp(
-                    operands=[iter_arg, [op.receive_chunk.block.args[1]], [], []],
-                    result_types=[chunk_type],
-                    properties={
-                        "static_offsets": DenseArrayBase.from_list(
-                            i64, (DYNAMIC_INDEX,)
-                        ),
-                        "static_sizes": DenseArrayBase.from_list(
-                            i64, chunk_type.get_shape()
-                        ),
-                        "static_strides": DenseArrayBase.from_list(i64, (1,)),
-                    },
+                    iter_arg,
+                    (op.receive_chunk.block.args[1],),
+                    chunk_type.get_shape(),
+                    (1,),
+                    chunk_type,
                 ),
                 type(linalg_op).build(
                     operands=[linalg_op.inputs, extract_slice_op.results],
@@ -272,13 +263,11 @@ class ApplyOpBufferize(RewritePattern):
         assert isa(typ, TensorType[Attribute])
 
         return tensor.ExtractSliceOp(
-            operands=[to_tensor.tensor, [offset], [], []],
-            result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
-            properties={
-                "static_offsets": DenseArrayBase.from_list(i64, (DYNAMIC_INDEX,)),
-                "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
-                "static_strides": DenseArrayBase.from_list(i64, (1,)),
-            },
+            to_tensor.tensor,
+            (offset,),
+            typ.get_shape()[1:],
+            (1,),
+            TensorType(typ.get_element_type(), typ.get_shape()[1:]),
         )
 
 
@@ -300,7 +289,7 @@ class AccessOpBufferize(RewritePattern):
 
         # accesses to own data that (after bufferization) have the same input and output type can be safely folded away
         if op.op.type == r_type and all(o == 0 for o in op.offset):
-            rewriter.replace_op(op, to_tensor_op(op.op))
+            rewriter.replace(op, to_tensor_op(op.op))
             return
 
         # accesses to buffers passed in additional args can read directly from memref underlying `to_tensor`
@@ -311,7 +300,7 @@ class AccessOpBufferize(RewritePattern):
             else op.op
         )
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 access := csl_stencil.AccessOp(
@@ -343,7 +332,7 @@ class YieldOpBufferize(RewritePattern):
         if len(to_memrefs) == 0:
             return
 
-        rewriter.replace_op(op, [*to_memrefs, csl_stencil.YieldOp(*args)])
+        rewriter.replace(op, [*to_memrefs, csl_stencil.YieldOp(*args)])
 
 
 @dataclass(frozen=True)
@@ -374,7 +363,7 @@ class FuncOpBufferize(RewritePattern):
         )
         if function_type == op.function_type:
             return
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             func.FuncOp.build(
                 operands=op.operands,
@@ -401,7 +390,7 @@ class ArithConstBufferize(RewritePattern):
         typ = DenseIntOrFPElementsAttr(
             tensor_to_memref_type(op.value.type), op.value.data
         )
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 c := arith.ConstantOp(typ),
@@ -459,20 +448,16 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
             )
 
             extract_slice_op = tensor.ExtractSliceOp(
-                operands=[arg_to_tensor, [], [], []],
-                result_types=[yld_arg.op.tensor.type],
-                properties={
-                    "static_offsets": DenseArrayBase.from_list(i64, offsets),
-                    "static_sizes": DenseArrayBase.from_list(
-                        i64, yld_arg.type.get_shape()
-                    ),
-                    "static_strides": DenseArrayBase.from_list(i64, (1,)),
-                },
+                arg_to_tensor,
+                offsets,
+                yld_arg.type.get_shape(),
+                (1,),
+                yld_arg.op.tensor.type,
             )
-            rewriter.insert_op(
+            rewriter.insert(
                 [arg_to_tensor, extract_slice_op], InsertPoint.before(linalg_op)
             )
-            rewriter.replace_op(
+            rewriter.replace(
                 linalg_op,
                 type(linalg_op).build(
                     operands=[linalg_op.inputs, [extract_slice_op.result]],
@@ -483,10 +468,10 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 ),
             )
         if additional_args:
-            rewriter.replace_op(yld, csl_stencil.YieldOp(*new_yield_args))
+            rewriter.replace(yld, csl_stencil.YieldOp(*new_yield_args))
             for r in to_remove:
-                rewriter.erase_op(r)
-            rewriter.replace_op(
+                rewriter.erase(r)
+            rewriter.replace(
                 op,
                 csl_stencil.ApplyOp(
                     operands=[
@@ -546,7 +531,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
         # replace the op with `out` as `output[0]`
         if out:
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 type(op).build(
                     operands=[op.inputs, [out]],

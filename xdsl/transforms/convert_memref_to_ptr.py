@@ -47,12 +47,8 @@ def build_bytes_offset(
     """
     Returns the offset in bytes given an offset in elements and the element type.
     """
-    bytes_per_element_op = builder.insert_op(
-        ptr.TypeOffsetOp(element_type, _index_type)
-    )
-    bytes_offset = builder.insert_op(
-        arith.MuliOp(elements_offset, bytes_per_element_op)
-    )
+    bytes_per_element_op = builder.insert(ptr.TypeOffsetOp(element_type, _index_type))
+    bytes_offset = builder.insert(arith.MuliOp(elements_offset, bytes_per_element_op))
     bytes_per_element_op.offset.name_hint = "bytes_per_element"
     bytes_offset.result.name_hint = "scaled_pointer_offset"
 
@@ -67,7 +63,7 @@ def build_offset_pointer(
     """
     Returns the pointer incremented by the given number of bytes.
     """
-    target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, bytes_offset))
+    target_ptr = builder.insert(ptr.PtrAddOp(pointer, bytes_offset))
     target_ptr.result.name_hint = "offset_pointer"
     return target_ptr.result
 
@@ -105,13 +101,11 @@ def get_strides(
     for i in range(rank - 2, -1, -1):
         dim_size: int | SSAValue = shape[i + 1]
         if dim_size == builtin.DYNAMIC_INDEX:
-            dim_idx = builder.insert_op(
+            dim_idx = builder.insert(
                 arith.ConstantOp.from_int_and_width(i + 1, _index_type)
             )
             dim_idx.result.name_hint = "dim_idx"
-            dim_size = builder.insert_op(
-                memref.DimOp.from_source_and_index(memref_val, dim_idx.result)
-            ).result
+            dim_size = builder.insert(memref.DimOp(memref_val, dim_idx.result)).result
         prev = strides[i + 1]
         match (prev, dim_size):
             case (int(p), int(d)):
@@ -126,14 +120,14 @@ def get_strides(
             case _:
                 pass
         if isinstance(prev, int):
-            prev = builder.insert_op(
+            prev = builder.insert(
                 arith.ConstantOp.from_int_and_width(prev, _index_type)
             ).result
         if isinstance(dim_size, int):
-            dim_size = builder.insert_op(
+            dim_size = builder.insert(
                 arith.ConstantOp.from_int_and_width(dim_size, _index_type)
             ).result
-        strides[i] = builder.insert_op(arith.MuliOp(prev, dim_size)).result
+        strides[i] = builder.insert(arith.MuliOp(prev, dim_size)).result
     return strides
 
 
@@ -155,15 +149,15 @@ def build_strides_offset(
         if isinstance(stride, int):
             assert stride > 0, f"Strides must be positive, got {stride}"
             if stride != 1:
-                stride_op = builder.insert_op(
+                stride_op = builder.insert(
                     arith.ConstantOp.from_int_and_width(stride, _index_type)
                 )
-                offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
+                offset_op = builder.insert(arith.MuliOp(increment, stride_op))
                 stride_op.result.name_hint = "pointer_dim_stride"
                 offset_op.result.name_hint = "pointer_dim_offset"
                 increment = offset_op.result
         else:
-            offset_op = builder.insert_op(arith.MuliOp(increment, stride))
+            offset_op = builder.insert(arith.MuliOp(increment, stride))
             offset_op.result.name_hint = "pointer_dim_offset"
             increment = offset_op.result
 
@@ -171,7 +165,7 @@ def build_strides_offset(
             head = increment
             continue
 
-        add_op = builder.insert_op(arith.AddiOp(head, increment))
+        add_op = builder.insert(arith.AddiOp(head, increment))
         add_op.result.name_hint = "pointer_dim_stride"
         head = add_op.result
 
@@ -188,7 +182,7 @@ def build_target_ptr(
     Build operations returning a pointer to an element of a memref referenced by indices.
     """
 
-    memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
+    memref_ptr = builder.insert(ptr.ToPtrOp(target_memref))
     pointer = memref_ptr.res
     pointer.name_hint = target_memref.name_hint
 
@@ -209,7 +203,7 @@ class ConvertStorePattern(RewritePattern):
         memref_type = op.memref.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
+        rewriter.replace(op, ptr.StoreOp(target_ptr, op.value))
 
 
 @dataclass
@@ -219,7 +213,7 @@ class ConvertLoadPattern(RewritePattern):
         memref_type = op.memref.type
         assert isa(memref_type, memref.MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
+        rewriter.replace(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
 class ConvertSubviewPattern(RewritePattern):
@@ -253,7 +247,7 @@ class ConvertSubviewPattern(RewritePattern):
 
         source_strides = get_strides(op.source, source_type, rewriter)
 
-        pointer = rewriter.insert_op(ptr.ToPtrOp(op.source)).res
+        pointer = rewriter.insert(ptr.ToPtrOp(op.source)).res
         pointer.name_hint = op.source.name_hint
         # The new pointer
         head = None
@@ -266,7 +260,7 @@ class ConvertSubviewPattern(RewritePattern):
                 offset_val = op.offsets[dynamic_offset_index]
                 dynamic_offset_index += 1
             else:
-                offset_val = rewriter.insert_op(
+                offset_val = rewriter.insert(
                     arith.ConstantOp(builtin.IntegerAttr(offset, _index_type))
                 ).result
                 offset_val.name_hint = f"c{offset}"
@@ -274,30 +268,28 @@ class ConvertSubviewPattern(RewritePattern):
             if stride == 1:
                 increment = offset_val
             elif isinstance(stride, int):
-                stride_val = rewriter.insert_op(
+                stride_val = rewriter.insert(
                     arith.ConstantOp(builtin.IntegerAttr(stride, _index_type))
                 ).result
-                increment = rewriter.insert_op(
-                    arith.MuliOp(stride_val, offset_val)
-                ).result
+                increment = rewriter.insert(arith.MuliOp(stride_val, offset_val)).result
                 stride_val.name_hint = f"c{stride}"
                 increment.name_hint = "increment"
             else:
-                increment = rewriter.insert_op(arith.MuliOp(stride, offset_val)).result
+                increment = rewriter.insert(arith.MuliOp(stride, offset_val)).result
                 increment.name_hint = "increment"
 
             if head is None:
                 head = increment
             else:
                 # Otherwise sum up the products.
-                head = rewriter.insert_op(arith.AddiOp(head, increment)).result
+                head = rewriter.insert(arith.AddiOp(head, increment)).result
                 head.name_hint = "subview"
 
         if head is not None:
             offset = build_bytes_offset(head, element_type, rewriter)
             pointer = build_offset_pointer(pointer, offset, rewriter)
 
-        rewriter.replace_op(op, ptr.FromPtrOp(pointer, result_type))
+        rewriter.replace(op, ptr.FromPtrOp(pointer, result_type))
 
 
 @dataclass
@@ -338,7 +330,7 @@ class LowerMemRefFuncOpPattern(RewritePattern):
             if not arg.uses:
                 continue
 
-            rewriter.insert_op(
+            rewriter.insert(
                 cast_op := ptr.FromPtrOp(arg, old_type),
                 insert_point,
             )
@@ -365,13 +357,13 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:
                 new_arguments.append(argument)
 
-        rewriter.replace_op(op, func.ReturnOp(*new_arguments))
+        rewriter.replace(op, func.ReturnOp(*new_arguments))
 
 
 @dataclass
@@ -389,7 +381,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref arguments values, if necessary
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:
@@ -412,7 +404,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
                 new_ops.append(cast_op := ptr.FromPtrOp(new_result, old_result.type))
                 new_results[i] = cast_op.res
 
-        rewriter.replace_op(op, new_ops, new_results)
+        rewriter.replace(op, new_ops, new_results)
 
 
 @dataclass
@@ -420,7 +412,7 @@ class ConvertCastOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, memref.MemRefType)
-        rewriter.replace_op(op, (), (op.source,))
+        rewriter.replace(op, (), (op.source,))
 
 
 @dataclass
@@ -429,7 +421,7 @@ class ConvertReinterpretCastOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
     ):
-        pointer = rewriter.insert_op(ptr.ToPtrOp(op.source)).res
+        pointer = rewriter.insert(ptr.ToPtrOp(op.source)).res
         pointer.name_hint = op.source.name_hint
 
         # reinterpret_cast has exactly one flat element offset
@@ -441,7 +433,7 @@ class ConvertReinterpretCastOp(RewritePattern):
                 offset_val = op.offsets[0]
             # static non-zero offset: materialize as constant
             else:
-                offset_val = rewriter.insert_op(
+                offset_val = rewriter.insert(
                     arith.ConstantOp(builtin.IntegerAttr(static_offset, _index_type))
                 ).result
                 offset_val.name_hint = f"c{static_offset}"
@@ -450,7 +442,7 @@ class ConvertReinterpretCastOp(RewritePattern):
             element_type = op.result.type.element_type
             byte_offset = build_bytes_offset(offset_val, element_type, rewriter)
             pointer = build_offset_pointer(pointer, byte_offset, rewriter)
-        rewriter.replace_op(op, ptr.FromPtrOp(pointer, op.result.type))
+        rewriter.replace(op, ptr.FromPtrOp(pointer, op.result.type))
 
 
 @dataclass(frozen=True)

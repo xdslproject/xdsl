@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.builder import Builder
@@ -194,18 +196,20 @@ def test_builder_listener_block_created():
 def test_builder_name_hint_listener():
     block = Block()
     b = Builder(InsertPoint.at_start(block))
-    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint is None
+    assert b.insert(TestOp((), result_types=(i32,))).results[0].name_hint is None
 
     b.name_hint = "hello"
     # No name hint
-    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
+    assert b.insert(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
 
     # With name hint
     op = TestOp((), result_types=(i32,))
     op.results[0].name_hint = "world"
-    assert b.insert_op(op).results[0].name_hint == "world"
+    assert b.insert(op).results[0].name_hint == "world"
 
-    with pytest.raises(ValueError, match="Invalid SSAValue name format `1`."):
+    with pytest.raises(
+        ValueError, match=re.escape("Invalid SSAValue name format `1`.")
+    ):
         b.name_hint = "1"
 
 
@@ -341,7 +345,9 @@ def test_build_nested_implicit_region():
 def test_build_implicit_region_fail():
     with pytest.raises(
         ValueError,
-        match="Cannot insert operation explicitly when an implicit builder exists.",
+        match=re.escape(
+            "Cannot insert operation explicitly when an implicit builder exists."
+        ),
     ):
         one = IntAttr(1)
         two = IntAttr(2)

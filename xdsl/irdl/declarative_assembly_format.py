@@ -32,7 +32,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     BaseAccessor,
-    ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     Successor,
     VarIRConstruct,
     VarOperand,
+    VerificationContext,
     get_construct_defs,
     is_const_classvar,
     verify_variadic_same_size,
@@ -60,15 +60,15 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[None | Sequence[UnresolvedOperand]]
-    operand_types: list[None | Sequence[Attribute]]
-    result_types: list[None | Sequence[Attribute]]
-    regions: list[None | Sequence[Region]]
-    successors: list[None | Sequence[Successor]]
+    operands: list[Sequence[UnresolvedOperand] | None]
+    operand_types: list[Sequence[Attribute] | None]
+    result_types: list[Sequence[Attribute] | None]
+    regions: list[Sequence[Region] | None]
+    successors: list[Sequence[Successor] | None]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     op_type: type[IRDLOperation]
-    context: ConstraintContext
+    context: VerificationContext
 
     def __init__(self, op_type: type[IRDLOperation]):
         op_def = op_type.get_irdl_definition()
@@ -80,7 +80,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.context = ConstraintContext()
+        self.context = VerificationContext()
 
 
 @dataclass
@@ -300,9 +300,15 @@ class FormatDirective(Directive, ABC):
     @abstractmethod
     def parse(self, parser: Parser, state: ParsingState) -> None:
         """
-        Parses the directive, raising ParseError if not present.
+        Parses the directive.
         """
         ...
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        """
+        Optionally parses a directive.
+        """
+        self.parse(parser, state)
 
     @abstractmethod
     def print(
@@ -315,20 +321,6 @@ class FormatDirective(Directive, ABC):
         Used when a variable appears in an optional group which is not parsed.
         """
         return
-
-
-class OptionalFormatDirective(FormatDirective, ABC):
-    @abstractmethod
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        """
-        Parses an optional directive, returning False if not present.
-        """
-
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        self.parse_optional(parser, state)
-
-    def is_optional_like(self) -> bool:
-        return True
 
 
 class CustomDirective(FormatDirective, ABC):
@@ -373,9 +365,9 @@ class TypeableDirective(Directive, ABC):
         ...
 
     @abstractmethod
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState) -> None:
         """
-        Parses types for the directive, returning True if input was consumed.
+        Parses types for the directive.
         """
         ...
 
@@ -401,7 +393,7 @@ class TypeDirective(FormatDirective):
     def set(self, state: ParsingState, types: Sequence[Attribute]):
         self.inner.set_types(state, types)
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         self.inner.parse_types(parser, state)
 
     def get(self, op: IRDLOperation) -> Sequence[Attribute]:
@@ -455,16 +447,19 @@ class VariadicVariable(VariableDirective, ABC):
         return True
 
 
-class OptionalVariable(VariableDirective, OptionalFormatDirective, ABC):
+class OptionalVariable(VariableDirective, ABC):
     def is_present(self, op: IRDLOperation) -> bool:
         return getattr(op, self.name) is not None
 
     def is_anchorable(self) -> bool:
         return True
 
+    def is_optional_like(self) -> bool:
+        return True
+
 
 @dataclass(frozen=True)
-class AttrDictDirective(OptionalFormatDirective):
+class AttrDictDirective(FormatDirective):
     """
     An attribute dictionary directive, with the following format:
        attr-dict-directive ::= attr-dict
@@ -489,16 +484,16 @@ class AttrDictDirective(OptionalFormatDirective):
     This is used to keep compatibility with MLIR which allows that.
     """
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if self.with_keyword:
-            res = parser.parse_optional_attr_dict_with_keyword()
-            if res is None:
-                res = {}
+            attrs = parser.parse_optional_attr_dict_with_keyword()
+            if attrs is None:
+                attrs = {}
             else:
-                res = dict(res.data)
+                attrs = dict(attrs.data)
         else:
-            res = parser.parse_optional_attr_dict()
-        defined_reserved_keys = self.reserved_attr_names & res.keys()
+            attrs = parser.parse_optional_attr_dict()
+        defined_reserved_keys = self.reserved_attr_names & attrs.keys()
         if defined_reserved_keys:
             parser.raise_error(
                 f"attributes {', '.join(defined_reserved_keys)} are defined in other parts of the "
@@ -506,11 +501,10 @@ class AttrDictDirective(OptionalFormatDirective):
                 "dictionary."
             )
 
-        props = tuple(k for k in res.keys() if k in self.expected_properties)
+        props = tuple(k for k in attrs.keys() if k in self.expected_properties)
         for name in props:
-            state.properties[name] = res.pop(name)
-        state.attributes |= res
-        return bool(res) or bool(props)
+            state.properties[name] = attrs.pop(name)
+        state.attributes |= attrs
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if not op.attributes.keys().isdisjoint(self.expected_properties):
@@ -568,13 +562,12 @@ class OperandVariable(VariableDirective, OperandDirective):
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.operand_types[self.index] = types
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         operand = parser.parse_unresolved_operand()
         self.set(state, operand)
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         self.set_types(state, (parser.parse_type(),))
-        return True
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         self.parse_types(parser, state)
@@ -591,9 +584,7 @@ class OperandVariable(VariableDirective, OperandDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandVariable(
-    VariadicVariable, OperandDirective, OptionalFormatDirective
-):
+class VariadicOperandVariable(VariadicVariable, OperandDirective):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -606,16 +597,15 @@ class VariadicOperandVariable(
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.operand_types[self.index] = types
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         operands = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
         if operands is None:
             operands = []
         self.set(state, operands)
-        return bool(operands)
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         types = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_type, parser.parse_type
         )
@@ -623,7 +613,6 @@ class VariadicOperandVariable(
         if ret:
             types = ()
         self.set_types(state, types)
-        return ret
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.operand_types[self.index] = (parser.parse_type(),)
@@ -658,15 +647,13 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.operand_types[self.index] = types
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         operand = parser.parse_optional_unresolved_operand()
         self.set(state, operand)
-        return bool(operand)
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         type = parser.parse_optional_type()
         self.set_types(state, () if type is None else (type,))
-        return type is None
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         self.set_types(state, (parser.parse_type(),))
@@ -709,7 +696,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
     def _set_using_variadic_index(
         self,
         op_type: type[IRDLOperation],
-        field: list[None | Sequence[_T]],
+        field: list[Sequence[_T] | None],
         construct: VarIRConstruct,
         field_name: str,
         set_to: Sequence[_T],
@@ -728,7 +715,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
             field[i] = res
 
 
-class OperandsDirective(OperandsOrResultDirective, OptionalFormatDirective):
+class OperandsDirective(OperandsOrResultDirective, FormatDirective):
     """
     An operands directive, with the following format:
       operands-directive ::= operands
@@ -744,7 +731,7 @@ class OperandsDirective(OperandsOrResultDirective, OptionalFormatDirective):
             types,
         )
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         pos_start = parser.pos
         operands = (
             parser.parse_optional_undelimited_comma_separated_list(
@@ -764,9 +751,8 @@ class OperandsDirective(OperandsOrResultDirective, OptionalFormatDirective):
             )
         except VerifyException as e:
             parser.raise_error(str(e), at_position=pos_start, end_position=parser.pos)
-        return bool(operands)
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         pos_start = parser.pos
         types = (
             parser.parse_optional_undelimited_comma_separated_list(
@@ -779,7 +765,6 @@ class OperandsDirective(OperandsOrResultDirective, OptionalFormatDirective):
             self.set_types(state, types)
         except VerifyException as e:
             parser.raise_error(str(e), at_position=pos_start, end_position=parser.pos)
-        return bool(types)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         pos_start = parser.pos
@@ -813,9 +798,8 @@ class ResultVariable(VariableDirective, TypeableDirective):
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.result_types[self.index] = types
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         self.set_types(state, (parser.parse_type(),))
-        return True
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         self.parse_types(parser, state)
@@ -836,12 +820,11 @@ class VariadicResultVariable(VariadicVariable, TypeableDirective):
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.result_types[self.index] = types
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         types = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_type, parser.parse_type
         )
         self.set_types(state, () if types is None else types)
-        return types is None
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.result_types[self.index] = (parser.parse_type(),)
@@ -858,28 +841,12 @@ class OptionalResultVariable(OptionalVariable, TypeableDirective):
     parsing is not handled by the custom operation parser.
     """
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        raise AssertionError(
-            "Optional result variables are parsed by the operation parser"
-        )
-
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        raise AssertionError(
-            "Optional result variables are parsed by the operation parser"
-        )
-
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        raise AssertionError(
-            "Optional result variables are printed by the operation printer"
-        )
-
     def set_types(self, state: ParsingState, types: Sequence[Attribute]):
         state.result_types[self.index] = types
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         type = parser.parse_optional_type()
         self.set_types(state, () if type is None else (type,))
-        return type is not None
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         self.set_types(state, (parser.parse_type(),))
@@ -907,7 +874,7 @@ class ResultsDirective(OperandsOrResultDirective):
             types,
         )
 
-    def parse_types(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_types(self, parser: Parser, state: ParsingState):
         pos_start = parser.pos
         types = (
             parser.parse_optional_undelimited_comma_separated_list(
@@ -920,7 +887,6 @@ class ResultsDirective(OperandsOrResultDirective):
             self.set_types(state, types)
         except VerifyException as e:
             parser.raise_error(str(e), at_position=pos_start, end_position=parser.pos)
-        return bool(types)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         pos_start = parser.pos
@@ -950,8 +916,7 @@ class FunctionalTypeDirective(FormatDirective):
     operand_typeable_directive: TypeableDirective
     result_typeable_directive: TypeableDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        parser.parse_punctuation("(")
+    def _parse_suffix(self, parser: Parser, state: ParsingState) -> None:
         self.operand_typeable_directive.parse_types(parser, state)
         parser.parse_punctuation(")")
         parser.parse_punctuation("->")
@@ -960,6 +925,22 @@ class FunctionalTypeDirective(FormatDirective):
             parser.parse_punctuation(")")
         else:
             self.result_typeable_directive.parse_single_type(parser, state)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        """
+        Parse a functional type if an opening parenthesis is present, otherwise
+        leave the parser and state unchanged. Once it is present, require the
+        complete signature.
+
+        This supports direct Python API use. The directive is not yet optional-like
+        and cannot be the first element of a declarative optional group.
+        """
+        if parser.parse_optional_punctuation("("):
+            self._parse_suffix(parser, state)
+
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_punctuation("(")
+        self._parse_suffix(parser, state)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -993,16 +974,14 @@ class RegionVariable(RegionDirective, VariableDirective):
     def set(self, state: ParsingState, region: Region):
         state.regions[self.index] = (region,)
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set(state, parser.parse_region())
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_optional(self, parser: Parser, state: ParsingState):
         region = parser.parse_optional_region()
-        present = region is not None
-        if not present:
+        if region is None:
             region = Region()
         self.set(state, region)
-        return present
 
     def get(self, op: IRDLOperation) -> Region:
         return getattr(op, self.name)
@@ -1025,9 +1004,7 @@ class RegionVariable(RegionDirective, VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicRegionVariable(
-    RegionDirective, VariadicVariable, OptionalFormatDirective
-):
+class VariadicRegionVariable(RegionDirective, VariadicVariable):
     """
     A variadic region variable, with the following format:
       region-directive ::= dollar-ident
@@ -1038,7 +1015,7 @@ class VariadicRegionVariable(
     def set(self, state: ParsingState, region: Sequence[Region]):
         state.regions[self.index] = region
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         regions: list[Region] = []
         current_region = parser.parse_optional_region()
         while current_region is not None:
@@ -1046,7 +1023,9 @@ class VariadicRegionVariable(
             current_region = parser.parse_optional_region()
 
         self.set(state, regions)
-        return bool(regions)
+
+    def parse_optional(self, parser: Parser, state: ParsingState):
+        self.parse(parser, state)
 
     def get(self, op: IRDLOperation) -> Sequence[Region]:
         return getattr(op, self.name)
@@ -1072,10 +1051,12 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
     def set(self, state: ParsingState, region: Region | None):
         state.regions[self.index] = () if region is None else (region,)
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         region = parser.parse_optional_region()
         self.set(state, region)
-        return region is not None
+
+    def parse_optional(self, parser: Parser, state: ParsingState):
+        self.parse(parser, state)
 
     def get(self, op: IRDLOperation) -> Region | None:
         return getattr(op, self.name)
@@ -1108,7 +1089,7 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
     def set(self, state: ParsingState, successor: Successor):
         state.successors[self.index] = (successor,)
 
-    def parse(self, parser: Parser, state: ParsingState) -> None:
+    def parse(self, parser: Parser, state: ParsingState):
         successor = parser.parse_successor()
         self.set(state, successor)
 
@@ -1120,9 +1101,7 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
         printer.print_block_name(self.get(op))
 
 
-class VariadicSuccessorVariable(
-    VariadicVariable, SuccessorDirective, OptionalFormatDirective
-):
+class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     """
     A variadic successor variable, with the following format:
       successor-directive ::= dollar-ident
@@ -1132,17 +1111,14 @@ class VariadicSuccessorVariable(
     def set(self, state: ParsingState, successors: Sequence[Successor]):
         state.successors[self.index] = successors
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         successors = (
             parser.parse_optional_undelimited_comma_separated_list(
                 parser.parse_optional_successor, parser.parse_successor
             )
             or []
         )
-
         self.set(state, successors)
-
-        return bool(successors)
 
     def get(self, op: IRDLOperation) -> Sequence[Successor]:
         return getattr(op, self.name)
@@ -1168,10 +1144,9 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
     def set(self, state: ParsingState, successor: Successor | None):
         state.successors[self.index] = () if successor is None else (successor,)
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         successor = parser.parse_optional_successor()
         self.set(state, successor)
-        return successor is not None
 
     def get(self, op: IRDLOperation) -> Successor | None:
         return getattr(op, self.name)
@@ -1188,7 +1163,7 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
 
 
 @dataclass(frozen=True)
-class AttributeVariable(OptionalFormatDirective):
+class AttributeVariable(FormatDirective):
     """
     An attribute variable, with the following format:
       attribute-variable ::= dollar-ident
@@ -1215,12 +1190,21 @@ class AttributeVariable(OptionalFormatDirective):
         else:
             return parser.parse_attribute()
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         attr = self.parse_attr(parser)
-        if attr is None:
-            return False
-        self.set(state, attr)
-        return True
+        if attr is not None:
+            self.set(state, attr)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        # Type-elided attribute parsers can require a token even when the
+        # attribute starts an optional group. Absence is only valid before
+        # consuming any input; errors within a present attribute must propagate.
+        start_pos = parser.pos
+        try:
+            self.parse(parser, state)
+        except ParseError:
+            if parser.pos != start_pos:
+                raise
 
     def get(self, op: IRDLOperation) -> Attribute | None:
         if self.is_property:
@@ -1267,21 +1251,6 @@ class UniqueBaseAttributeVariable(AttributeVariable):
             return unique_base.new(unique_base.parse_parameter(parser))
         else:
             raise ValueError("Attributes must be Data or ParametrizedAttribute.")
-
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        # The parsers of a known attribute base are not optional: they raise
-        # instead of returning None when the attribute is absent. Backtrack so
-        # that an optional group anchored on this variable can be skipped.
-        pos = parser.pos
-        try:
-            attr = self.parse_attr(parser)
-        except ParseError:
-            parser._resume_from(pos)  # pyright: ignore[reportPrivateUsage]
-            return False
-        if attr is None:
-            return False
-        self.set(state, attr)
-        return True
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         if isinstance(attr, ParametrizedAttribute):
@@ -1376,9 +1345,8 @@ class OptionalUnitAttrVariable(AttributeVariable):
     def __init__(self, name: str, is_property: bool):
         super().__init__(name, is_property, True, None)
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set(state, UnitAttr())
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         return
@@ -1420,14 +1388,15 @@ class WhitespaceDirective(FormatDirective):
     whitespace: Literal[" ", "\n", ""]
     """The whitespace that should be printed."""
 
-    def parse(self, parser: Parser, state: ParsingState) -> None: ...
+    def parse(self, parser: Parser, state: ParsingState):
+        pass
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_whitespace(printer, state, self.whitespace)
 
 
 @dataclass(frozen=True)
-class PunctuationDirective(OptionalFormatDirective):
+class PunctuationDirective(FormatDirective):
     """
     A punctuation directive, with the following format:
       punctuation-directive ::= punctuation
@@ -1441,8 +1410,11 @@ class PunctuationDirective(OptionalFormatDirective):
     punctuation: PunctuationSpelling
     """The punctuation that should be printed/parsed."""
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        return parser.parse_optional_punctuation(self.punctuation) is not None
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_punctuation(self.punctuation)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        parser.parse_optional_punctuation(self.punctuation)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         emit_space = False
@@ -1466,7 +1438,7 @@ class PunctuationDirective(OptionalFormatDirective):
 
 
 @dataclass(frozen=True)
-class KeywordDirective(OptionalFormatDirective):
+class KeywordDirective(FormatDirective):
     """
     A keyword directive, with the following format:
       keyword-directive ::= bare-ident
@@ -1477,8 +1449,11 @@ class KeywordDirective(OptionalFormatDirective):
     keyword: str
     """The identifier that should be printed."""
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        return parser.parse_optional_keyword(self.keyword) is not None
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_keyword(self.keyword)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        parser.parse_optional_keyword(self.keyword)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_keyword(printer, state, self.keyword)
@@ -1488,16 +1463,18 @@ class KeywordDirective(OptionalFormatDirective):
 
 
 @dataclass(frozen=True)
-class OptionalGroupDirective(OptionalFormatDirective):
+class OptionalGroupDirective(FormatDirective):
     anchor: Directive
     then_whitespace: tuple[WhitespaceDirective, ...]
-    then_first: OptionalFormatDirective
+    then_first: FormatDirective
     then_elements: tuple[FormatDirective, ...]
     else_elements: tuple[FormatDirective, ...]
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         # If the first element was parsed, parse the then-elements as usual
-        if ret := self.then_first.parse_optional(parser, state):
+        start_pos = parser.pos
+        self.then_first.parse_optional(parser, state)
+        if start_pos != parser.pos:
             for element in self.then_elements:
                 element.parse(parser, state)
             for element in self.else_elements:
@@ -1507,7 +1484,6 @@ class OptionalGroupDirective(OptionalFormatDirective):
                 element.set_empty(state)
             for element in self.else_elements:
                 element.parse(parser, state)
-        return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.anchor.is_present(op):

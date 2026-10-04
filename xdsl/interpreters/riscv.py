@@ -53,7 +53,7 @@ STACK_KEY = "stack"
 
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
-    custom_instructions: dict[str, CustomInstructionFn] = {}
+    custom_instructions: dict[str, CustomInstructionFn]
     bitwidth: int
 
     def __init__(

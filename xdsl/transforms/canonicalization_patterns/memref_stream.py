@@ -61,7 +61,7 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
         for i in reversed(unused_input_indices):
             block.erase_arg(block_args[i])
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             memref_stream.GenericOp(
                 new_inputs,

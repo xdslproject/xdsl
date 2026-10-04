@@ -7,7 +7,7 @@
 //  CHECK-NEXT:      %zero_outer_1 = asm.to_reg %zero_outer : index -> !x86.reg64
 //  CHECK-NEXT:      %forty_outer_1 = asm.to_reg %forty_outer : index -> !x86.reg64
 //  CHECK-NEXT:      %step_outer_1 = asm.to_reg %step_outer : index -> !x86.reg64
-//  CHECK-NEXT:      x86_scf.for %offset_outer : !x86.reg64  = %zero_outer_1 to %forty_outer_1 step %step_outer_1 {
+//  CHECK-NEXT:      %zero_outer_end = x86_scf.for %offset_outer : !x86.reg64  = %zero_outer_1 to %forty_outer_1 step %step_outer_1 {
 //  CHECK-NEXT:        %offset_outer_1 = asm.from_reg %offset_outer : !x86.reg64 -> index
 //  CHECK-NEXT:        %zero_inner = arith.constant 0 : index
 //  CHECK-NEXT:        %step_inner = arith.constant 2 : index
@@ -15,7 +15,7 @@
 //  CHECK-NEXT:        %zero_inner_1 = asm.to_reg %zero_inner : index -> !x86.reg64
 //  CHECK-NEXT:        %forty_inner_1 = asm.to_reg %forty_inner : index -> !x86.reg64
 //  CHECK-NEXT:        %step_inner_1 = asm.to_reg %step_inner : index -> !x86.reg64
-//  CHECK-NEXT:        x86_scf.for %offset_inner : !x86.reg64  = %zero_inner_1 to %forty_inner_1 step %step_inner_1 {
+//  CHECK-NEXT:        %zero_inner_end = x86_scf.for %offset_inner : !x86.reg64  = %zero_inner_1 to %forty_inner_1 step %step_inner_1 {
 //  CHECK-NEXT:          %offset_inner_1 = asm.from_reg %offset_inner : !x86.reg64 -> index
 //  CHECK-NEXT:          "test.op"(%src, %dst, %offset_outer_1, %offset_inner_1) : (index, index, index, index) -> ()
 //  CHECK-NEXT:        }

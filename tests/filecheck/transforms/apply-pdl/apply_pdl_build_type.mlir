@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s -p apply-pdl | filecheck %s
 
-%x = "test.op"() : () -> (i32) 
+%x = "test.op"() : () -> (i32)
 
 pdl.pattern : benefit(1) {
     %in_type = pdl.type: i32
@@ -24,4 +24,3 @@ pdl.pattern : benefit(1) {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  

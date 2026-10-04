@@ -49,7 +49,7 @@ class ExpandExp(RewritePattern):
             return
 
         expanded: Operation = expand_exp(op, rewriter, terms)
-        rewriter.replace_op(op, (), (expanded.results[0],))
+        rewriter.replace(op, (), (expanded.results[0],))
 
 
 def _float_constant(

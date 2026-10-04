@@ -274,5 +274,7 @@ def test_split_name(name: str, expected_1: str, expected_2: str):
 
 
 def test_split_name_failure():
-    with pytest.raises(ValueError, match="Invalid operation or attribute name test."):
+    with pytest.raises(
+        ValueError, match=re.escape("Invalid operation or attribute name test.")
+    ):
         Dialect.split_name("test")

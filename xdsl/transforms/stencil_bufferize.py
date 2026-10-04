@@ -110,7 +110,7 @@ class ApplyBufferizePattern(RewritePattern):
             properties={"bounds": bounds},
         )
 
-        rewriter.replace_op(op, [*(o for o in args if isinstance(o, Operation)), new])
+        rewriter.replace(op, [*(o for o in args if isinstance(o, Operation)), new])
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
@@ -223,7 +223,7 @@ class LoadBufferFoldPattern(RewritePattern):
         if effecting:
             return
 
-        rewriter.replace_op(op, new_ops=[], new_results=[underlying])
+        rewriter.replace(op, new_ops=[], new_results=[underlying])
 
 
 class ApplyStoreFoldPattern(RewritePattern):
@@ -322,20 +322,22 @@ class ApplyStoreFoldPattern(RewritePattern):
                 properties=old_return.properties.copy(),
                 attributes=old_return.attributes.copy(),
             )
-            rewriter.replace_op(old_return, new_return)
+            rewriter.replace(old_return, new_return)
 
             # Create a load of a destination, for any other user of the result
             load = LoadOp(stores[0].field, bounds.lb, bounds.ub)
 
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 [new_apply, load],
-                new_apply.results[:temp_index]
-                + (load.res,)
-                + new_apply.results[temp_index:],
+                (
+                    *new_apply.results[:temp_index],
+                    load.res,
+                    *new_apply.results[temp_index:],
+                ),
             )
             for store in stores:
-                rewriter.erase_op(store)
+                rewriter.erase(store)
             return
 
 
@@ -366,7 +368,7 @@ class UpdateApplyArgs(RewritePattern):
             op.region.block, InsertPoint.at_start(new_block), new_block.args
         )
 
-        rewriter.replace_op(op, new_apply)
+        rewriter.replace(op, new_apply)
 
 
 @dataclass(frozen=True)
@@ -407,9 +409,9 @@ class BufferAlloc(RewritePattern):
                 "Stencil shape inference must be ran before bufferization."
             )
         alloc = AllocOp(result_types=[field_from_temp(temp_t)])
-        rewriter.insert_op(alloc, InsertPoint.at_start(cast(Block, op.parent)))
+        rewriter.insert(alloc, InsertPoint.at_start(cast(Block, op.parent)))
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             new_ops=[
                 StoreOp(op.temp, alloc.field, temp_t.bounds),
@@ -462,13 +464,13 @@ class CombineStoreFold(RewritePattern):
             newlb[op.dim.value.data] = op.index.value.data
             upper_bounds = StencilBoundsAttr(IndexAttr.from_indices(*newlb), bounds.ub)
 
-            rewriter.erase_op(store)
+            rewriter.erase(store)
 
             # If it corresponds to a lower/upper result
             if i < len(op.lower):
                 new_lower = op.lower[:i] + op.lower[i + 1 :]
                 new_upper = op.upper[:i] + op.upper[i + 1 :]
-                rewriter.insert_op(
+                rewriter.insert(
                     (
                         StoreOp(
                             op.lower[i],
@@ -489,7 +491,7 @@ class CombineStoreFold(RewritePattern):
                     op.lowerext[: i - len(op.lower)]
                     + op.lowerext[i - len(op.lower) + 1 :]
                 )
-                rewriter.insert_op(
+                rewriter.insert(
                     (
                         StoreOp(
                             op.lower[i],
@@ -509,7 +511,7 @@ class CombineStoreFold(RewritePattern):
                     op.upperext[: i - len(op.lower) - len(op.lowerext)]
                     + op.upperext[i - len(op.lower) - len(op.lowerext) + 1 :]
                 )
-                rewriter.insert_op(
+                rewriter.insert(
                     (
                         StoreOp(
                             op.lower[i],
@@ -531,10 +533,10 @@ class CombineStoreFold(RewritePattern):
                 attributes=op.attributes.copy(),
                 properties=op.properties.copy(),
             )
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 new_combine,
-                new_results=new_combine.results[:i] + (None,) + new_combine.results[i:],
+                new_results=(*new_combine.results[:i], None, *new_combine.results[i:]),
             )
             return
 
@@ -565,7 +567,7 @@ class SwapBufferize(RewritePattern):
         new_swap.swaps = op.swaps
         load = LoadOp.build(operands=[buffer.res], result_types=[temp_t])
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             new_ops=[buffer, new_swap, load],
         )

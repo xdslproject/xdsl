@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     I32,
     ArrayAttr,
     BoolAttr,
-    ContainerOf,
     DenseIntElementsAttr,
     DictionaryAttr,
     Float16Type,
@@ -27,6 +26,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     VectorType,
+    container_of,
     i16,
     i32,
 )
@@ -51,14 +51,14 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_op_definition,
     operand_def,
@@ -74,7 +74,6 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     CustomDirective,
-    OptionalFormatDirective,
     ParsingState,
     PrintingState,
     TypeDirective,
@@ -92,9 +91,9 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
-floatingPointLike = ContainerOf(AnyOf.get(Float16Type, Float32Type, Float64Type))
+boolLike = container_of(IntegerType(1))
+signlessIntegerLike = container_of(IntegerType | IndexType)
+floatingPointLike = container_of(Float16Type | Float32Type | Float64Type)
 
 
 @irdl_op_definition
@@ -681,13 +680,13 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
 
-    def infer(self, context: ConstraintContext) -> ValueType | RangeType[ValueType]:
+    def infer(self, context: InferenceContext) -> ValueType | RangeType[ValueType]:
         result_type = self.result_constr.infer(context)
         if isinstance(result_type, RangeType):
             return RangeType(ValueType())
         return ValueType()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isa(attr, RangeType[ValueType]):
             result_type = RangeType(TypeType())
         elif isa(attr, ValueType):
@@ -953,7 +952,7 @@ class CreateOperationOp(IRDLOperation):
 
 
 @irdl_custom_directive
-class RangeTypeDirective(CustomDirective, OptionalFormatDirective):
+class RangeTypeDirective(CustomDirective):
     """
     Custom directive for parsing/printing range types in CreateRangeOp.
     """
@@ -961,7 +960,7 @@ class RangeTypeDirective(CustomDirective, OptionalFormatDirective):
     arguments_type: TypeDirective
     result_type: TypeDirective
 
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         args_inner = self.arguments_type.inner
         assert isinstance(args_inner, VariadicOperandVariable)
 
@@ -977,13 +976,11 @@ class RangeTypeDirective(CustomDirective, OptionalFormatDirective):
                 element_type = first_type
             result_type = RangeType(element_type)
             self.result_type.set(state, (result_type,))
-            return False  # No input consumed during inference
         else:
             # Parse `: type` for result when no arguments
             parser.parse_punctuation(":")
             result_type = parser.parse_type()
             self.result_type.set(state, (result_type,))
-            return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         arg_types = self.arguments_type.get(op)

@@ -1,7 +1,11 @@
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
-from xdsl.dialects import transform
+from xdsl.dialects import builtin, transform
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -13,11 +17,36 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass, PassPipeline
+from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
+
+_OperationT = TypeVar("_OperationT", bound=Operation, covariant=True, default=Operation)
+
+
+@dataclass(frozen=True)
+class OperationHandle(Generic[_OperationT]):
+    """
+    The payload operations associated with one transform handle. Like MLIR's
+    TransformState mapping, this preserves storage order, but that order has no
+    semantic meaning unless the transform operation specifies otherwise.
+    """
+
+    ops: tuple[_OperationT, ...]
+
+    def __init__(self, *ops: _OperationT):
+        object.__setattr__(self, "ops", ops)
 
 
 @register_impls
 class TransformFunctions(InterpreterFunctions):
+    """
+    Interpret transform operations with each operation handle represented by an
+    `OperationHandle`, including empty and single-operation handles. Each handle
+    occupies one element of the interpreter's argument or result tuple.
+    """
+
     ctx: Context
     passes: dict[str, Callable[[], type[ModulePass]]]
 
@@ -36,6 +65,43 @@ class TransformFunctions(InterpreterFunctions):
     ) -> PythonValues:
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
+    @impl(transform.MatchOp)
+    def run_match_op(
+        self,
+        interpreter: Interpreter,
+        op: transform.MatchOp,
+        args: PythonValues,
+    ) -> PythonValues:
+        (roots,) = args
+        assert isa(roots, OperationHandle)
+        if len(roots.ops) != 1:
+            raise InterpretationError(
+                "transform.structured.match requires exactly one target operation"
+            )
+
+        for name, value in (
+            ("interface", op.interface),
+            ("op_attrs", op.op_attrs),
+            ("filter_result_type", op.filter_result_type),
+            ("filter_operand_types", op.filter_operand_types),
+        ):
+            if value is not None:
+                raise InterpretationError(
+                    f"transform.structured.match does not yet support the {name} filter"
+                )
+
+        names = None if op.ops is None else {name.data for name in op.ops}
+        # MLIR walks the root and its descendants in post-order. An absent name
+        # filter matches everything, whereas an explicitly empty one matches nothing.
+        matches = OperationHandle(
+            *(
+                candidate
+                for candidate in roots.ops[0].walk(region_first=True)
+                if names is None or candidate.name in names
+            )
+        )
+        return (matches,)
+
     @impl(transform.ApplyRegisteredPassOp)
     def run_apply_registered_pass_op(
         self,
@@ -43,10 +109,16 @@ class TransformFunctions(InterpreterFunctions):
         op: transform.ApplyRegisteredPassOp,
         args: PythonValues,
     ) -> PythonValues:
-        pass_name = op.pass_name.data
-        pipeline = PassPipeline.parse_spec(self.passes, pass_name)
-        pipeline.apply(self.ctx, args[0])
-        return (args[0],)
+        (targets,) = args
+        assert isa(targets, OperationHandle)
+        if not isa(targets.ops, tuple[builtin.ModuleOp, ...]):
+            raise InterpretationError(
+                "transform.apply_registered_pass currently supports only builtin.module targets"
+            )
+        pipeline = PassPipeline.parse_spec(self.passes, op.pass_name.data)
+        for target in targets.ops:
+            pipeline.apply(self.ctx, target)
+        return (targets,)
 
     @impl_terminator(transform.YieldOp)
     def run_yield_op(

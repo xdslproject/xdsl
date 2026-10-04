@@ -9,6 +9,16 @@ lhs_op = test.TestOp(result_types=[IndexType()])
 rhs_op = test.TestOp(result_types=[IndexType()])
 
 
+def test_printer_name_state_is_isolated():
+    first = WGSLPrinter()
+    second = WGSLPrinter()
+
+    first.wgsl_name(lhs_op.res[0])
+
+    assert lhs_op.res[0] in first.name_dict
+    assert lhs_op.res[0] not in second.name_dict
+
+
 def test_gpu_global_id():
     file = StringIO("")
     printer = WGSLPrinter(stream=file)
@@ -150,7 +160,7 @@ def test_memref_load():
     load = memref.LoadOp.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
     printer.print(load)
 
-    assert "let v1 = v0[10u * v1 + 1u * v2];" in file.getvalue()
+    assert "let v1 = v0[10u * v2 + 1u * v3];" in file.getvalue()
 
 
 def test_memref_store():
@@ -163,4 +173,4 @@ def test_memref_store():
     store = memref.StoreOp.get(load.res, memref_val, [lhs_op.res[0], rhs_op.res[0]])
     printer.print(store)
 
-    assert "v1[10u * v1 + 1u * v2] = v0;" in file.getvalue()
+    assert "v1[10u * v2 + 1u * v3] = v0;" in file.getvalue()

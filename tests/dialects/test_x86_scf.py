@@ -5,6 +5,8 @@ import pytest
 from xdsl import ir
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import test, x86, x86_scf
+from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.x86.ops import si32
 from xdsl.traits import (
     EffectInstance,
     MemoryEffect,
@@ -44,11 +46,51 @@ def test_for_rof_init(
         body,
     )
     assert op.body.block.arg_types == (x86.registers.R12, *iter_arg_types)
+    assert len(op.results) == 1 + len(iter_arg_types)
+    assert op.lb_end.type == lb.type
     with ImplicitBuilder(op.body) as (_i, *args):
         x86_scf.YieldOp(*args)
     op.verify()
 
     assert op.step is step
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+@pytest.mark.parametrize("static_ub", [False, True])
+@pytest.mark.parametrize("static_step", [False, True])
+def test_for_rof_bounds_and_step(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp],
+    static_ub: bool,
+    static_step: bool,
+):
+    reg = x86.registers.UNALLOCATED_REG64
+    lb = create_ssa_value(reg)
+    ub_val = create_ssa_value(reg)
+    step_val = create_ssa_value(reg)
+    ub_attr = IntegerAttr(42, si32)
+    step_attr = IntegerAttr(3, si32)
+
+    ub = ub_attr if static_ub else ub_val
+    step = step_attr if static_step else step_val
+
+    op = loop_cls(
+        lb,
+        ub,
+        step,
+        (),
+        ir.Block((x86_scf.YieldOp(),), arg_types=[reg]),
+    )
+    op.verify()
+
+    assert (op.ub_attr is None) is (not static_ub)
+    assert (op.ub_val is None) is static_ub
+    assert (op.step_attr is None) is (not static_step)
+    assert (op.step_val is None) is static_step
+
+    assert op.ub is (ub_attr if static_ub else ub_val)
+    assert op.step is (step_attr if static_step else step_val)
+    assert len(op.results) == 1
+    assert op.lb_end.type == lb.type
 
 
 @pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])

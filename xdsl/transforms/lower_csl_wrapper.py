@@ -31,7 +31,7 @@ class ExtractCslModules(RewritePattern):
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         program_module = self.lower_program_module(op, rewriter)
         layout_module = self.lower_layout_module(op, rewriter)
-        rewriter.replace_op(op, [layout_module, program_module])
+        rewriter.replace(op, [layout_module, program_module])
 
     def _collect_params(
         self, op: csl_wrapper.ModuleOp
@@ -126,7 +126,7 @@ class ExtractCslModules(RewritePattern):
 
         yield_op = op.layout_module.block.last_op
         assert isa(yield_op, csl_wrapper.YieldOp)
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         with ImplicitBuilder(module_block):
             const_0 = arith.ConstantOp.from_int_and_width(0, builtin.IntegerType(16))
@@ -219,7 +219,7 @@ class ExtractCslModules(RewritePattern):
         module_block.add_ops(yield_args)
         yield_op = op.program_module.block.last_op
         assert isa(yield_op, csl_wrapper.YieldOp)
-        rewriter.erase_op(yield_op)
+        rewriter.erase(yield_op)
 
         rewriter.inline_block(
             op.program_module.block,
@@ -310,9 +310,9 @@ class LowerImport(RewritePattern):
         )
         import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
-        rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.insert_op(structs, InsertPoint.before(op))
-        rewriter.replace_op(op, import_)
+        rewriter.insert(ops, InsertPoint.at_start(csl_mod.body.block))
+        rewriter.insert(structs, InsertPoint.before(op))
+        rewriter.replace(op, import_)
 
 
 @dataclass(frozen=True)

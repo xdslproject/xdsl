@@ -937,7 +937,7 @@ class OperationPositionTree:
 
             child_paths: dict[int, list[int]] = {}
             for idx in indices:
-                child_paths[idx] = current_paths.get(idx, []) + [child_index]
+                child_paths[idx] = [*current_paths.get(idx, []), child_index]
                 pattern_paths[idx] = child_paths[idx]
             OperationPositionTree._build_subtree(
                 child,
@@ -1861,9 +1861,14 @@ class MatcherGenerator:
                 # Update block reference after potential insertion point change
                 block = self.builder.insertion_point.block
                 assert isinstance(answer, TrueAnswer)
-                check_op = pdl_interp.AreEqualOp(
-                    val, other_val, success_block, failure_block
-                )
+                if self.optimize_for_eqsat and isinstance(val.type, pdl.ValueType):
+                    check_op = ematch.AreEquivalentOp(
+                        val, other_val, success_block, failure_block
+                    )
+                else:
+                    check_op = pdl_interp.AreEqualOp(
+                        val, other_val, success_block, failure_block
+                    )
             case AttributeConstraintQuestion():
                 assert isinstance(answer, AttributeAnswer)
                 check_op = pdl_interp.CheckAttributeOp(

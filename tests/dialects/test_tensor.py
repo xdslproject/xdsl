@@ -1,4 +1,13 @@
-from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
+import pytest
+
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    DenseArrayBase,
+    IndexType,
+    TensorType,
+    f64,
+    i64,
+)
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, FromElementsOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
@@ -28,6 +37,72 @@ def test_extract_slice_static():
     assert extract_slice.static_offsets == DenseArrayBase.from_list(i64, [1, 2, 3])
     assert extract_slice.static_sizes == DenseArrayBase.from_list(i64, [4, 5, 6])
     assert extract_slice.static_strides == DenseArrayBase.from_list(i64, [8, 9, 10])
+    assert extract_slice.offsets == ()
+    assert extract_slice.sizes == ()
+    assert extract_slice.strides == ()
+    assert extract_slice.result.type == TensorType(f64, [4, 5, 6])
+
+
+def test_extract_slice_infer_result_type():
+    source_t = TensorType(f64, [10, 20, 30])
+    size = create_ssa_value(IndexType())
+
+    assert ExtractSliceOp.infer_result_type(source_t, [4, 5, 6]) == TensorType(
+        f64, [4, 5, 6]
+    )
+
+    # A dynamic size makes that dimension dynamic in the result type.
+    assert ExtractSliceOp.infer_result_type(source_t, [size, 5, 6]) == TensorType(
+        f64, [DYNAMIC_INDEX, 5, 6]
+    )
+
+
+def test_extract_slice_infer_result_type_rank_mismatch():
+    source_t = TensorType(f64, [10, 20, 30])
+
+    with pytest.raises(ValueError, match="sizes to match source rank"):
+        ExtractSliceOp.infer_result_type(source_t, [4, 5])
+
+
+def test_extract_slice_dynamic():
+    source_t = TensorType(f64, [10, 20, 30])
+    source_v = create_ssa_value(source_t)
+    offset = create_ssa_value(IndexType())
+    size = create_ssa_value(IndexType())
+
+    result_type = ExtractSliceOp.infer_result_type(source_t, [size, 5, 6])
+    extract_slice = ExtractSliceOp(
+        source_v, [offset, 0, 0], [size, 5, 6], [1, 1, 1], result_type
+    )
+    extract_slice.verify()
+
+    # Static entries keep their value; dynamic ones are marked and moved to operands.
+    assert extract_slice.static_offsets == DenseArrayBase.from_list(
+        i64, [DYNAMIC_INDEX, 0, 0]
+    )
+    assert extract_slice.static_sizes == DenseArrayBase.from_list(
+        i64, [DYNAMIC_INDEX, 5, 6]
+    )
+    assert extract_slice.static_strides == DenseArrayBase.from_list(i64, [1, 1, 1])
+
+    assert extract_slice.offsets == (offset,)
+    assert extract_slice.sizes == (size,)
+    assert extract_slice.strides == ()
+
+    assert extract_slice.result.type == TensorType(f64, [DYNAMIC_INDEX, 5, 6])
+
+
+def test_extract_slice_get_all_static():
+    source_t = TensorType(f64, [10, 20, 30])
+    source_v = create_ssa_value(source_t)
+
+    result_type = ExtractSliceOp.infer_result_type(source_t, [4, 5, 6])
+    extract_slice = ExtractSliceOp(
+        source_v, [1, 2, 3], [4, 5, 6], [1, 1, 1], result_type
+    )
+    extract_slice.verify()
+
+    assert extract_slice.static_offsets == DenseArrayBase.from_list(i64, [1, 2, 3])
     assert extract_slice.offsets == ()
     assert extract_slice.sizes == ()
     assert extract_slice.strides == ()

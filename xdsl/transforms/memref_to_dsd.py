@@ -71,7 +71,7 @@ class LowerAllocOpPass(RewritePattern):
             for s in shape:
                 s.result.name_hint = f"{op.memref.name_hint}_size"
 
-        rewriter.replace_op(op, [zeros_op, *shape, dsd_op])
+        rewriter.replace(op, [zeros_op, *shape, dsd_op])
 
 
 class FixGetDsdOnGetDsd(RewritePattern):
@@ -87,7 +87,7 @@ class FixGetDsdOnGetDsd(RewritePattern):
             if isinstance(op.base_addr, OpResult) and isinstance(
                 op.base_addr.op, csl.GetMemDsdOp
             ):
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     csl.GetMemDsdOp.build(
                         operands=[op.base_addr.op.base_addr, op.sizes],
@@ -111,7 +111,7 @@ class FixMemRefLoadOnGetDsd(RewritePattern):
             if isinstance(op.memref, OpResult) and isinstance(
                 op.memref.op, csl.GetMemDsdOp
             ):
-                rewriter.replace_op(
+                rewriter.replace(
                     op, memref.LoadOp.get(op.memref.op.base_addr, op.indices)
                 )
             else:
@@ -158,7 +158,7 @@ class LowerSubviewOpPass(RewritePattern):
                 result_types=[csl.DsdType(csl.DsdKind.mem1d_dsd)],
             )
             offset_ops = self._update_offsets(op, dsd_op) if op.offsets else []
-            rewriter.replace_op(op, [size_op, dsd_op, *offset_ops])
+            rewriter.replace(op, [size_op, dsd_op, *offset_ops])
             return
 
         assert len(op.static_sizes) == 1, "not implemented"
@@ -176,10 +176,10 @@ class LowerSubviewOpPass(RewritePattern):
 
         new_ops = [*size_ops, *stride_ops, *offset_ops]
         if new_ops:
-            rewriter.replace_op(op, [*size_ops, *stride_ops, *offset_ops])
+            rewriter.replace(op, [*size_ops, *stride_ops, *offset_ops])
         else:
             # subview has no effect (todo: this could be canonicalized away)
-            rewriter.replace_op(op, [], new_results=[op.source])
+            rewriter.replace(op, [], new_results=[op.source])
 
     @staticmethod
     def _update_sizes(
@@ -309,7 +309,7 @@ class LowerCopyOpPass(RewritePattern):
             case _:
                 raise ValueError("unsupported value")
 
-        rewriter.replace_op(op, func(operands=[[op.destination, op.source]]))
+        rewriter.replace(op, func(operands=[[op.destination, op.source]]))
 
 
 class LowerUnrealizedConversionCastOpPass(RewritePattern):
@@ -324,7 +324,7 @@ class LowerUnrealizedConversionCastOpPass(RewritePattern):
         if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
             isa(t, MemRefType) for t in op.outputs.types
         ):
-            rewriter.replace_op(op, [], new_results=op.inputs)
+            rewriter.replace(op, [], new_results=op.inputs)
 
 
 class DsdOpUpdateType(RewritePattern):
@@ -337,7 +337,7 @@ class DsdOpUpdateType(RewritePattern):
         rewriter: PatternRewriter,
         /,
     ):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             type(op).build(
                 operands=op.operands,
@@ -356,7 +356,7 @@ class RetainAddressOfOpPass(RewritePattern):
         if isinstance(op.value.type, csl.DsdType) and isinstance(
             op.value.owner, csl.GetMemDsdOp
         ):
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 csl.AddressOfOp.build(
                     operands=[op.value.owner.base_addr], result_types=op.result_types
@@ -374,7 +374,7 @@ class CslVarUpdate(RewritePattern):
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd if len(elem_t.shape) == 1 else csl.DsdKind.mem4d_dsd
         )
-        rewriter.replace_op(op, csl.VariableOp.from_type(dsd_t))
+        rewriter.replace(op, csl.VariableOp.from_type(dsd_t))
 
 
 class CslVarLoad(RewritePattern):
@@ -388,7 +388,7 @@ class CslVarLoad(RewritePattern):
             or not isa(op.var.type.get_element_type(), csl.DsdType)
         ):
             return
-        rewriter.replace_op(op, csl.LoadVarOp(op.var))
+        rewriter.replace(op, csl.LoadVarOp(op.var))
 
 
 @dataclass(frozen=True)

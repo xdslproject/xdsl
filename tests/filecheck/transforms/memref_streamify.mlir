@@ -108,7 +108,7 @@ func.func public @relu(%arg0: memref<16x16xf64>, %arg1: memref<16x16xf64>) -> me
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:        } ins(%arg0_stream : !memref_stream.readable<f64>) outs(%arg1_stream : !memref_stream.writable<f64>) {
-// CHECK-NEXT:        ^bb1(%in: f64, %out: f64):
+// CHECK-NEXT:        ^bb0(%in: f64, %out: f64):
 // CHECK-NEXT:          %0 = arith.maximumf %in, %cst : f64
 // CHECK-NEXT:          memref_stream.yield %0 : f64
 // CHECK-NEXT:        }
@@ -421,7 +421,7 @@ func.func public @ssum(
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:        } ins(%X_stream, %Y_stream : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%Z_stream : !memref_stream.writable<vector<2xf32>>) {
-// CHECK-NEXT:        ^bb1(%in: vector<2xf32>, %in_1: vector<2xf32>, %out: vector<2xf32>):
+// CHECK-NEXT:        ^bb0(%in: vector<2xf32>, %in_1: vector<2xf32>, %out: vector<2xf32>):
 // CHECK-NEXT:          %0 = arith.addf %in, %in_1 : vector<2xf32>
 // CHECK-NEXT:          memref_stream.yield %0 : vector<2xf32>
 // CHECK-NEXT:        }

@@ -60,8 +60,8 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
             and op.next_op.next_op
             and isinstance(op.next_op.next_op, csl.ReturnOp)
         ):
-            rewriter.insert_op(call_op.clone(), InsertPoint.before(terminator))
-            rewriter.erase_op(call_op)
+            rewriter.insert(call_op.clone(), InsertPoint.before(terminator))
+            rewriter.erase(call_op)
             return
 
         parent_func = op.parent_op()
@@ -74,15 +74,15 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
         parent_block = op.parent_block()
         assert parent_block is not None
         next_block = parent_block.split_before(op.next_op)
-        rewriter.insert_op(csl.ReturnOp(), InsertPoint.after(op))
+        rewriter.insert(csl.ReturnOp(), InsertPoint.after(op))
         next_func = csl.FuncOp(f"step{self.counter}", FunctionType.from_lists([], []))
         self.counter += 1
         rewriter.inline_block(next_block, InsertPoint.at_start(next_func.body.block))
-        rewriter.insert_op(
+        rewriter.insert(
             csl.CallOp(SymbolRefAttr(next_func.sym_name)),
             InsertPoint.before(terminator),
         )
-        rewriter.insert_op(next_func, InsertPoint.after(parent_func))
+        rewriter.insert(next_func, InsertPoint.after(parent_func))
 
 
 @dataclass()
@@ -169,12 +169,12 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         inc_func = csl.FuncOp(f"for_inc{self.counter}", no_params)
 
         # create csl.vars for loop var and iter_args outside the parent func
-        rewriter.insert_op(
+        rewriter.insert(
             iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, i32)),
             InsertPoint.before(parent_func),
         )
         iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
-        rewriter.insert_op(iter_vars, InsertPoint.before(parent_func))
+        rewriter.insert(iter_vars, InsertPoint.before(parent_func))
 
         iv.res.name_hint = "iteration"
         for i, v in enumerate(iter_vars):
@@ -233,16 +233,16 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             InsertPoint.at_end(body_func.body.block),
             [v.res for v in body_vars],
         )
-        rewriter.insert_op(
+        rewriter.insert(
             csl.CallOp(SymbolRefAttr(inc_func.sym_name)), InsertPoint.before(terminator)
         )
-        rewriter.replace_op(terminator, csl.ReturnOp())
+        rewriter.replace(terminator, csl.ReturnOp())
 
         # place funcs and erase now-empty for-loop
-        rewriter.insert_op(
+        rewriter.insert(
             [cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func)
         )
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
     @staticmethod
     def _is_inside_wrapper_outside_apply(op: Operation):
@@ -278,7 +278,7 @@ class CopyArithConstants(RewritePattern):
         for use in list(op.result.uses):
             use_func = self._get_enclosing_function(use.operation)
             if use_func != parent_func:
-                rewriter.insert_op(cln := op.clone(), InsertPoint.before(use.operation))
+                rewriter.insert(cln := op.clone(), InsertPoint.before(use.operation))
                 rewriter.replace_uses_with_if(
                     op.result,
                     cln.result,

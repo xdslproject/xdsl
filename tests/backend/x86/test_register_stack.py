@@ -1,6 +1,7 @@
 import pytest
 
 from xdsl.backend.register_stack import OutOfRegisters
+from xdsl.backend.x86.arch import AVX2, AVX512, UNKNOWN, X86Arch
 from xdsl.backend.x86.register_stack import X86RegisterStack
 from xdsl.dialects import x86
 
@@ -67,3 +68,44 @@ def test_vector_registers_share_one_pool():
 
     with pytest.raises(OutOfRegisters):
         stack.pop(x86.registers.AVX2RegisterType)
+
+
+def test_default_stack_stops_at_the_vex_boundary():
+    """
+    Without a target the allocator must assume VEX, which reaches ymm0-15 only.
+
+    ymm16-31 exist in the register file but can only be named through EVEX, so
+    handing them out by default emits instructions the target may not decode.
+    """
+    register_stack = X86RegisterStack.get()
+
+    for _ in range(16):
+        register_stack.pop(x86.AVX2RegisterType)
+
+    with pytest.raises(OutOfRegisters):
+        register_stack.pop(x86.AVX2RegisterType)
+
+
+@pytest.mark.parametrize(
+    "arch, expected",
+    [(UNKNOWN, 16), (AVX2, 16), (AVX512, 32)],
+)
+def test_vector_registers_available_per_arch(arch: X86Arch, expected: int):
+    """AVX-512 is the only target that can name the upper half of the bank."""
+    register_stack = X86RegisterStack.get_for_arch(arch)
+
+    for _ in range(expected):
+        register_stack.pop(x86.AVX2RegisterType)
+
+    with pytest.raises(OutOfRegisters):
+        register_stack.pop(x86.AVX2RegisterType)
+
+
+@pytest.mark.parametrize("arch", [UNKNOWN, AVX2, AVX512])
+def test_general_purpose_registers_do_not_vary_by_arch(arch: X86Arch):
+    """Only the vector half of the set is target dependent."""
+    assert [
+        reg
+        for reg in arch.default_allocatable_registers()
+        if isinstance(reg, x86.registers.Reg64Type)
+    ] == list(x86.registers.Reg64Type.allocatable_registers())

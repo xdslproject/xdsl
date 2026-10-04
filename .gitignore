@@ -72,6 +72,10 @@ instance/
 docs/_build/
 docs/ret.mlir
 
+# Generated wheel/sdist artifacts served by mkdocs serve/build
+docs/*.whl
+docs/*.tar.gz
+
 # PyBuilder
 .pybuilder/
 target/
@@ -165,3 +169,6 @@ xdsl/dialects/*.pyi
 # direnv
 .direnv
 .envrc
+
+# Marimo
+**/__marimo__/

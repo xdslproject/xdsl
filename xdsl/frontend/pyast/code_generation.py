@@ -12,29 +12,8 @@ from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, TypeAttribute
-
-
-@dataclass
-class CodeGeneration:
-    @staticmethod
-    def run_with_type_converter(
-        type_converter: TypeConverter,
-        source: FunctionMap | ast.FunctionDef,
-        file: str | None,
-    ) -> builtin.ModuleOp:
-        """Generates xDSL code and returns it encapsulated into a single module."""
-        module = builtin.ModuleOp([])
-
-        visitor = CodeGenerationVisitor(type_converter, module, file)
-        if isinstance(source, ast.FunctionDef):
-            visitor.visit(source)
-        else:
-            for function_def, _ in source.values():
-                visitor.visit(function_def)
-        return module
 
 
 @dataclass(init=False)

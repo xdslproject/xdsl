@@ -21,14 +21,14 @@ class PDLInterpRewritePattern(RewritePattern):
     interpreter: Interpreter
     functions: PDLInterpFunctions
     matcher: pdl_interp.FuncOp
-    name: None | str = None
+    name: str | None = None
 
     def __init__(
         self,
         matcher: pdl_interp.FuncOp,
         interpreter: Interpreter,
         functions: PDLInterpFunctions,
-        name: None | str = None,
+        name: str | None = None,
     ):
         self.functions = functions
         module = matcher.parent_op()

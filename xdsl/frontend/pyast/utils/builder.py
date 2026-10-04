@@ -4,7 +4,7 @@ from typing import Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.pyast.code_generation import CodeGeneration
+from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     LiteralRegistry,
@@ -51,10 +51,9 @@ class PyASTBuilder:
             self.function_registry,
             self.literal_registry,
         )
-        module = CodeGeneration.run_with_type_converter(
-            type_converter,
-            self.function_ast,
-            self.file,
+        module = ModuleOp([])
+        CodeGenerationVisitor(type_converter, module, self.file).visit(
+            self.function_ast
         )
         module.verify()
 

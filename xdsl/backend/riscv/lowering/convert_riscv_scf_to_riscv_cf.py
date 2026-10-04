@@ -119,7 +119,7 @@ class LowerRiscvScfForPattern(RewritePattern):
             case _:
                 add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
 
-        rewriter.replace_op(
+        rewriter.replace(
             yield_op,
             (
                 add_op,
@@ -138,7 +138,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
-        rewriter.insert_op(
+        rewriter.insert(
             (
                 mv_op := riscv.MVOp(op.lb, rd=iv_reg),
                 riscv_cf.BgeOp(
@@ -154,12 +154,12 @@ class LowerRiscvScfForPattern(RewritePattern):
         )
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op(
+        rewriter.insert(
             riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             riscv.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],

@@ -10,7 +10,6 @@ from xdsl.dialect_interfaces.constant_materialization import (
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
-    ContainerOf,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FixedBitwidthType,
@@ -25,6 +24,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     UnrankedTensorType,
     VectorType,
+    container_of,
 )
 from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
@@ -63,9 +63,9 @@ from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
-boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
-floatingPointLike = ContainerOf(AnyFloatConstr)
+boolLike = container_of(IntegerType(1))
+signlessIntegerLike = container_of(AnyOf.get(IntegerType, IndexType))
+floatingPointLike = container_of(AnyFloat)
 
 
 CMPI_COMPARISON_OPERATIONS = [
@@ -109,7 +109,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "arith.fastmath"
 
-    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: Iterable[FastMathFlag] | Literal["none", "fast"] | None):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -126,7 +126,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
     none_value = "none"
 
-    def __init__(self, flags: None | Iterable[IntegerOverflowFlag] | Literal["none"]):
+    def __init__(self, flags: Iterable[IntegerOverflowFlag] | Literal["none"] | None):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -1191,11 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
+        container_of(IntegerType | IndexType | AnyFloat)
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
+        container_of(IntegerType | IndexType | AnyFloat)
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

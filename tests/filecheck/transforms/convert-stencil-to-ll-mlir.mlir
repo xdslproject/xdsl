@@ -336,7 +336,7 @@ builtin.module {
 // CHECK-NEXT:      %13 = arith.constant 1 : index
 // CHECK-NEXT:      %14 = arith.constant 64 : index
 // CHECK-NEXT:      "scf.parallel"(%12, %14, %13) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
-// CHECK-NEXT:      ^bb1(%15: index):
+// CHECK-NEXT:      ^bb0(%15: index):
 // CHECK-NEXT:        %16 = arith.constant 1 : index
 // CHECK-NEXT:        %17 = arith.addi %15, %16 : index
 // CHECK-NEXT:        %18 = memref.load %2[%17] : memref<64xf64, strided<[1], offset: -1>>
@@ -381,7 +381,7 @@ builtin.module {
 // CHECK-NEXT:      %14 = arith.constant 1 : index
 // CHECK-NEXT:      %15 = arith.constant 64 : index
 // CHECK-NEXT:      "scf.parallel"(%13, %15, %14) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
-// CHECK-NEXT:      ^bb1(%16: index):
+// CHECK-NEXT:      ^bb0(%16: index):
 // CHECK-NEXT:        %17 = arith.constant 1 : index
 // CHECK-NEXT:        %18 = arith.addi %16, %17 : index
 // CHECK-NEXT:        %19 = memref.load %3[%18] : memref<64xf64, strided<[1], offset: 4>>
@@ -714,7 +714,7 @@ func.func @if_lowering(%arg0_1: f64, %b0: !stencil.field<[0,7]x[0,7]x[0,7]xf64>,
 // CHECK-NEXT:      %16 = arith.constant 65 : index
 // CHECK-NEXT:      %17 = arith.constant 66 : index
 // CHECK-NEXT:      "scf.parallel"(%12, %13, %16, %17, %14, %15) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK-NEXT:      ^bb1(%18: index, %19: index):
+// CHECK-NEXT:      ^bb0(%18: index, %19: index):
 // CHECK-NEXT:        %20 = arith.constant 2.000000e+00 : f64
 // CHECK-NEXT:        memref.store %20, %2[%18, %19] : memref<64x64xf64, strided<[70, 1], offset: 213>>
 // CHECK-NEXT:        scf.reduce
@@ -767,7 +767,7 @@ func.func @buffered_combine(%115: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %17 = arith.constant 65 : index
 // CHECK-NEXT:      %18 = arith.constant 66 : index
 // CHECK-NEXT:      "scf.parallel"(%13, %14, %17, %18, %15, %16) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK-NEXT:      ^bb1(%19: index, %20: index):
+// CHECK-NEXT:      ^bb0(%19: index, %20: index):
 // CHECK-NEXT:        %21 = arith.constant 2.000000e+00 : f64
 // CHECK-NEXT:        memref.store %21, %1[%19, %20] : memref<64x64xf64, strided<[64, 1], offset: -66>>
 // CHECK-NEXT:        scf.reduce
@@ -779,7 +779,7 @@ func.func @buffered_combine(%115: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %26 = arith.constant 65 : index
 // CHECK-NEXT:      %27 = arith.constant 66 : index
 // CHECK-NEXT:      "scf.parallel"(%22, %23, %26, %27, %24, %25) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK-NEXT:      ^bb2(%28: index, %29: index):
+// CHECK-NEXT:      ^bb0(%28: index, %29: index):
 // CHECK-NEXT:        %30 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:        %31 = memref.load %1[%28, %29] : memref<64x64xf64, strided<[64, 1], offset: -66>>
 // CHECK-NEXT:        %32 = arith.addf %30, %31 : f64

@@ -665,7 +665,9 @@ def test_affine_expr_simplify(expr: AffineExpr, expected: AffineExpr):
 def test_affine_expr_simplify_semi_affine_raises(expr: Callable[[], AffineExpr]):
     with pytest.raises(
         NotImplementedError,
-        match="Simplification of semi-affine expressions is not implemented yet.",
+        match=re.escape(
+            "Simplification of semi-affine expressions is not implemented yet."
+        ),
     ):
         expr().simplify(num_dims=3, num_symbols=3)
     with pytest.raises(

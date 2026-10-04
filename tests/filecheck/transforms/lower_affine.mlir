@@ -19,15 +19,13 @@
 // CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
 // CHECK-NEXT:    %v2 = scf.for %r = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%acc0 = %v1) -> (f32) {
-%v2 = "affine.for"(%v1) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (2)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-^bb0(%r: index, %acc0: f32):
+%v2 = affine.for %r = 0 to 2 iter_args(%acc0 = %v1) -> (f32) {
 
 // CHECK-NEXT:      %{{.*}} = arith.constant 0 : index
 // CHECK-NEXT:      %{{.*}} = arith.constant 3 : index
 // CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
 // CHECK-NEXT:      %v3 = scf.for %c = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%acc1 = %acc0) -> (f32) {
-  %v3 = "affine.for"(%acc0) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (3)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-  ^bb1(%c: index, %acc1: f32):
+  %v3 = affine.for %c = 0 to 3 iter_args(%acc1 = %acc0) -> (f32) {
 
 // CHECK-NEXT:        %v4 = memref.load %m[%r, %c] : memref<2x3xf32>
     %v4 = "affine.load"(%m, %r, %c) <{"map" = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf32>, index, index) -> f32
@@ -36,16 +34,16 @@
     %acc_new = "test.op"(%acc1, %v4) : (f32, f32) -> f32
 
 // CHECK-NEXT:        scf.yield %acc_new : f32
-    "affine.yield"(%acc_new) : (f32) -> ()
+    affine.yield %acc_new : f32
 
 // CHECK-NEXT:      }
-  }) : (f32) -> f32
+  }
 
 // CHECK-NEXT:      scf.yield %v3 : f32
-  "affine.yield"(%v3) : (f32) -> ()
+  affine.yield %v3 : f32
 
 // CHECK-NEXT:    }
-}) : (f32) -> f32
+}
 
 // CHECK-NEXT:    %apply_dim, %apply_sym = "test.op"() : () -> (index, index)
 // CHECK-NEXT:    %apply_res = arith.constant 42 : index

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -43,6 +43,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     BitEnumAttribute,
+    EnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
     parse_dynamic_index_list_without_types,
@@ -54,7 +55,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -66,13 +66,14 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
     EqIntConstraint,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -225,11 +226,6 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             parser.parse_shape_delimiter()
             type = parse_llvm_type(parser)
         return (size, type)
-
-    @deprecated("Please use LLVMArrayType(size, type)")
-    @staticmethod
-    def from_size_and_type(size: int | IntAttr, type: Attribute):
-        return LLVMArrayType(size, type)
 
 
 @irdl_attr_definition
@@ -1915,7 +1911,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     element_constr: AttrConstraint
     mask_constr: VarConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         VectorType.constr(
             self.element_constr,
             shape=ArrayAttr.constr(
@@ -1929,7 +1925,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
             and self.mask_constr.name in var_constraint_names
         )
 
-    def infer(self, context: ConstraintContext) -> VectorType:
+    def infer(self, context: InferenceContext) -> VectorType:
         mask = context.get_variable(self.mask_constr.name)
         assert mask is not None
         mask = cast(DenseArrayBase[IntegerType], mask)
@@ -3062,6 +3058,11 @@ class FPExtOp(GenericCastOp):
 
 
 @irdl_op_definition
+class FPTruncOp(GenericCastOp):
+    name = "llvm.fptrunc"
+
+
+@irdl_op_definition
 class FAbsOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
@@ -3814,6 +3815,7 @@ LLVM = Dialect(
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPTruncOp,
         FPowOp,
         FRemOp,
         FSinOp,

@@ -97,15 +97,12 @@ class ScfParallelLoopTilingPattern(RewritePattern):
 
                 arg_index = tiled_dims.index(i)
                 minop = affine.MinOp(
-                    operands=[
-                        [
-                            tile_sizes[i],
-                            outter_upper[arg_index],
-                            outter_loop.body.block.args[arg_index],
-                        ]
-                    ],
-                    properties={"map": minmap},
-                    result_types=[IndexType()],
+                    (
+                        tile_sizes[i],
+                        outter_upper[arg_index],
+                        outter_loop.body.block.args[arg_index],
+                    ),
+                    minmap,
                 )
                 minops.append(minop)
                 inner_upper.append(minop)
@@ -128,7 +125,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                         continue
                     use.operation.operands[use.index] = iv.result
         outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_reduce)
-        rewriter.replace_op(op, [zero, *tile_sizes.values(), *outter_step, outter_loop])
+        rewriter.replace(op, [zero, *tile_sizes.values(), *outter_step, outter_loop])
 
 
 @dataclass(frozen=True)

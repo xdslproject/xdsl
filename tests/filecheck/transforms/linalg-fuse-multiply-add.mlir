@@ -23,7 +23,7 @@ builtin.module {
 // CHECK-NEXT:     linalg.yield %7 : f32
 // CHECK-NEXT:   } -> tensor<8xf32>
 // CHECK-NEXT:   %8 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%c, %t1, %t3 : tensor<8xf32>, tensor<8xf32>, tensor<8xf32>) outs(%c : tensor<8xf32>) {
-// CHECK-NEXT:   ^bb1(%9: f32, %10: f32, %11: f32, %12: f32):
+// CHECK-NEXT:   ^bb0(%9: f32, %10: f32, %11: f32, %12: f32):
 // CHECK-NEXT:     %13 = arith.mulf %9, %10 : f32
 // CHECK-NEXT:     %14 = arith.addf %13, %11 : f32
 // CHECK-NEXT:     linalg.yield %14 : f32

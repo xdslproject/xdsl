@@ -105,7 +105,7 @@ class ApplyEqsatPDLPass(ModulePass):
         matchers_module = builtin.ModuleOp([])
         rewriters_module = builtin.ModuleOp([], sym_name=StringAttr("rewriters"))
         matchers_builder = Builder(InsertPoint.at_end(matchers_module.body.block))
-        matchers_builder.insert_op(rewriters_module)
+        matchers_builder.insert(rewriters_module)
         rewriters_builder = Builder(InsertPoint.at_end(rewriters_module.body.block))
 
         interpreter = Interpreter(matchers_module)
@@ -137,10 +137,10 @@ class ApplyEqsatPDLPass(ModulePass):
 
             # Detach and insert operations
             matcher.detach()
-            matchers_builder.insert_op(matcher)
+            matchers_builder.insert(matcher)
 
             rewriter_func.detach()
-            rewriters_builder.insert_op(rewriter_func)
+            rewriters_builder.insert(rewriter_func)
 
             matchers.append(matcher)
 
@@ -158,7 +158,6 @@ class ApplyEqsatPDLPass(ModulePass):
             # Apply each pattern individually
             for matcher in matchers:
                 for root in op.body.walk():
-                    rewriter.current_operation = root
                     interpreter.call_op(matcher, (root,))
 
             # Execute all pending rewrites
@@ -205,7 +204,6 @@ class ApplyEqsatPDLPass(ModulePass):
 
         for _i in range(self.max_iterations):
             for root in op.body.walk():
-                rewriter.current_operation = root
                 interpreter.call_op(matcher, (root,))
             eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
