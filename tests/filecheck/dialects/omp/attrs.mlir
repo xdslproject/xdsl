@@ -94,8 +94,13 @@
                 // CHECK-SAME: #omp<reduction_modifier (defaultmod)>
                 #omp<reduction_modifier (inscan)>,
                 // CHECK-SAME: #omp<reduction_modifier (inscan)>
-                #omp<reduction_modifier (task)>
+                #omp<reduction_modifier (task)>,
                 // CHECK-SAME: #omp<reduction_modifier (task)>
+
+                #omp<grainsizetype strict>,
+                // CHECK-SAME: #omp<grainsizetype strict>
+                #omp<numtaskstype strict>
+                // CHECK-SAME: #omp<numtaskstype strict>
 
 
             ]}: () -> !omp.map_bounds_ty
