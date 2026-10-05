@@ -1366,6 +1366,28 @@ class TaskloopOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class BarrierOp(IRDLOperation):
+    """
+    Implementation of upstream omp.barrier
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompbarrier-ompbarrierop).
+    """
+
+    name = "omp.barrier"
+
+
+@irdl_op_definition
+class FlushOp(IRDLOperation):
+    """
+    Implementation of upstream omp.flush
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompflush-ompflushop).
+    """
+
+    name = "omp.flush"
+
+    var_list = var_operand_def()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1392,6 +1414,8 @@ OMP = Dialect(
         TaskOp,
         TaskgroupOp,
         TaskloopOp,
+        BarrierOp,
+        FlushOp,
     ],
     [
         ClauseRequiresKindAttr,
