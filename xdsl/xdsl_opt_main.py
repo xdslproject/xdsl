@@ -22,6 +22,7 @@ from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkExcepti
 from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
 
+
 def _default_version_str():
     return f"xdsl-opt built from xdsl version {_version('xdsl')}"
 
