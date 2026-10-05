@@ -1388,6 +1388,32 @@ class FlushOp(IRDLOperation):
     var_list = var_operand_def()
 
 
+@irdl_op_definition
+class MasterOp(IRDLOperation):
+    """
+    Implementation of upstream omp.master
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompmaster-ompmasterop).
+    """
+
+    name = "omp.master"
+
+    region = region_def()
+
+
+@irdl_op_definition
+class MaskedOp(IRDLOperation):
+    """
+    Implementation of upstream omp.masked
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompmasked-ompmaskedop).
+    """
+
+    name = "omp.masked"
+
+    filtered_thread_id = opt_operand_def(IntegerType | IndexType)
+
+    region = region_def()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1416,6 +1442,8 @@ OMP = Dialect(
         TaskloopOp,
         BarrierOp,
         FlushOp,
+        MasterOp,
+        MaskedOp,
     ],
     [
         ClauseRequiresKindAttr,
