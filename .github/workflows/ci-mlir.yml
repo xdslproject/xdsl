@@ -91,14 +91,10 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.14'
-        uses: Wandalen/wretry.action@v3
+        uses: codecov/codecov-action@v7
         with:
-          action: codecov/codecov-action@v4
-          attempt_delay: 10000
-          attempt_limit: 10
-          with: |
-            fail_ci_if_error: true
-            verbose: true
-            files: coverage.xml
-            codecov_yml_path: codecov.yml
-            token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
+          files: coverage.xml
+          codecov_yml_path: codecov.yml
+          token: ${{ secrets.CODECOV_TOKEN }}
