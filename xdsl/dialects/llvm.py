@@ -2728,21 +2728,22 @@ class CallOp(IRDLOperation):
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
         variadic_args: int = 0,
+        var_callee_type: LLVMFunctionType | None = None,
     ):
+        """
+        If `var_callee_type` is not given and `variadic_args` is non-zero, the
+        callee type is inferred.
+        """
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
         op_result_type = [return_type]
         if return_type is None:
             return_type = LLVMVoidType()
-        input_types = [
-            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
-        ]
-        if variadic_args:
-            var_callee_type = LLVMFunctionType(
-                input_types, return_type, bool(variadic_args)
-            )
-        else:
-            var_callee_type = None
+        if var_callee_type is None and variadic_args:
+            input_types = [
+                SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
+            ]
+            var_callee_type = LLVMFunctionType(input_types, return_type, True)
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={
