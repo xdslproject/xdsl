@@ -176,6 +176,20 @@ class GenericParser(Generic[TokenKindT]):
             self.raise_error(error_message)
         return res
 
+    def try_parse(self, parse: Callable[[], _AnyInvT]) -> _AnyInvT | None:
+        """
+        Run the parsing function `parse`, backtracking on failure.
+        If `parse` raises a `ParseError`, the parser is reset to the position it
+        had before the call, and `None` is returned. Otherwise, the result of
+        `parse` is returned.
+        """
+        pos = self.pos
+        try:
+            return parse()
+        except ParseError:
+            self._resume_from(pos)
+            return None
+
     class Delimiter(Enum):
         """
         Supported delimiters when parsing lists.

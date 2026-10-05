@@ -486,6 +486,45 @@ def test_parse_list(separator: str, delimiter: Parser.Delimiter, arr: list[int])
     assert parse_res == arr
 
 
+def _make_parse_pair(parser: Parser):
+    def parse_pair() -> tuple[int, int]:
+        lhs = parser.parse_integer()
+        parser.parse_punctuation(",")
+        return lhs, parser.parse_integer()
+
+    return parse_pair
+
+
+def test_try_parse_success():
+    parser = Parser(Context(), "1, 2 3")
+    parse_pair = _make_parse_pair(parser)
+    assert parser.try_parse(parse_pair) == (1, 2)
+    assert parser.parse_integer() == 3
+
+
+def test_try_parse_backtracks():
+    parser = Parser(Context(), "1 : 2")
+    parse_pair = _make_parse_pair(parser)
+
+    pos = parser.pos
+    assert parser.try_parse(parse_pair) is None
+    assert parser.pos == pos
+    assert parser.parse_integer() == 1
+    parser.parse_punctuation(":")
+    assert parser.parse_integer() == 2
+
+
+def test_try_parse_propagates_other_exceptions():
+    parser = Parser(Context(), "1")
+
+    def parse_fail() -> int:
+        parser.parse_integer()
+        raise ValueError("not a parse error")
+
+    with pytest.raises(ValueError, match="not a parse error"):
+        parser.try_parse(parse_fail)
+
+
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
