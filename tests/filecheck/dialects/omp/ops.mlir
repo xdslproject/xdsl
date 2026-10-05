@@ -358,6 +358,24 @@ builtin.module {
     "omp.flush"(%a, %m) : (i32, memref<1xi32>) -> ()
     func.return
   }
+  func.func @omp_master_masked(%tid: i32, %idx: index) {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+      "omp.master"() ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.masked"() ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.masked"(%tid) ({
+        "omp.terminator"() : () -> ()
+      }) : (i32) -> ()
+      "omp.masked"(%idx) ({
+        "omp.terminator"() : () -> ()
+      }) : (index) -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -710,6 +728,24 @@ builtin.module {
 // CHECK-NEXT:      "omp.barrier"() : () -> ()
 // CHECK-NEXT:      "omp.flush"() : () -> ()
 // CHECK-NEXT:      "omp.flush"(%a, %m) : (i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_master_masked(%tid: i32, %idx: index) {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.master"() ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.masked"() ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.masked"(%tid) ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i32) -> ()
+// CHECK-NEXT:        "omp.masked"(%idx) ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (index) -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
