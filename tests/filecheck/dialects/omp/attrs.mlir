@@ -99,8 +99,17 @@
 
                 #omp<grainsizetype strict>,
                 // CHECK-SAME: #omp<grainsizetype strict>
-                #omp<numtaskstype strict>
+                #omp<numtaskstype strict>,
                 // CHECK-SAME: #omp<numtaskstype strict>
+
+                #omp<cancellationconstructtype parallel>,
+                // CHECK-SAME: #omp<cancellationconstructtype parallel>
+                #omp<cancellationconstructtype loop>,
+                // CHECK-SAME: #omp<cancellationconstructtype loop>
+                #omp<cancellationconstructtype sections>,
+                // CHECK-SAME: #omp<cancellationconstructtype sections>
+                #omp<cancellationconstructtype taskgroup>
+                // CHECK-SAME: #omp<cancellationconstructtype taskgroup>
 
 
             ]}: () -> !omp.map_bounds_ty
