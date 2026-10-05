@@ -159,9 +159,8 @@ module attributes {transform.with_named_sequence} {
 
 // -----
 
-// All-zero and empty size lists leave a single matmul with no loops. Reuse the
-// first returned handle for the second tiling. The live tensor result makes
-// erasing without cloning fail.
+// All-zero and empty size lists leave the matmul unchanged, with no loops inserted.
+// Reuse the first returned handle for the second tiling.
 module attributes {transform.with_named_sequence} {
   func.func @zero(%A: tensor<4x4xf32>, %B: tensor<4x4xf32>, %C: tensor<4x4xf32>) -> tensor<4x4xf32> {
     %D = linalg.matmul ins(%A, %B : tensor<4x4xf32>, tensor<4x4xf32>) outs(%C : tensor<4x4xf32>) -> tensor<4x4xf32>
