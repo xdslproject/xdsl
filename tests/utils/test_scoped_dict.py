@@ -86,6 +86,6 @@ def test_iter():
     parent = ScopedDict(grand_parent, local_scope={"b": 2, "a": 3})
     child = ScopedDict(parent, local_scope={"a": 4, "c": 5})
 
-    assert (*grand_parent,) == ("a", "b")
-    assert (*parent,) == ("b", "a")
-    assert (*child,) == ("a", "c", "b")
+    assert set(grand_parent) == {"a", "b"}
+    assert set(parent) == {"b", "a"}
+    assert set(child) == {"a", "c", "b"}

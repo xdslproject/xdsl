@@ -81,17 +81,15 @@ class ScopedDict(Mapping[_Key, _Value], Generic[_Key, _Value]):
 
     def __iter__(self) -> Iterator[_Key]:
         """
-        Returns an ``Iterator`` over the keys in scope, first the current scope, then from
-        each successive parent scope.
-        Keys in the parent scope that are shadowed by the local scope are not included.
+        Returns an ``Iterator`` over all the keys in scope.
+        Keys in the parent scope that are shadowed by the local scope are not repeated.
         Mutating either the current scope or parent scope is not allowed during iteration.
         """
         yield from self._local_scope
         cur = self.parent
         seen_keys = set(self._local_scope)
         while cur is not None:
-            parent_keys = set(cur._local_scope.keys()) - seen_keys
-            yield from parent_keys
+            yield from (parent_keys := cur._local_scope.keys() - seen_keys)
             seen_keys.update(parent_keys)
             cur = cur.parent
 
