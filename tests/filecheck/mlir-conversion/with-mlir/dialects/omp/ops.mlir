@@ -391,6 +391,37 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @omp_cancel(%lb: index, %ub: index, %step: index, %b: i1) {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+      "omp.cancel"(%b) <{cancel_directive = #omp<cancellationconstructtype parallel>}> : (i1) -> ()
+      "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+      scf.if %b {
+        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+      }
+      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+        "omp.loop_nest"(%lb, %ub, %step) ({
+        ^bb0(%iv: index):
+          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+          "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+          omp.yield
+        }) : (index, index, index) -> ()
+      }) : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+      "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^bb0(%iv2: index):
+        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -773,6 +804,37 @@ builtin.module {
 // CHECK-NEXT:          "omp.terminator"() : () -> ()
 // CHECK-NEXT:        }) : (index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_cancel(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: i1) {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.cancel"(%{{.*}}) <{cancel_directive = #omp<cancellationconstructtype parallel>}> : (i1) -> ()
+// CHECK-NEXT:        "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+// CHECK-NEXT:        scf.if %{{.*}} {
+// CHECK-NEXT:          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+// CHECK-NEXT:        }
+// CHECK-NEXT:        "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:          "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:          ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:            "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+// CHECK-NEXT:            "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+// CHECK-NEXT:            omp.yield
+// CHECK-NEXT:          }) : (index, index, index) -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:        "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }

@@ -261,6 +261,13 @@ class NumTasksType(StrEnum):
     STRICT = auto()
 
 
+class CancellationConstructType(StrEnum):
+    PARALLEL = auto()
+    LOOP = auto()
+    SECTIONS = auto()
+    TASKGROUP = auto()
+
+
 class LoopWrapper(NoTerminator):
     """
     Check that the omp operation is a loop wrapper as defined upstream.
@@ -389,6 +396,18 @@ class NumTasksTypeAttr(EnumAttribute[NumTasksType], SpacedOpaqueSyntaxAttribute)
     """
 
     name = "omp.numtaskstype"
+
+
+@irdl_attr_definition
+class CancellationConstructTypeAttr(
+    EnumAttribute[CancellationConstructType], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.cancellationconstructtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#cancellationconstructtypeattr).
+    """
+
+    name = "omp.cancellationconstructtype"
 
 
 @irdl_attr_definition
@@ -1414,6 +1433,89 @@ class MaskedOp(IRDLOperation):
     region = region_def()
 
 
+def verify_cancel_construct_parent(
+    op: Operation, construct: CancellationConstructType, directive: str
+) -> Operation | None:
+    """
+    Verifies that `op` is nested in the region the `construct` refers to, ignoring any
+    non-omp operations in between, and returns the operation of that region.
+    """
+    parent = op.parent_op()
+    while parent is not None and parent.dialect_name() != OMP.name:
+        parent = parent.parent_op()
+    if parent is None:
+        raise VerifyException(f"Orphaned {directive} construct")
+    match construct:
+        case CancellationConstructType.PARALLEL:
+            if not isinstance(parent, ParallelOp):
+                raise VerifyException(
+                    f"{directive} parallel must appear inside a parallel region"
+                )
+        case CancellationConstructType.LOOP:
+            parent = parent.parent_op() if isinstance(parent, LoopNestOp) else None
+            if not isinstance(parent, WsLoopOp):
+                raise VerifyException(
+                    f"{directive} loop must appear inside a worksharing-loop region"
+                )
+        case CancellationConstructType.TASKGROUP:
+            if isinstance(parent, LoopNestOp):
+                parent = parent.parent_op()
+            if not isinstance(parent, TaskOp | TaskloopOp):
+                raise VerifyException(
+                    f"{directive} taskgroup must appear inside a task region"
+                )
+        case _:
+            # TODO: verify sections once `omp.sections` is defined
+            pass
+    return parent
+
+
+@irdl_op_definition
+class CancelOp(IRDLOperation):
+    """
+    Implementation of upstream omp.cancel
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompcancel-ompcancelop).
+    """
+
+    name = "omp.cancel"
+
+    if_expr = opt_operand_def(i1)
+
+    cancel_directive = prop_def(CancellationConstructTypeAttr)
+
+    def verify_(self) -> None:
+        construct = verify_cancel_construct_parent(
+            self, self.cancel_directive.data, "cancel"
+        )
+        if not isinstance(construct, WsLoopOp):
+            return
+        if construct.nowait is not None:
+            raise VerifyException(
+                "A worksharing construct that is canceled must not have a nowait clause"
+            )
+        if construct.ordered is not None:
+            raise VerifyException(
+                "A worksharing construct that is canceled must not have an ordered clause"
+            )
+
+
+@irdl_op_definition
+class CancellationPointOp(IRDLOperation):
+    """
+    Implementation of upstream omp.cancellation_point
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompcancellation_point-ompcancellationpointop).
+    """
+
+    name = "omp.cancellation_point"
+
+    cancel_directive = prop_def(CancellationConstructTypeAttr)
+
+    def verify_(self) -> None:
+        verify_cancel_construct_parent(
+            self, self.cancel_directive.data, "cancellation point"
+        )
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1444,6 +1546,8 @@ OMP = Dialect(
         FlushOp,
         MasterOp,
         MaskedOp,
+        CancelOp,
+        CancellationPointOp,
     ],
     [
         ClauseRequiresKindAttr,
@@ -1464,5 +1568,6 @@ OMP = Dialect(
         OrderModifierAttr,
         GrainsizeTypeAttr,
         NumTasksTypeAttr,
+        CancellationConstructTypeAttr,
     ],
 )

@@ -526,3 +526,99 @@ func.func @omp_taskloop_reduction_syms(%lb: index, %ub: index, %step: index, %r:
 }
 
 // CHECK: omp.taskloop expected as many reduction symbol references as reduction variables
+
+// -----
+
+func.func @omp_cancel_orphaned() {
+  "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+  func.return
+}
+
+// CHECK: Orphaned cancel construct
+
+// -----
+
+func.func @omp_cancel_parallel_not_in_parallel() {
+  "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel parallel must appear inside a parallel region
+
+// -----
+
+func.func @omp_cancel_loop_not_in_wsloop() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel loop must appear inside a worksharing-loop region
+
+// -----
+
+func.func @omp_cancel_loop_nowait(%lb: index, %ub: index, %step: index) {
+  "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb0(%iv: index):
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: A worksharing construct that is canceled must not have a nowait clause
+
+// -----
+
+func.func @omp_cancel_loop_ordered(%lb: index, %ub: index, %step: index) {
+  "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb0(%iv: index):
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: A worksharing construct that is canceled must not have an ordered clause
+
+// -----
+
+func.func @omp_cancel_taskgroup_not_in_task() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel taskgroup must appear inside a task region
+
+// -----
+
+func.func @omp_cancellation_point_orphaned() {
+  "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+  func.return
+}
+
+// CHECK: Orphaned cancellation point construct
+
+// -----
+
+func.func @omp_cancellation_point_taskgroup_not_in_task() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancellation point taskgroup must appear inside a task region
