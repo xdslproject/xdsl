@@ -3,8 +3,8 @@ from io import StringIO
 import pytest
 
 from xdsl.backend.csl import print_csl
+from xdsl.dialects import arith, csl, test
 from xdsl.dialects import builtin as bi
-from xdsl.dialects import csl, test
 from xdsl.ir import Attribute, Block, Operation, Region
 
 
@@ -60,3 +60,19 @@ const v1 : Test = v0;
 // FILE: layout
 """
     assert io.getvalue() == expected
+
+
+def test_concat_structs_unknown_fields(
+    layout: csl.CslModuleOp, program: csl.CslModuleOp
+):
+    """
+    `@concat_structs` was removed in SDK 2.10
+    """
+    param = csl.ParamOp("p", csl.ComptimeStructType())
+    one = arith.ConstantOp.from_int_and_width(1, 16)
+    struct = csl.ConstStructOp(("x", one))
+    concat = csl.ConcatStructOp(struct, param)
+    program.body.block.add_ops([param, one, struct, concat])
+    mod = bi.ModuleOp([program, layout])
+    with pytest.raises(ValueError, match=r"Cannot print csl\.concat_structs"):
+        print_csl.print_to_csl(mod, StringIO())

@@ -287,7 +287,54 @@ class CslPrintContext:
         if val in self.variables:
             return f"{self._get_variable_name_for(val)}"
         else:
-            return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
+            return f"{intro} {self._get_variable_name_for(val)}{self._type_annotation(val.type)}"
+
+    def _type_annotation(self, type_attr: Attribute) -> str:
+        """
+        Return the type annotation (` : <type>`) for a declaration of a value of
+        the given type.
+        """
+        if isinstance(type_attr, csl.ComptimeStructType):
+            # SDK 2.10.0 drops support for comptime_struct, this syntax works for both
+            # 1.4.0 and 2.10.0.
+            return ""
+        return f" : {self.mlir_type_to_csl_type(type_attr)}"
+
+    def _struct_literal_fields(self, val: SSAValue) -> list[str] | None:
+        """
+        Get the fields (as `.name = value` strings) of a struct value if it is
+        built from struct literals.
+
+        Returns None if the fields of the struct are not known.
+        """
+        match val.owner:
+            case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values):
+                items = items or DictionaryAttr({})
+                fields = fields or ArrayAttr([])
+                return [
+                    f".{k} = {self.attribute_value_to_str(v)}"
+                    for k, v in items.data.items()
+                ] + [
+                    f".{k.data} = {self._get_variable_name_for(v)}"
+                    for k, v in zip(fields.data, values)
+                ]
+            case csl.ConcatStructOp(this_struct=a, another_struct=b):
+                a_fields = self._struct_literal_fields(a)
+                b_fields = self._struct_literal_fields(b)
+                if a_fields is None or b_fields is None:
+                    return None
+                return a_fields + b_fields
+            case _:
+                return None
+
+    def _print_struct_literal(self, res: SSAValue, fields: list[str]):
+        """
+        Print the declaration of a struct value initialised with a struct literal.
+        """
+        self.print(f"{self._var_use(res)} = .{{")
+        for f in fields:
+            self.print(f"{f},", prefix=self._INDENT)
+        self.print("};")
 
     def _export_sym_constness(self, ty: FunctionType | csl.PtrType) -> bool | None:
         """
@@ -371,7 +418,7 @@ class CslPrintContext:
         - arrays: [64]f32
         - function: fn(i32) f16
         - color
-        - comptime_struct
+        - comptime_struct (removed in SDK 2.10, see `_type_annotation`)
         - imported_module
         - type
         - comptime_string
@@ -628,11 +675,26 @@ class CslPrintContext:
                 if_str = f"if ({cond}) {lhs} else {rhs}"
                 self._print_or_promote_to_inline_expr(res, if_str, brackets=True)
             case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
-                a_var = self._get_variable_name_for(a)
-                b_var = self._get_variable_name_for(b)
-                self._print_or_promote_to_inline_expr(
-                    res, f"@concat_structs({a_var}, {b_var})"
-                )
+                # `@concat_structs` was removed in SDK 2.10, so the concatenation
+                # has to be resolved here, which requires knowing the fields.
+                a_fields = self._struct_literal_fields(a)
+                b_fields = self._struct_literal_fields(b)
+                if a_fields is not None and b_fields is not None:
+                    self._print_struct_literal(res, a_fields + b_fields)
+                elif a_fields == []:
+                    self._print_or_promote_to_inline_expr(
+                        res, self._get_variable_name_for(b)
+                    )
+                elif b_fields == []:
+                    self._print_or_promote_to_inline_expr(
+                        res, self._get_variable_name_for(a)
+                    )
+                else:
+                    raise ValueError(
+                        "Cannot print csl.concat_structs: CSL has no struct "
+                        "concatenation, so the fields of one of the structs must be "
+                        "known or one of the structs must be empty"
+                    )
             case csl.ZerosOp(result=res, is_const=constness):
                 type = self._memref_type_to_string(res)
                 res_name = self._get_variable_name_for(res)
@@ -701,24 +763,13 @@ class CslPrintContext:
                     init = ""
                 else:
                     init = f" = {self._get_variable_name_for(init)}"
-                ty = self.mlir_type_to_csl_type(res.type)
+                ty = self._type_annotation(res.type)
                 self.variables[res] = name.data
-                self.print(f"param {name.data} : {ty}{init};")
-            case csl.ConstStructOp(
-                items=items, ssa_fields=fields, ssa_values=values, res=res
-            ):
-                items = items or DictionaryAttr({})
-                fields = fields or ArrayAttr([])
-                # First print the fields defined by attributes
-                self.print(f"{self._var_use(res)} = .{{")
-                for k, v in items.data.items():
-                    v = self.attribute_value_to_str(v)
-                    self.print(f".{k} = {v},", prefix=self._INDENT)
-                # Then the fields defined by operands, with their corresponding names
-                for k, v in zip(fields.data, values):
-                    v = self._get_variable_name_for(v)
-                    self.print(f".{k.data} = {v},", prefix=self._INDENT)
-                self.print("};")
+                self.print(f"param {name.data}{ty}{init};")
+            case csl.ConstStructOp(res=res):
+                fields = self._struct_literal_fields(res)
+                assert fields is not None
+                self._print_struct_literal(res, fields)
             case csl.SetTileCodeOp(
                 file=file, x_coord=x_coord, y_coord=y_coord, params=params
             ):
