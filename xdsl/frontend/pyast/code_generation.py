@@ -585,6 +585,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.visit(value)
             operands = [self.inserter.get_operand()]
 
+            if not func_return_types:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    f"Expected no return types in function '{callee}'.",
+                )
+
             for i in range(len(operands)):
                 if func_return_types[i] != operands[i].type:
                     raise CodeGenerationException(

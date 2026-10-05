@@ -110,8 +110,20 @@ except FrontendProgramException as e:
 
 # CHECK: Function return type must be annotated.
 @ctx.parse_program
-def test_no_return_types(a: int):
+def test_no_result_annotation(a: int):
     return a
+
+
+try:
+    test_no_result_annotation.module
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+# CHECK: Expected no return types in function 'test_no_return_types'.
+@ctx.parse_program
+def test_no_return_types(a: int) -> None:
+    return a  # pyright: ignore[reportReturnType]
 
 
 try:
