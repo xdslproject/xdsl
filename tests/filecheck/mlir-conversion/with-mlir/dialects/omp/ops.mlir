@@ -367,6 +367,12 @@ builtin.module {
     }) : (i64) -> ()
     func.return
   }
+  func.func @omp_barrier_flush(%a: i32, %m: memref<1xi32>) {
+    "omp.barrier"() : () -> ()
+    "omp.flush"() : () -> ()
+    "omp.flush"(%a, %m) : (i32, memref<1xi32>) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -726,6 +732,12 @@ builtin.module {
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      }) : (i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_barrier_flush(%{{.*}}: i32, %{{.*}}: memref<1xi32>) {
+// CHECK-NEXT:      "omp.barrier"() : () -> ()
+// CHECK-NEXT:      "omp.flush"() : () -> ()
+// CHECK-NEXT:      "omp.flush"(%{{.*}}, %{{.*}}) : (i32, memref<1xi32>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
