@@ -111,6 +111,27 @@ def test_error_on_unknown_target(capsys: pytest.CaptureFixture[str]):
     assert "invalid choice: 'wrong'" in err
 
 
+@pytest.mark.parametrize("flag", ["--version", "-v"])
+def test_version(flag: str, capsys: pytest.CaptureFixture[str]):
+    with pytest.raises(SystemExit) as e:
+        xDSLOptMain(args=[flag])
+    assert e.value.code == 0
+    out, _ = capsys.readouterr()
+    assert re.fullmatch(r"xdsl-opt built from xdsl version \S+\n\n", out)
+
+
+def test_custom_version(capsys: pytest.CaptureFixture[str]):
+    class MyOptMain(xDSLOptMain):
+        def get_version_string(self) -> str:
+            return "my-opt version 1.2.3"
+
+    with pytest.raises(SystemExit) as e:
+        MyOptMain(args=["--version"])
+    assert e.value.code == 0
+    out, _ = capsys.readouterr()
+    assert out == "my-opt version 1.2.3\n\n"
+
+
 def test_print_to_file():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
     filename_out = "tests/xdsl_opt/empty_program.out"

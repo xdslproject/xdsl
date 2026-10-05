@@ -4,7 +4,7 @@ import inspect
 import sys
 import time
 from collections.abc import Callable, Sequence
-from importlib.metadata import version
+from importlib.metadata import version as _version
 from io import StringIO
 from itertools import accumulate
 from typing import IO, Any, cast
@@ -21,6 +21,9 @@ from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
+
+def _default_version_str():
+    return f"xdsl-opt built from xdsl version {_version('xdsl')}"
 
 
 def _empty_post_init(self: Attribute):
@@ -236,6 +239,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
+            version=self.get_version_string(),
         )
 
         arg_parser.add_argument(
@@ -244,6 +248,14 @@ class xDSLOptMain(CommandLineTool):
             action="store_true",
             help="Return success on exit if ShrinkException was raised.",
         )
+
+    def get_version_string(self) -> str:
+        """
+        Returns the message printed by `--version`.
+
+        Override this in downstream tools to report their own name and version.
+        """
+        return _default_version_str()
 
     def register_pass(
         self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
@@ -386,8 +398,13 @@ class xDSLOptMain(CommandLineTool):
 
 
 class VersionAction(argparse.Action):
-    def __init__(self, *args: Any, **kwargs: Any):
+    version: str
+
+    def __init__(self, *args: Any, version: str | None = None, **kwargs: Any):
         super().__init__(nargs=0, *args, **kwargs)
+        if version is None:
+            version = _default_version_str()
+        self.version = version
 
     def __call__(
         self,
@@ -396,5 +413,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        print(f"{self.version}\n")
         parser.exit()
