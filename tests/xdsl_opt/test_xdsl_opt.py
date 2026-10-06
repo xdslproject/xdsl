@@ -117,7 +117,7 @@ def test_version(flag: str, capsys: pytest.CaptureFixture[str]):
         xDSLOptMain(args=[flag])
     assert e.value.code == 0
     out, _ = capsys.readouterr()
-    assert re.fullmatch(r"xdsl-opt built from xdsl version \S+\n\n", out)
+    assert re.fullmatch(r"xdsl-opt built from xdsl version \S+\n", out)
 
 
 def test_custom_version(capsys: pytest.CaptureFixture[str]):
@@ -129,7 +129,7 @@ def test_custom_version(capsys: pytest.CaptureFixture[str]):
         MyOptMain(args=["--version"])
     assert e.value.code == 0
     out, _ = capsys.readouterr()
-    assert out == "my-opt version 1.2.3\n\n"
+    assert out == "my-opt version 1.2.3\n"
 
 
 def test_print_to_file():
