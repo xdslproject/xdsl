@@ -414,5 +414,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(f"{self.version}\n")
+        print(self.version)
         parser.exit()
