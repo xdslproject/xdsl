@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from importlib.metadata import version as _version
 from io import StringIO
 from itertools import accumulate
-from typing import IO, Any, cast
+from typing import IO, Any, ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -21,10 +21,6 @@ from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
-
-
-def _default_version_str():
-    return f"xdsl-opt built from xdsl version {_version('xdsl')}"
 
 
 def _empty_post_init(self: Attribute):
@@ -52,6 +48,12 @@ class xDSLOptMain(CommandLineTool):
 
     pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
+
+    version_format: ClassVar[str] = "xdsl-opt built from xdsl version {xdsl_version}"
+    """
+    Format string for the message printed by `--version`. `{xdsl_version}` is
+    replaced by the installed xDSL version.
+    """
 
     def __init__(
         self,
@@ -240,7 +242,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
-            version=self.get_version_string(),
+            version=self.version_format.format(xdsl_version=_version("xdsl")),
         )
 
         arg_parser.add_argument(
@@ -249,14 +251,6 @@ class xDSLOptMain(CommandLineTool):
             action="store_true",
             help="Return success on exit if ShrinkException was raised.",
         )
-
-    def get_version_string(self) -> str:
-        """
-        Returns the message printed by `--version`.
-
-        Override this in downstream tools to report their own name and version.
-        """
-        return _default_version_str()
 
     def register_pass(
         self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
@@ -404,7 +398,7 @@ class VersionAction(argparse.Action):
     def __init__(self, *args: Any, version: str | None = None, **kwargs: Any):
         super().__init__(nargs=0, *args, **kwargs)
         if version is None:
-            version = _default_version_str()
+            version = xDSLOptMain.version_format.format(xdsl_version=_version("xdsl"))
         self.version = version
 
     def __call__(

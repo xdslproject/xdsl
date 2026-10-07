@@ -122,14 +122,13 @@ def test_version(flag: str, capsys: pytest.CaptureFixture[str]):
 
 def test_custom_version(capsys: pytest.CaptureFixture[str]):
     class MyOptMain(xDSLOptMain):
-        def get_version_string(self) -> str:
-            return "my-opt version 1.2.3"
+        version_format = "my-opt version 1.2.3 (xdsl {xdsl_version})"
 
     with pytest.raises(SystemExit) as e:
         MyOptMain(args=["--version"])
     assert e.value.code == 0
     out, _ = capsys.readouterr()
-    assert out == "my-opt version 1.2.3\n"
+    assert re.fullmatch(r"my-opt version 1\.2\.3 \(xdsl \S+\)\n", out)
 
 
 def test_print_to_file():
