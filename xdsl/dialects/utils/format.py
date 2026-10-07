@@ -40,8 +40,8 @@ class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
 
 def print_for_op_like(
     printer: Printer,
-    lower_bound: IntegerAttr | SSAValue,
-    upper_bound: IntegerAttr | SSAValue,
+    start: IntegerAttr | SSAValue,
+    stop: IntegerAttr | SSAValue,
     step: IntegerAttr | SSAValue,
     iter_args: Sequence[SSAValue],
     body: Region,
@@ -60,7 +60,7 @@ def print_for_op_like(
     The induction variable type printing is ommited when it matches the expected default
     type (`default_indvar_type`).
 
-    The `lower_bound`, `upper_bound`, and `step` may be dynamic SSAValues or static
+    The `start`, `stop`, and `step` may be dynamic SSAValues or static
     `IntegerAttr`s.
     When static, the typed integer literal is printed (value and type), not an SSA
     value reference.
@@ -82,18 +82,18 @@ def print_for_op_like(
         print_indvar_type()
 
     printer.print_string(" = ")
-    if isinstance(lower_bound, IntegerAttr):
-        lower_bound.print_builtin(printer)
+    if isinstance(start, IntegerAttr):
+        start.print_builtin(printer)
     else:
-        printer.print_ssa_value(lower_bound)
+        printer.print_ssa_value(start)
 
     for word in bound_words:
         printer.print_string(f" {word} ")
 
-    if isinstance(upper_bound, IntegerAttr):
-        upper_bound.print_builtin(printer)
+    if isinstance(stop, IntegerAttr):
+        stop.print_builtin(printer)
     else:
-        printer.print_ssa_value(upper_bound)
+        printer.print_ssa_value(stop)
     printer.print_string(" step ")
     if isinstance(step, IntegerAttr):
         step.print_builtin(printer)
@@ -129,7 +129,7 @@ def parse_for_op_like(
     default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
-    allow_static_upper_bound: Literal[False] = ...,
+    allow_static_stop: Literal[False] = ...,
     allow_static_step: Literal[False] = ...,
 ) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]: ...
 
@@ -140,7 +140,7 @@ def parse_for_op_like(
     default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
-    allow_static_upper_bound: Literal[False] = ...,
+    allow_static_stop: Literal[False] = ...,
     allow_static_step: Literal[True],
 ) -> tuple[SSAValue, SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region]: ...
 
@@ -151,7 +151,7 @@ def parse_for_op_like(
     default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
-    allow_static_upper_bound: Literal[True],
+    allow_static_stop: Literal[True],
     allow_static_step: Literal[False] = ...,
 ) -> tuple[SSAValue, IntegerAttr | SSAValue, SSAValue, Sequence[SSAValue], Region]: ...
 
@@ -162,7 +162,7 @@ def parse_for_op_like(
     default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
-    allow_static_upper_bound: Literal[True],
+    allow_static_stop: Literal[True],
     allow_static_step: Literal[True],
 ) -> tuple[
     SSAValue, IntegerAttr | SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region
@@ -174,13 +174,14 @@ def parse_for_op_like(
     default_indvar_type: TypeAttribute | None = None,
     bound_words: Sequence[str] = ["to"],
     *,
-    allow_static_upper_bound: bool = False,
+    allow_static_stop: bool = False,
     allow_static_step: bool = False,
 ) -> tuple[
     SSAValue, IntegerAttr | SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region
 ]:
     """
-    Returns the loop bounds, step, iteration arguments, and body.
+    Returns the initial bound, termination bound, step, iteration arguments, and body.
+    Bounds are returned in textual order.
 
     Users can provide a default induction variable type and specific human-readable
     words for bounds (default: "to").
@@ -189,7 +190,7 @@ def parse_for_op_like(
     hence the induction variable type is potentially expected at the end of the for
     expression.
 
-    When `allow_static_upper_bound=True`, the upper bound may be either a static typed
+    When `allow_static_stop=True`, the termination bound may be either a static typed
     integer literal or a dynamic SSA value.
     When `allow_static_step=True`, the step may be either a static typed integer literal
     or a dynamic SSA value.
@@ -205,23 +206,23 @@ def parse_for_op_like(
         indvar_type = parser.parse_type()
 
     parser.parse_characters("=")
-    lower_bound = parser.parse_operand()
+    start = parser.parse_operand()
 
     for word in bound_words:
         parser.parse_characters(word)
 
-    upper_bound: IntegerAttr | SSAValue
-    if allow_static_upper_bound:
-        if (upper_bound_ssa := parser.parse_optional_operand()) is not None:
-            upper_bound = upper_bound_ssa
+    stop: IntegerAttr | SSAValue
+    if allow_static_stop:
+        if (stop_ssa := parser.parse_optional_operand()) is not None:
+            stop = stop_ssa
         else:
             pos = parser.pos
-            upper_bound_attr = parser.parse_attribute()
-            if not isa(upper_bound_attr, IntegerAttr):
+            stop_attr = parser.parse_attribute()
+            if not isa(stop_attr, IntegerAttr):
                 parser.raise_error("Expected IntegerAttr", pos)
-            upper_bound = upper_bound_attr
+            stop = stop_attr
     else:
-        upper_bound = parser.parse_operand()
+        stop = parser.parse_operand()
     parser.parse_characters("step")
 
     step: IntegerAttr | SSAValue
@@ -275,7 +276,7 @@ def parse_for_op_like(
 
     body = parser.parse_region((indvar, *iter_args))
 
-    return lower_bound, upper_bound, step, iter_arg_operands, body
+    return start, stop, step, iter_arg_operands, body
 
 
 def _print_func_outputs(

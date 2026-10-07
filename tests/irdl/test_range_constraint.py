@@ -10,7 +10,6 @@ from xdsl.irdl import (
     AnyInt,
     AnyRange,
     BaseAttr,
-    ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntTypeVarConstraint,
@@ -19,6 +18,7 @@ from xdsl.irdl import (
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
+    VerificationContext,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -28,7 +28,7 @@ def test_failing_inference():
         ValueError,
         match=re.escape("Cannot infer range from constraint AnyRange()"),
     ):
-        AnyRange().infer(ConstraintContext(), length=None)
+        AnyRange().infer(VerificationContext(), length=None)
 
 
 def test_range_of_variables():
@@ -49,26 +49,26 @@ def test_verify_range_length_constraint():
         VerifyException,
         match='''attribute "hello" expected from variable 'ATTR', but got "world"''',
     ):
-        range_len_constr.verify((hello, world), ConstraintContext())
-    range_len_constr.verify((world, world), ConstraintContext())
+        range_len_constr.verify((hello, world), VerificationContext())
+    range_len_constr.verify((world, world), VerificationContext())
 
     with pytest.raises(
         VerifyException,
         match="incorrect length for range variable",
     ):
         range_len_constr.verify(
-            (world, world, world), ConstraintContext(_int_variables={"LENGTH": 2})
+            (world, world, world), VerificationContext(_int_variables={"LENGTH": 2})
         )
 
     # verify_length
-    range_len_constr.verify_length(2, ConstraintContext())
+    range_len_constr.verify_length(2, VerificationContext())
 
     with pytest.raises(
         VerifyException,
         match="incorrect length for range variable",
     ):
         range_len_constr.verify_length(
-            3, ConstraintContext(_int_variables={"LENGTH": 2})
+            3, VerificationContext(_int_variables={"LENGTH": 2})
         )
 
     # variables
@@ -86,13 +86,13 @@ def test_verify_range_length_constraint():
 
     # infer
     assert range_len_constr.infer(
-        ConstraintContext(_variables={"ATTR": world}), length=2
+        VerificationContext(_variables={"ATTR": world}), length=2
     ) == (
         world,
         world,
     )
     assert range_len_constr.infer(
-        ConstraintContext(_variables={"ATTR": world}, _int_variables={"LENGTH": 3}),
+        VerificationContext(_variables={"ATTR": world}, _int_variables={"LENGTH": 3}),
         length=None,
     ) == (world, world, world)
 
@@ -128,15 +128,15 @@ def test_empty_range():
 
     assert constr.can_infer(set(), length_known=False)
 
-    assert constr.infer(ConstraintContext(), length=None) == ()
+    assert constr.infer(VerificationContext(), length=None) == ()
 
 
 def test_range_var_constraint_verify():
     RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32)).of_length(1)).verify(
-        (i32,), ConstraintContext()
+        (i32,), VerificationContext()
     )
     RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
-        (i32,), ConstraintContext({}, {"R": (i32,)})
+        (i32,), VerificationContext({}, {"R": (i32,)})
     )
 
     with pytest.raises(
@@ -146,7 +146,7 @@ def test_range_var_constraint_verify():
         ),
     ):
         RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
-            (i32, i32), ConstraintContext({}, {"R": (i32,)})
+            (i32, i32), VerificationContext({}, {"R": (i32,)})
         )
 
 
@@ -199,7 +199,7 @@ def test_range_var_constraint_infer(
             context_dict.keys(), length_known=length is not None
         )
         assert (
-            constraint.infer(ConstraintContext({}, context_dict), length=length)
+            constraint.infer(VerificationContext({}, context_dict), length=length)
             == inferred
         )
 

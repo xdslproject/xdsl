@@ -22,7 +22,7 @@ def test_clockdivider_verify():
     )
     with pytest.raises(
         VerifyException,
-        match="Operation does not verify: pow2 has to be an 8-bit signless integer",
+        match="Expected attribute i8 but got i32",
     ):
         clock_div.verify()
 

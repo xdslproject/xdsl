@@ -1,37 +1,62 @@
 """Generate the code reference pages and navigation."""
 
 import os
+import shutil
 from pathlib import Path
 
-import mkdocs_gen_files
-from mkdocs_gen_files.nav import Nav
-
-nav = Nav()
-
-root = Path(__file__).parent.parent
-src = root / "xdsl"
+ROOT = Path(__file__).parent.parent
+SRC_DIR = ROOT / "xdsl"
+REFERENCE_DIR = ROOT / "docs" / "reference"
 
 
-def gen_reference():
-    for path in sorted(src.rglob("*.py")):
-        contents = path.read_text().strip()
+def build_literate_nav(entries: list[tuple[tuple[str, ...], Path]]) -> str:
+    """Build the literate navigation."""
+    lines: list[str] = []
+    previous_parts: tuple[str, ...] = ()
+
+    for parts, doc_path in entries:
+        common_length = 0
+        for previous, current in zip(previous_parts, parts, strict=False):
+            if previous != current:
+                break
+            common_length += 1
+
+        for level in range(common_length, len(parts) - 1):
+            lines.append(f"{'    ' * level}* {parts[level]}\n")
+
+        title = parts[-1]
+        lines.append(f"{'    ' * (len(parts) - 1)}* [{title}]({doc_path.as_posix()})\n")
+        previous_parts = parts
+
+    return "".join(lines)
+
+
+def gen_reference() -> None:
+    """Generate API page stubs and their navigation directly under docs/."""
+    shutil.rmtree(REFERENCE_DIR, ignore_errors=True)
+    REFERENCE_DIR.mkdir(parents=True)
+    nav_entries: list[tuple[tuple[str, ...], Path]] = []
+
+    if os.environ.get("SKIP_GEN_PAGES") == "1":
+        (REFERENCE_DIR / "index.md").touch()
+        return
+
+    for path in sorted(SRC_DIR.rglob("*.py")):
+        contents = path.read_text(encoding="utf-8").strip()
         if not contents or contents.startswith("# TID 251"):
             # If this file is empty, or is an __init__.py with star imports, continue
             continue
 
-        module_path = path.relative_to(src).with_suffix("")
+        module_path = path.relative_to(SRC_DIR).with_suffix("")
         parts = tuple(module_path.parts)
 
         if parts[-1] == "__main__":
             continue
-        elif parts[-1].startswith("_") and parts[-1] != "__init__":
+        if parts[-1].startswith("_") and parts[-1] != "__init__":
             # skip private modules
             continue
-        if not parts:
-            continue
 
-        doc_path = path.relative_to(src).with_suffix(".md")
-        full_doc_path = Path("reference", doc_path)
+        doc_path = path.relative_to(SRC_DIR).with_suffix(".md")
 
         if parts[-1] == "__init__":
             parts = parts[:-1]
@@ -39,21 +64,18 @@ def gen_reference():
                 # skip the root __init__.py
                 continue
             doc_path = doc_path.with_name("index.md")
-            full_doc_path = full_doc_path.with_name("index.md")
 
         ident = ".".join(parts)
+        nav_entries.append((parts, doc_path))
 
-        nav[parts] = doc_path.as_posix()
+        full_doc_path = REFERENCE_DIR / doc_path
+        full_doc_path.parent.mkdir(parents=True, exist_ok=True)
+        full_doc_path.write_text(f"::: xdsl.{ident}", encoding="utf-8")
 
-        with mkdocs_gen_files.open(full_doc_path, "w") as fd:
-            fd.write(f"::: xdsl.{ident}")
+    (REFERENCE_DIR / "index.md").write_text(
+        build_literate_nav(nav_entries), encoding="utf-8"
+    )
 
-        mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))
 
-
-if os.environ.get("SKIP_GEN_PAGES") != "1":
+if __name__ == "__main__":
     gen_reference()
-
-# Generate an index page to empty if `gen_reference` did not run
-with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
-    nav_file.writelines(nav.build_literate_nav())

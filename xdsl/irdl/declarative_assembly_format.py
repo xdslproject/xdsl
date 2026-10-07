@@ -32,7 +32,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     BaseAccessor,
-    ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     Successor,
     VarIRConstruct,
     VarOperand,
+    VerificationContext,
     get_construct_defs,
     is_const_classvar,
     verify_variadic_same_size,
@@ -68,7 +68,7 @@ class ParsingState:
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     op_type: type[IRDLOperation]
-    context: ConstraintContext
+    context: VerificationContext
 
     def __init__(self, op_type: type[IRDLOperation]):
         op_def = op_type.get_irdl_definition()
@@ -80,7 +80,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.context = ConstraintContext()
+        self.context = VerificationContext()
 
 
 @dataclass
@@ -916,15 +916,31 @@ class FunctionalTypeDirective(FormatDirective):
     operand_typeable_directive: TypeableDirective
     result_typeable_directive: TypeableDirective
 
-    def parse(self, parser: Parser, state: ParsingState):
-        with parser.in_parens():
-            self.operand_typeable_directive.parse_types(parser, state)
+    def _parse_suffix(self, parser: Parser, state: ParsingState) -> None:
+        self.operand_typeable_directive.parse_types(parser, state)
+        parser.parse_punctuation(")")
         parser.parse_punctuation("->")
         if parser.parse_optional_punctuation("("):
             self.result_typeable_directive.parse_types(parser, state)
             parser.parse_punctuation(")")
         else:
             self.result_typeable_directive.parse_single_type(parser, state)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        """
+        Parse a functional type if an opening parenthesis is present, otherwise
+        leave the parser and state unchanged. Once it is present, require the
+        complete signature.
+
+        This supports direct Python API use. The directive is not yet optional-like
+        and cannot be the first element of a declarative optional group.
+        """
+        if parser.parse_optional_punctuation("("):
+            self._parse_suffix(parser, state)
+
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_punctuation("(")
+        self._parse_suffix(parser, state)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)

@@ -38,6 +38,7 @@ class ScopedDict(Generic[_Key, _Value]):
 
     @property
     def local_scope(self) -> Mapping[_Key, _Value]:
+        """A view of only the current scope."""
         return self._local_scope
 
     @overload
@@ -47,6 +48,11 @@ class ScopedDict(Generic[_Key, _Value]):
     def get(self, key: _Key, default: _Value) -> _Value: ...
 
     def get(self, key: _Key, default: _Value | None = None) -> _Value | None:
+        """
+        Fetch the value for a key from the environment.
+        Attempts to first fetch from the current scope, then from parent scopes.
+        Returns the default if not found.
+        """
         local = self._local_scope.get(key)
         if local is not None:
             return local
@@ -56,8 +62,9 @@ class ScopedDict(Generic[_Key, _Value]):
 
     def __getitem__(self, key: _Key) -> _Value:
         """
-        Fetch key from environment. Attempts to first fetch from current scope,
-        then from parent scopes. Raises KeyError error if not found.
+        Fetch the value for a key from the environment.
+        Attempts to first fetch from the current scope, then from parent scopes.
+        Raises KeyError error if not found.
         """
         cur = self
         if key in cur._local_scope:
@@ -70,12 +77,17 @@ class ScopedDict(Generic[_Key, _Value]):
 
     def __setitem__(self, key: _Key, value: _Value):
         """
-        Assign key to current scope. Raises InterpretationError if key already
-        assigned to.
+        Assign a key in the current scope to a value.
+        Always assigns into the current scope, shadowing any entries for the same key in
+        any parent scope.
         """
         self._local_scope[key] = value
 
     def __contains__(self, key: _Key) -> bool:
+        """
+        Returns whether ``key`` has an entry in either the current scope, or any parent
+        scope.
+        """
         return key in self._local_scope or (
             self.parent is not None and key in self.parent
         )

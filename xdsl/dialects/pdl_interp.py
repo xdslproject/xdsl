@@ -53,11 +53,12 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_op_definition,
     operand_def,
@@ -679,13 +680,13 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
 
-    def infer(self, context: ConstraintContext) -> ValueType | RangeType[ValueType]:
+    def infer(self, context: InferenceContext) -> ValueType | RangeType[ValueType]:
         result_type = self.result_constr.infer(context)
         if isinstance(result_type, RangeType):
             return RangeType(ValueType())
         return ValueType()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isa(attr, RangeType[ValueType]):
             result_type = RangeType(TypeType())
         elif isa(attr, ValueType):

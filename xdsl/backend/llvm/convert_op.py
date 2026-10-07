@@ -228,6 +228,8 @@ def _convert_fneg(
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
+    if op.op_bundle_operands or op.op_bundle_sizes:
+        raise NotImplementedError("Operand bundles not supported")
     args = [val_map[arg] for arg in op.args]
     if op.callee is None:
         raise NotImplementedError("Indirect calls not yet implemented")
@@ -457,7 +459,7 @@ def _convert_call_intrinsic(
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
 ):
-    if op.op_bundle_operands:
+    if op.op_bundle_operands or op.op_bundle_sizes:
         raise NotImplementedError("Operand bundles not supported")
     if any(op.fastmathFlags.data):
         raise NotImplementedError("Fast-math flags not supported")

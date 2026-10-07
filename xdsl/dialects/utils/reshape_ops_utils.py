@@ -23,8 +23,8 @@ from xdsl.ir import Attribute
 from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
-    ConstraintContext,
     IntConstraint,
+    VerificationContext,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -51,7 +51,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
     An empty inner array is considered contiguous.
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(
             attr, constraint_context=constraint_context
         )

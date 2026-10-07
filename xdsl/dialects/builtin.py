@@ -53,11 +53,11 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
     EqIntConstraint,
     GenericData,
+    InferenceContext,
     IntConstraint,
     IntTypeVarConstraint,
     IRDLAttrConstraint,
@@ -68,6 +68,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    VerificationContext,
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -252,7 +253,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isa(attr, ArrayAttr):
             raise VerifyException(
@@ -265,7 +266,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
             var_constraint_names, length_known=False
         )
 
-    def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
+    def infer(self, context: InferenceContext) -> ArrayAttr[AttributeCovT]:
         return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
 
     def get_bases(self) -> set[type[Attribute]] | None:
@@ -300,7 +301,7 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isinstance(attr, StringAttr):
             raise VerifyException(f"{attr} should be a string")
@@ -365,7 +366,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         if attr.data:
@@ -439,7 +440,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
     int_constraint: IntConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
@@ -450,7 +451,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
-    def infer(self, context: ConstraintContext) -> IntAttr:
+    def infer(self, context: InferenceContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
     def get_bases(self) -> set[type[Attribute]] | None:
@@ -867,7 +868,7 @@ class LocationConstraint(AttrConstraint):
     Check if an attribute is one of the supported location types.
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
             return
         raise VerifyException(f"{attr} is not a location attribute")
@@ -887,7 +888,7 @@ class LocationsArrayConstraint(AttrConstraint):
     def __init__(self):
         self.location_constraint = LocationConstraint()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         array = cast(ArrayAttr[Attribute], attr)
         element: Attribute
         for element in array:
@@ -2283,7 +2284,7 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -2306,7 +2307,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isa(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.element_type != self.expected_type:
@@ -2332,7 +2333,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         constraint = VectorBaseTypeConstraint(
             self.expected_type
         ) & VectorRankConstraint(self.expected_rank)

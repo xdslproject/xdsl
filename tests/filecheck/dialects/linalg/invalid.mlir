@@ -176,3 +176,17 @@ linalg.generic {
 }
 
 // CHECK: Operation does not verify: unexpected symbols in indexing_map #0
+
+// -----
+
+%lhs, %rhs, %out = "test.op"() : () -> (memref<4xf32>, memref<5xf32>, memref<4xf32>)
+linalg.add ins(%lhs, %rhs : memref<4xf32>, memref<5xf32>) outs(%out : memref<4xf32>)
+
+// CHECK: Operation does not verify: inferred input/output operand #1 has shape's dimension #0 to be 4, but found 5
+
+// -----
+
+%lhs, %rhs, %out = "test.op"() : () -> (memref<4xf32>, memref<4x4xf32>, memref<4xf32>)
+linalg.add ins(%lhs, %rhs : memref<4xf32>, memref<4x4xf32>) outs(%out : memref<4xf32>)
+
+// CHECK: Operation does not verify: expected operand #1 of rank 2 to match the result count of indexing_map #1, 1

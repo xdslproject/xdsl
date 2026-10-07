@@ -124,7 +124,7 @@ tests-quiet: uv-installed ## run functional tests with minimal output
 	$(MAKE) tests-functional LIT_OPTIONS="$(LIT_OPTIONS_QUIET)" PYTEST_OPTIONS="$(PYTEST_OPTIONS_QUIET)"
 
 .PHONY: tests
-tests: tests-functional pyright ## run all tests
+tests: tests-functional typecheck ## run all tests
 	@echo All tests done.
 
 
@@ -136,10 +136,10 @@ precommit-install: uv-installed ## set up all precommit hooks
 precommit: uv-installed ## run all precommit hooks and apply them
 	uv run prek run --all-files
 
-.PHONY: pyright
-pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright
+.PHONY: typecheck
+typecheck: uv-installed ## generate typing stubs and type check staged Python files, or the project when none are staged
 	uv run xdsl-stubgen
-	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
+	uv run basedpyright $(shell git diff --staged --name-only  -- '*.py')
 
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files
@@ -190,21 +190,26 @@ SKIP_BUILD_WHEEL ?= 0
 
 .PHONY: docs-wheels
 docs-wheels: uv-installed
-	if [ "$(SKIP_BUILD_WHEEL)" = "1" ]; then echo "Skipping docs wheel builds (SKIP_BUILD_WHEEL=1)"; else SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --package xdsl --no-build-logs --no-verify-hashes -o docs; SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --directory docs/Toy --no-build-logs --no-verify-hashes -o docs; fi
+	if [ "$(SKIP_BUILD_WHEEL)" = "1" ]; then echo "Skipping docs wheel builds (SKIP_BUILD_WHEEL=1)"; else SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --package xdsl --no-build-logs --no-verify-hashes -o $(CURDIR)/docs; SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --directory docs/Toy --no-build-logs --no-verify-hashes -o $(CURDIR)/docs; fi
 
 .PHONY: docs-notebooks
 docs-notebooks: uv-installed
 	uv run python scripts/gen_notebooks.py
 
+.PHONY: docs-reference
+docs-reference: uv-installed
+	SKIP_GEN_PAGES=$(SKIP_GEN_PAGES) uv run python scripts/gen_ref_pages.py
+
 
 .PHONY: docs-serve
-docs-serve: docs-wheels docs-notebooks
-	uv run mkdocs serve
+docs-serve: docs-wheels docs-notebooks docs-reference
+	uv run zensical serve
 
 .PHONY: docs-serve-fast
-docs-serve-fast: docs-wheels docs-notebooks
-	SKIP_GEN_PAGES=1 uv run mkdocs serve
+docs-serve-fast: SKIP_GEN_PAGES=1
+docs-serve-fast: docs-wheels docs-notebooks docs-reference
+	uv run zensical serve
 
 .PHONY: docs-build
-docs-build: docs-wheels docs-notebooks
-	uv run mkdocs build
+docs-build: docs-wheels docs-notebooks docs-reference
+	uv run zensical build --strict

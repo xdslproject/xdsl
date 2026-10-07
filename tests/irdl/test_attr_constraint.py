@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntAttrConstraint,
     IntegerType,
     MemRefType,
+    NoneType,
     Signedness,
     SignednessAttr,
     StringAttr,
@@ -35,7 +36,6 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSetConstraint,
     BaseAttr,
-    ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntSetConstraint,
@@ -45,6 +45,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     SizedConstraint,
     VarConstraint,
+    VerificationContext,
     base,
     eq,
     irdl_attr_definition,
@@ -57,7 +58,7 @@ def test_failing_inference():
     with pytest.raises(
         ValueError, match=re.escape("Cannot infer attribute from constraint AnyAttr()")
     ):
-        AnyAttr().infer(ConstraintContext())
+        AnyAttr().infer(VerificationContext())
 
     with pytest.raises(
         ValueError,
@@ -65,7 +66,7 @@ def test_failing_inference():
             r"Cannot infer attribute from constraint AnyOf(attr_constrs=(BaseAttr(IntegerType), BaseAttr(IndexType)))"
         ),
     ):
-        (base(IntegerType) | base(IndexType)).infer(ConstraintContext())
+        (base(IntegerType) | base(IndexType)).infer(VerificationContext())
 
 
 class Base(ParametrizedAttribute, ABC):
@@ -152,7 +153,7 @@ def test_param_attr_constraint_inference():
     )
 
     assert constr.can_infer(set())
-    assert constr.infer(ConstraintContext()) == WrapAttr(StringAttr("Hello"))
+    assert constr.infer(VerificationContext()) == WrapAttr(StringAttr("Hello"))
 
     var_constr = ParamAttrConstraint(
         WrapAttr,
@@ -167,9 +168,9 @@ def test_param_attr_constraint_inference():
     )
 
     assert var_constr.can_infer({"T"})
-    assert var_constr.infer(ConstraintContext({"T": StringAttr("Hello")})) == WrapAttr(
-        StringAttr("Hello")
-    )
+    assert var_constr.infer(
+        VerificationContext({"T": StringAttr("Hello")})
+    ) == WrapAttr(StringAttr("Hello"))
 
     base_constr = ParamAttrConstraint(
         BaseWrapAttr,
@@ -202,7 +203,7 @@ def test_base_attr_constraint_inference():
     constr = BaseAttr(NoParamAttr)
 
     assert constr.can_infer(set())
-    assert constr.infer(ConstraintContext()) == NoParamAttr()
+    assert constr.infer(VerificationContext()) == NoParamAttr()
 
     base_constr = BaseAttr(BaseNoParamAttr)
     assert not base_constr.can_infer(set())
@@ -222,11 +223,22 @@ def test_base_attr_constraint_inference():
             ParamAttrConstraint(AttrB, (AnyAttr(),)),
             "ParamAttrConstraint(AttrB, (AnyAttr(),))",
         ),
+        (AttrSetConstraint(frozenset[Attribute]()), "AttrSetConstraint(frozenset([]))"),
+        (
+            AttrSetConstraint(frozenset((AttrA(),))),
+            "AttrSetConstraint(frozenset([AttrA()]))",
+        ),
+        (
+            AttrSetConstraint.get(NoneType(), IntegerType(1, Signedness.UNSIGNED)),
+            "AttrSetConstraint(frozenset([IntegerType(1, Signedness.UNSIGNED), NoneType()]))",
+        ),
     ],
 )
 def test_constraint_repr(constr: AttrConstraint, expected: str):
     assert repr(constr) == expected
-    assert eval(repr(constr)) == constr
+    reconstructed = eval(repr(constr))
+    assert reconstructed == constr
+    assert hash(reconstructed) == hash(constr)
 
 
 @pytest.mark.parametrize(
@@ -240,12 +252,12 @@ def test_constraint_repr(constr: AttrConstraint, expected: str):
 def test_sized_constraint(sized_attribute: Attribute):
     constr_passes = SizedConstraint(EqIntConstraint(2))
 
-    constr_passes.verify(sized_attribute, ConstraintContext())
+    constr_passes.verify(sized_attribute, VerificationContext())
 
     constr_fails = SizedConstraint(AtLeast(3))
 
     with pytest.raises(VerifyException, match="expected integer >= 3, got 2"):
-        constr_fails.verify(sized_attribute, ConstraintContext())
+        constr_fails.verify(sized_attribute, VerificationContext())
 
 
 def test_sized_constraint_ops():
@@ -268,13 +280,13 @@ def test_not_sized_constraint():
     with pytest.raises(
         VerifyException, match=re.escape("Expected #test.attr_a to be sized")
     ):
-        constr.verify(AttrA(), ConstraintContext())
+        constr.verify(AttrA(), VerificationContext())
 
 
 def test_attr_set_constraint():
     constr = AttrSetConstraint.get(AttrA(), AttrD(AttrA()), AttrD(AttrC()))
 
-    context = ConstraintContext()
+    context = VerificationContext()
 
     constr.verify(AttrA(), context)
     constr.verify(AttrD(AttrA()), context)
@@ -614,7 +626,7 @@ def test_constraint_inference(
         assert not constr.can_infer(var_dict.keys())
     else:
         assert constr.can_infer(var_dict.keys())
-        assert constr.infer(ConstraintContext(var_dict)) == inferred
+        assert constr.infer(VerificationContext(var_dict)) == inferred
 
 
 @pytest.mark.parametrize(

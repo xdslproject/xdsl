@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I32,
     ArrayAttr,
     DenseArrayBase,
@@ -556,6 +557,16 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
     traits = traits_def(IsTerminator())
 
+    def verify_(self) -> None:
+        parent = self.parent_op()
+        if (
+            isinstance(parent, NamedSequenceOp)
+            and self.arguments.types != parent.function_type.outputs.data
+        ):
+            raise VerifyException(
+                "Expected yielded values to have the same types as the named sequence output types"
+            )
+
 
 @irdl_op_definition
 class SequenceOp(IRDLOperation):
@@ -664,6 +675,27 @@ class TileOp(IRDLOperation):
                 ],
             ],
         )
+
+    def verify_(self) -> None:
+        sizes = self.static_sizes.get_values() if self.static_sizes is not None else ()
+        num_loops = sum(size != 0 for size in sizes)
+        if len(self.loops) != num_loops:
+            raise VerifyException(
+                f"expected {num_loops} loop results for nonzero tile sizes, "
+                f"got {len(self.loops)}"
+            )
+        num_dynamic = sizes.count(DYNAMIC_INDEX)
+        if len(self.dynamic_sizes) != num_dynamic:
+            raise VerifyException(
+                f"expected {num_dynamic} dynamic size operands, "
+                f"got {len(self.dynamic_sizes)}"
+            )
+        if self.scalable_sizes is not None:
+            num_scalable = len(self.scalable_sizes)
+            if num_scalable != len(sizes):
+                raise VerifyException(
+                    f"expected {len(sizes)} scalable size flags, got {num_scalable}"
+                )
 
 
 @irdl_op_definition

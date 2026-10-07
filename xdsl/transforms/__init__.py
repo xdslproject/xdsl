@@ -425,11 +425,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_riscv_func.LowerRISCVFunc
 
-    def get_lower_riscv_scf_to_labels():
-        from xdsl.backend.riscv import riscv_scf_to_asm
-
-        return riscv_scf_to_asm.LowerRiscvScfForToLabelsPass
-
     def get_lower_snitch():
         from xdsl.transforms import lower_snitch
 
@@ -767,7 +762,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
-        "lower-riscv-scf-to-labels": get_lower_riscv_scf_to_labels,
         "lower-snitch": get_lower_snitch,
         "memref-stream-fold-fill": get_memref_stream_fold_fill,
         "memref-stream-generalize-fill": get_memref_stream_generalize_fill,

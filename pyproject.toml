@@ -21,19 +21,19 @@ dynamic = [ "version" ]
 dependencies = [
   "immutabledict<4.3.2",
   "ordered-set==4.1",
-  "typing-extensions>=4.7,<5",
+  "typing-extensions>=4.13,<5",
 ]
 optional-dependencies.dev = [
+  "basedpyright==1.40.1",
   "coverage<8",
   "filecheck==1.0.6",
   "lit<19",
   "marimo>=0.23,<0.24",
   "prek~=0.4.0",
-  "pyright==1.1.411",
   "pytest<9.2",
   "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.16.8",
+  "ruff==0.16.9",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
@@ -56,13 +56,8 @@ entry-points."xdsl.universe".xdsl = "xdsl.universe:XDSL_UNIVERSE"
 dev = [ "my-plugin", "toy", "xdsl[dev,gui,heir,llvm]" ]
 docs = [
   "micropip>=0.7",
-  "mkdocs>=1.6.1",
-  "mkdocs-awesome-nav>=3.1.2",
-  "mkdocs-gen-files>=0.5",
-  "mkdocs-marimo>=0.2.1",
-  "mkdocs-material>=9.5.49",
   "mkdocstrings[python]>=0.27",
-  "pymdown-extensions>=10.7",
+  "zensical>=0.0.53",
 ]
 bench = [
   "asv>=0.6.4",
@@ -137,23 +132,6 @@ lint.mccabe.max-complexity = 10
 # these should be ignored separately.
 lint.pycodestyle.max-line-length = 130
 
-[tool.pyright]
-typeCheckingMode = "strict"
-include = [ "benchmarks", "docs", "tests", "xdsl" ]
-exclude = [ "docs/notebooks" ]
-extraPaths = [ "tests" ]
-# We need this for TypeForm, should remove it once that's in
-enableExperimentalFeatures = true
-# Use specific rule ignore instead if necessary
-enableTypeIgnoreComments = false
-reportAssertAlwaysTrue = true
-reportImportCycles = false
-# Allow importing from irdl files
-reportMissingModuleSource = false
-reportUnnecessaryCast = true
-reportUnnecessaryIsInstance = true
-reportUnnecessaryTypeIgnoreComment = true
-
 [tool.pytest]
 ini_options.testpaths = [ "docs/notebooks", "tests" ]
 # HTML exports contain executable copies of the source notebooks.
@@ -190,3 +168,21 @@ report.format = "markdown"
 # we should investigate whether this is still necessary once the online codecov reporting is fixed
 # https://github.com/nedbat/coveragepy/blob/1aecfa7ae2a81aa9c278cbb43718ae7e4bdcf5b5/coverage/report_core.py#L108
 report.ignore_errors = true
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+include = [ "benchmarks", "docs", "tests", "xdsl" ]
+# Ignore marimo.
+exclude = [ "docs/notebooks" ]
+extraPaths = [ "tests" ]
+# We need this for TypeForm, should remove it once that's in
+enableExperimentalFeatures = true
+# Use specific rule ignore instead if necessary
+enableTypeIgnoreComments = false
+reportAssertAlwaysTrue = true
+reportImportCycles = false
+# Allow importing from irdl files
+reportMissingModuleSource = false
+reportUnnecessaryCast = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryTypeIgnoreComment = true

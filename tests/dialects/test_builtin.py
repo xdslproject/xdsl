@@ -72,13 +72,13 @@ from xdsl.irdl import (
     AnyAttr,
     AtMost,
     BaseAttr,
-    ConstraintContext,
     NotEqualIntConstraint,
     ParamAttrConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
     TypeVarConstraint,
+    VerificationContext,
     eq,
     irdl_attr_definition,
 )
@@ -937,25 +937,25 @@ def test_DenseIntOrFPElementsAttr_values():
 def test_tensor_constr():
     # No constraint
     constr = TensorType.constr()
-    constr.verify(TensorType(i32, [1]), ConstraintContext())
-    constr.verify(TensorType(i32, [50, 1000, 2]), ConstraintContext())
-    constr.verify(TensorType(f64, [50]), ConstraintContext())
+    constr.verify(TensorType(i32, [1]), VerificationContext())
+    constr.verify(TensorType(i32, [50, 1000, 2]), VerificationContext())
+    constr.verify(TensorType(f64, [50]), VerificationContext())
 
     # int32 constraint
     constr = TensorType.constr(i32)
-    constr.verify(TensorType(i32, [1]), ConstraintContext())
-    constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+    constr.verify(TensorType(i32, [1]), VerificationContext())
+    constr.verify(TensorType(i32, [1, 2]), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(TensorType(i64, [1]), ConstraintContext())
+        constr.verify(TensorType(i64, [1]), VerificationContext())
 
     # int32 constraint with shape (1,)
     shape = ArrayAttr([IntAttr(1)])
     constr = TensorType.constr(i32, shape)
-    constr.verify(TensorType(i32, shape), ConstraintContext())
+    constr.verify(TensorType(i32, shape), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+        constr.verify(TensorType(i32, [1, 2]), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(TensorType(i64, [1]), ConstraintContext())
+        constr.verify(TensorType(i64, [1]), VerificationContext())
 
     # int32 constraint with rank <= 3
     shape = ArrayOfConstraint(
@@ -964,13 +964,13 @@ def test_tensor_constr():
         )
     )
     constr = TensorType.constr(i32, shape)
-    constr.verify(TensorType(i32, [50]), ConstraintContext())
-    constr.verify(TensorType(i32, [50, 1000]), ConstraintContext())
-    constr.verify(TensorType(i32, [50, 1000, 2]), ConstraintContext())
+    constr.verify(TensorType(i32, [50]), VerificationContext())
+    constr.verify(TensorType(i32, [50, 1000]), VerificationContext())
+    constr.verify(TensorType(i32, [50, 1000, 2]), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(TensorType(i32, [50, 1000, 2, 4]), ConstraintContext())
+        constr.verify(TensorType(i32, [50, 1000, 2, 4]), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(TensorType(i64, [50, 1000]), ConstraintContext())
+        constr.verify(TensorType(i64, [50, 1000]), VerificationContext())
 
 
 @pytest.mark.parametrize(
@@ -1059,7 +1059,7 @@ def test_vector_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(2)
 
-    constraint.verify(vector_type, ConstraintContext())
+    constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_rank_constraint_rank_mismatch():
@@ -1069,7 +1069,7 @@ def test_vector_rank_constraint_rank_mismatch():
     with pytest.raises(
         VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
     ):
-        constraint.verify(vector_type, ConstraintContext())
+        constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_rank_constraint_attr_mismatch():
@@ -1080,14 +1080,14 @@ def test_vector_rank_constraint_attr_mismatch():
         VerifyException,
         match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
-        constraint.verify(memref_type, ConstraintContext())
+        constraint.verify(memref_type, VerificationContext())
 
 
 def test_vector_base_type_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
-    constraint.verify(vector_type, ConstraintContext())
+    constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_base_type_constraint_type_mismatch():
@@ -1097,7 +1097,7 @@ def test_vector_base_type_constraint_type_mismatch():
     with pytest.raises(
         VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
-        constraint.verify(vector_type, ConstraintContext())
+        constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_base_type_constraint_attr_mismatch():
@@ -1108,14 +1108,14 @@ def test_vector_base_type_constraint_attr_mismatch():
         VerifyException,
         match=re.escape("memref<1x2xi32> should be of type VectorType."),
     ):
-        constraint.verify(memref_type, ConstraintContext())
+        constraint.verify(memref_type, VerificationContext())
 
 
 def test_vector_base_type_and_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
-    constraint.verify(vector_type, ConstraintContext())
+    constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_base_type_and_rank_constraint_base_type_mismatch():
@@ -1125,7 +1125,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     with pytest.raises(
         VerifyException, match=re.escape("Expected vector type to be i64, got i32.")
     ):
-        constraint.verify(vector_type, ConstraintContext())
+        constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_base_type_and_rank_constraint_rank_mismatch():
@@ -1135,7 +1135,7 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
     with pytest.raises(
         VerifyException, match=re.escape("Expected vector rank to be 3, got 2.")
     ):
-        constraint.verify(vector_type, ConstraintContext())
+        constraint.verify(vector_type, VerificationContext())
 
 
 def test_vector_base_type_and_rank_constraint_attr_mismatch():
@@ -1148,7 +1148,7 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
 memref<1x2xi32> should be of type VectorType.
 memref<1x2xi32> should be of type VectorType."""),
     ):
-        constraint.verify(memref_type, ConstraintContext())
+        constraint.verify(memref_type, VerificationContext())
 
 
 def test_unrealized_conversion_cast():
@@ -1276,10 +1276,10 @@ def test_integer_type_repr():
 def test_vector_constr():
     constr = VectorType.constr(i32)
     assert constr == ParamAttrConstraint.get(VectorType, i32, AnyAttr(), AnyAttr())
-    constr.verify(VectorType(i32, [1]), ConstraintContext())
-    constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
+    constr.verify(VectorType(i32, [1]), VerificationContext())
+    constr.verify(VectorType(i32, [1, 2]), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(VectorType(i64, [1]), ConstraintContext())
+        constr.verify(VectorType(i64, [1]), VerificationContext())
 
     shape = ArrayAttr([IntAttr(1)])
     scalable_dims = ArrayAttr([IntegerAttr(0, IntegerType(1))])
@@ -1289,11 +1289,11 @@ def test_vector_constr():
         scalable_dims=scalable_dims,
     )
     assert constr == ParamAttrConstraint.get(VectorType, i32, shape, scalable_dims)
-    constr.verify(VectorType(i32, shape, scalable_dims), ConstraintContext())
+    constr.verify(VectorType(i32, shape, scalable_dims), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
+        constr.verify(VectorType(i32, [1, 2], scalable_dims), VerificationContext())
     with pytest.raises(VerifyException):
-        constr.verify(VectorType(i64, [1]), ConstraintContext())
+        constr.verify(VectorType(i64, [1]), VerificationContext())
 
 
 def test_array_constr():
@@ -1306,7 +1306,7 @@ def test_array_constr():
     constr = ArrayAttr.constr(T)
     assert constr.can_infer({"T"})
 
-    ctx = ConstraintContext()
+    ctx = VerificationContext()
     ctx.set_range_variable("T", (i32, i32))
     assert constr.infer(ctx) == ArrayAttr([i32, i32])
 
@@ -1412,11 +1412,11 @@ def test_not_equal_int_constraint():
     constraint = NotEqualIntConstraint(5)
 
     # Test with integer attribute not equal to 5
-    constraint.verify(3, ConstraintContext())
+    constraint.verify(3, VerificationContext())
 
     # Test with integer attribute equal to 5
     with pytest.raises(VerifyException, match="expected integer != 5"):
-        constraint.verify(5, ConstraintContext())
+        constraint.verify(5, VerificationContext())
 
 
 ################################################################################
@@ -1424,10 +1424,10 @@ def test_not_equal_int_constraint():
 ################################################################################
 def test_static_shape_array_constraint():
     static_shape = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(3)])
-    StaticShapeArrayConstr.verify(static_shape, ConstraintContext())
+    StaticShapeArrayConstr.verify(static_shape, VerificationContext())
 
     dynamic_shape = ArrayAttr([IntAttr(1), IntAttr(DYNAMIC_INDEX), IntAttr(3)])
     with pytest.raises(
         VerifyException, match="expected static shape, but got dynamic dimension"
     ):
-        StaticShapeArrayConstr.verify(dynamic_shape, ConstraintContext())
+        StaticShapeArrayConstr.verify(dynamic_shape, VerificationContext())
