@@ -2743,7 +2743,7 @@ class CallOp(IRDLOperation):
             input_types = [
                 SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
             ]
-            var_callee_type = LLVMFunctionType(input_types, return_type, variadic=True)
+            var_callee_type = LLVMFunctionType(input_types, return_type, is_variadic=True)
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={
