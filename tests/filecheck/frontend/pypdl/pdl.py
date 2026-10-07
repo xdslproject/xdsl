@@ -36,7 +36,7 @@ ctx.register_function(Rewriter.erase_op, pdl.EraseOp)
 
 
 @ctx.parse_program
-def constant_replace(matched_operation: arith.ConstantOp):
+def constant_replace(matched_operation: arith.ConstantOp) -> None:
     Rewriter.erase_op(matched_operation)
 
 

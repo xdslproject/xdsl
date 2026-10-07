@@ -16,7 +16,7 @@ ctx.register_type(float, builtin.f64)
 
 # CHECK: @boolean(%{{.*}}: i1)
 @ctx.parse_program
-def boolean(x: bool):
+def boolean(x: bool) -> None:
     return
 
 
@@ -25,7 +25,7 @@ print(boolean.module)
 
 # CHECK: @signless(%{{.*}}: i32, %{{.*}}: i64)
 @ctx.parse_program
-def signless(x: c_int32, y: c_int64):
+def signless(x: c_int32, y: c_int64) -> None:
     return
 
 
@@ -34,7 +34,7 @@ print(signless.module)
 
 # CHECK: @indexed(%{{.*}}: index)
 @ctx.parse_program
-def indexed(x: c_size_t):
+def indexed(x: c_size_t) -> None:
     return
 
 
@@ -43,7 +43,7 @@ print(indexed.module)
 
 # CHECK: @fp(%{{.*}}: f32, %{{.*}}: f64)
 @ctx.parse_program
-def fp(x: c_float, y: float):
+def fp(x: c_float, y: float) -> None:
     return
 
 
