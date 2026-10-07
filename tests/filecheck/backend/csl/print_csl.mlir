@@ -85,6 +85,34 @@
     %var = arith.constant 0 : i32
     %void = arith.constant 0 : i32
     %while = arith.constant 0 : i32
+    %anytype = arith.constant 0 : i32
+    %asm = arith.constant 0 : i32
+    %color = arith.constant 0 : i32
+    %comptime = arith.constant 0 : i32
+    %control_task_id = arith.constant 0 : i32
+    %data_task_id = arith.constant 0 : i32
+    %direction = arith.constant 0 : i32
+    %dsr_dest = arith.constant 0 : i32
+    %dsr_src0 = arith.constant 0 : i32
+    %dsr_src1 = arith.constant 0 : i32
+    %enum = arith.constant 0 : i32
+    %fabin_dsd = arith.constant 0 : i32
+    %fabout_dsd = arith.constant 0 : i32
+    %imported_module = arith.constant 0 : i32
+    %inline = arith.constant 0 : i32
+    %input_queue = arith.constant 0 : i32
+    %layout = arith.constant 0 : i32
+    %local_task_id = arith.constant 0 : i32
+    %mem1d_dsd = arith.constant 0 : i32
+    %mem4d_dsd = arith.constant 0 : i32
+    %noinline = arith.constant 0 : i32
+    %output_queue = arith.constant 0 : i32
+    %packed = arith.constant 0 : i32
+    %struct = arith.constant 0 : i32
+    %type = arith.constant 0 : i32
+    %union = arith.constant 0 : i32
+    %ut_id = arith.constant 0 : i32
+    %volatile = arith.constant 0 : i32
 
 
     csl.return
@@ -598,6 +626,34 @@ csl.func @builtins() {
 // CHECK-NEXT:   const var35 : i32 = 0;
 // CHECK-NEXT:   const void36 : i32 = 0;
 // CHECK-NEXT:   const while37 : i32 = 0;
+// CHECK-NEXT:   const anytype38 : i32 = 0;
+// CHECK-NEXT:   const asm39 : i32 = 0;
+// CHECK-NEXT:   const color40 : i32 = 0;
+// CHECK-NEXT:   const comptime41 : i32 = 0;
+// CHECK-NEXT:   const control_task_id42 : i32 = 0;
+// CHECK-NEXT:   const data_task_id43 : i32 = 0;
+// CHECK-NEXT:   const direction44 : i32 = 0;
+// CHECK-NEXT:   const dsr_dest45 : i32 = 0;
+// CHECK-NEXT:   const dsr_src046 : i32 = 0;
+// CHECK-NEXT:   const dsr_src147 : i32 = 0;
+// CHECK-NEXT:   const enum48 : i32 = 0;
+// CHECK-NEXT:   const fabin_dsd49 : i32 = 0;
+// CHECK-NEXT:   const fabout_dsd50 : i32 = 0;
+// CHECK-NEXT:   const imported_module51 : i32 = 0;
+// CHECK-NEXT:   const inline52 : i32 = 0;
+// CHECK-NEXT:   const input_queue53 : i32 = 0;
+// CHECK-NEXT:   const layout54 : i32 = 0;
+// CHECK-NEXT:   const local_task_id55 : i32 = 0;
+// CHECK-NEXT:   const mem1d_dsd56 : i32 = 0;
+// CHECK-NEXT:   const mem4d_dsd57 : i32 = 0;
+// CHECK-NEXT:   const noinline58 : i32 = 0;
+// CHECK-NEXT:   const output_queue59 : i32 = 0;
+// CHECK-NEXT:   const packed60 : i32 = 0;
+// CHECK-NEXT:   const struct61 : i32 = 0;
+// CHECK-NEXT:   const type62 : i32 = 0;
+// CHECK-NEXT:   const union63 : i32 = 0;
+// CHECK-NEXT:   const ut_id64 : i32 = 0;
+// CHECK-NEXT:   const volatile65 : i32 = 0;
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
@@ -835,12 +891,12 @@ csl.func @builtins() {
 // CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, 10, f32);
 // CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, 12);
 // CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, 10);
-// CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
+// CHECK-NEXT:   const fabin_dsd1 : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .input_queue = @get_input_queue(0),
 // CHECK-NEXT:     .fabric_color = 2 : ui5,
 // CHECK-NEXT:   }});
-// CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
+// CHECK-NEXT:   const fabout_dsd2 : fabout_dsd = @get_dsd(fabout_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .output_queue = @get_output_queue(1),
 // CHECK-NEXT:     .fabric_color = 3 : ui5,
