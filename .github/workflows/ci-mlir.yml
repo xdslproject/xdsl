@@ -1,4 +1,4 @@
-# This workflow will install MLIR, Python dependencies, run tests and lint with a single version of Python
+# Test MLIR compatibility using the Nix development environment across Python versions.
 
 name: CI - MLIR-based Testing
 
@@ -14,23 +14,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
-    container: ghcr.io/xdslproject/llvm:22.1.2
+    defaults:
+      run:
+        # Run the Actions script ({0}) in Nix.
+        # -e exits on unhandled failures,
+        # -o pipefail propagates failures from any command in a pipeline.
+        shell: nix develop --command bash -eo pipefail {0}
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     env:
-      LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.14' }}
-      XDSL_MLIR_OPT: /usr/bin/mlir-opt
-      XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
-      XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
-      XDSL_LLI: /usr/bin/lli-22
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.3.2
@@ -42,9 +47,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Mark workspace as safe for git
-        run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: Install the package locally and nbval
         run: make venv
@@ -89,14 +91,10 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.14'
-        uses: Wandalen/wretry.action@v3
+        uses: codecov/codecov-action@v7
         with:
-          action: codecov/codecov-action@v4
-          attempt_delay: 10000
-          attempt_limit: 10
-          with: |
-            fail_ci_if_error: true
-            verbose: true
-            files: coverage.xml
-            codecov_yml_path: codecov.yml
-            token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
+          files: coverage.xml
+          codecov_yml_path: codecov.yml
+          token: ${{ secrets.CODECOV_TOKEN }}

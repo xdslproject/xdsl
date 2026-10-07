@@ -33,7 +33,7 @@ print(test_add.module)
 
 # CHECK-NEXT: Classmethod arguments must be declared variables.
 @ctx.parse_program
-def test_args():
+def test_args() -> c_int32:
     return Adder.add_i32(1, 2)  # pyright: ignore[reportArgumentType]
 
 
@@ -51,7 +51,7 @@ ctx.post_transforms = []
 
 # CHECK-NEXT: Classmethod arguments must be declared variables.
 @ctx.parse_program
-def test_more_args():
+def test_more_args() -> c_int32:
     return Adder.add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]
 
 
@@ -69,7 +69,7 @@ class Class:
 
 # CHECK-NEXT: Classmethod 'Class.method' is not registered.
 @ctx.parse_program
-def test_unregistered():
+def test_unregistered() -> None:
     return Class.method()  # noqa: F821
 
 
@@ -81,7 +81,7 @@ except CodeGenerationException as e:
 
 # CHECK-NEXT: Method 'method' is not defined on class 'Class'.
 @ctx.parse_program
-def test_missing_method():
+def test_missing_method() -> None:
     return Class.method()  # noqa: F821
 
 
@@ -95,7 +95,7 @@ except CodeGenerationException as e:
 
 # CHECK-NEXT: Class 'Class' is not defined in scope.
 @ctx.parse_program
-def test_missing_class():
+def test_missing_class() -> None:
     return Class.method()  # noqa: F821
 
 

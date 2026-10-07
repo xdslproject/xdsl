@@ -441,3 +441,184 @@ func.func @omp_taskgroup_block_args(%tr: memref<1xi32>) {
 }
 
 // CHECK: omp.taskgroup expected to have at least 1 block argument(s), got 0
+
+// -----
+
+func.func @omp_taskloop_grainsize_num_tasks(%lb: index, %ub: index, %step: index, %g: i64) {
+  "omp.taskloop"(%g, %g) <{operandSegmentSizes = array<i32: 0, 0, 0, 1, 0, 0, 1, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+
+// CHECK: the grainsize clause and num_tasks clause are mutually exclusive and may not appear on the same taskloop directive
+
+// -----
+
+func.func @omp_taskloop_reduction_byref(%lb: index, %ub: index, %step: index, %r: memref<1xi32>) {
+  "omp.taskloop"(%r) <{reduction_syms = [@r1], reduction_byref = array<i1: false, false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>}> ({
+  ^bb0(%r_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many reduction byref flags as reduction variables
+
+// -----
+
+func.func @omp_taskloop_not_loop_wrapper() {
+  "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop is not a LoopWrapper: should have a single operation which is either another LoopWrapper or omp.loop_nest
+
+// -----
+
+func.func @omp_taskloop_in_reduction_syms(%lb: index, %ub: index, %step: index, %ir: memref<1xi32>) {
+  "omp.taskloop"(%ir) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many in_reduction symbol references as in_reduction variables
+
+// -----
+
+func.func @omp_taskloop_in_reduction_byref(%lb: index, %ub: index, %step: index, %ir: memref<1xi32>) {
+  "omp.taskloop"(%ir) <{in_reduction_byref = array<i1: false, true>, in_reduction_syms = [@r1], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 0, 0, 0>}> ({
+  ^bb0(%ir_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many in_reduction byref flags as in_reduction variables
+
+// -----
+
+func.func @omp_taskloop_reduction_syms(%lb: index, %ub: index, %step: index, %r: memref<1xi32>) {
+  "omp.taskloop"(%r) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>}> ({
+  ^bb0(%r_arg: memref<1xi32>):
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb1(%iv: index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (memref<1xi32>) -> ()
+  func.return
+}
+
+// CHECK: omp.taskloop expected as many reduction symbol references as reduction variables
+
+// -----
+
+func.func @omp_cancel_orphaned() {
+  "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+  func.return
+}
+
+// CHECK: Orphaned cancel construct
+
+// -----
+
+func.func @omp_cancel_parallel_not_in_parallel() {
+  "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel parallel must appear inside a parallel region
+
+// -----
+
+func.func @omp_cancel_loop_not_in_wsloop() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel loop must appear inside a worksharing-loop region
+
+// -----
+
+func.func @omp_cancel_loop_nowait(%lb: index, %ub: index, %step: index) {
+  "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb0(%iv: index):
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: A worksharing construct that is canceled must not have a nowait clause
+
+// -----
+
+func.func @omp_cancel_loop_ordered(%lb: index, %ub: index, %step: index) {
+  "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^bb0(%iv: index):
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: A worksharing construct that is canceled must not have an ordered clause
+
+// -----
+
+func.func @omp_cancel_taskgroup_not_in_task() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancel taskgroup must appear inside a task region
+
+// -----
+
+func.func @omp_cancellation_point_orphaned() {
+  "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+  func.return
+}
+
+// CHECK: Orphaned cancellation point construct
+
+// -----
+
+func.func @omp_cancellation_point_taskgroup_not_in_task() {
+  "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+    "omp.terminator"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: cancellation point taskgroup must appear inside a task region

@@ -12,6 +12,13 @@
 scf.for %iv = %lb to %ub step %step {
 }
 
+%sum_attr = scf.for %iv = %lb to %ub step %step iter_args(%sum_iter = %sum_init) -> (index) {
+  scf.yield %sum_iter : index
+} {hello = "world"}
+
+scf.for %iv = %lb to %ub step %step {
+} {hello = "world"}
+
 // CHECK:      module {
 // CHECK-NEXT:   %{{.*}} = arith.constant 0 : index
 // CHECK-NEXT:   %{{.*}} = arith.constant 42 : index
@@ -23,4 +30,9 @@ scf.for %iv = %lb to %ub step %step {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:   }
+// CHECK-NEXT:   %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (index) {
+// CHECK-NEXT:     scf.yield %{{.*}} : index
+// CHECK-NEXT:   } {hello = "world"}
+// CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:   } {hello = "world"}
 // CHECK-NEXT: }
