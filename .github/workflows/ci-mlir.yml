@@ -16,7 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop --command bash --noprofile --norc -eo pipefail {0}
+        # Run the Actions script ({0}) in Nix.
+        # -e exits on unhandled failures,
+        # -o pipefail propagates failures from any command in a pipeline.
+        shell: nix develop --command bash -eo pipefail {0}
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
