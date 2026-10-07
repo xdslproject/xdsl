@@ -24,7 +24,7 @@ dependencies = [
   "typing-extensions>=4.13,<5",
 ]
 optional-dependencies.dev = [
-  "basedpyright==1.40.1",
+  "basedpyright==1.40.2",
   "coverage<8",
   "filecheck==1.0.6",
   "lit<19",
