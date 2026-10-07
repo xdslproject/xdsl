@@ -557,6 +557,16 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
     traits = traits_def(IsTerminator())
 
+    def verify_(self) -> None:
+        parent = self.parent_op()
+        if (
+            isinstance(parent, NamedSequenceOp)
+            and self.arguments.types != parent.function_type.outputs.data
+        ):
+            raise VerifyException(
+                "Expected yielded values to have the same types as the named sequence output types"
+            )
+
 
 @irdl_op_definition
 class SequenceOp(IRDLOperation):

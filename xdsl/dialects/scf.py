@@ -472,13 +472,16 @@ class ForOp(IRDLOperation):
             self.body,
             IndexType,
         )
+        printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser, IndexType())
         _, *iter_args = body.block.args
+        attrs = parser.parse_optional_attr_dict()
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)
+        for_op.attributes |= attrs
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):

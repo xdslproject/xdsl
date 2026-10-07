@@ -24,6 +24,7 @@
                 llvmPackages_22.mlir
                 llvmPackages_22.tblgen
               ];
+              LLVM_SYMBOLIZER_PATH = "${llvmPackages_22.llvm}/bin/llvm-symbolizer";
               XDSL_MLIR_OPT = "${llvmPackages_22.mlir}/bin/mlir-opt";
               XDSL_MLIR_TRANSLATE = "${llvmPackages_22.mlir}/bin/mlir-translate";
               XDSL_LLVM_DIFF = "${llvmPackages_22.llvm}/bin/llvm-diff";

@@ -351,6 +351,77 @@ builtin.module {
     }) : (i32, i32, memref<1xi32>) -> ()
     func.return
   }
+  func.func @omp_taskloop(%lb: index, %ub: index, %step: index, %b: i1, %g: i64, %ir: memref<1xi32>, %prio: i32, %p1: i32, %r: memref<1xi32>) {
+    "omp.taskloop"(%b, %g, %b, %ir, %prio, %p1, %r) <{grainsize_mod = #omp<grainsizetype strict>, in_reduction_syms = [@r1], mergeable, private_syms = [@p1], reduction_mod = #omp<reduction_modifier (defaultmod)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], untied, operandSegmentSizes = array<i32: 0, 0, 1, 1, 1, 1, 0, 1, 1, 1>}> ({
+    ^bb0(%ir_arg: memref<1xi32>, %p_arg: i32, %r_arg: memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^bb1(%iv: index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i1, i64, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+    "omp.taskloop"(%g) <{nogroup, num_tasks_mod = #omp<numtaskstype strict>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %lb, %ub, %ub, %step, %step) ({
+      ^bb1(%iv0: index, %iv1: index):
+        omp.yield
+      }) : (index, index, index, index, index, index) -> ()
+    }) : (i64) -> ()
+    func.return
+  }
+  func.func @omp_barrier_flush(%a: i32, %m: memref<1xi32>) {
+    "omp.barrier"() : () -> ()
+    "omp.flush"() : () -> ()
+    "omp.flush"(%a, %m) : (i32, memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @omp_master_masked(%tid: i32, %idx: index) {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+      "omp.master"() ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.masked"() ({
+        "omp.terminator"() : () -> ()
+      }) : () -> ()
+      "omp.masked"(%tid) ({
+        "omp.terminator"() : () -> ()
+      }) : (i32) -> ()
+      "omp.masked"(%idx) ({
+        "omp.terminator"() : () -> ()
+      }) : (index) -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_cancel(%lb: index, %ub: index, %step: index, %b: i1) {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+      "omp.cancel"(%b) <{cancel_directive = #omp<cancellationconstructtype parallel>}> : (i1) -> ()
+      "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+      scf.if %b {
+        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+      }
+      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+        "omp.loop_nest"(%lb, %ub, %step) ({
+        ^bb0(%iv: index):
+          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+          "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+          omp.yield
+        }) : (index, index, index) -> ()
+      }) : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+      "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^bb0(%iv2: index):
+        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -694,6 +765,77 @@ builtin.module {
 // CHECK-NEXT:        }) : () -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_taskloop(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: i1, %{{.*}}: i64, %{{.*}}: memref<1xi32>, %{{.*}}: i32, %{{.*}}: i32, %{{.*}}: memref<1xi32>) {
+// CHECK-NEXT:      "omp.taskloop"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{grainsize_mod = #omp<grainsizetype strict>, in_reduction_syms = [@r1], mergeable, operandSegmentSizes = array<i32: 0, 0, 1, 1, 1, 1, 0, 1, 1, 1>, private_syms = [@p1], reduction_byref = array<i1: false>, reduction_mod = #omp<reduction_modifier (defaultmod)>, reduction_syms = [@r1], untied}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}}: memref<1xi32>, %{{.*}}: i32, %{{.*}}: memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i1, i64, i1, memref<1xi32>, i32, i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      "omp.taskloop"(%{{.*}}) <{nogroup, num_tasks_mod = #omp<numtaskstype strict>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index, index, index, index) -> ()
+// CHECK-NEXT:      }) : (i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_barrier_flush(%{{.*}}: i32, %{{.*}}: memref<1xi32>) {
+// CHECK-NEXT:      "omp.barrier"() : () -> ()
+// CHECK-NEXT:      "omp.flush"() : () -> ()
+// CHECK-NEXT:      "omp.flush"(%{{.*}}, %{{.*}}) : (i32, memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_master_masked(%{{.*}}: i32, %{{.*}}: index) {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.master"() ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.masked"() ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.masked"(%{{.*}}) ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i32) -> ()
+// CHECK-NEXT:        "omp.masked"(%{{.*}}) ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (index) -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_cancel(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: i1) {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.cancel"(%{{.*}}) <{cancel_directive = #omp<cancellationconstructtype parallel>}> : (i1) -> ()
+// CHECK-NEXT:        "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+// CHECK-NEXT:        scf.if %{{.*}} {
+// CHECK-NEXT:          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype parallel>}> : () -> ()
+// CHECK-NEXT:        }
+// CHECK-NEXT:        "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:          "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:          ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:            "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+// CHECK-NEXT:            "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype loop>}> : () -> ()
+// CHECK-NEXT:            omp.yield
+// CHECK-NEXT:          }) : (index, index, index) -> ()
+// CHECK-NEXT:        }) : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      "omp.task"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:        "omp.cancellation_point"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      "omp.taskloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:          "omp.cancel"() <{cancel_directive = #omp<cancellationconstructtype taskgroup>}> : () -> ()
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
