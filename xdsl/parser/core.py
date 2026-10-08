@@ -313,13 +313,12 @@ class Parser(AttrParser):
         if values is None:
             # Not yet declared, either resolve or store as typed forward reference
             references = self.forward_ssa_references.setdefault(name, {})
-            forward_value = references.get(operand.index)
-            if forward_value is None:
+            resolved = references.get(operand.index)
+            if resolved is None:
                 # Forward reference
                 forward_value = ForwardDeclaredValue(type)
                 references[operand.index] = forward_value
                 return forward_value
-            resolved = forward_value
         else:
             # Declared, look up index in tuple
             try:
