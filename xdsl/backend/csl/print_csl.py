@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import IO, Literal
 
 from xdsl.context import Context
@@ -939,6 +939,9 @@ class CslPrintContext:
             inner_context.print()
         ```
 
+        The sub-context is a copy of this context with its own copy of the
+        variable map and increased indentation.
+
         NOTE: `_symbols_to_export` is passed as a reference, so the sub-context
         could in theory modify the parent's list of exported symbols, in
         practice this should not happen as `SymbolExportOp` has been verified to
@@ -947,13 +950,9 @@ class CslPrintContext:
         if block_start != "":
             block_start = f"{block_start} "
         self.print(f"{block_start}{{")
-        yield CslPrintContext(
-            output=self.output,
+        yield replace(
+            self,
             variables=self.variables.copy(),
-            _symbols_to_export=self._symbols_to_export,
-            _cmp_ops=self._cmp_ops,
-            _binops=self._binops,
-            _counter=self._counter,
             _prefix=self._prefix + self._INDENT,
         )
         self.print("}")
