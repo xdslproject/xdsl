@@ -42,3 +42,30 @@ print(test_explicit_return_none.module)
 # CHECK-NEXT:     func.return
 # CHECK-NEXT:   }
 # CHECK-NEXT: }
+
+
+@ctx.parse_program
+def test_docstring_only() -> None:
+    """A docstring is skipped."""
+
+
+print(test_docstring_only.module)
+# CHECK:      builtin.module {
+# CHECK-NEXT:   func.func @test_docstring_only() {
+# CHECK-NEXT:     func.return
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
+
+
+@ctx.parse_program
+def test_with_docstring() -> None:
+    """A docstring followed by other statements also works"""
+    return None
+
+
+print(test_with_docstring.module)
+# CHECK:      builtin.module {
+# CHECK-NEXT:   func.func @test_with_docstring() {
+# CHECK-NEXT:     func.return
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
