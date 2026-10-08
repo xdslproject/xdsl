@@ -4,7 +4,7 @@ import inspect
 import sys
 import time
 from collections.abc import Callable, Sequence
-from importlib.metadata import version as _version
+from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
 from typing import IO, Any, ClassVar, cast
@@ -242,7 +242,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
-            version=self.version_format.format(xdsl_version=_version("xdsl")),
+            version_format=self.version_format,
         )
 
         arg_parser.add_argument(
@@ -393,13 +393,16 @@ class xDSLOptMain(CommandLineTool):
 
 
 class VersionAction(argparse.Action):
-    version: str
+    version_format: str
 
-    def __init__(self, *args: Any, version: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        version_format: str = xDSLOptMain.version_format,
+        **kwargs: Any,
+    ):
         super().__init__(nargs=0, *args, **kwargs)
-        if version is None:
-            version = xDSLOptMain.version_format.format(xdsl_version=_version("xdsl"))
-        self.version = version
+        self.version_format = version_format
 
     def __call__(
         self,
@@ -408,5 +411,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(self.version)
+        print(self.version_format.format(xdsl_version=version("xdsl")))
         parser.exit()
