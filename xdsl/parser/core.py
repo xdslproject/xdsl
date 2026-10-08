@@ -315,7 +315,7 @@ class Parser(AttrParser):
             references = self.forward_ssa_references.setdefault(name, {})
             resolved = references.get(operand.index)
             if resolved is None:
-                # Forward reference
+                # Has not been declared or referenced, create placeholder value for now
                 forward_value = ForwardDeclaredValue(type)
                 references[operand.index] = forward_value
                 return forward_value
