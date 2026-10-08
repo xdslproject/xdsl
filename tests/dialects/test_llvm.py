@@ -604,6 +604,14 @@ def test_call_op_variadic():
     assert op.var_callee_type.is_variadic
 
 
+def test_call_op_explicit_var_callee_type():
+    # verify an explicit var_callee_type is kept, even with no variadic args
+    arg = create_ssa_value(llvm.LLVMPointerType())
+    callee_type = llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True)
+    op = llvm.CallOp("printf", arg, var_callee_type=callee_type)
+    assert op.var_callee_type == callee_type
+
+
 def test_call_intrinsic_op_converts_str_to_stringattr():
     op = llvm.CallIntrinsicOp("llvm.intr", [], [])
     assert isinstance(op.intrin, builtin.StringAttr)
