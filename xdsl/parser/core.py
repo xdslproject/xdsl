@@ -301,9 +301,10 @@ class Parser(AttrParser):
     ) -> SSAValue[AttributeInvT]:
         """
         Resolve an unresolved operand.
-        If the operand is not yet defined, create or reuse a forward reference.
-        If the operand is defined or has been referenced, then the types must match,
-        else a `ParseError` is raised.
+        If the operand has not been defined or referenced, create a new forward
+        reference.
+        Otherwise, return the previously defined value or created forward reference,
+        checking that the types match and raising a `ParseError` if they don't.
         """
         name = operand.operand_name
 
