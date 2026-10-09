@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -91,6 +91,8 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 
     traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    BOUND_WORDS: ClassVar[tuple[str, ...]] = ("to",)
 
     @property
     def stop(self) -> IntegerAttr[SI32] | SSAValue:
@@ -211,6 +213,32 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                         f"variables types."
                     )
 
+    def print(self, printer: Printer):
+        print_for_op_like(
+            printer,
+            self.start,
+            self.stop,
+            self.step,
+            self.iter_args,
+            self.body,
+            bound_words=self.BOUND_WORDS,
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        start, stop, step, iter_arg_operands, body = parse_for_op_like(
+            parser, allow_static_stop=True, allow_static_step=True
+        )
+        _, *iter_args = body.block.args
+
+        op = cls(start, stop, step, iter_arg_operands, body)
+
+        if not iter_args:
+            for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(op, trait)
+
+        return op
+
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         """
         Allocate loop-carried and induction variable registers, then the body under
@@ -298,31 +326,6 @@ class ForOp(ForRofOperation):
 
     name = "x86_scf.for"
 
-    def print(self, printer: Printer):
-        print_for_op_like(
-            printer,
-            self.start,
-            self.stop,
-            self.step,
-            self.iter_args,
-            self.body,
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        start, stop, step, iter_arg_operands, body = parse_for_op_like(
-            parser, allow_static_stop=True, allow_static_step=True
-        )
-        _, *iter_args = body.block.args
-
-        for_op = cls(start, stop, step, iter_arg_operands, body)
-
-        if not iter_args:
-            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(for_op, trait)
-
-        return for_op
-
 
 @irdl_op_definition
 class RofOp(ForRofOperation):
@@ -333,34 +336,7 @@ class RofOp(ForRofOperation):
 
     name = "x86_scf.rof"
 
-    def print(self, printer: Printer):
-        print_for_op_like(
-            printer,
-            self.start,
-            self.stop,
-            self.step,
-            self.iter_args,
-            self.body,
-            bound_words=["down", "to"],
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        start, stop, step, iter_arg_operands, body = parse_for_op_like(
-            parser,
-            bound_words=["down", "to"],
-            allow_static_stop=True,
-            allow_static_step=True,
-        )
-        _, *iter_args = body.block.args
-
-        rof_op = cls(start, stop, step, iter_arg_operands, body)
-
-        if not iter_args:
-            for trait in rof_op.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(rof_op, trait)
-
-        return rof_op
+    BOUND_WORDS: ClassVar[tuple[str, ...]] = ("down", "to")
 
 
 X86_Scf = Dialect(
