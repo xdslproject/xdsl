@@ -27,7 +27,7 @@ optional-dependencies.dev = [
   "basedpyright==1.40.2",
   "coverage<8",
   "filecheck==1.0.6",
-  "lit<19",
+  "lit<24",
   "marimo>=0.25,<0.26",
   "prek~=0.5.5",
   "pytest<9.2",
