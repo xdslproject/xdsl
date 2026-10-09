@@ -9,6 +9,9 @@ on:
 jobs:
   bench:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.14"]
 
     steps:
       - uses: actions/checkout@v7
@@ -19,10 +22,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       # ASV discovery imports all benchmark modules without optional extras.
       - name: Install xdsl (no extras)
