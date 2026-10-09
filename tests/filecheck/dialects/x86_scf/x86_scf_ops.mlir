@@ -68,30 +68,39 @@
 
 // -----
 
+// CHECK:       builtin.module {
+
 %lb = x86.di.mov 1 : () -> !x86.reg64<r12>
 %ub = x86.di.mov 8 : () -> !x86.reg64<r13>
 %step = x86.di.mov 3 : () -> !x86.reg64<r10>
 %init = x86.di.mov 0 : () -> !x86.reg64<r11>
+// CHECK-NEXT:    %lb = x86.di.mov 1 : () -> !x86.reg64<r12>
+// CHECK-NEXT:    %ub = x86.di.mov 8 : () -> !x86.reg64<r13>
+// CHECK-NEXT:    %step = x86.di.mov 3 : () -> !x86.reg64<r10>
+// CHECK-NEXT:    %init = x86.di.mov 0 : () -> !x86.reg64<r11>
 
 // The induction variable and its exit value use the upper bound's register.
 %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13> = %ub down to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
   x86_scf.yield %acc : !x86.reg64<r11>
 }
+// CHECK-NEXT:    %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13>  = %ub down  to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+// CHECK-NEXT:      x86_scf.yield %acc : !x86.reg64<r11>
+// CHECK-NEXT:    }
 
 // A reverse loop may have an immediate lower (termination) bound.
 %iv_end_static = x86_scf.rof %j : !x86.reg64<r13> = %ub down to 1 : si32 step 3 : si32 {
 }
-
-// CHECK:       builtin.module {
-// CHECK-NEXT:    %lb = x86.di.mov 1 : () -> !x86.reg64<r12>
-// CHECK-NEXT:    %ub = x86.di.mov 8 : () -> !x86.reg64<r13>
-// CHECK-NEXT:    %step = x86.di.mov 3 : () -> !x86.reg64<r10>
-// CHECK-NEXT:    %init = x86.di.mov 0 : () -> !x86.reg64<r11>
-// CHECK-NEXT:    %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13>  = %ub down  to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
-// CHECK-NEXT:      x86_scf.yield %acc : !x86.reg64<r11>
-// CHECK-NEXT:    }
 // CHECK-NEXT:    %iv_end_static = x86_scf.rof %j : !x86.reg64<r13>  = %ub down  to 1 : si32 step 3 : si32 {
 // CHECK-NEXT:    }
+
+// An immediate stop with a register step and loop-carried values.
+%iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub down to 1 : si32 step %step iter_args(%carried = %init) -> (!x86.reg64<r11>) {
+  x86_scf.yield %carried : !x86.reg64<r11>
+}
+// CHECK-NEXT:    %iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub down to 1 : si32 step %step iter_args(%carried = %init) -> (!x86.reg64<r11>) {
+// CHECK-NEXT:      x86_scf.yield %carried : !x86.reg64<r11>
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC:         %lb = "x86.di.mov"() {immediate = 1 : si32} : () -> !x86.reg64<r12>
@@ -106,3 +115,7 @@
 // CHECK-GENERIC-NEXT:    ^bb0(%j: !x86.reg64<r13>):
 // CHECK-GENERIC-NEXT:      "x86_scf.yield"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) : (!x86.reg64<r13>) -> !x86.reg64<r13>
+// CHECK-GENERIC-NEXT:    %iv_end_static_stop, %res_static_stop = "x86_scf.rof"(%ub, %step, %init) <{stop_attr = 1 : si32, operandSegmentSizes = array<i32: 1, 0, 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^bb0(%k: !x86.reg64<r13>, %carried: !x86.reg64<r11>):
+// CHECK-GENERIC-NEXT:      "x86_scf.yield"(%carried) : (!x86.reg64<r11>) -> ()
+// CHECK-GENERIC-NEXT:    }) : (!x86.reg64<r13>, !x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r13>, !x86.reg64<r11>)
