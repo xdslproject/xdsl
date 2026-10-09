@@ -172,7 +172,8 @@ class LowerX86ScfForPattern(RewritePattern):
             )
         else:
             # Skip for loop if condition is not satisfied at start.
-            # start is the IV register (inout); legalization inserts a copy when needed.
+            # Start is the induction variable register (inout);
+            # legalization inserts a copy when needed.
             rewriter.insert(
                 (
                     cmp_op := (

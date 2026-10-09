@@ -66,7 +66,8 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     """
-    Loops where `start` initializes the IV and `stop` is the exclusive termination bound.
+    Loops where `start` initializes the induction variable and `stop` is the exclusive
+    termination bound.
     For reverse loops these are the upper and lower bounds respectively.
     """
 

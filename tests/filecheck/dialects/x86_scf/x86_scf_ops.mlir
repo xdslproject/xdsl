@@ -73,7 +73,7 @@
 %step = x86.di.mov 3 : () -> !x86.reg64<r10>
 %init = x86.di.mov 0 : () -> !x86.reg64<r11>
 
-// The IV and its exit value use the upper bound's register.
+// The induction variable and its exit value use the upper bound's register.
 %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13> = %ub down to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
   x86_scf.yield %acc : !x86.reg64<r11>
 }

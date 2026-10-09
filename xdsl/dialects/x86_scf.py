@@ -64,8 +64,8 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
 
 class ForRofOperation(X86HasRegisterConstraints, ABC):
     """
-    Loops where `start` initializes the IV and `stop` is the exclusive termination
-    bound.
+    Loops where `start` initializes the induction variable and `stop` is the exclusive
+    termination bound.
     Both `stop` and `step` may be immediates, whereas `start` must be in a register,
     which will be updated throughout loop iteration.
     """
@@ -212,7 +212,10 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                     )
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
-        """Allocate loop-carried and IV registers, then the body under those reservations."""
+        """
+        Allocate loop-carried and induction variable registers, then the body under
+        those reservations.
+        """
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
         live_ins = allocator.live_ins_per_block[self.body.block]

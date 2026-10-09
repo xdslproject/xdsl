@@ -58,7 +58,7 @@ x86_func.func @body_only_use_is_clobber(%x: !x86.reg64, %lb: !x86.reg64, %ub: !x
 
 // -----
 
-// V3: IV clobbered.
+// V3: Induction variable clobbered.
 x86_func.func @iv_clobbered(%lb: !x86.reg64, %ub: !x86.reg64, %step: !x86.reg64) {
   %lb_end = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step {
     %i2 = x86.r.inc %i : (!x86.reg64) -> !x86.reg64
