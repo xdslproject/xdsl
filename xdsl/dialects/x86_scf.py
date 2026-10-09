@@ -227,7 +227,10 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         start, stop, step, iter_arg_operands, body = parse_for_op_like(
-            parser, allow_static_stop=True, allow_static_step=True
+            parser,
+            bound_words=cls.BOUND_WORDS,
+            allow_static_stop=True,
+            allow_static_step=True,
         )
         _, *iter_args = body.block.args
 
