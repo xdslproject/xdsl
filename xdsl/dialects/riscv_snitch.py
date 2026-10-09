@@ -364,7 +364,9 @@ class FRepOperation(RISCVInstruction):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        max_rep = parser.parse_operand()
+        max_rep_operand = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        max_rep = parser.resolve_operand(max_rep_operand, parser.parse_type())
         if parser.parse_optional_punctuation(","):
             stagger_mask = parser.parse_integer(False, False)
             parser.parse_punctuation(",")
@@ -420,6 +422,8 @@ class FRepOperation(RISCVInstruction):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_ssa_value(self.max_rep)
+        printer.print_string(" : ")
+        printer.print_attribute(self.max_rep.type)
         if self.stagger_count.value.data and self.stagger_mask.value.data:
             printer.print_string(", ")
             printer.print_int(self.stagger_count.value.data)
