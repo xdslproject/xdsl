@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
-    parse_for_op_like,
-    print_for_op_like,
+    parse_assignment,
+    print_assignment,
 )
 from xdsl.ir import (
     Attribute,
@@ -41,7 +41,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -463,24 +463,80 @@ class ForOp(IRDLOperation):
                     )
 
     def print(self, printer: Printer):
-        print_for_op_like(
-            printer,
-            self.lb,
-            self.ub,
-            self.step,
-            self.iter_args,
+        indvar, *iter_args = self.body.block.args
+        printer.print_string(" ")
+        printer.print_ssa_value(indvar)
+        printer.print_string(" = ")
+        printer.print_ssa_value(self.lb)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.ub)
+        printer.print_string(" step ")
+        printer.print_ssa_value(self.step)
+        if iter_args:
+            printer.print_string(" iter_args(")
+            printer.print_list(
+                zip(iter_args, self.iter_args),
+                lambda pair: print_assignment(printer, *pair),
+            )
+            printer.print_string(") -> (")
+            printer.print_list((arg.type for arg in iter_args), printer.print_attribute)
+            printer.print_string(")")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(" : ")
+            printer.print_attribute(indvar.type)
+        printer.print_string(" ")
+        printer.print_region(
             self.body,
-            IndexType,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(self.iter_args),
         )
         printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser, IndexType())
-        _, *iter_args = body.block.args
+        unresolved_indvar = parser.parse_argument(expect_type=False)
+        parser.parse_punctuation("=")
+        lb = parser.parse_unresolved_operand()
+        parser.parse_keyword("to")
+        ub = parser.parse_unresolved_operand()
+        parser.parse_keyword("step")
+        step = parser.parse_unresolved_operand()
+
+        pos = parser.pos
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
+        iter_arg_unresolved_operands: list[UnresolvedOperand] = []
+        iter_arg_types: list[Attribute] = []
+        if parser.parse_optional_keyword("iter_args"):
+            for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
+                Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
+            ):
+                unresolved_iter_args.append(iter_arg)
+                iter_arg_unresolved_operands.append(iter_arg_operand)
+            parser.parse_punctuation("->")
+            iter_arg_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.PAREN, parser.parse_attribute
+            )
+
+        iter_arg_operands = parser.resolve_operands(
+            iter_arg_unresolved_operands, iter_arg_types, pos
+        )
+        iter_args = [
+            arg.resolve(typ) for arg, typ in zip(unresolved_iter_args, iter_arg_types)
+        ]
+        indvar_type = (
+            parser.parse_type()
+            if parser.parse_optional_punctuation(":")
+            else IndexType()
+        )
+        resolved_lb = parser.resolve_operand(lb, indvar_type)
+        resolved_ub = parser.resolve_operand(ub, indvar_type)
+        resolved_step = parser.resolve_operand(step, indvar_type)
+        indvar = unresolved_indvar.resolve(indvar_type)
+        body = parser.parse_region((indvar, *iter_args))
         attrs = parser.parse_optional_attr_dict()
 
-        for_op = cls(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(resolved_lb, resolved_ub, resolved_step, iter_arg_operands, body)
         for_op.attributes |= attrs
 
         if not iter_args:

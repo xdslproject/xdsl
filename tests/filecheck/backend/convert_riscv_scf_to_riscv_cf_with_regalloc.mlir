@@ -5,7 +5,7 @@ builtin.module {
         %2 = rv32.li 1 : !riscv.reg
         %3 = rv32.li 0 : !riscv.reg
         %arg = riscv.mv %3 : (!riscv.reg) -> !riscv.reg
-        %4 = riscv_scf.for %5 : !riscv.reg = %0 to %1 step %2 iter_args(%6 = %arg) -> (!riscv.reg) {
+        %4 = riscv_scf.for %5 : !riscv.reg = %0 : !riscv.reg<a0> to %1 : !riscv.reg<a1> step %2 : !riscv.reg iter_args(%6 = %arg) -> (!riscv.reg) {
             %7 = riscv.add %5, %6 : (!riscv.reg, !riscv.reg) -> !riscv.reg
             riscv_scf.yield %7 : !riscv.reg
         }
