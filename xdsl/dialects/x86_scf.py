@@ -97,14 +97,14 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     @property
     def stop(self) -> IntegerAttr[SI32] | SSAValue:
         """Static termination bound (typed integer) or dynamic register SSA value."""
-        match (stop_attr := self.stop_attr, stop_val := self.stop_val):
+        match (self.stop_attr, self.stop_val):
             case (None, None):
                 raise ValueError("Exactly one of stop_attr or stop_val must be set")
-            case (None, _):
+            case (None, stop_val):
                 return stop_val
-            case (_, None):
+            case (stop_attr, None):
                 return stop_attr
-            case (_, _):
+            case (stop_attr, stop_val):
                 raise ValueError("Exactly one of stop_attr or stop_val must be set")
 
     @property
