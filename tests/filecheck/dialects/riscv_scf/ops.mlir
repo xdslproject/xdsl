@@ -1,4 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_GENERIC_ROUNDTRIP
 
 %lb = "rv32.li"() {"immediate" = 0: i32} : () -> !riscv.reg
 %ub = "rv32.li"() {"immediate" = 100: i32} : () -> !riscv.reg
@@ -53,3 +54,37 @@ riscv_scf.rof %j_static : !riscv.reg = %ub down to %lb step 2 : si12 {
 // CHECK-NEXT:             riscv_scf.yield %i_next, %ub_arg1, %step_arg1 : !riscv.reg, !riscv.reg, !riscv.reg
 // CHECK-NEXT:     }
 // CHECK-NEXT: }
+
+// -----
+
+%lb = rv32.li 1 : !riscv.reg<a0>
+%ub = rv32.li 8 : !riscv.reg<a1>
+%step = rv32.li 3 : !riscv.reg<a2>
+
+riscv_scf.rof %i : !riscv.reg<a1> = %ub down to %lb step %step {
+}
+
+riscv_scf.rof %j : !riscv.reg<a1> = %ub down to %lb step 3 : si12 {
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %lb = rv32.li 1 : !riscv.reg<a0>
+// CHECK-NEXT:    %ub = rv32.li 8 : !riscv.reg<a1>
+// CHECK-NEXT:    %step = rv32.li 3 : !riscv.reg<a2>
+// CHECK-NEXT:    riscv_scf.rof %i : !riscv.reg<a1>  = %ub down  to %lb step %step {
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv_scf.rof %j : !riscv.reg<a1>  = %ub down  to %lb step 3 : si12 {
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// CHECK-GENERIC:         %lb = "rv32.li"() {immediate = 1 : i32} : () -> !riscv.reg<a0>
+// CHECK-GENERIC-NEXT:    %ub = "rv32.li"() {immediate = 8 : i32} : () -> !riscv.reg<a1>
+// CHECK-GENERIC-NEXT:    %step = "rv32.li"() {immediate = 3 : i32} : () -> !riscv.reg<a2>
+// CHECK-GENERIC-NEXT:    "riscv_scf.rof"(%ub, %lb, %step) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-GENERIC-NEXT:    ^bb0(%i: !riscv.reg<a1>):
+// CHECK-GENERIC-NEXT:      "riscv_scf.yield"() : () -> ()
+// CHECK-GENERIC-NEXT:    }) : (!riscv.reg<a1>, !riscv.reg<a0>, !riscv.reg<a2>) -> ()
+// CHECK-GENERIC-NEXT:    "riscv_scf.rof"(%ub, %lb) <{step_attr = 3 : si12, operandSegmentSizes = array<i32: 1, 1, 0, 0>}> ({
+// CHECK-GENERIC-NEXT:    ^bb0(%j: !riscv.reg<a1>):
+// CHECK-GENERIC-NEXT:      "riscv_scf.yield"() : () -> ()
+// CHECK-GENERIC-NEXT:    }) : (!riscv.reg<a1>, !riscv.reg<a0>) -> ()
