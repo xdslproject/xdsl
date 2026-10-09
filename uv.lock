@@ -774,13 +774,13 @@ wheels = [
 
 [[package]]
 name = "heir-py"
-version = "2026.9.1"
+version = "2026.10.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/08/4f/f0ca37f69e3dfa3a40427e7df9d99716be1ed1526cbf8dcab2ea1597bddc/heir_py-2026.9.1.tar.gz", hash = "sha256:a26608d9043da2a1fc1b881e5c395b1f806b11fa60d1af1c04500ddb5896a0dc", size = 15859999, upload-time = "2026-09-01T02:04:51.168Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/b0/96aa88fcc74d8c7376fc2afe17856eaa48de195d7e69974948fd6c195fc0/heir_py-2026.10.1.tar.gz", hash = "sha256:4a2a068eb413d0a12c21ed5f8ebb45821581445f71507cfd72c190d6e91de123", size = 15934354, upload-time = "2026-10-01T02:04:02.981Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/55/b6bda6ef1a495686915c57772659c531caeeb36f74aba25f5e1b8b58c73d/heir_py-2026.9.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:562a04a91bc140bdec5a6c255064bcc5eac2164f6baa465faa85bf21d74fe3fe", size = 35132702, upload-time = "2026-09-01T02:04:41.963Z" },
-    { url = "https://files.pythonhosted.org/packages/d4/76/0ae6d89433195a848c781a587ce947addaace197ba3aa4f25939d3e5d154/heir_py-2026.9.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:2a31bd9caf1edac255dd45378107b9b6bf1a0bbbfc915885862db4d0290f4f64", size = 32666795, upload-time = "2026-09-01T02:04:45.089Z" },
-    { url = "https://files.pythonhosted.org/packages/21/40/07fb76c1a78887d05b41699118f0a1380832d109afae0bcac03d17d2200c/heir_py-2026.9.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:421ea2cdda0816a3d1544d859945618f3cd1b767b3eab2191545415232912ef5", size = 34644693, upload-time = "2026-09-01T02:04:48.626Z" },
+    { url = "https://files.pythonhosted.org/packages/93/c7/9d26f7b2fc08f5d7a0cd180ce1c8cc27d7ff49f4dc9f7122e87d1c578383/heir_py-2026.10.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:8cfd7ec171f07de041ea1804b1cbad6ada1f11177349b4e94b63196629504b82", size = 37855717, upload-time = "2026-10-01T02:03:50.073Z" },
+    { url = "https://files.pythonhosted.org/packages/97/7a/afc601fde2a5337057bcbd2e4d533712bc68eb7ee953336699f8e315209a/heir_py-2026.10.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:a0e077d4dee7e07e53711c4a0ee4a11b52ee44880dbd53d6e7d6f6ca80726327", size = 32475843, upload-time = "2026-10-01T02:03:54.562Z" },
+    { url = "https://files.pythonhosted.org/packages/05/86/2fc6d76a4c23f27a0f2476d83a3a587f4b92045a45d534ccc409c8f67c1c/heir_py-2026.10.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:b8a56222ac248aa7d73796a4c5e1001b0398b955d46b313e6e8954d084ec9d0b", size = 34487920, upload-time = "2026-10-01T02:03:59.218Z" },
 ]
 
 [[package]]
@@ -3052,7 +3052,7 @@ requires-dist = [
     { name = "cffi", marker = "extra == 'llvm'", specifier = ">=2" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.6" },
-    { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.9.1" },
+    { name = "heir-py", marker = "extra == 'heir'", specifier = "==2026.10.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19" },
     { name = "llvmlite", marker = "extra == 'llvm'", specifier = "~=0.49.0" },
