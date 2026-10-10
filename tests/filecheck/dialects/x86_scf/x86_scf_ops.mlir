@@ -5,32 +5,32 @@
 %ub = x86.di.mov 100 : () -> !x86.reg64
 %step = x86.di.mov 1 : () -> !x86.reg64
 %acc = x86.di.mov 0 : () -> !x86.reg64<rbx>
-%lb_end, %res_for = x86_scf.for %i : !x86.reg64 = %lb to %ub step %step iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end, %res_for = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
 
-%lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64 = %ub down to %lb step %step iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
 
-%lb_end_2, %res_for_static_ub = x86_scf.for %k : !x86.reg64 = %lb to 100 : si32 step %step iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end_2, %res_for_static_ub = x86_scf.for %k : !x86.reg64 = %lb : !x86.reg64 to 100 : si32 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
 
-%lb_end_3, %res_for_static_step = x86_scf.for %m : !x86.reg64 = %lb to %ub step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end_3, %res_for_static_step = x86_scf.for %m : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
 
-%lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64 = %ub down to %lb step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
 
-%lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64 = %lb to 100 : si32 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+%lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64 = %lb : !x86.reg64 to 100 : si32 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
 }
@@ -40,27 +40,27 @@
 // CHECK-NEXT:    %ub = x86.di.mov 100 : () -> !x86.reg64
 // CHECK-NEXT:    %step = x86.di.mov 1 : () -> !x86.reg64
 // CHECK-NEXT:    %acc = x86.di.mov 0 : () -> !x86.reg64<rbx>
-// CHECK-NEXT:    %lb_end, %res_for = x86_scf.for %i : !x86.reg64  = %lb to %ub step %step iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end, %res_for = x86_scf.for %i : !x86.reg64  = %lb : !x86.reg64 to %ub : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res : !x86.reg64<rbx>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64  = %ub down  to %lb step %step iter_args(%acc_in_1 = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64  = %ub : !x86.reg64 down  to %lb : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in_1 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_1 = x86.ri.add %acc_in_1, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_1 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %lb_end_2, %res_for_static_ub = x86_scf.for %k : !x86.reg64  = %lb to 100 : si32 step %step iter_args(%acc_in_2 = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end_2, %res_for_static_ub = x86_scf.for %k : !x86.reg64  = %lb : !x86.reg64 to 100 : si32 step %step : !x86.reg64 iter_args(%acc_in_2 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_2 = x86.ri.add %acc_in_2, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_2 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %lb_end_3, %res_for_static_step = x86_scf.for %m : !x86.reg64  = %lb to %ub step 2 : si32 iter_args(%acc_in_3 = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end_3, %res_for_static_step = x86_scf.for %m : !x86.reg64  = %lb : !x86.reg64 to %ub : !x86.reg64 step 2 : si32 iter_args(%acc_in_3 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_3 = x86.ri.add %acc_in_3, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_3 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64  = %ub down  to %lb step 2 : si32 iter_args(%acc_in_4 = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64  = %ub : !x86.reg64 down  to %lb : !x86.reg64 step 2 : si32 iter_args(%acc_in_4 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_4 = x86.ri.add %acc_in_4, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_4 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64  = %lb to 100 : si32 step 2 : si32 iter_args(%acc_in_5 = %acc) -> (!x86.reg64<rbx>) {
+// CHECK-NEXT:    %lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64  = %lb : !x86.reg64 to 100 : si32 step 2 : si32 iter_args(%acc_in_5 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_5 = x86.ri.add %acc_in_5, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_5 : !x86.reg64<rbx>
 // CHECK-NEXT:    }
@@ -80,24 +80,24 @@
 // CHECK-NEXT:    %init = x86.di.mov 0 : () -> !x86.reg64<r11>
 
 // The induction variable and its exit value use the upper bound's register.
-%iv_end, %res = x86_scf.rof %i : !x86.reg64<r13> = %ub down to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+%iv_end, %res = x86_scf.rof %i : !x86.reg64<r13> = %ub : !x86.reg64<r13> down to %lb : !x86.reg64<r12> step %step : !x86.reg64<r10> iter_args(%acc = %init) -> (!x86.reg64<r11>) {
   x86_scf.yield %acc : !x86.reg64<r11>
 }
-// CHECK-NEXT:    %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13>  = %ub down  to %lb step %step iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+// CHECK-NEXT:    %iv_end, %res = x86_scf.rof %i : !x86.reg64<r13>  = %ub : !x86.reg64<r13> down  to %lb : !x86.reg64<r12> step %step : !x86.reg64<r10> iter_args(%acc = %init) -> (!x86.reg64<r11>) {
 // CHECK-NEXT:      x86_scf.yield %acc : !x86.reg64<r11>
 // CHECK-NEXT:    }
 
 // A reverse loop may have an immediate lower (termination) bound.
-%iv_end_static = x86_scf.rof %j : !x86.reg64<r13> = %ub down to 1 : si32 step 3 : si32 {
+%iv_end_static = x86_scf.rof %j : !x86.reg64<r13> = %ub : !x86.reg64<r13> down to 1 : si32 step 3 : si32 {
 }
-// CHECK-NEXT:    %iv_end_static = x86_scf.rof %j : !x86.reg64<r13>  = %ub down  to 1 : si32 step 3 : si32 {
+// CHECK-NEXT:    %iv_end_static = x86_scf.rof %j : !x86.reg64<r13>  = %ub : !x86.reg64<r13> down  to 1 : si32 step 3 : si32 {
 // CHECK-NEXT:    }
 
 // An immediate stop with a register step and loop-carried values.
-%iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub down to 1 : si32 step %step iter_args(%carried = %init) -> (!x86.reg64<r11>) {
+%iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub : !x86.reg64<r13> down to 1 : si32 step %step : !x86.reg64<r10> iter_args(%carried = %init) -> (!x86.reg64<r11>) {
   x86_scf.yield %carried : !x86.reg64<r11>
 }
-// CHECK-NEXT:    %iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub down to 1 : si32 step %step iter_args(%carried = %init) -> (!x86.reg64<r11>) {
+// CHECK-NEXT:    %iv_end_static_stop, %res_static_stop = x86_scf.rof %k : !x86.reg64<r13> = %ub : !x86.reg64<r13> down to 1 : si32 step %step : !x86.reg64<r10> iter_args(%carried = %init) -> (!x86.reg64<r11>) {
 // CHECK-NEXT:      x86_scf.yield %carried : !x86.reg64<r11>
 // CHECK-NEXT:    }
 

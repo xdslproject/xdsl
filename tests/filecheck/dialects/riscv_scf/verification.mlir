@@ -32,7 +32,7 @@
 
 %lb, %ub = "test.op"() : () -> (!riscv.reg, !riscv.reg)
 
-riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
+riscv_scf.for %i_static : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : f32 {
     yield
 }
 
@@ -42,7 +42,7 @@ riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
 
 %lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
 
-%result = riscv_scf.for %i : !riscv.reg = %lb to %ub step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+%result = riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
     riscv_scf.yield
 }
 
@@ -53,7 +53,7 @@ riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
 %lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
 %wrong = "test.op"() : () -> !riscv.reg<t1>
 
-%result = riscv_scf.for %i : !riscv.reg = %lb to %ub step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+%result = riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
     riscv_scf.yield %wrong : !riscv.reg<t1>
 }
 
@@ -63,7 +63,7 @@ riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
 
 %lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
 
-%result = riscv_scf.rof %i : !riscv.reg = %ub down to %lb step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+%result = riscv_scf.rof %i : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
     riscv_scf.yield
 }
 
@@ -74,7 +74,7 @@ riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
 %lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
 %wrong = "test.op"() : () -> !riscv.reg<t1>
 
-%result = riscv_scf.rof %i : !riscv.reg = %ub down to %lb step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+%result = riscv_scf.rof %i : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
     riscv_scf.yield %wrong : !riscv.reg<t1>
 }
 

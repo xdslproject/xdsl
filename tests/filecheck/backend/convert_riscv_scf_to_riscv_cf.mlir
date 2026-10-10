@@ -6,7 +6,7 @@ builtin.module {
         %zero = rv32.li 0 : !riscv.reg<a2>
         %step = rv32.li 4 : !riscv.reg<a3>
         %forty = rv32.li 40 : !riscv.reg<a4>
-        riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step %step {
+        riscv_scf.for %offset : !riscv.reg<a5> = %zero : !riscv.reg<a2> to %forty : !riscv.reg<a4> step %step : !riscv.reg<a3> {
             %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
             %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
             %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
@@ -47,7 +47,7 @@ builtin.module {
     riscv_func.func @sum_range(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
         %2 = rv32.li 1 : !riscv.reg<a2>
         %3 = rv32.li 0 : !riscv.reg<a3>
-        %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) {
+        %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 : !riscv.reg<a0> to %1 : !riscv.reg<a1> step %2 : !riscv.reg<a2> iter_args(%6 = %3) -> (!riscv.reg<a3>) {
             %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
             riscv_scf.yield %7 : !riscv.reg<a3>
         }
@@ -81,10 +81,10 @@ builtin.module {
         %0 = rv32.li 0 : !riscv.reg<a1>
         %1 = rv32.li 0 : !riscv.reg<a2>
         %2 = rv32.li 1 : !riscv.reg<a3>
-        %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 to %arg0 step %2 iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
+        %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 : !riscv.reg<a2> to %arg0 : !riscv.reg<a0> step %2 : !riscv.reg<a3> iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
             %4 = rv32.li 0 : !riscv.reg<a4>
             %5 = rv32.li 1 : !riscv.reg<a5>
-            %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 to %arg0 step %5 iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
+            %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 : !riscv.reg<a4> to %arg0 : !riscv.reg<a0> step %5 : !riscv.reg<a5> iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
                 %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
                 %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
                 riscv_scf.yield %8 : !riscv.reg<a1>
@@ -130,7 +130,7 @@ builtin.module {
 riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg<a1>) {
     %zero = rv32.li 0 : !riscv.reg<a2>
     %forty = rv32.li 40 : !riscv.reg<a4>
-    riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step 4 : si12 {
+    riscv_scf.for %offset : !riscv.reg<a5> = %zero : !riscv.reg<a2> to %forty : !riscv.reg<a4> step 4 : si12 {
         %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
         %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
         %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
@@ -163,7 +163,7 @@ riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg
 %lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
 %acc = rv32.li 0 : !riscv.reg<a2>
 
-%res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
+%res = riscv_scf.for %i : !riscv.reg<a3> = %lb : !riscv.reg<a0> to %ub : !riscv.reg<a1> step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
     %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
     riscv_scf.yield %next : !riscv.reg<a2>
 }

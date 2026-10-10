@@ -38,67 +38,78 @@ class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
         super().__init__(operands=[operands])
 
 
+def _print_bound(printer: Printer, bound: IntegerAttr | SSAValue) -> None:
+    if isinstance(bound, IntegerAttr):
+        bound.print_builtin(printer)
+        return
+    printer.print_ssa_value(bound)
+    printer.print_string(" : ")
+    printer.print_attribute(bound.type)
+
+
+@overload
+def _parse_bound(
+    parser: Parser,
+    *,
+    allow_static: Literal[False] = False,
+) -> SSAValue: ...
+
+
+@overload
+def _parse_bound(parser: Parser, *, allow_static: bool) -> IntegerAttr | SSAValue: ...
+
+
+def _parse_bound(
+    parser: Parser, *, allow_static: bool = False
+) -> IntegerAttr | SSAValue:
+    """Parse a typed SSA operand or, if allowed, a typed integer literal."""
+    if allow_static:
+        operand = parser.parse_optional_unresolved_operand()
+        if operand is None:
+            pos = parser.pos
+            attr = parser.parse_attribute()
+            if not isa(attr, IntegerAttr):
+                parser.raise_error("Expected IntegerAttr", pos)
+            return attr
+    else:
+        operand = parser.parse_unresolved_operand("Expected an operand.")
+    parser.parse_punctuation(":")
+    return parser.resolve_operand(operand, parser.parse_type())
+
+
 def print_for_op_like(
     printer: Printer,
-    start: IntegerAttr | SSAValue,
+    start: SSAValue,
     stop: IntegerAttr | SSAValue,
     step: IntegerAttr | SSAValue,
     iter_args: Sequence[SSAValue],
     body: Region,
-    default_indvar_type: type[TypeAttribute] | None = None,
     bound_words: Sequence[str] = ["to"],
 ):
     """
-    Prints the loop bounds, step, iteration arguments, and body.
+    Prints backend loop bounds, step, iteration arguments, and body.
 
-    Users can provide a default induction variable type and specific human-readable
-    words for bounds (default: "to").
-
-    Note that providing a default induction variable type is required to suggest that
-    all loop control variable types (induction, bounds and step) have the same type,
-    hence moving the induction variable type printing to the end of the for expression.
-    The induction variable type printing is ommited when it matches the expected default
-    type (`default_indvar_type`).
-
-    The `start`, `stop`, and `step` may be dynamic SSAValues or static
-    `IntegerAttr`s.
-    When static, the typed integer literal is printed (value and type), not an SSA
-    value reference.
+    The induction variable and each SSA operand are printed with their own types.
+    The `stop` and `step` may also be typed integer literals.
+    Users can provide specific words for bounds (default: "to").
     """
 
     block = body.block
     indvar, *block_iter_args = block.args
 
     printer.print_string(" ")
-
-    def print_indvar_type():
-        printer.print_string(" : ")
-        printer.print_attribute(indvar.type)
-        printer.print_string(" ")
-
     printer.print_ssa_value(indvar)
-
-    if default_indvar_type is None:
-        print_indvar_type()
-
+    printer.print_string(" : ")
+    printer.print_attribute(indvar.type)
     printer.print_string(" = ")
-    if isinstance(start, IntegerAttr):
-        start.print_builtin(printer)
-    else:
-        printer.print_ssa_value(start)
+    _print_bound(printer, start)
 
     for word in bound_words:
         printer.print_string(f" {word} ")
 
-    if isinstance(stop, IntegerAttr):
-        stop.print_builtin(printer)
-    else:
-        printer.print_ssa_value(stop)
+    _print_bound(printer, stop)
     printer.print_string(" step ")
-    if isinstance(step, IntegerAttr):
-        step.print_builtin(printer)
-    else:
-        printer.print_ssa_value(step)
+    _print_bound(printer, step)
     printer.print_string(" ")
     if block_iter_args:
         printer.print_string("iter_args(")
@@ -109,11 +120,6 @@ def print_for_op_like(
         printer.print_string(") -> (")
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
-
-    if default_indvar_type is not None and not isinstance(
-        indvar.type, default_indvar_type
-    ):
-        print_indvar_type()
 
     printer.print_region(
         body,
@@ -126,7 +132,6 @@ def print_for_op_like(
 @overload
 def parse_for_op_like(
     parser: Parser,
-    default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
     allow_static_stop: Literal[False] = ...,
@@ -137,7 +142,6 @@ def parse_for_op_like(
 @overload
 def parse_for_op_like(
     parser: Parser,
-    default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
     allow_static_stop: Literal[False] = ...,
@@ -148,7 +152,6 @@ def parse_for_op_like(
 @overload
 def parse_for_op_like(
     parser: Parser,
-    default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
     allow_static_stop: Literal[True],
@@ -159,7 +162,6 @@ def parse_for_op_like(
 @overload
 def parse_for_op_like(
     parser: Parser,
-    default_indvar_type: TypeAttribute | None = ...,
     bound_words: Sequence[str] = ...,
     *,
     allow_static_stop: Literal[True],
@@ -171,7 +173,6 @@ def parse_for_op_like(
 
 def parse_for_op_like(
     parser: Parser,
-    default_indvar_type: TypeAttribute | None = None,
     bound_words: Sequence[str] = ["to"],
     *,
     allow_static_stop: bool = False,
@@ -180,15 +181,10 @@ def parse_for_op_like(
     SSAValue, IntegerAttr | SSAValue, IntegerAttr | SSAValue, Sequence[SSAValue], Region
 ]:
     """
-    Returns the initial bound, termination bound, step, iteration arguments, and body.
-    Bounds are returned in textual order.
-
-    Users can provide a default induction variable type and specific human-readable
-    words for bounds (default: "to").
-    Note that providing a default induction variable type is required to suggest that
-    all loop control variable types (induction, bounds and step) have the same type,
-    hence the induction variable type is potentially expected at the end of the for
-    expression.
+    Parses backend loop bounds, step, iteration arguments, and body.
+    Bounds are returned in textual order. The induction variable and each SSA
+    operand must be followed by their types.
+    Users can provide specific words for bounds (default: "to").
 
     When `allow_static_stop=True`, the termination bound may be either a static typed
     integer literal or a dynamic SSA value.
@@ -197,46 +193,16 @@ def parse_for_op_like(
     The default (`False`) only allows dynamic SSA values.
     """
 
-    unresolved_indvar = parser.parse_argument(expect_type=False)
-
-    indvar_type = None
-
-    if default_indvar_type is None:
-        parser.parse_characters(":")
-        indvar_type = parser.parse_type()
-
+    indvar = parser.parse_argument()
     parser.parse_characters("=")
-    start = parser.parse_operand()
+    start = _parse_bound(parser)
 
     for word in bound_words:
         parser.parse_characters(word)
 
-    stop: IntegerAttr | SSAValue
-    if allow_static_stop:
-        if (stop_ssa := parser.parse_optional_operand()) is not None:
-            stop = stop_ssa
-        else:
-            pos = parser.pos
-            stop_attr = parser.parse_attribute()
-            if not isa(stop_attr, IntegerAttr):
-                parser.raise_error("Expected IntegerAttr", pos)
-            stop = stop_attr
-    else:
-        stop = parser.parse_operand()
+    stop = _parse_bound(parser, allow_static=allow_static_stop)
     parser.parse_characters("step")
-
-    step: IntegerAttr | SSAValue
-    if allow_static_step:
-        if (step_ssa := parser.parse_optional_operand()) is not None:
-            step = step_ssa
-        else:
-            pos = parser.pos
-            step_attr = parser.parse_attribute()
-            if not isa(step_attr, IntegerAttr):
-                parser.raise_error("Expected IntegerAttr", pos)
-            step = step_attr
-    else:
-        step = parser.parse_operand()
+    step = _parse_bound(parser, allow_static=allow_static_step)
 
     # parse iteration arguments
     pos = parser.pos
@@ -262,17 +228,6 @@ def parse_for_op_like(
     iter_args = [
         u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
     ]
-
-    if default_indvar_type is not None:
-        indvar_type = (
-            parser.parse_type()
-            if parser.parse_optional_characters(":")
-            else default_indvar_type
-        )
-    assert indvar_type is not None
-
-    # set induction variable type
-    indvar = unresolved_indvar.resolve(indvar_type)
 
     body = parser.parse_region((indvar, *iter_args))
 
