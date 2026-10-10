@@ -180,14 +180,14 @@
     %fa0 = riscv.get_float_register : !riscv.freg<fa0>
     %fa1 = riscv.get_float_register : !riscv.freg<fa1>
 
-    riscv_snitch.frep_outer %0 {
+    riscv_snitch.frep_outer %0 : !riscv.reg<zero> {
       %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
 
     // CHECK:          frep.o zero, 1, 0, 0
     // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
 
-    riscv_snitch.frep_inner %0 {
+    riscv_snitch.frep_inner %0 : !riscv.reg<zero> {
       %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
     // CHECK:          frep.i zero, 1, 0, 0
