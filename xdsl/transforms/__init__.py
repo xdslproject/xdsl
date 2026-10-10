@@ -86,6 +86,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_x86_func.ConvertFuncToX86FuncPass
 
+    def get_expand_math_to_chebyshev():
+        from xdsl.transforms import expand_math_to_chebyshev
+
+        return expand_math_to_chebyshev.ExpandMathToChebyshevPass
+
     def get_expand_math_to_polynomials():
         from xdsl.transforms import expand_math_to_polynomials
 
@@ -697,6 +702,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
+        "expand-math-to-chebyshev": get_expand_math_to_chebyshev,
         "expand-math-to-polynomials": get_expand_math_to_polynomials,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
