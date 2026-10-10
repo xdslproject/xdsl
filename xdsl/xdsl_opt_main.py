@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
-from typing import IO, Any, cast
+from typing import IO, Any, ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -48,6 +48,12 @@ class xDSLOptMain(CommandLineTool):
 
     pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
+
+    version_format: ClassVar[str] = "xdsl-opt built from xdsl version {xdsl_version}"
+    """
+    Format string for the message printed by `--version`. `{xdsl_version}` is
+    replaced by the installed xDSL version.
+    """
 
     def __init__(
         self,
@@ -236,6 +242,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
+            version_format=self.version_format,
         )
 
         arg_parser.add_argument(
@@ -386,8 +393,16 @@ class xDSLOptMain(CommandLineTool):
 
 
 class VersionAction(argparse.Action):
-    def __init__(self, *args: Any, **kwargs: Any):
+    version_format: str
+
+    def __init__(
+        self,
+        *args: Any,
+        version_format: str = xDSLOptMain.version_format,
+        **kwargs: Any,
+    ):
         super().__init__(nargs=0, *args, **kwargs)
+        self.version_format = version_format
 
     def __call__(
         self,
@@ -396,5 +411,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        print(self.version_format.format(xdsl_version=version("xdsl")))
         parser.exit()
