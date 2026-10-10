@@ -1,6 +1,6 @@
 import ast
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -9,12 +9,32 @@ import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
-from xdsl.frontend.pyast.utils.exceptions import (
-    CodeGenerationException,
-)
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Region, TypeAttribute
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
+from xdsl.utils.lexer import Location
+
+FunctionDefinitionConstructor = Callable[
+    [str, builtin.FunctionType, Region, Location], Operation
+]
+"""Wrap a function region containing argument bindings, before visiting statements."""
+
+ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
+"""Construct a return operation, or return None when no terminator is needed."""
+
+TupleConstructor = Callable[[Sequence[SSAValue]], Operation]
+"""Construct an operation with one result representing a tuple of SSA values."""
+
+
+def build_func(
+    name: str, signature: builtin.FunctionType, body: Region, location: Location
+) -> func.FuncOp:
+    return func.FuncOp(name, signature, body)
+
+
+def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnOp:
+    return func.ReturnOp(*values)
 
 
 @dataclass(init=False)
@@ -36,14 +56,29 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
+    function_definition_constructor: FunctionDefinitionConstructor
+    """Construct an enclosing operation before visiting the function statements."""
+
+    return_constructor: ReturnConstructor
+    """Construct return operations, optionally omitting the terminator."""
+
+    tuple_constructor: TupleConstructor | None
+    """Construct tuple expressions when registered."""
+
     def __init__(
         self,
         type_converter: TypeConverter,
         module: builtin.ModuleOp,
         file: str | None,
+        function_definition_constructor: FunctionDefinitionConstructor = build_func,
+        return_constructor: ReturnConstructor = build_return,
+        tuple_constructor: TupleConstructor | None = None,
     ) -> None:
         self.type_converter = type_converter
         self.file = file
+        self.function_definition_constructor = function_definition_constructor
+        self.return_constructor = return_constructor
+        self.tuple_constructor = tuple_constructor
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
@@ -61,6 +96,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
+
+    def visit_single_value(self, node: ast.expr) -> SSAValue:
+        """Visit an expression that must produce exactly one SSA value."""
+        stack_size = len(self.inserter.stack)
+        self.visit(node)
+        if len(self.inserter.stack) != stack_size + 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected an expression with exactly one result.",
+            )
+        return self.inserter.get_operand()
 
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
@@ -94,8 +142,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -198,38 +265,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
-        # Resolve arguments
-        assert self.symbol_table is not None
-        args: list[symref.FetchOp] = []
-        for arg in node.args:
-            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
-                )
-            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
-            self.inserter.insert_op(arg_op)
-
-        # Resolve keyword arguments
-        kwargs: dict[str, symref.FetchOp] = {}
+        args = [self.visit_single_value(arg) for arg in node.args]
+        kwargs: dict[str, SSAValue] = {}
         for keyword in node.keywords:
-            if (
-                not isinstance(keyword.value, ast.Name)
-                or keyword.value.id not in self.symbol_table
-            ):
+            if keyword.arg is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"{source_kind.capitalize()} arguments must be declared variables.",
+                    "Unpacking keyword arguments is not supported.",
                 )
-            assert keyword.arg is not None
-            kwargs[keyword.arg] = symref.FetchOp(
-                keyword.value.id, self.symbol_table[keyword.value.id]
-            )
-            self.inserter.insert_op(kwargs[keyword.arg])
+            kwargs[keyword.arg] = self.visit_single_value(keyword.value)
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
 
@@ -366,6 +412,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value is None:
+            return
         if (
             literal_op := self.type_converter.literal_registry.resolve_operation(
                 node.value
@@ -381,8 +429,30 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
 
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        if self.tuple_constructor is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Tuple construction is not registered.",
+            )
+        elements = [self.visit_single_value(element) for element in node.elts]
+        op = self.tuple_constructor(elements)
+        if len(op.results) != 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected a tuple constructor with exactly one result.",
+            )
+        self.inserter.insert_op(op)
+
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
@@ -400,7 +470,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Then, convert types in the function signature.
         argument_types: list[Attribute] = []
-        for i, arg in enumerate(node.args.args):
+        for arg in node.args.args:
             if arg.annotation is None:
                 raise CodeGenerationException(
                     self.file,
@@ -442,24 +512,26 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 )
             return_types.append(xdsl_type)
 
-        # Create a function operation.
-        entry_block = Block()
-        body_region = Region(entry_block)
-        func_op = func.FuncOp.from_region(
-            node.name, argument_types, return_types, body_region
-        )
-
-        self.inserter.insert_op(func_op)
+        entry_block = Block(arg_types=argument_types)
+        body = Region(entry_block)
+        parent_block = self.inserter.insertion_point
         self.inserter.set_insertion_point_from_block(entry_block)
 
         # All arguments are declared using symref.
-        for i, arg in enumerate(node.args.args):
+        for arg, value in zip(node.args.args, entry_block.args, strict=True):
             symbol_name = str(arg.arg)
-            block_arg = entry_block.insert_arg(argument_types[i], i)
-            block_arg.name_hint = symbol_name
-            self.symbol_table[symbol_name] = argument_types[i]
+            value.name_hint = symbol_name
+            self.symbol_table[symbol_name] = value.type
             entry_block.add_op(symref.DeclareOp(symbol_name))
-            entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
+            entry_block.add_op(symref.UpdateOp(symbol_name, value))
+
+        function_op = self.function_definition_constructor(
+            node.name,
+            builtin.FunctionType.from_lists(argument_types, return_types),
+            body,
+            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
+        )
+        parent_block.add_op(function_op)
 
         # Parse function body.
         has_docstring = ast.get_docstring(node, clean=False) is not None
@@ -473,9 +545,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
         self.symbol_table = None
-        parent_op = func_op.parent_op()
-        assert parent_op is not None
-        self.inserter.set_insertion_point_from_op(parent_op)
+        self.inserter.set_insertion_point_from_block(parent_block)
 
     def visit_If(self, node: ast.If) -> None:
         # Get the condition.
@@ -545,31 +615,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         pass
 
     def visit_Return(self, node: ast.Return) -> None:
-        # First of all, we should only be able to return if the statement is directly
-        # in the function. Cases like:
-        #
-        # def foo(cond: i1):
-        #   if cond:
-        #     return 1
-        #   else:
-        #     return 0
-        #
-        # are not allowed at the moment.
-        parent_op = self.inserter.insertion_point.parent_op()
-        if not isinstance(parent_op, func.FuncOp):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Return statement should be placed only at the end of the "
-                "function body.",
-            )
-
         value = node.value
         if value is None or (isinstance(value, ast.Constant) and value.value is None):
-            self.inserter.insert_op(func.ReturnOp())
+            operands = ()
         else:
             # TODO: Support multiple return values if we allow multiple assignments.
-            self.visit(value)
-            operands = [self.inserter.get_operand()]
-            self.inserter.insert_op(func.ReturnOp(*operands))
+            operands = (self.visit_single_value(value),)
+        op = self.return_constructor(
+            operands,
+            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
+        )
+        if op is not None:
+            self.inserter.insert_op(op)

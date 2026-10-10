@@ -10,14 +10,16 @@ The Python dialect is under heavy development, and the definitions are not yet s
         1. We assume no exceptions are raised in the code.
 """
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import (
-    I64,
-    IntegerAttr,
+    IntAttr,
     StringAttr,
 )
 from xdsl.ir import (
     Dialect,
     ParametrizedAttribute,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -29,7 +31,12 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
+    var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import Pure
 
 
 @irdl_attr_definition
@@ -80,14 +87,48 @@ class PyConstOp(PyOperation):
     """
 
     name = "py.const"
-    assembly_format = "$const attr-dict"
 
     # We can expand this to other types later.
-    const = prop_def(IntegerAttr[I64])
+    const = prop_def(IntAttr | StringAttr)
     res = result_def(PyObjectType())
 
-    def __init__(self, const: IntegerAttr[I64]):
+    traits = traits_def(Pure())
+
+    def __init__(self, const: IntAttr | StringAttr):
         super().__init__(properties={"const": const}, result_types=[PyObjectType()])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "PyConstOp":
+        if (string := parser.parse_optional_str_literal()) is not None:
+            const = StringAttr(string)
+        else:
+            const = IntAttr(parser.parse_integer(allow_boolean=False))
+        op = cls(const)
+        op.attributes.update(parser.parse_optional_attr_dict())
+        return op
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        if isinstance(self.const, IntAttr):
+            printer.print_int(self.const.data)
+        else:
+            printer.print_string_literal(self.const.data)
+        printer.print_op_attributes(self.attributes)
+
+
+@irdl_op_definition
+class PyBuildTupleOp(PyOperation):
+    """Build a Python tuple from its elements, in order."""
+
+    name = "py.build_tuple"
+    elements = var_operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    assembly_format = "`(` $elements `)` attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, elements: Sequence[SSAValue]):
+        super().__init__(operands=[elements], result_types=[PyObjectType()])
 
 
 @irdl_op_definition
@@ -119,6 +160,7 @@ Py = Dialect(
     [
         PyBinOp,
         PyConstOp,
+        PyBuildTupleOp,
     ],
     [
         PyObjectType,
