@@ -4,10 +4,9 @@ description = "Plugin to test pass and transform discovery"
 readme = "README.md"
 license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [ { name = "Sasha Lopoukhine", email = "sasha@lopoukhine.com" } ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",

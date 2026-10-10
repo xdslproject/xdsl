@@ -20,7 +20,7 @@ jobs:
         shell: nix develop --command bash -eo pipefail {0}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     env:
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.14' }}
