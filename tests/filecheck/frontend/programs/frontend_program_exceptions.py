@@ -44,7 +44,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
-# CHECK-NEXT: Expected arguments to have the same types as the function output types
+# CHECK-NEXT: Expected arguments to have the same types as the function output types: expected (!bigint.bigint), got ()
 @ctx.parse_program
 def missing_return_value() -> int:
     return  # pyright: ignore[reportReturnType]
@@ -85,7 +85,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
-# CHECK: Expected arguments to have the same types as the function output types
+# CHECK: Expected arguments to have the same types as the function output types: expected (!bigint.bigint), got ()
 @ctx.parse_program
 def test_no_return_type(a: int) -> int:
     return  # pyright: ignore[reportReturnType]
@@ -97,7 +97,7 @@ except VerifyException as e:
     print(e)
 
 
-# CHECK: Expected arguments to have the same types as the function output types
+# CHECK: Expected arguments to have the same types as the function output types: expected (i1), got (!bigint.bigint)
 @ctx.parse_program
 def test_wrong_return_type(a: bool, b: int) -> bool:
     return b  # pyright: ignore[reportReturnType]
@@ -121,7 +121,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 
-# CHECK: Expected arguments to have the same types as the function output types
+# CHECK: Expected arguments to have the same types as the function output types: expected (), got (!bigint.bigint)
 @ctx.parse_program
 def test_no_return_types(a: int) -> None:
     return a  # pyright: ignore[reportReturnType]

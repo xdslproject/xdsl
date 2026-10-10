@@ -367,7 +367,9 @@ class ReturnOp(IRDLOperation):
         return_types = self.arguments.types
         if function_return_types != return_types:
             raise VerifyException(
-                "Expected arguments to have the same types as the function output types"
+                "Expected arguments to have the same types as the function output "
+                f"types: expected ({', '.join(map(str, function_return_types))}), "
+                f"got ({', '.join(map(str, return_types))})"
             )
 
 

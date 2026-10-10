@@ -74,4 +74,4 @@ transform.named_sequence @wrong_type(%arg: !transform.any_op) -> !transform.any_
   transform.yield %arg : !transform.any_op
 }
 
-// CHECK: Expected yielded values to have the same types as the named sequence output types
+// CHECK: Expected yielded values to have the same types as the named sequence output types: expected (!transform.any_value), got (!transform.any_op)

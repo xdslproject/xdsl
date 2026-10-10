@@ -564,7 +564,9 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             and self.arguments.types != parent.function_type.outputs.data
         ):
             raise VerifyException(
-                "Expected yielded values to have the same types as the named sequence output types"
+                "Expected yielded values to have the same types as the named sequence "
+                f"output types: expected ({', '.join(map(str, parent.function_type.outputs.data))}), "
+                f"got ({', '.join(map(str, self.arguments.types))})"
             )
 
 

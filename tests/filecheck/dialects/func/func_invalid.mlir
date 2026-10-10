@@ -107,3 +107,19 @@ func.func private @f(%arg0: i32 loc(unknown) {test.arg_name = "x"})
 func.func private @f(%arg0: i32 loc(unknown) {})
 
 // CHECK: Expected function argument attributes before location.
+
+// -----
+
+func.func @wrong_type(%arg: i32) -> i64 {
+  func.return %arg : i32
+}
+
+// CHECK: Expected arguments to have the same types as the function output types: expected (i64), got (i32)
+
+// -----
+
+func.func @wrong_count(%arg: i32) -> (i32, i32) {
+  func.return %arg : i32
+}
+
+// CHECK: Expected arguments to have the same types as the function output types: expected (i32, i32), got (i32)
