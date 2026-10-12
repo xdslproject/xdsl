@@ -5,7 +5,7 @@ import sys
 import time
 from collections.abc import Callable, Sequence
 from importlib.metadata import version
-from io import StringIO
+from io import BytesIO, StringIO
 from itertools import accumulate
 from typing import IO, Any, cast
 
@@ -308,7 +308,7 @@ class xDSLOptMain(CommandLineTool):
             callback,
         )
 
-    def prepare_input(self) -> tuple[list[tuple[IO[str], int]], str]:
+    def prepare_input(self) -> tuple[list[tuple[IO[bytes], int]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -317,17 +317,17 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: list[tuple[IO[str], int]] = []
+        chunks: list[tuple[IO[bytes], int]] = []
         f, file_extension = self.get_input_stream()
         chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_bytes = f.read().split(b"// -----")
             chunks_off = accumulate(
-                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
+                [0, *[chunk.count(b"\n") for chunk in chunks_bytes[:-1]]]
             )
             chunks = [
-                (StringIO(chunk), off)
-                for chunk, off in zip(chunks_str, chunks_off, strict=True)
+                (BytesIO(chunk), off)
+                for chunk, off in zip(chunks_bytes, chunks_off, strict=True)
             ]
             f.close()
         if self.args.frontend:

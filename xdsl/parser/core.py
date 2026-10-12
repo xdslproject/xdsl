@@ -99,10 +99,11 @@ class Parser(AttrParser):
     def __init__(
         self,
         ctx: Context,
-        input: str,
+        input: str | bytes,
         name: str = "<unknown>",
     ) -> None:
-        super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
+        text = input.decode("utf-8") if isinstance(input, bytes) else input
+        super().__init__(ParserState(MLIRLexer(Input(text, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = defaultdict(list)

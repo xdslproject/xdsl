@@ -17,7 +17,7 @@ class CommandLineTool:
     attributes.
     """
 
-    available_frontends: dict[str, Callable[[IO[str]], ModuleOp]]
+    available_frontends: dict[str, Callable[[IO[bytes]], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -55,15 +55,15 @@ class CommandLineTool:
             help="Disable implicit addition of a top-level module op during parsing.",
         )
 
-    def get_input_stream(self) -> tuple[IO[str], str]:
+    def get_input_stream(self) -> tuple[IO[bytes], str]:
         """
-        Get the input stream to parse from, along with the file extension.
+        Get the binary input stream to parse from, along with the file extension.
         """
         if self.args.input_file is None:
-            f = sys.stdin
+            f = sys.stdin.buffer
             file_extension = "mlir"
         else:
-            f = open(self.args.input_file)
+            f = open(self.args.input_file, "rb")
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
         return f, file_extension
@@ -90,7 +90,7 @@ class CommandLineTool:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_mlir(io: IO[str]):
+        def parse_mlir(io: IO[bytes]):
             return Parser(
                 self.ctx,
                 io.read(),
@@ -100,7 +100,7 @@ class CommandLineTool:
         self.available_frontends["mlir"] = parse_mlir
 
     def parse_chunk(
-        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+        self, chunk: IO[bytes], file_extension: str, start_offset: int = 0
     ) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
