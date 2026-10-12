@@ -24,7 +24,7 @@ builtin.module {
     }> ({
     ^bb0(%a_stream: !snitch.readable<!riscv.freg<ft0>>, %b_stream: !snitch.writable<!riscv.freg<ft1>>):
       %c5 = rv32.li 5 : !riscv.reg
-      riscv_snitch.frep_outer %c5 {
+      riscv_snitch.frep_outer %c5 : !riscv.reg {
         %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
         %b = riscv.fmax.d %a, %zero_3 : (!riscv.freg<ft0>, !riscv.freg) -> !riscv.freg<ft1>
         riscv_snitch.write %b to %b_stream : !riscv.freg<ft1>

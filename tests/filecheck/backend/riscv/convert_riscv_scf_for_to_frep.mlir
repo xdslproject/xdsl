@@ -33,20 +33,20 @@ riscv_scf.for %index1b : !riscv.reg<a4> = %i0 to %i1 step 1 : si12 {
     riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
 }
 
-// CHECK:         riscv_snitch.frep_outer %1 {
+// CHECK:         riscv_snitch.frep_outer %1 : !riscv.reg {
 // CHECK-NEXT:      %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
 // CHECK-NEXT:      %f5 = riscv.fadd.d %f4, %f4 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
 // CHECK-NEXT:      riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %res = riscv.sub %i1, %i0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %res_1 = riscv.addi %res, -1 : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %res_2 = riscv_snitch.frep_outer %res_1 iter_args(%f3 = %f0) -> (!riscv.freg<ft2>) {
+// CHECK-NEXT:    %res_2 = riscv_snitch.frep_outer %res_1 : !riscv.reg iter_args(%f3 = %f0) -> (!riscv.freg<ft2>) {
 // CHECK-NEXT:      %{{.*}} = riscv.fadd.d %f3, %f3 : (!riscv.freg<ft2>, !riscv.freg<ft2>) -> !riscv.freg<ft2>
 // CHECK-NEXT:      riscv_snitch.frep_yield %{{.*}} : !riscv.freg<ft2>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %[[C1_1:\w+]] = riscv.sub %i1, %i0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:    %[[C1_2:\w+]] = riscv.addi %[[C1_1]], -1 : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    riscv_snitch.frep_outer %[[C1_2]] {
+// CHECK-NEXT:    riscv_snitch.frep_outer %[[C1_2]] : !riscv.reg {
 // CHECK-NEXT:      %[[F4:\w+]] = riscv_snitch.read from %readable : !riscv.freg<ft0>
 // CHECK-NEXT:      %[[F5:\w+]] = riscv.fadd.d %[[F4]], %[[F4]] : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
 // CHECK-NEXT:      riscv_snitch.write %[[F5]] to %writable : !riscv.freg<ft1>
