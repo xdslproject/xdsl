@@ -265,7 +265,7 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
-# CHECK: Expected arguments to have the same types as the function output types
+# CHECK: Expected arguments to have the same types as the function output types: expected [f32], got [f64]
 @ctx.parse_program
 def test_constant_float_wrong_return_type_f32() -> c_float:
     return 0.0  # pyright: ignore[reportReturnType]
