@@ -107,6 +107,7 @@ lint.per-file-ignores."typings/**/*.pyi" = [ "F403", "F821", "PYI021", "PYI048" 
 lint.per-file-ignores."xdsl/dialects/*.pyi" = [ "PYI021" ]  # auto-generated stubs have docstrings
 lint.per-file-ignores."xdsl/frontend/pyast/dialects/builtin.py" = [ "PYI042" ]  # typealias i32 error
 lint.flake8-tidy-imports.banned-api."typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
+lint.flake8-tidy-imports.banned-api."typing_extensions.Self".msg = "Use typing.Self instead."
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dynamic_index_list".msg = "Use xdsl.dialects.utils instead"

@@ -6,9 +6,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation

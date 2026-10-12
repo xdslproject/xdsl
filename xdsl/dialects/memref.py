@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import ClassVar, cast
+from typing import ClassVar, Self, cast
 
-from typing_extensions import Self, deprecated
+from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,

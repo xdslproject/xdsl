@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar
-
-from typing_extensions import Self
+from typing import ClassVar, Self
 
 from xdsl.dialects.builtin import (
     DenseArrayBase,

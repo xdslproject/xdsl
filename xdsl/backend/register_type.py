@@ -3,8 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-
-from typing_extensions import Self
+from typing import Self
 
 from xdsl.dialects.builtin import (
     IntAttr,

@@ -1,7 +1,7 @@
 import re
+from typing import Self
 
 import pytest
-from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.register_allocation import (

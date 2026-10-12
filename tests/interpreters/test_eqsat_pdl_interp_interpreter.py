@@ -1703,8 +1703,7 @@ def test_run_create_operation_multiple_results():
 def test_run_create_operation_runs_analysis():
     """Test that run_create_operation runs registered analyses on new operations."""
     from dataclasses import dataclass
-
-    from typing_extensions import Self
+    from typing import Self
 
     from xdsl.analysis.dataflow import DataFlowSolver
     from xdsl.analysis.sparse_analysis import (

@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-
-from typing_extensions import Self
+from typing import Self
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
