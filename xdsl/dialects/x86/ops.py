@@ -33,9 +33,9 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
+from typing import IO, ClassVar, Generic, Literal, Self, TypeAlias, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.backend.register_allocatable import (

@@ -10,9 +10,9 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, ClassVar, Generic, cast
+from typing import Any, ClassVar, Generic, Self, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
