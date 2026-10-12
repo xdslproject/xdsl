@@ -20,10 +20,10 @@ jobs:
         shell: nix develop --command bash -eo pipefail {0}
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
     env:
-      COLLECT_COVERAGE: ${{ matrix.python-version == '3.14' }}
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.15' }}
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v7
@@ -78,7 +78,7 @@ jobs:
         run: make tests-marimo
 
       - name: Combine coverage data
-        if: matrix.python-version == '3.14'
+        if: matrix.python-version == '3.15'
         run: |
           uv run coverage combine --append
           uv run coverage report
@@ -88,7 +88,7 @@ jobs:
         run: uv cache prune --ci
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.14'
+        if: matrix.python-version == '3.15'
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
