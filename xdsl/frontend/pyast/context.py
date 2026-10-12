@@ -3,7 +3,7 @@ import functools
 import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from inspect import getsource
+from inspect import getsourcelines
 from typing import Any, NamedTuple
 
 from xdsl.context import Context
@@ -18,13 +18,14 @@ from xdsl.frontend.pyast.utils.type_conversion import (
 from xdsl.ir import Dialect, Operation, TypeAttribute
 from xdsl.passes import ModulePass, PassPipeline, PassPipelineCallbackType
 from xdsl.transforms.desymref import FrontendDesymrefyPass
+from xdsl.utils.lexer import Location
 
 
 class FuncInfo(NamedTuple):
     """Information about a decorated function being generated into IR."""
 
-    file: str
-    """The path of the file containing the function."""
+    source_location: Location
+    """The original file location of the start of the dedented source."""
 
     globals: dict[str, Any]
     """The globals defined in that file up to the point of function definition."""
@@ -107,18 +108,24 @@ class PyASTContext:
         func_globals = func.__globals__
 
         # Remove leading indentation from the source code to avoid parsing errors
-        source = getsource(func.__code__)
-        source = textwrap.dedent(source)
+        source_lines, start_line = getsourcelines(func.__code__)
+        source = "".join(source_lines)
+        dedented_source = textwrap.dedent(source)
+        # Dedent removes the same ASCII whitespace prefix from non-blank lines.
+        indentation = len(source.partition("\n")[0]) - len(
+            dedented_source.partition("\n")[0]
+        )
+        source_location = Location(func_file, start_line, indentation + 1)
 
         # Retrieve the AST for the function body, without the decorator
-        func_ast = ast.parse(source).body[0]
+        func_ast = ast.parse(dedented_source).body[0]
         assert isinstance(func_ast, ast.FunctionDef)
         assert func_ast.name == func.__name__
         assert len(func_ast.decorator_list) == 1
         func_ast.decorator_list = []
 
         # Return the information about the function
-        return FuncInfo(func_file, func_globals, func_ast)
+        return FuncInfo(source_location, func_globals, func_ast)
 
     @classmethod
     def _get_wrapped_program(
@@ -136,12 +143,12 @@ class PyASTContext:
 
     def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
-        func_file, func_globals, func_ast = self._get_func_info(func)
+        source_location, func_globals, func_ast = self._get_func_info(func)
         builder = PyASTBuilder(
             type_registry=self.type_registry,
             function_registry=self.function_registry,
             literal_registry=self.literal_registry,
-            file=func_file,
+            source_location=source_location,
             globals=func_globals,
             function_ast=func_ast,
             build_context=self.ir_context,

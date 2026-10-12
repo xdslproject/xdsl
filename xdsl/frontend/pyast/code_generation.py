@@ -15,6 +15,7 @@ from xdsl.frontend.pyast.utils.exceptions import (
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, TypeAttribute
+from xdsl.utils.lexer import Location
 
 
 @dataclass(init=False)
@@ -33,28 +34,39 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    file: str | None
-    """Path of the file containing the program being processed."""
+    source_location: Location
+    """The original file location of the start of the dedented source."""
 
     def __init__(
         self,
         type_converter: TypeConverter,
         module: builtin.ModuleOp,
-        file: str | None,
+        source_location: Location,
     ) -> None:
         self.type_converter = type_converter
-        self.file = file
+        self.source_location = source_location
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
+
+    def get_location(self, node: ast.AST) -> Location:
+        """
+        Map snippet-relative AST coordinates to a file location.
+
+        Python AST lines are one-based, and columns are zero-based UTF-8 byte
+        offsets. The source location accounts for preceding lines and dedenting.
+        """
+        return Location(
+            self.source_location.file,
+            self.source_location.line + getattr(node, "lineno") - 1,
+            self.source_location.col + getattr(node, "col_offset"),
+        )
 
     def get_symbol(self, node: ast.Name) -> Attribute:
         assert self.symbol_table is not None
         if node.id not in self.symbol_table:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Symbol '{node.id}' is not defined.",
             )
         return self.symbol_table[node.id]
@@ -64,9 +76,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
-            self.file,
-            getattr(node, "lineno"),
-            getattr(node, "col_offset"),
+            self.get_location(node),
             f"Unsupported Python AST node {node!s}",
         )
 
@@ -83,9 +93,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.msg.value, str
             ):
                 raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
+                    self.get_location(node),
                     "Expected a string constant for assertion message, found "
                     f"'ast.{type(node.msg).__qualname__}'",
                 )
@@ -119,9 +127,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         if op_name not in python_AST_operator_to_python_overload:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Unexpected binary operation {op_name}.",
             )
 
@@ -135,9 +141,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.type != rhs.type:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Expected the same types for binary operation '{op_name}', "
                 f"but got {lhs.type} and {rhs.type}.",
             )
@@ -146,9 +150,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         source_type = self.type_converter.type_registry.get_annotation(ir_type)
         if source_type is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"IR type '{ir_type}' is not registered with a source type.",
             )
 
@@ -165,9 +167,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         overload_name = python_AST_operator_to_python_overload[op_name]
         raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
+            self.get_location(node),
             f"Binary operation '{op_name}' "
             f"is not supported by type '{source_type.__qualname__}' "
             f"which does not overload '{overload_name}'.",
@@ -183,18 +183,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 source, source_name = self._call_source_classmethod(node)
             case _:
                 raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
+                    self.get_location(node),
                     "Unsupported call expression.",
                 )
 
         ir_op = self.type_converter.function_registry.get_operation_constructor(source)
         if ir_op is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
@@ -204,9 +200,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for arg in node.args:
             if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
                 raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
+                    self.get_location(node),
                     f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
@@ -220,9 +214,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 or keyword.value.id not in self.symbol_table
             ):
                 raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
+                    self.get_location(node),
                     f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             assert keyword.arg is not None
@@ -241,9 +233,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         func = self.type_converter.globals.get(func_name, None)
         if func is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Function '{func_name}' is not defined in scope.",
             )
         return func, func_name
@@ -262,17 +252,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         source_class = self.type_converter.globals.get(class_name, None)
         if source_class is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Class '{class_name}' is not defined in scope.",
             )
         classmethod_ = getattr(source_class, method_name, None)
         if classmethod_ is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Method '{method_name}' is not defined on class '{class_name}'.",
             )
         return classmethod_, classmethod_name
@@ -281,9 +267,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Expected a single comparator, but found {len(node.comparators)}.",
             )
         comp = node.comparators[0]
@@ -311,9 +295,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         if op_name in unsupported_python_AST_cmpop:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Unsupported comparison operation '{op_name}'.",
             )
 
@@ -327,9 +309,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.type != rhs.type:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Expected the same types for comparison operator '{op_name}',"
                 f" but got {lhs.type} and {rhs.type}.",
             )
@@ -338,9 +318,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         source_type = self.type_converter.type_registry.get_annotation(ir_type)
         if source_type is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"IR type '{ir_type}' is not registered with a source type.",
             )
 
@@ -357,9 +335,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         python_op = python_AST_cmpop_to_python_overload[op_name]
         raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
+            self.get_location(node),
             f"Comparison operation '{op_name}' "
             f"is not supported by type '{ir_type.name}' "
             f"which does not overload '{python_op}'.",
@@ -375,9 +351,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             return
 
         raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
+            self.get_location(node),
             f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
 
@@ -391,9 +365,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Set the symbol table.
         if self.symbol_table is not None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Cannot have an inner function '{node.name}' inside another function.",
             )
         self.symbol_table = dict()
@@ -403,9 +375,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
                 raise CodeGenerationException(
-                    self.file,
-                    arg.lineno,
-                    arg.col_offset,
+                    self.get_location(arg),
                     "Function arguments must be type hinted",
                 )
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
@@ -413,9 +383,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
             if xdsl_type is None:
                 raise CodeGenerationException(
-                    self.file,
-                    arg.lineno,
-                    arg.col_offset,
+                    self.get_location(arg),
                     f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
                 )
             argument_types.append(xdsl_type)
@@ -423,9 +391,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         returns = node.returns
         if returns is None:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 "Function return type must be annotated.",
             )
         return_types: list[Attribute] = []
@@ -435,9 +401,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
             if xdsl_type is None:
                 raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
+                    self.get_location(node),
                     f"Unsupported function return type: '{ast.unparse(returns)}'",
                 )
             return_types.append(xdsl_type)
@@ -525,9 +489,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Check types are the same for this to be a valid if statement.
         if true_type != false_type:
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 f"Expected the same types for if expression,"
                 f" but got {true_type} and {false_type}.",
             )
@@ -558,9 +520,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         parent_op = self.inserter.insertion_point.parent_op()
         if not isinstance(parent_op, func.FuncOp):
             raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
+                self.get_location(node),
                 "Return statement should be placed only at the end of the "
                 "function body.",
             )

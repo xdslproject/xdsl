@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from xdsl.utils.lexer import Location
+
 
 @dataclass
 class FrontendProgramException(Exception):
@@ -24,27 +26,15 @@ class CodeGenerationException(FrontendProgramException):
     user-facing errors, e.g. unsupported functionality or failed type checks.
     """
 
-    file: str | None
-    line: int
-    col: int
+    location: Location
 
     def __init__(
         self,
-        file: str | None,
-        line: int,
-        col: int,
+        location: Location,
         msg: str,
     ):
         super().__init__(msg)
-        self.file = file
-        self.line = line
-        self.col = col
+        self.location = location
 
     def __str__(self) -> str:
-        str = "Code generation exception at "
-        if self.file:
-            return (
-                str + f'"{self.file}", line {self.line} column {self.col}: {self.msg}'
-            )
-        else:
-            return str + f"line {self.line} column {self.col}: {self.msg}"
+        return f"Code generation exception at {self.location}: {self.msg}"

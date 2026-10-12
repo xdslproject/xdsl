@@ -27,7 +27,7 @@ except NotImplementedError as e:
     print(e)
 
 
-# CHECK: Unsupported function argument type: 'Callable[..., None]'
+# CHECK: Code generation exception at {{.*}}code_generation_exceptions.py:[[# @LINE + 2]]:33: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:
     return
@@ -36,10 +36,10 @@ def test_complex_arg_annotation(x: Callable[..., None]) -> None:
 try:
     test_complex_arg_annotation.module
 except CodeGenerationException as e:
-    print(e.msg)
+    print(e)
 
 
-# CHECK: Unsupported function return type: 'int | None'
+# CHECK: Code generation exception at {{.*}}code_generation_exceptions.py:[[# @LINE + 2]]:1: Unsupported function return type: 'int | None'
 @ctx.parse_program
 def test_complex_return_annotation() -> int | None:
     return
@@ -48,4 +48,19 @@ def test_complex_return_annotation() -> int | None:
 try:
     test_complex_return_annotation.module
 except CodeGenerationException as e:
-    print(e.msg)
+    print(e)
+
+
+def test_nested_location():
+    # CHECK: Code generation exception at {{.*}}code_generation_exceptions.py:[[# @LINE + 2]]:30: Unsupported function argument type: 'float'
+    @ctx.parse_program
+    def nested(é: c_size_t, x: float) -> None:
+        return
+
+    try:
+        nested.module
+    except CodeGenerationException as e:
+        print(e)
+
+
+test_nested_location()

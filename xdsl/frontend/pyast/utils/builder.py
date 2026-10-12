@@ -12,6 +12,7 @@ from xdsl.frontend.pyast.utils.type_conversion import (
     TypeRegistry,
 )
 from xdsl.passes import PassPipeline
+from xdsl.utils.lexer import Location
 
 
 @dataclass
@@ -27,8 +28,8 @@ class PyASTBuilder:
     literal_registry: LiteralRegistry
     """Mappings between literal types and their operation constructors."""
 
-    file: str | None
-    """The file path of the function being built."""
+    source_location: Location
+    """The original file location of the start of the dedented source."""
 
     globals: dict[str, Any]
     """Global information for the function being built, including all the imports."""
@@ -52,7 +53,7 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(type_converter, module, self.file).visit(
+        CodeGenerationVisitor(type_converter, module, self.source_location).visit(
             self.function_ast
         )
         module.verify()
