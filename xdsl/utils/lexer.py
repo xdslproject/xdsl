@@ -5,41 +5,55 @@ from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
 from typing import Generic, NamedTuple
+from warnings import warn
 
 from typing_extensions import TypeVar
 
 Position = int
 """
-A position in a file.
-The position correspond to the character index in the file.
+A zero-based byte offset in a source buffer.
 """
 
 
 class Location(NamedTuple):
-    "Structure definition a location in a file."
+    """
+    A file location using one-based line numbers and byte columns.
+
+    This follows LLVM's [byte-column convention](https://clang.llvm.org/docs/UsersManual.html#opt-fshow-column).
+    MLIR obtains its source coordinates from [LLVM's SourceMgr](https://github.com/llvm/llvm-project/blob/main/mlir/lib/AsmParser/Lexer.cpp).
+    """
 
     file: str
     line: int
-    "1-index of line in file"
+    "1-index of line in file."
     col: int
-    "1-index of column in file"
+    "1-index of byte in line."
 
     def __str__(self) -> str:
         return f"{self.file}:{self.line}:{self.col}"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Input:
     """
-    Used to keep track of the input when parsing.
+    Source name and bytes contents.
     """
 
-    content: str = field(repr=False)
+    content: bytes = field(repr=False)
     name: str
     len: int = field(init=False, repr=False)
 
-    def __post_init__(self):
-        object.__setattr__(self, "len", len(self.content))
+    def __init__(self, content: bytes | str, name: str):
+        if isinstance(content, str):
+            warn(
+                "Passing str to Input is deprecated; pass UTF-8 bytes instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            content = content.encode("utf-8")
+        object.__setattr__(self, "content", content)
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "len", len(content))
 
     def __len__(self):
         return self.len
@@ -50,7 +64,7 @@ class Input:
         previous newlines.
         """
         # Returns -1 if not found, meaning on first line
-        pos = self.content.rfind("\n", 0, pos)
+        pos = self.content.rfind(b"\n", 0, pos)
         # If the result is not the beginning of the input, go past the matching newline
         return pos + 1
 
@@ -59,17 +73,17 @@ class Input:
         Returns the position of the first newline after `pos`, or the length of the
         file if there are no more newlines.
         """
-        pos = self.content.find("\n", pos)
+        pos = self.content.find(b"\n", pos)
         # If the result is at the end of the input, return the length for correct slice
         # indexing
         return self.len if pos == -1 else pos
 
-    def at(self, i: Position) -> str | None:
+    def at(self, i: Position) -> int | None:
         if i >= self.len:
             return None
         return self.content[i]
 
-    def slice(self, start: Position, end: Position) -> str | None:
+    def slice(self, start: Position, end: Position) -> bytes | None:
         if end > self.len or start < 0:
             return None
         return self.content[start:end]
@@ -84,11 +98,11 @@ class Span:
 
     start: Position
     """
-    Start of tokens location in source file, global byte offset in file
+    Inclusive start of the span, as a byte offset in the source buffer.
     """
     end: Position
     """
-    End of tokens location in source file, global byte offset in file
+    Exclusive end of the span, as a byte offset in the source buffer.
     """
     input: Input
     """
@@ -97,7 +111,7 @@ class Span:
 
     line_offset: int = 0
     """
-    A line offset, to just add to ht file number in input when printed.
+    A line offset to add to the line number when reporting a location.
     """
 
     def __len__(self):
@@ -108,12 +122,17 @@ class Span:
         return self.end - self.start
 
     @property
-    def text(self):
+    def bytes(self) -> bytes:
         return self.input.content[self.start : self.end]
+
+    @property
+    def text(self) -> str:
+        """The source bytes decoded as UTF-8."""
+        return self.bytes.decode("utf-8")
 
     def get_location(self) -> Location:
         line_start = self.input.get_start_of_line(self.start)
-        line_index_in_source = self.input.content.count("\n", 0, line_start) + 1
+        line_index_in_source = self.input.content.count(b"\n", 0, line_start) + 1
         line_index = line_index_in_source + self.line_offset
         column_index = self.start - line_start + 1
         return Location(self.input.name, line_index, column_index)
@@ -125,31 +144,33 @@ class Span:
         along these.
         """
         loc = self.get_location()
-        # Offset relative to the first line:
-        offset = loc.col - 1
-        lines_start = self.start - offset
-        lines_end = self.input.get_end_of_line(self.end)
-        lines = self.input.content[lines_start:lines_end].splitlines()
-        remaining_len = max(self.len, 1)
+        lines_start = self.input.get_start_of_line(self.start)
+        lines_end = self.input.get_end_of_line(max(self.start, self.end - 1))
+        lines = self.input.content[lines_start:lines_end].split(b"\n")
         capture = StringIO()
         print(loc, file=capture)
+        line_start = lines_start
         for line in lines:
-            print(line, file=capture)
-            if remaining_len < 0:
-                continue
-            caret_count = min(remaining_len, max(len(line) - offset, 1))
-            print(" " * offset + "^" * caret_count, file=capture)
+            source_line = line.removesuffix(b"\r")
+            start = max(self.start - line_start, 0)
+            end = max(self.end - line_start, 0)
+            # Decode prefixes to translate byte offsets into character columns.
+            # Replacement characters keep malformed UTF-8 printable.
+            start_column = len(source_line[:start].decode("utf-8", "replace"))
+            end_column = len(source_line[:end].decode("utf-8", "replace"))
+            print(source_line.decode("utf-8", "replace"), file=capture)
+            print(
+                " " * start_column + "^" * max(end_column - start_column, 1),
+                file=capture,
+            )
             if msg is not None:
-                print(" " * offset + msg, file=capture)
+                print(" " * start_column + msg, file=capture)
                 msg = None
-            remaining_len -= caret_count
-            offset = 0
-        if msg is not None:
-            print(msg, file=capture)
+            line_start += len(line) + 1
         return capture.getvalue()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}[{self.start}:{self.end}](text='{self.text}')"
+        return f"{self.__class__.__name__}[{self.start}:{self.end}]({self.bytes!r})"
 
 
 TokenKindT = TypeVar("TokenKindT", bound=Enum)

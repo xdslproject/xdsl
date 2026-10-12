@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Generic, Literal, cast, overload
+from warnings import warn
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
@@ -102,8 +103,15 @@ class Parser(AttrParser):
         input: str | bytes,
         name: str = "<unknown>",
     ) -> None:
-        text = input.decode("utf-8") if isinstance(input, bytes) else input
-        super().__init__(ParserState(MLIRLexer(Input(text, name))), ctx)
+        """Create a parser for source bytes; string inputs are deprecated."""
+        if isinstance(input, str):
+            warn(
+                "Passing str to Parser is deprecated; pass UTF-8 bytes instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            input = input.encode("utf-8")
+        super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = defaultdict(list)

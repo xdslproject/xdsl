@@ -61,13 +61,20 @@ def test_utf8_input():
     source = '// comment\r\n"é😀"'
     parser = Parser(Context(), source.encode("utf-8"))
 
-    assert parser.lexer.input.content == source
+    assert parser.lexer.input.content == source.encode("utf-8")
     assert parser.parse_attribute() == StringAttr("é😀")
 
 
 def test_invalid_utf8_input():
     with pytest.raises(UnicodeDecodeError):
-        Parser(Context(), b"// \xff")
+        Parser(Context(), b'"\xff"')
+
+
+def test_str_input_deprecated():
+    with pytest.warns(DeprecationWarning, match="Passing str to Parser") as warnings:
+        parser = Parser(Context(), '"é"')
+    assert len(warnings) == 1
+    assert parser.parse_attribute() == StringAttr("é")
 
 
 @pytest.mark.parametrize("defined", [False, True])
@@ -1531,6 +1538,16 @@ def test_parse_dimension_list(input: str, expected: list[int]):
 
     result = parser.parse_dimension_list()
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "source",
+    ['!unknown.type<"é😀", [i32]>', '!unknown<type "é😀">'],
+)
+def test_unregistered_type_unicode(source: str):
+    parser = Parser(Context(allow_unregistered=True), (source + " tail").encode())
+    assert str(parser.parse_type()) == source
+    assert parser.parse_identifier() == "tail"
 
 
 @pytest.mark.parametrize(

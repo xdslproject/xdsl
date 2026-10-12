@@ -24,7 +24,9 @@ from .toy_ast import (
 
 class ToyParser(GenericParser[ToyTokenKind]):
     def __init__(self, file: Path, program: str):
-        super().__init__(ParserState(ToyLexer(Input(program, str(file)))))
+        super().__init__(
+            ParserState(ToyLexer(Input(program.encode("utf-8"), str(file))))
+        )
 
     def get_token_precedence(self) -> int:
         """Returns precedence if the current token is a binary operation, -1 otherwise"""

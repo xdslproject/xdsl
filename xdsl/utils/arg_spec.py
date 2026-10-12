@@ -288,18 +288,18 @@ class SpecTokenKind(Enum):
 
 SpecToken: TypeAlias = Token[SpecTokenKind]
 
-_lexer_rules: list[tuple[re.Pattern[str], SpecTokenKind]] = [
+_lexer_rules: list[tuple[re.Pattern[bytes], SpecTokenKind]] = [
     # first rule is special to allow 2d-slice to be recognized as an ident
-    (re.compile(r"[0-9]+[A-Za-z_-]+[A-Za-z0-9_-]*"), SpecTokenKind.IDENT),
-    (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), SpecTokenKind.NUMBER),
-    (re.compile(r"[A-Za-z0-9_-]+"), SpecTokenKind.IDENT),
-    (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), SpecTokenKind.STRING_LIT),
-    (re.compile(r'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), SpecTokenKind.MLIR_PIPELINE),
-    (re.compile(r"\{"), SpecTokenKind.L_BRACE),
-    (re.compile(r"}"), SpecTokenKind.R_BRACE),
-    (re.compile(r"="), SpecTokenKind.EQUALS),
-    (re.compile(r"\s+"), SpecTokenKind.SPACE),
-    (re.compile(r","), SpecTokenKind.COMMA),
+    (re.compile(rb"[0-9]+[A-Za-z_-]+[A-Za-z0-9_-]*"), SpecTokenKind.IDENT),
+    (re.compile(rb"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), SpecTokenKind.NUMBER),
+    (re.compile(rb"[A-Za-z0-9_-]+"), SpecTokenKind.IDENT),
+    (re.compile(rb'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), SpecTokenKind.STRING_LIT),
+    (re.compile(rb'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), SpecTokenKind.MLIR_PIPELINE),
+    (re.compile(rb"\{"), SpecTokenKind.L_BRACE),
+    (re.compile(rb"}"), SpecTokenKind.R_BRACE),
+    (re.compile(rb"="), SpecTokenKind.EQUALS),
+    (re.compile(rb"\s+"), SpecTokenKind.SPACE),
+    (re.compile(rb","), SpecTokenKind.COMMA),
 ]
 """
 This is a list of lexer rules that should be tried in this specific order to get the
@@ -330,18 +330,18 @@ class PipelineLexer:
 
     @staticmethod
     def _generator(input_str: str) -> Iterator[SpecToken]:
-        input = Input(input_str, "pass-pipeline")
+        input = Input(input_str.encode("utf-8"), "pass-pipeline")
         pos = 0
-        end = len(input_str)
+        end = len(input)
 
-        if len(input_str) == 0:
-            yield SpecToken(SpecTokenKind.EOF, Span(pos, pos + 1, input))
+        if not end:
+            yield SpecToken(SpecTokenKind.EOF, Span(0, 0, input))
             return
 
         while True:
             token: SpecToken | None = None
             for pattern, kind in _lexer_rules:
-                if (match := pattern.match(input_str, pos)) is not None:
+                if (match := pattern.match(input.content, pos)) is not None:
                     token = SpecToken(kind, Span(match.start(), match.end(), input))
                     pos = match.end()
                     break
@@ -352,7 +352,7 @@ class PipelineLexer:
                 )
             yield token
             if pos >= end:
-                yield SpecToken(SpecTokenKind.EOF, Span(pos, pos + 1, input))
+                yield SpecToken(SpecTokenKind.EOF, Span(pos, pos, input))
                 return
 
     def lex(self) -> SpecToken:

@@ -272,7 +272,9 @@ class AttrParser(BaseParser):
         if issubclass(attr_def, UnregisteredAttr):
             if starting_opaque_pos is not None:
                 gt_pos = self._raw_scan_balanced(starting_opaque_pos)
-                body = self.lexer.input.content[starting_opaque_pos:gt_pos]
+                body = self.lexer.input.content[starting_opaque_pos:gt_pos].decode(
+                    "utf-8"
+                )
                 self.lexer.pos = gt_pos
                 self._parser_state.current_token = self.lexer.lex()
             elif self._current_token.kind != MLIRTokenKind.LESS:
@@ -361,39 +363,44 @@ class AttrParser(BaseParser):
         """
         content = self.lexer.input.content
         length = self.lexer.input.len
-        closers = {">": "<", ")": "(", "]": "[", "}": "{"}
-        nesting: list[str] = []
+        closers = {
+            ord(">"): ord("<"),
+            ord(")"): ord("("),
+            ord("]"): ord("["),
+            ord("}"): ord("{"),
+        }
+        nesting: list[int] = []
 
         while pos < length:
             c = content[pos]
             pos += 1
 
-            if c in "<([{":
+            if c in b"<([{":
                 nesting.append(c)
-            elif c == "-" and pos < length and content[pos] == ">":
+            elif c == ord("-") and pos < length and content[pos] == ord(">"):
                 pos += 1
             elif c in closers:
                 if not nesting:
-                    if c == ">":
+                    if c == ord(">"):
                         return pos - 1
                     self.raise_error(
-                        f"Unbalanced '{c}' in dialect symbol body",
+                        f"Unbalanced '{chr(c)}' in dialect symbol body",
                         pos - 1,
                     )
                 if nesting[-1] != closers[c]:
                     self.raise_error(
-                        f"Unbalanced '{c}' in dialect symbol body",
+                        f"Unbalanced '{chr(c)}' in dialect symbol body",
                         pos - 1,
                     )
                 nesting.pop()
-            elif c == '"':
+            elif c == ord('"'):
                 str_start = pos - 1
                 while pos < length:
                     sc = content[pos]
                     pos += 1
-                    if sc == "\\":
+                    if sc == ord("\\"):
                         pos += 1
-                    elif sc == '"':
+                    elif sc == ord('"'):
                         break
                 else:
                     self.raise_error(
@@ -420,7 +427,7 @@ class AttrParser(BaseParser):
 
         self.lexer.pos = gt_pos + 1
         self._parser_state.current_token = self.lexer.lex()
-        return self.lexer.input.content[body_start:gt_pos]
+        return self.lexer.input.content[body_start:gt_pos].decode("utf-8")
 
     def _parse_unregistered_attr_body(self, start_pos: Position | None) -> str:
         """
@@ -493,7 +500,7 @@ class AttrParser(BaseParser):
 
         body = self.lexer.input.slice(start_pos, end_pos)
         assert body is not None
-        return body
+        return body.decode("utf-8")
 
     def _parse_optional_builtin_parametrized_type(self) -> TypeAttribute | None:
         """

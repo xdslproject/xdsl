@@ -1,12 +1,12 @@
 import pytest
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Input, Position
+from xdsl.utils.lexer import Input, Location, Position, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
 def get_token(input: str) -> MLIRToken:
-    file = Input(input, "<unknown>")
+    file = Input(input.encode("utf-8"), "<unknown>")
     lexer = MLIRLexer(file)
     token = lexer.lex()
     return token
@@ -25,10 +25,57 @@ def assert_single_token(
 
 
 def assert_token_fail(input: str):
-    file = Input(input, "<unknown>")
+    file = Input(input.encode("utf-8"), "<unknown>")
     lexer = MLIRLexer(file)
     with pytest.raises(ParseError):
         lexer.lex()
+
+
+def test_input_str_deprecated():
+    with pytest.warns(DeprecationWarning, match="Passing str to Input"):
+        input = Input("é", "test.mlir")
+    assert input.content == b"\xc3\xa9"
+
+
+def test_byte_offsets():
+    input = Input('"é😀" x\r\ny'.encode(), "test.mlir")
+    assert len(input) == 13
+    assert input.at(1) == 0xC3
+    assert input.at(len(input)) is None
+    assert input.slice(1, 3) == b"\xc3\xa9"
+    assert input.slice(0, len(input) + 1) is None
+
+    lexer = MLIRLexer(input)
+    literal = lexer.lex()
+    assert literal.text == '"é😀"'
+    assert literal.span.bytes == '"é😀"'.encode()
+    assert (literal.span.start, literal.span.end) == (0, 8)
+    assert literal.kind.get_string_literal_value(literal.span) == "é😀"
+    token = lexer.lex()
+    assert token.text == "x"
+    assert token.span.get_location() == Location("test.mlir", 1, 10)
+    token = lexer.lex()
+    assert token.text == "y"
+    assert token.span.start == 12
+    assert token.span.get_location() == Location("test.mlir", 2, 1)
+
+
+@pytest.mark.parametrize(
+    "source,start,end,expected",
+    [
+        ('"é" x'.encode(), 5, 6, 'test.mlir:1:6\n"é" x\n    ^\n'),
+        ('"é"'.encode(), 1, 2, 'test.mlir:1:2\n"é"\n ^\n'),
+        (b"\xff x", 2, 3, "test.mlir:1:3\n� x\n  ^\n"),
+        ('"é"\r\nx'.encode(), 1, 7, 'test.mlir:1:2\n"é"\n ^^\nx\n^\n'),
+        ("é\n".encode(), 3, 3, "test.mlir:2:1\n\n^\n"),
+        (b"abc\nxyz", 0, 4, "test.mlir:1:1\nabc\n^^^\n"),
+    ],
+)
+def test_byte_span_diagnostic(source: bytes, start: int, end: int, expected: str):
+    span = Span(start, end, Input(source, "test.mlir"))
+    assert span.print_with_context() == expected
+    # A debug representation must also work for partial UTF-8 sequences.
+    assert repr(span) == f"Span[{start}:{end}]({source[start:end]!r})"
 
 
 @pytest.mark.parametrize(
@@ -192,7 +239,7 @@ def test_slash_vs_comment():
     """A single `/` produces SLASH; `//` is consumed as a comment."""
     assert_single_token("/", MLIRTokenKind.SLASH)
 
-    file = Input("// this is a comment\n0", "<unknown>")
+    file = Input(b"// this is a comment containing invalid UTF-8: \xff\n0", "<unknown>")
     lexer = MLIRLexer(file)
     token = lexer.lex()
     assert token.kind == MLIRTokenKind.INTEGER_LIT
