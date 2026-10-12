@@ -108,7 +108,7 @@ class xDSLRunMain(CommandLineTool):
                     else:
                         print("result: ()")
         finally:
-            if input is not sys.stdin:
+            if input is not sys.stdin.buffer:
                 input.close()
 
 

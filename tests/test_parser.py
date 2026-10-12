@@ -57,6 +57,19 @@ from xdsl.utils.str_enum import StrEnum
 # pyright: reportPrivateUsage=false
 
 
+def test_utf8_input():
+    source = '// comment\r\n"é😀"'
+    parser = Parser(Context(), source.encode("utf-8"))
+
+    assert parser.lexer.input.content == source
+    assert parser.parse_attribute() == StringAttr("é😀")
+
+
+def test_invalid_utf8_input():
+    with pytest.raises(UnicodeDecodeError):
+        Parser(Context(), b"// \xff")
+
+
 @pytest.mark.parametrize("defined", [False, True])
 @pytest.mark.parametrize(
     "t",
