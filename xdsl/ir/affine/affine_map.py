@@ -4,9 +4,7 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
-from typing import cast
-
-from typing_extensions import TypeVar
+from typing import TypeVar, cast
 
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 

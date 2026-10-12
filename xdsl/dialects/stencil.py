@@ -6,9 +6,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import ClassVar, Generic, TypeAlias, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (

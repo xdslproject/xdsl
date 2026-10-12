@@ -4,10 +4,9 @@ import re
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import ClassVar, Generic, cast
+from typing import ClassVar, Generic, TypeVar, cast
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import test

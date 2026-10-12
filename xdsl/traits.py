@@ -5,9 +5,7 @@ from collections.abc import Iterator, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING
-
-from typing_extensions import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 

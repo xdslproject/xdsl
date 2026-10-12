@@ -18,6 +18,7 @@ from typing import (
     Literal,
     NamedTuple,
     TypeAlias,
+    TypeVar,
     Union,
     cast,
     get_args,
@@ -25,7 +26,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform
+from typing_extensions import dataclass_transform
 
 if sys.version_info >= (3, 14, 0):
     from typing_extensions import TypeForm

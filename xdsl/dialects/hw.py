@@ -12,9 +12,7 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import ClassVar, Generic, NamedTuple, cast, overload
-
-from typing_extensions import TypeVar
+from typing import ClassVar, Generic, NamedTuple, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,

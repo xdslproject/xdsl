@@ -7,9 +7,7 @@ for more details.
 from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import cast
-
-from typing_extensions import TypeVar
+from typing import TypeVar, cast
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,

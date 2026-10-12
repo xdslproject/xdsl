@@ -21,11 +21,12 @@ from typing import (
     Generic,
     NoReturn,
     TypeAlias,
+    TypeVar,
     cast,
     overload,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-
-from typing_extensions import TypeVar
+from typing import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp

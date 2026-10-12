@@ -1,8 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Generic
-
-from typing_extensions import TypeVar
+from typing import Generic, TypeVar
 
 COMMENTS = r"(?:\/\/[^\n\r]+?(?:\*\)|[\n\r]))"
 WHITESPACES = re.compile(r"(?:\s|" + COMMENTS + r")*")

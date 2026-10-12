@@ -9,9 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal
-
-from typing_extensions import TypeVar
+from typing import Generic, Literal, TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,

@@ -5,9 +5,7 @@ from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import cast
-
-from typing_extensions import TypeVar
+from typing import TypeVar, cast
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (

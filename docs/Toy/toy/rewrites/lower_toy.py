@@ -6,9 +6,7 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 from collections.abc import Callable, Sequence
 from itertools import product
-from typing import TypeAlias, cast
-
-from typing_extensions import TypeVar
+from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context

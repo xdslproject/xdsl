@@ -5,9 +5,9 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, Any, Generic, TypeAlias
+from typing import IO, Any, Generic, TypeAlias, TypeVar
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (

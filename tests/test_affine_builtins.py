@@ -1,8 +1,8 @@
 import re
 from collections.abc import Callable, Sequence
+from typing import TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,

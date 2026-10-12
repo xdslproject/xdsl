@@ -10,9 +10,7 @@ import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Literal, cast
-
-from typing_extensions import TypeVar
+from typing import Any, ClassVar, Literal, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,

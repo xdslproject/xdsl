@@ -1,10 +1,9 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
-from typing import Generic
+from typing import Generic, TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (

@@ -1,7 +1,7 @@
 import re
+from typing import TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import StringAttr, i32
 from xdsl.ir import Attribute

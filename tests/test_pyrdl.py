@@ -4,10 +4,10 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import pytest
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     I32,

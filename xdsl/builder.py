@@ -4,9 +4,9 @@ import contextlib
 import threading
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TypeAlias, overload
+from typing import TypeAlias, TypeVar, overload
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (

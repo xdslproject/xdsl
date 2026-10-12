@@ -9,10 +9,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias, cast
+from typing import Annotated, ClassVar, Generic, TypeAlias, TypeVar, cast
 
 import pytest
-from typing_extensions import TypeVar, override
+from typing_extensions import override
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (

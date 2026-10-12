@@ -3,9 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
-from typing import Generic
-
-from typing_extensions import TypeVar
+from typing import Generic, TypeVar
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (

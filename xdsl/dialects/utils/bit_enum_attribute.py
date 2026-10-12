@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import ClassVar, Generic, cast, get_args, get_origin
-
-from typing_extensions import TypeVar
+from typing import ClassVar, Generic, TypeVar, cast, get_args, get_origin
 
 from xdsl.ir import Data
 from xdsl.parser import AttrParser, Parser

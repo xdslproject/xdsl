@@ -8,13 +8,12 @@ from typing import (
     Generic,
     Literal,
     TypeGuard,
+    TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
 )
-
-from typing_extensions import TypeVar
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException

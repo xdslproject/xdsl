@@ -5,9 +5,7 @@ that is inherited from the different parsers used in xDSL.
 
 from collections.abc import Collection
 from dataclasses import dataclass
-from typing import NoReturn
-
-from typing_extensions import TypeVar
+from typing import NoReturn, TypeVar
 
 from xdsl.utils.lexer import Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling, StringLiteral

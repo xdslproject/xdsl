@@ -1,8 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic
-
-from typing_extensions import TypeVar
+from typing import Generic, TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, transform

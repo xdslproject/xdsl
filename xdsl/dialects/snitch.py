@@ -13,9 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Generic, cast
-
-from typing_extensions import TypeVar
+from typing import Generic, TypeVar, cast
 
 from xdsl.dialects.builtin import ContainerType, IntAttr
 from xdsl.dialects.riscv import IntRegisterType

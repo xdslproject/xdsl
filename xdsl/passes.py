@@ -7,9 +7,10 @@ from dataclasses import dataclass, field
 from typing import (
     ClassVar,
     NamedTuple,
+    TypeVar,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.context import Context
 from xdsl.dialects import builtin

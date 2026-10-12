@@ -11,9 +11,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 
 from abc import ABC
 from collections.abc import Hashable, Iterable, Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     I1,

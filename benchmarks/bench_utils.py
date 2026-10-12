@@ -8,9 +8,7 @@ import time
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NamedTuple, cast
-
-from typing_extensions import TypeVar
+from typing import Any, NamedTuple, TypeVar, cast
 
 from benchmarks.warmed_timeit import warmed_timeit
 

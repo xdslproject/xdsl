@@ -1,6 +1,4 @@
-from typing import Any, Generic, Literal, TypeAlias
-
-from typing_extensions import TypeVar
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,

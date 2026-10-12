@@ -8,9 +8,7 @@ import collections
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Generic, TypeAlias, cast
-
-from typing_extensions import TypeVar
+from typing import Any, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.context import Context
 from xdsl.ir import Block, Operation, SSAValue

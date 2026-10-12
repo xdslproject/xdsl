@@ -8,11 +8,12 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeGuard,
+    TypeVar,
     cast,
     get_origin,
 )
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import deprecated
 
 from xdsl.ir import (
     Attribute,

@@ -2,9 +2,7 @@ import io
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import cast
-
-from typing_extensions import TypeVar
+from typing import TypeVar, cast
 
 import xdsl.frontend.listlang.list_dialect as list_dialect
 import xdsl.frontend.listlang.lowerings as lowerings

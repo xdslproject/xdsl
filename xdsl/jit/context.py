@@ -1,8 +1,8 @@
 import abc
 from collections.abc import Callable
-from typing import ParamSpec
+from typing import ParamSpec, TypeVar
 
-from typing_extensions import TypeForm, TypeVar
+from typing_extensions import TypeForm
 
 from xdsl.context import Context
 from xdsl.dialects import builtin

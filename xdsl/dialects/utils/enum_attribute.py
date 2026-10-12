@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, cast, get_args, get_origin
-
-from typing_extensions import TypeVar
+from typing import ClassVar, TypeVar, cast, get_args, get_origin
 
 from xdsl.ir import Data
 from xdsl.parser import AttrParser

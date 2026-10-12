@@ -1,8 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, Generic, ParamSpec
-
-from typing_extensions import TypeVar
+from typing import Final, Generic, ParamSpec, TypeVar
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder

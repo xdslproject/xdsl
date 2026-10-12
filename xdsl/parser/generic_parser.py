@@ -7,9 +7,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, NoReturn, overload
-
-from typing_extensions import TypeVar
+from typing import Generic, NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT

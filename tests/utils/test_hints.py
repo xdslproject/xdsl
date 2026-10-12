@@ -1,8 +1,7 @@
 import re
-from typing import Generic
+from typing import Generic, TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.utils.hints import get_type_var_mapping, get_type_var_mapping_with_defaults
 

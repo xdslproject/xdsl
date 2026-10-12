@@ -1,6 +1,4 @@
-from typing import Any
-
-from typing_extensions import TypeVar
+from typing import Any, TypeVar
 
 
 def _init_subclass(cls: type, *args: Any, **kwargs: Any) -> None:

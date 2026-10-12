@@ -3,9 +3,7 @@ from __future__ import annotations
 import abc
 import math
 from collections.abc import Sequence
-from typing import ClassVar, Generic, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, Generic, TypeVar, cast
 
 from xdsl.dialect_interfaces.constant_materialization import (
     ConstantMaterializationInterface,

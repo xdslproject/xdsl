@@ -1,8 +1,8 @@
 import re
 from io import StringIO
+from typing import TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test

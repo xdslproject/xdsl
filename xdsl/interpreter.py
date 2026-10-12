@@ -12,9 +12,8 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
+    TypeVar,
 )
-
-from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.ir import (

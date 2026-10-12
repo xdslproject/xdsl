@@ -1,8 +1,6 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, Generic, TypeAlias, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     I32,

@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, ParamSpec, Protocol, cast
+from typing import Any, Generic, ParamSpec, Protocol, TypeVar, cast
 
-from typing_extensions import TypeForm, TypeVar
+from typing_extensions import TypeForm
 
 from xdsl.jit.c_type_context import CFuncSignature
 from xdsl.jit.py_type_context import PyTypeContext

@@ -1,8 +1,7 @@
 import re
-from typing import Literal
+from typing import Literal, TypeVar
 
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import IntAttr, IntAttrConstraint
 from xdsl.irdl import (

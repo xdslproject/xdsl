@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
-from typing import Generic
+from typing import Generic, TypeVar
 
-from typing_extensions import TypeVar, override
+from typing_extensions import override
 
 _Key = TypeVar("_Key")
 _Value = TypeVar("_Value")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TypeVar
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import NoneAttr

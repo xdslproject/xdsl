@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from typing import ClassVar, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     I16,

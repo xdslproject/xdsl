@@ -1,8 +1,6 @@
 import math
 from collections.abc import Sequence
-from typing import Any, cast
-
-from typing_extensions import TypeVar
+from typing import Any, TypeVar, cast
 
 from xdsl.dialects import tensor
 from xdsl.dialects.builtin import DYNAMIC_INDEX, TensorType

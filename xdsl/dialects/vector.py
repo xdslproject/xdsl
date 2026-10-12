@@ -5,9 +5,7 @@ from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from math import prod
-from typing import ClassVar, cast
-
-from typing_extensions import TypeVar
+from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
