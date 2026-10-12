@@ -166,22 +166,22 @@ def test_print_dynamic_index_list_delimiters(
 
 
 def test_parse_dynamic_index_with_type():
-    parser = Parser(ctx, "%0 : i32")
+    parser = Parser(ctx, b"%0 : i32")
     result = parse_dynamic_index_with_type(parser)
     assert isinstance(result, SSAValue)
 
-    parser = Parser(ctx, "42")
+    parser = Parser(ctx, b"42")
     result = parse_dynamic_index_with_type(parser)
     assert isinstance(result, int)
     assert result == 42
 
 
 def test_parse_dynamic_index_without_type():
-    parser = Parser(ctx, "%0")
+    parser = Parser(ctx, b"%0")
     result = parse_dynamic_index_without_type(parser)
     assert isinstance(result, UnresolvedOperand)
 
-    parser = Parser(ctx, "42")
+    parser = Parser(ctx, b"42")
     result = parse_dynamic_index_without_type(parser)
     assert isinstance(result, int)
     assert result == 42
@@ -190,7 +190,7 @@ def test_parse_dynamic_index_without_type():
 def test_parse_dynamic_index_list_with_types():
     dynamic_index = -42
     test_values = (create_ssa_value(i32), create_ssa_value(index))
-    parser = Parser(ctx, "[%0 : i32, 42, %1 : index]")
+    parser = Parser(ctx, b"[%0 : i32, 42, %1 : index]")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
     values, indices = parse_dynamic_index_list_with_types(
@@ -204,7 +204,7 @@ def test_parse_dynamic_index_list_with_types():
 
 def test_parse_dynamic_index_list_without_types():
     dynamic_index = -42
-    parser = Parser(ctx, "[%0, 42, %1]")
+    parser = Parser(ctx, b"[%0, 42, %1]")
     values, indices = parse_dynamic_index_list_without_types(
         parser, dynamic_index=dynamic_index
     )
@@ -219,7 +219,7 @@ def test_parse_dynamic_index_list_without_types():
 def test_parse_dynamic_index_list_with_custom_delimiter():
     dynamic_index = -42
     test_values = (create_ssa_value(i32), create_ssa_value(index))
-    parser = Parser(ctx, "(%0 : i32, 42, %1 : index)")
+    parser = Parser(ctx, b"(%0 : i32, 42, %1 : index)")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
     values, indices = parse_dynamic_index_list_with_types(
@@ -234,12 +234,12 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
 @pytest.mark.parametrize(
     "string,expected",
     [
-        ("[]", True),
-        ("2x3x4", False),
-        ("[2, 3, 4]", None),
+        (b"[]", True),
+        (b"2x3x4", False),
+        (b"[2, 3, 4]", None),
     ],
 )
-def test_parse_empty_dimension_list(string: str, expected: bool | None):
+def test_parse_empty_dimension_list(string: bytes, expected: bool | None):
     parser = Parser(ctx, string)
 
     if expected is not None:

@@ -80,7 +80,7 @@ def test_callback():
     # }
 
     # xdsl-opt pattern.mlir -p eqsat-pdl-to-pdl-interp
-    module_str = """
+    module_str = b"""
 builtin.module {
   pdl_interp.func @matcher(%0: !pdl.operation) {
     pdl_interp.check_operation_name of %0 is "arith.addf" -> ^bb0, ^bb1

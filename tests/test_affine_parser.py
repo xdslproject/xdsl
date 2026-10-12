@@ -10,22 +10,22 @@ from xdsl.utils.mlir_lexer import MLIRLexer
     "text, expected_map, expected_names",
     [
         # Only constants
-        ("[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
+        (b"[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
         # Just SSA dims
         (
-            "[%i0, %i1]",
+            b"[%i0, %i1]",
             AffineMap.from_callable(lambda s0, s1: (s0, s1), dim_symbol_split=(0, 2)),
             ("%i0", "%i1"),
         ),
         # SSA dim & constant
         (
-            "[%i0, 7]",
+            b"[%i0, 7]",
             AffineMap.from_callable(lambda s0: (s0, 7), dim_symbol_split=(0, 1)),
             ("%i0",),
         ),
         # SSA dims + const sums
         (
-            "[%i0 + 3, %i1 + 7]",
+            b"[%i0 + 3, %i1 + 7]",
             AffineMap.from_callable(
                 lambda s0, s1: (s0 + 3, s1 + 7), dim_symbol_split=(0, 2)
             ),
@@ -33,7 +33,7 @@ from xdsl.utils.mlir_lexer import MLIRLexer
         ),
         # SSA dim and dim + const
         (
-            "[%i0, %i1 + 7]",
+            b"[%i0, %i1 + 7]",
             AffineMap.from_callable(
                 lambda s0, s1: (s0, s1 + 7), dim_symbol_split=(0, 2)
             ),
@@ -41,7 +41,7 @@ from xdsl.utils.mlir_lexer import MLIRLexer
         ),
         # constant + d1, d1 + const
         (
-            "[3 + %i1, %i1 + 7]",
+            b"[3 + %i1, %i1 + 7]",
             AffineMap.from_callable(
                 lambda s0: (3 + s0, s0 + 7), dim_symbol_split=(0, 1)
             ),
@@ -49,7 +49,7 @@ from xdsl.utils.mlir_lexer import MLIRLexer
         ),
         # Mix of constant + dim0 * const + dim1
         (
-            "[3 + %i0 * 7 + %i1, 7]",
+            b"[3 + %i0 * 7 + %i1, 7]",
             AffineMap.from_callable(
                 lambda s0, s1: (3 + s0 * 7 + s1, 7), dim_symbol_split=(0, 2)
             ),
@@ -58,7 +58,7 @@ from xdsl.utils.mlir_lexer import MLIRLexer
     ],
 )
 def test_parse_affine_map_of_ssa_ids(
-    text: str, expected_map: AffineMap, expected_names: tuple[str, ...]
+    text: bytes, expected_map: AffineMap, expected_names: tuple[str, ...]
 ):
     parser = AffineParser(ParserState(MLIRLexer(Input(text, ""))))
     amap, spans = parser.parse_affine_map_of_ssa_ids()

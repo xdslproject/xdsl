@@ -26,7 +26,7 @@ def main():
         ctx.register_dialect(dialect_name, dialect_factory)
 
     # Parse the input file
-    f = open(args.input_file)
+    f = open(args.input_file, "rb")
     parser = Parser(ctx, f.read(), name=args.input_file)
     module = parser.parse_module()
 

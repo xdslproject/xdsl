@@ -18,7 +18,7 @@ from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import JITException
 
 
-def parse(module: str) -> ModuleOp:
+def parse(module: bytes) -> ModuleOp:
     ctx = Context()
     ctx.load_dialect(llvm.LLVM)
     ctx.load_dialect(func.Func)
@@ -26,13 +26,13 @@ def parse(module: str) -> ModuleOp:
 
 
 def jit(
-    module: str, symbol: str = "plus", lowering: tuple[ModulePass, ...] = ()
+    module: bytes, symbol: str = "plus", lowering: tuple[ModulePass, ...] = ()
 ) -> RawJITFunc:
     # the test modules are already lowered, so an empty pipeline keeps mlir-opt out
     return LLVMJITBackend(lowering=lowering).jit(parse(module), symbol, Context())
 
 
-PLUS = """
+PLUS = b"""
 llvm.func @plus(%a: f64, %b: f64) -> f64 {
   %0 = llvm.fadd %a, %b : f64
   llvm.return %0 : f64
@@ -48,7 +48,7 @@ def test_jit_compiles_and_binds_symbol():
     assert raw_func.c_func(3.0, 4.0) == 7.0
 
 
-POINTER_IDENTITY = """
+POINTER_IDENTITY = b"""
 llvm.func @identity(%p: !llvm.ptr) -> !llvm.ptr {
   llvm.return %p : !llvm.ptr
 }
@@ -95,23 +95,23 @@ def test_missing_symbol_raises():
 
 def test_unlowered_symbol_raises():
     with pytest.raises(JITException, match="must leave it in the LLVM dialect"):
-        jit("func.func private @plus(f64, f64) -> f64")
+        jit(b"func.func private @plus(f64, f64) -> f64")
 
 
 def test_declaration_without_body_raises():
     # a declaration resolves and converts, but MCJIT has no code to bind
     with pytest.raises(JITException, match="No address for symbol"):
-        jit("llvm.func @plus(f64, f64) -> f64")
+        jit(b"llvm.func @plus(f64, f64) -> f64")
 
 
-IDENTITY = """
+IDENTITY = b"""
 llvm.func @identity(%value: i64) -> i64 {
   llvm.return %value : i64
 }
 """
 
 
-ADD_ZERO = """
+ADD_ZERO = b"""
 llvm.func @add_zero(%value: i64) -> i64 {
   %zero = llvm.mlir.constant(0 : i64) : i64
   %result = llvm.add %value, %zero : i64

@@ -185,7 +185,7 @@ def test_locations():
 
 def test_op_message():
     """Test that an operation message can be printed."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -219,7 +219,7 @@ def test_op_message():
 
 def test_two_different_op_messages():
     """Test that an operation message can be printed."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -254,7 +254,7 @@ def test_two_different_op_messages():
 
 def test_two_same_op_messages():
     """Test that an operation message can be printed."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -290,7 +290,7 @@ def test_two_same_op_messages():
 
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -323,7 +323,7 @@ def test_op_message_with_region_and_overflow():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -355,7 +355,7 @@ def test_diagnostic():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -388,7 +388,7 @@ def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %i = arith.constant 42 : i32
   %213 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -705,7 +705,7 @@ def test_generic_format():
     """
     Test that we can use generic formats in operations.
     """
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = "test.add"(%0, %0) : (i32, i32) -> i32
@@ -733,7 +733,7 @@ def test_custom_format():
     """
     Test that we can use custom formats in operations.
     """
-    prog = """\
+    prog = b"""\
 builtin.module {
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = test.add %0 + %0 : i32
@@ -762,7 +762,7 @@ def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = test.add %0 + %0 : i32
@@ -799,7 +799,7 @@ def test_missing_custom_format():
     """
     Test that we can print using generic formats.
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
   %1 = test.no_custom_format(%0) : (i32) -> i32
@@ -848,7 +848,7 @@ def test_custom_format_attr():
     """
     Test that we can parse and print attributes using custom formats.
     """
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "test.any"() {attr = #test.custom<zero>} : () -> ()
 }) : () -> ()
@@ -873,7 +873,7 @@ def test_custom_format_attr():
 def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
-    prog = """
+    prog = b"""
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr, arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}}> : () -> ()
     """
 
@@ -884,13 +884,13 @@ def test_dictionary_attr():
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog)
+    assert_print_op(parsed, prog.decode("utf-8"))
 
 
 def test_densearray_attr():
     """Test that a DenseArrayAttr can be parsed and then printed."""
 
-    prog = """
+    prog = b"""
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 3.400000e-01>} : () -> ()
     """
 
@@ -901,7 +901,7 @@ def test_densearray_attr():
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog)
+    assert_print_op(parsed, prog.decode("utf-8"))
 
 
 def test_float():
@@ -1138,7 +1138,7 @@ def test_print_function_type():
 def test_print_properties_as_attributes():
     """Test that properties can be printed as attributes."""
 
-    prog = """
+    prog = b"""
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr} : () -> ()
     """
 
@@ -1159,7 +1159,7 @@ def test_print_properties_as_attributes():
 def test_print_properties_as_attributes_safeguard():
     """Test that properties can be printed as attributes."""
 
-    prog = """
+    prog = b"""
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr, sym_name = "this should be overriden by the property"} : () -> ()
     """
 

@@ -5,15 +5,15 @@ from xdsl.utils.lexer import Input, Location, Position, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
-def get_token(input: str) -> MLIRToken:
-    file = Input(input.encode("utf-8"), "<unknown>")
+def get_token(input: bytes) -> MLIRToken:
+    file = Input(input, "<unknown>")
     lexer = MLIRLexer(file)
     token = lexer.lex()
     return token
 
 
 def assert_single_token(
-    input: str, expected_kind: MLIRTokenKind, expected_text: str | None = None
+    input: bytes, expected_kind: MLIRTokenKind, expected_text: bytes | None = None
 ):
     if expected_text is None:
         expected_text = input
@@ -21,11 +21,11 @@ def assert_single_token(
     token = get_token(input)
 
     assert token.kind == expected_kind
-    assert token.text == expected_text
+    assert token.span.bytes == expected_text
 
 
-def assert_token_fail(input: str):
-    file = Input(input.encode("utf-8"), "<unknown>")
+def assert_token_fail(input: bytes):
+    file = Input(input, "<unknown>")
     lexer = MLIRLexer(file)
     with pytest.raises(ParseError):
         lexer.lex()
@@ -81,54 +81,55 @@ def test_byte_span_diagnostic(source: bytes, start: int, end: int, expected: str
 @pytest.mark.parametrize(
     "text,kind",
     [
-        ("->", MLIRTokenKind.ARROW),
-        (":", MLIRTokenKind.COLON),
-        (",", MLIRTokenKind.COMMA),
-        ("...", MLIRTokenKind.ELLIPSIS),
-        ("=", MLIRTokenKind.EQUAL),
-        (">", MLIRTokenKind.GREATER),
-        ("{", MLIRTokenKind.L_BRACE),
-        ("(", MLIRTokenKind.L_PAREN),
-        ("[", MLIRTokenKind.L_SQUARE),
-        ("<", MLIRTokenKind.LESS),
-        ("-", MLIRTokenKind.MINUS),
-        ("+", MLIRTokenKind.PLUS),
-        ("?", MLIRTokenKind.QUESTION),
-        ("}", MLIRTokenKind.R_BRACE),
-        (")", MLIRTokenKind.R_PAREN),
-        ("]", MLIRTokenKind.R_SQUARE),
-        ("/", MLIRTokenKind.SLASH),
-        ("*", MLIRTokenKind.STAR),
-        ("|", MLIRTokenKind.VERTICAL_BAR),
-        ("{-#", MLIRTokenKind.FILE_METADATA_BEGIN),
-        ("#-}", MLIRTokenKind.FILE_METADATA_END),
+        (b"->", MLIRTokenKind.ARROW),
+        (b":", MLIRTokenKind.COLON),
+        (b",", MLIRTokenKind.COMMA),
+        (b"...", MLIRTokenKind.ELLIPSIS),
+        (b"=", MLIRTokenKind.EQUAL),
+        (b">", MLIRTokenKind.GREATER),
+        (b"{", MLIRTokenKind.L_BRACE),
+        (b"(", MLIRTokenKind.L_PAREN),
+        (b"[", MLIRTokenKind.L_SQUARE),
+        (b"<", MLIRTokenKind.LESS),
+        (b"-", MLIRTokenKind.MINUS),
+        (b"+", MLIRTokenKind.PLUS),
+        (b"?", MLIRTokenKind.QUESTION),
+        (b"}", MLIRTokenKind.R_BRACE),
+        (b")", MLIRTokenKind.R_PAREN),
+        (b"]", MLIRTokenKind.R_SQUARE),
+        (b"/", MLIRTokenKind.SLASH),
+        (b"*", MLIRTokenKind.STAR),
+        (b"|", MLIRTokenKind.VERTICAL_BAR),
+        (b"{-#", MLIRTokenKind.FILE_METADATA_BEGIN),
+        (b"#-}", MLIRTokenKind.FILE_METADATA_END),
     ],
 )
-def test_punctuation(text: str, kind: MLIRTokenKind):
+def test_punctuation(text: bytes, kind: MLIRTokenKind):
     assert_single_token(text, kind)
 
 
-@pytest.mark.parametrize("text", [".", "&"])
-def test_punctuation_fail(text: str):
+@pytest.mark.parametrize("text", [b".", b"&"])
+def test_punctuation_fail(text: bytes):
     assert_token_fail(text)
 
 
 @pytest.mark.parametrize(
-    "text", ['""', '"@"', '"foo"', '"\\""', '"\\n"', '"\\\\"', '"\\t"']
+    "text", [b'""', b'"@"', b'"foo"', b'"\\""', b'"\\n"', b'"\\\\"', b'"\\t"']
 )
-def test_str_literal(text: str):
+def test_str_literal(text: bytes):
     assert_single_token(text, MLIRTokenKind.STRING_LIT)
 
 
-@pytest.mark.parametrize("text", ['"', '"\\"', '"\\a"', '"\n"', '"\v"', '"\f"'])
-def test_str_literal_fail(text: str):
+@pytest.mark.parametrize("text", [b'"', b'"\\"', b'"\\a"', b'"\n"', b'"\v"', b'"\f"'])
+def test_str_literal_fail(text: bytes):
     assert_token_fail(text)
 
 
 @pytest.mark.parametrize(
-    "text", ["a", "A", "_", "a_", "a1", "a1_", "a1_2", "a1_2_3", "a$_.", "a$_.1"]
+    "text",
+    [b"a", b"A", b"_", b"a_", b"a1", b"a1_", b"a1_2", b"a1_2_3", b"a$_.", b"a$_.1"],
 )
-def test_bare_ident(text: str):
+def test_bare_ident(text: bytes):
     """bare-id ::= (letter|[_]) (letter|digit|[_$.])*"""
     assert_single_token(text, MLIRTokenKind.BARE_IDENT)
 
@@ -136,108 +137,140 @@ def test_bare_ident(text: str):
 @pytest.mark.parametrize(
     "text",
     [
-        "@a",
-        "@A",
-        "@_",
-        "@a_",
-        "@a1",
-        "@a1_",
-        "@a1_2",
-        "@a1_2_3",
-        "@a$_.",
-        "@a$_.1",
-        '@""',
-        '@"@"',
-        '@"foo"',
-        '@"\\""',
-        '@"\\n"',
-        '@"\\\\"',
-        '@"\\t"',
+        b"@a",
+        b"@A",
+        b"@_",
+        b"@a_",
+        b"@a1",
+        b"@a1_",
+        b"@a1_2",
+        b"@a1_2_3",
+        b"@a$_.",
+        b"@a$_.1",
+        b'@""',
+        b'@"@"',
+        b'@"foo"',
+        b'@"\\""',
+        b'@"\\n"',
+        b'@"\\\\"',
+        b'@"\\t"',
     ],
 )
-def test_at_ident(text: str):
+def test_at_ident(text: bytes):
     """at-ident ::= `@` (bare-id | string-literal)"""
     assert_single_token(text, MLIRTokenKind.AT_IDENT)
 
 
 @pytest.mark.parametrize(
     "text",
-    ["@", '@"', '@"\\"', '@"\\a"', '@"\n"', '@"\v"', '@"\f"', '@ "a"', "@ f", "@$"],
+    [
+        b"@",
+        b'@"',
+        b'@"\\"',
+        b'@"\\a"',
+        b'@"\n"',
+        b'@"\v"',
+        b'@"\f"',
+        b'@ "a"',
+        b"@ f",
+        b"@$",
+    ],
 )
-def test_at_ident_fail(text: str):
+def test_at_ident_fail(text: bytes):
     """at-ident ::= `@` (bare-id | string-literal)"""
     assert_token_fail(text)
 
 
 @pytest.mark.parametrize(
-    "text", ["0", "1234", "a", "S", "$", "_", ".", "-", "e_.$-324", "e5$-e_", "foo"]
+    "text",
+    [b"0", b"1234", b"a", b"S", b"$", b"_", b".", b"-", b"e_.$-324", b"e5$-e_", b"foo"],
 )
-def test_prefixed_ident(text: str):
+def test_prefixed_ident(text: bytes):
     """hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
     """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
     """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
     """exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-    assert_single_token("#" + text, MLIRTokenKind.HASH_IDENT)
-    assert_single_token("%" + text, MLIRTokenKind.PERCENT_IDENT)
-    assert_single_token("^" + text, MLIRTokenKind.CARET_IDENT)
-    assert_single_token("!" + text, MLIRTokenKind.EXCLAMATION_IDENT)
+    assert_single_token(b"#" + text, MLIRTokenKind.HASH_IDENT)
+    assert_single_token(b"%" + text, MLIRTokenKind.PERCENT_IDENT)
+    assert_single_token(b"^" + text, MLIRTokenKind.CARET_IDENT)
+    assert_single_token(b"!" + text, MLIRTokenKind.EXCLAMATION_IDENT)
 
 
-@pytest.mark.parametrize("text", ["+", '""', "#", "%", "^", "!", "\n", ""])
-def test_prefixed_ident_fail(text: str):
+@pytest.mark.parametrize("text", [b"+", b'""', b"#", b"%", b"^", b"!", b"\n", b""])
+def test_prefixed_ident_fail(text: bytes):
     """
     hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
     percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
     caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
     exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
     """
-    assert_token_fail("#" + text)
-    assert_token_fail("%" + text)
-    assert_token_fail("^" + text)
-    assert_token_fail("!" + text)
+    assert_token_fail(b"#" + text)
+    assert_token_fail(b"%" + text)
+    assert_token_fail(b"^" + text)
+    assert_token_fail(b"!" + text)
 
 
 @pytest.mark.parametrize(
     "text,expected",
-    [("0x0", "0"), ("0e", "0"), ("0$", "0"), ("0_", "0"), ("0-", "0"), ("0.", "0")],
+    [
+        (b"0x0", b"0"),
+        (b"0e", b"0"),
+        (b"0$", b"0"),
+        (b"0_", b"0"),
+        (b"0-", b"0"),
+        (b"0.", b"0"),
+    ],
 )
-def test_prefixed_ident_split(text: str, expected: str):
+def test_prefixed_ident_split(text: bytes, expected: bytes):
     """Check that the prefixed identifier is split at the right character."""
-    assert_single_token("#" + text, MLIRTokenKind.HASH_IDENT, "#" + expected)
-    assert_single_token("%" + text, MLIRTokenKind.PERCENT_IDENT, "%" + expected)
-    assert_single_token("^" + text, MLIRTokenKind.CARET_IDENT, "^" + expected)
-    assert_single_token("!" + text, MLIRTokenKind.EXCLAMATION_IDENT, "!" + expected)
+    assert_single_token(b"#" + text, MLIRTokenKind.HASH_IDENT, b"#" + expected)
+    assert_single_token(b"%" + text, MLIRTokenKind.PERCENT_IDENT, b"%" + expected)
+    assert_single_token(b"^" + text, MLIRTokenKind.CARET_IDENT, b"^" + expected)
+    assert_single_token(b"!" + text, MLIRTokenKind.EXCLAMATION_IDENT, b"!" + expected)
 
 
-@pytest.mark.parametrize("text", ["0", "01", "123456789", "99", "0x1234", "0xabcdef"])
-def test_integer_literal(text: str):
+@pytest.mark.parametrize(
+    "text", [b"0", b"01", b"123456789", b"99", b"0x1234", b"0xabcdef"]
+)
+def test_integer_literal(text: bytes):
     assert_single_token(text, MLIRTokenKind.INTEGER_LIT)
 
 
 @pytest.mark.parametrize(
-    "text,expected", [("0a", "0"), ("0xg", "0"), ("0xfg", "0xf"), ("0xf.", "0xf")]
+    "text,expected",
+    [(b"0a", b"0"), (b"0xg", b"0"), (b"0xfg", b"0xf"), (b"0xf.", b"0xf")],
 )
-def test_integer_literal_split(text: str, expected: str):
+def test_integer_literal_split(text: bytes, expected: bytes):
     assert_single_token(text, MLIRTokenKind.INTEGER_LIT, expected)
 
 
 @pytest.mark.parametrize(
-    "text", ["0.", "1.", "0.2", "38.1243", "92.54e43", "92.5E43", "43.3e-54", "32.E+25"]
+    "text",
+    [
+        b"0.",
+        b"1.",
+        b"0.2",
+        b"38.1243",
+        b"92.54e43",
+        b"92.5E43",
+        b"43.3e-54",
+        b"32.E+25",
+    ],
 )
-def test_float_literal(text: str):
+def test_float_literal(text: bytes):
     assert_single_token(text, MLIRTokenKind.FLOAT_LIT)
 
 
 @pytest.mark.parametrize(
-    "text,expected", [("3.9e", "3.9"), ("4.5e+", "4.5"), ("5.8e-", "5.8")]
+    "text,expected", [(b"3.9e", b"3.9"), (b"4.5e+", b"4.5"), (b"5.8e-", b"5.8")]
 )
-def test_float_literal_split(text: str, expected: str):
+def test_float_literal_split(text: bytes, expected: bytes):
     assert_single_token(text, MLIRTokenKind.FLOAT_LIT, expected)
 
 
 def test_slash_vs_comment():
     """A single `/` produces SLASH; `//` is consumed as a comment."""
-    assert_single_token("/", MLIRTokenKind.SLASH)
+    assert_single_token(b"/", MLIRTokenKind.SLASH)
 
     file = Input(b"// this is a comment containing invalid UTF-8: \xff\n0", "<unknown>")
     lexer = MLIRLexer(file)
@@ -246,27 +279,29 @@ def test_slash_vs_comment():
     assert token.text == "0"
 
 
-@pytest.mark.parametrize("text", ["0", " 0", "   0", "\n0", "\t0", "// Comment\n0"])
-def test_whitespace_skip(text: str):
-    assert_single_token(text, MLIRTokenKind.INTEGER_LIT, "0")
+@pytest.mark.parametrize(
+    "text", [b"0", b" 0", b"   0", b"\n0", b"\t0", b"// Comment\n0"]
+)
+def test_whitespace_skip(text: bytes):
+    assert_single_token(text, MLIRTokenKind.INTEGER_LIT, b"0")
 
 
-@pytest.mark.parametrize("text", ["", "   ", "\n\n", "// Comment\n"])
-def test_eof(text: str):
-    assert_single_token(text, MLIRTokenKind.EOF, "")
+@pytest.mark.parametrize("text", [b"", b"   ", b"\n\n", b"// Comment\n"])
+def test_eof(text: bytes):
+    assert_single_token(text, MLIRTokenKind.EOF, b"")
 
 
 @pytest.mark.parametrize(
     "text, expected",
     [
-        ("0", 0),
-        ("010", 10),
-        ("123456789", 123456789),
-        ("0x1234", 4660),
-        ("0xabcdef23", 2882400035),
+        (b"0", 0),
+        (b"010", 10),
+        (b"123456789", 123456789),
+        (b"0x1234", 4660),
+        (b"0xabcdef23", 2882400035),
     ],
 )
-def test_token_get_int_value(text: str, expected: int):
+def test_token_get_int_value(text: bytes, expected: int):
     token = get_token(text)
     assert token.kind == MLIRTokenKind.INTEGER_LIT
     assert token.kind.get_int_value(token.span) == expected
@@ -275,17 +310,17 @@ def test_token_get_int_value(text: str, expected: int):
 @pytest.mark.parametrize(
     "text, expected",
     [
-        ("0.", 0.0),
-        ("1.", 1.0),
-        ("0.2", 0.2),
-        ("38.1243", 38.1243),
-        ("92.54e43", 92.54e43),
-        ("92.5E43", 92.5e43),
-        ("43.3e-54", 43.3e-54),
-        ("32.E+25", 32.0e25),
+        (b"0.", 0.0),
+        (b"1.", 1.0),
+        (b"0.2", 0.2),
+        (b"38.1243", 38.1243),
+        (b"92.54e43", 92.54e43),
+        (b"92.5E43", 92.5e43),
+        (b"43.3e-54", 43.3e-54),
+        (b"32.E+25", 32.0e25),
     ],
 )
-def test_token_get_float_value(text: str, expected: float):
+def test_token_get_float_value(text: bytes, expected: float):
     token = get_token(text)
     assert token.kind == MLIRTokenKind.FLOAT_LIT
     assert token.kind.get_float_value(token.span) == expected
@@ -294,22 +329,22 @@ def test_token_get_float_value(text: str, expected: float):
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ('""', ""),
-        ('"@"', "@"),
-        ('"foo"', "foo"),
-        ('"\\""', '"'),
-        ('"\\n"', "\n"),
-        ('"\\\\"', "\\"),
-        ('"\\t"', "\t"),
+        (b'""', ""),
+        (b'"@"', "@"),
+        (b'"foo"', "foo"),
+        (b'"\\""', '"'),
+        (b'"\\n"', "\n"),
+        (b'"\\\\"', "\\"),
+        (b'"\\t"', "\t"),
     ],
 )
-def test_token_get_string_literal_value(text: str, expected: float):
+def test_token_get_string_literal_value(text: bytes, expected: float):
     token = get_token(text)
     assert token.kind == MLIRTokenKind.STRING_LIT
     assert token.kind.get_string_literal_value(token.span) == expected
 
 
-START_END_LINE_CONTENT = """\
+START_END_LINE_CONTENT = b"""\
 0123
 5678"""
 

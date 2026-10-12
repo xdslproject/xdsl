@@ -18,7 +18,7 @@ class UnknownOp(IRDLOperation):
     res = var_result_def()
 
 
-def check_error(prog: str, line: int, column: int, message: str):
+def check_error(prog: bytes, line: int, column: int, message: str):
     ctx = Context()
     ctx.load_op(UnknownOp)
 
@@ -36,7 +36,7 @@ def test_parser_missing_equal():
     ctx = Context()
     ctx.load_op(UnknownOp)
 
-    prog = """
+    prog = b"""
 "test.unknown"() ({
   %0 "test.unknown"() : () -> !i32
 }) : () -> ()
@@ -49,7 +49,7 @@ def test_parser_redefined_value():
     ctx = Context()
     ctx.load_op(UnknownOp)
 
-    prog = """
+    prog = b"""
 "test.unknown"() ({
   %val = "test.unknown"() : () -> i32
   %val = "test.unknown"() : () -> i32
@@ -63,7 +63,7 @@ def test_parser_missing_operation_name():
     ctx = Context()
     ctx.load_op(UnknownOp)
 
-    prog = """
+    prog = b"""
 "test.unknown"() ({
   %val =
 }) : () -> ()

@@ -24,7 +24,7 @@ class ApplyPDLPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.pdl_file is not None:
             assert os.path.exists(self.pdl_file)
-            with open(self.pdl_file) as f:
+            with open(self.pdl_file, "rb") as f:
                 pdl_module_str = f.read()
                 parser = Parser(ctx, pdl_module_str)
                 pdl_module = parser.parse_module()

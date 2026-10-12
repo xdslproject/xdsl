@@ -13,7 +13,7 @@ ctx.register_dialect("test", get_all_dialects()["test"])
 
 op = Parser(
     ctx,
-    """
+    b"""
 "test.op"() ({
 ^bb1():
   "test.op"()[^bb2] : () -> ()

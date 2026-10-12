@@ -249,7 +249,7 @@ def _(mo):
 
 @app.cell
 def _():
-    mul_ir = """
+    mul_ir = b"""
     riscv_func.func @mul(%num: !riscv.reg<a0>) -> !riscv.reg<a0> {
       %res = riscv.mul %num, %num : (!riscv.reg<a0>, !riscv.reg<a0>) -> !riscv.reg<a0>
       riscv_func.return %res : !riscv.reg<a0>
@@ -322,7 +322,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
-    switch_ir = """\
+    switch_ir = b"""\
     riscv_func.func @switch(%a: !riscv.reg<a0>, %b: !riscv.reg<a1>, %c: !riscv.reg<a2>) -> !riscv.reg<a0> {
       %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
@@ -479,7 +479,7 @@ def _(fib_editor, mo):
 @app.cell(hide_code=True)
 def _(Parser, ctx, difflib, fib_cleaned, fib_editor, mo, riscv):
     try:
-        _module = Parser(ctx, fib_editor.value).parse_module()
+        _module = Parser(ctx, fib_editor.value.encode("utf-8")).parse_module()
         _module.verify()
         _asm = riscv.riscv_code(_module)
         _diff = "\n".join(difflib.ndiff(_asm.splitlines(), fib_cleaned.splitlines()))

@@ -21,7 +21,7 @@ def get_available_pass_list(
     This function returns the available pass list file based on an input text string, pass_pipeline and condense_mode.
     """
     ctx = get_new_registered_context(all_dialects)
-    parser = Parser(ctx, input_text)
+    parser = Parser(ctx, input_text.encode("utf-8"))
     current_module = parser.parse_module()
 
     PassPipeline(pass_pipeline).apply(ctx, current_module)

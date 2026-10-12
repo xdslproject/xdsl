@@ -48,7 +48,7 @@ def test_init():
 
 
 def rewrite_and_compare(
-    prog: str,
+    prog: bytes,
     expected_prog: str,
     walker: PatternRewriteWalker,
     *,
@@ -120,7 +120,7 @@ def rewrite_and_compare(
 def test_non_recursive_rewrite():
     """Test a simple non-recursive rewrite"""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -150,7 +150,7 @@ def test_non_recursive_rewrite():
 def test_non_recursive_rewrite_reversed():
     """Test a simple non-recursive rewrite with reverse walk order."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -182,7 +182,7 @@ def test_non_recursive_rewrite_reversed():
 def test_op_type_rewrite_pattern_method_decorator():
     """Test op_type_rewrite_pattern decorator on methods."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -211,7 +211,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 def test_op_type_rewrite_pattern_union_type():
     """Test op_type_rewrite_pattern decorator on static functions."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
   %2 = "test"(%0, %1) : (i32, i32) -> i32
@@ -242,7 +242,7 @@ def test_op_type_rewrite_pattern_union_type():
 def test_recursive_rewriter():
     """Test recursive walks on operations created by rewrites."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -285,7 +285,7 @@ def test_recursive_rewriter():
 def test_recursive_rewriter_reversed():
     """Test recursive walks on operations created by rewrites, in reverse walk order."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -328,7 +328,7 @@ def test_recursive_rewriter_reversed():
 def test_greedy_rewrite_pattern_applier():
     """Test GreedyRewritePatternApplier."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
   "test.op"(%1) : (i32) -> ()
@@ -367,7 +367,7 @@ def test_greedy_rewrite_pattern_applier():
 def test_greedy_pattern_applier_fold():
     """Test that folding is applied by the greedy pattern applier."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
   "test.op"(%1) : (i32) -> ()
@@ -398,7 +398,7 @@ def test_greedy_pattern_applier_fold():
 def test_greedy_rewrite_pattern_applier_dead_code():
     """Test that dead code is removed by the greedy rewrite pattern applier."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -424,7 +424,7 @@ def test_greedy_rewrite_pattern_applier_dead_code():
 def test_insert_op_before_matched_op():
     """Test rewrites where operations are inserted before the matched operation."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -451,7 +451,7 @@ def test_insert_op_before_matched_op():
 def test_insert_op_at_start():
     """Test rewrites where operations are inserted with a given position."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   }) : () -> ()
@@ -482,7 +482,7 @@ def test_insert_op_at_start():
 def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   }) : () -> ()
@@ -515,7 +515,7 @@ def test_insert_op_before():
 def test_insert_op_after():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   }) : () -> ()
@@ -548,7 +548,7 @@ def test_insert_op_after():
 def test_insert_op_after_matched_op():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -575,7 +575,7 @@ def test_insert_op_after_matched_op():
 def test_insert_op_after_matched_op_reversed():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -602,7 +602,7 @@ def test_insert_op_after_matched_op_reversed():
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()"""
 
@@ -624,7 +624,7 @@ def test_operation_deletion_reversed():
     They have to be deleted in order for the rewrite to not fail.
     """
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -653,7 +653,7 @@ def test_operation_deletion_failure():
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
@@ -678,7 +678,7 @@ def test_operation_deletion_failure():
 def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   }) : () -> ()
@@ -709,7 +709,7 @@ def test_delete_inner_op():
 def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
   }) : () -> ()
@@ -742,7 +742,7 @@ def test_replace_inner_op():
 def test_replace_uses_with_if():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
     %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
@@ -789,7 +789,7 @@ def test_replace_uses_with_if():
 def test_replace_uses_with_if_no_action():
     """Test rewrites where a predicates stops any changes actually being made to the IR."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
     %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
@@ -835,7 +835,7 @@ def test_replace_uses_with_if_no_action():
 def test_replace_uses_with_if_same_value():
     """Test rewrites where a value is replaced by the same value so there is no change."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
     %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -857,7 +857,7 @@ def test_replace_uses_with_if_same_value():
 
     rewrite_and_compare(
         prog,
-        prog,
+        prog.decode("utf-8"),
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         # Replacing with the same value, so there is no change to the IR.
         expect_rewrite=False,
@@ -867,7 +867,7 @@ def test_replace_uses_with_if_same_value():
 def test_replace_all_uses_with_same_value():
     """Test rewrites where a value is replaced by the same value so there is no change."""
 
-    prog = """"builtin.module"() ({
+    prog = b""""builtin.module"() ({
   "test.op"() ({
     %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
     %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -888,7 +888,7 @@ def test_replace_all_uses_with_same_value():
 
     rewrite_and_compare(
         prog,
-        prog,
+        prog.decode("utf-8"),
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         # Replacing with the same value, so there is no change to the IR.
         expect_rewrite=False,
@@ -898,7 +898,7 @@ def test_replace_all_uses_with_same_value():
 def test_block_argument_type_change():
     """Test the modification of a block argument type."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() ({
   ^bb0(%1: !test.type<"int">):
@@ -935,7 +935,7 @@ def test_block_argument_type_change():
 def test_block_argument_erasure():
     """Test the erasure of a block argument."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() ({
   ^bb0(%1: !test.type<"int">):
@@ -970,7 +970,7 @@ def test_block_argument_erasure():
 def test_block_argument_insertion():
     """Test the insertion of a block argument."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() ({
     %1 = "test.op"() : () -> !test.type<"int">
@@ -1009,7 +1009,7 @@ def test_block_argument_insertion():
 def test_inline_block_before_matched_op():
     """Test the inlining of a block before the matched operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1050,7 +1050,7 @@ def test_inline_block_before_matched_op():
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1100,7 +1100,7 @@ def test_inline_block_before():
 def test_inline_block_at_before_when_op_is_matched_op():
     """Test the inlining of a block before an operation, being the matched one."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1141,7 +1141,7 @@ def test_inline_block_at_before_when_op_is_matched_op():
 def test_inline_block_before_with_args():
     """Test the inlining of a block before an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1197,7 +1197,7 @@ def test_inline_block_before_with_args():
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1248,7 +1248,7 @@ def test_inline_block_after():
 def test_inline_block_after_matched():
     """Test the inlining of a block after an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
@@ -1301,7 +1301,7 @@ def test_inline_block_after_matched():
 def test_move_region_contents_to_new_regions():
     """Test moving a region outside of a region."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "test.op"() ({
     %0 = "test.op"() : () -> !test.type<"int">
@@ -1352,7 +1352,7 @@ def test_move_region_contents_to_new_regions():
 
 def test_insert_same_block():
     """Test rewriter on ops without results"""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() {label = "a"} : () -> i32
   %1 = "test.op"() {label = "b"} : () -> i32
@@ -1423,7 +1423,7 @@ def test_insert_same_block():
 
 
 def test_inline_region_before():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -1470,7 +1470,7 @@ def test_inline_region_before():
 
 
 def test_inline_region_after():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
   "test.op"() ({
@@ -1517,7 +1517,7 @@ def test_inline_region_after():
 
 
 def test_inline_region_at_start():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -1567,7 +1567,7 @@ def test_inline_region_at_start():
 
 
 def test_inline_region_at_end():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -1617,7 +1617,7 @@ def test_inline_region_at_end():
 
 
 def test_erased_ssavalue():
-    prog = """\
+    prog = b"""\
 builtin.module {
   "test.op"() ({
     %0 = "test.op"() : () -> i32
@@ -1650,7 +1650,7 @@ builtin.module {
 
 def test_pattern_rewriter_as_op_builder():
     """Test that the PatternRewriter works as an OpBuilder."""
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() : () -> ()
   "test.op"() {nomatch} : () -> ()
@@ -1688,7 +1688,7 @@ def test_pattern_rewriter_as_op_builder():
 
 def test_type_conversion():
     """Test rewriter on ops without results"""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "func.func"() ({
   ^bb0(%arg: i32):
@@ -1848,7 +1848,7 @@ def test_type_conversion():
         def convert_type(self, typ: IntegerType) -> IndexType | None:
             return IndexType() if typ.width.data >= 8 else None
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "func.func"() ({
   ^bb0(%arg: i6):
@@ -1886,7 +1886,7 @@ def test_type_conversion():
         op_modified=1,
     )
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "test.op"() {dict_nest = {hello = i32}} : () -> ()
 }) : () -> ()
@@ -1900,7 +1900,7 @@ def test_type_conversion():
 
     rewrite_and_compare(
         prog,
-        prog,
+        prog.decode("utf-8"),
         PatternRewriteWalker(Rewrite(recursive=False)),
         expect_rewrite=False,
     )
@@ -1916,7 +1916,7 @@ def test_type_conversion():
 
 
 def test_recursive_type_conversion_in_regions():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
   ^bb0(%arg0: memref<2x4xui16>):
@@ -1952,7 +1952,7 @@ def test_recursive_type_conversion_in_regions():
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
 }) : () -> ()
 """
@@ -1976,7 +1976,7 @@ def test_no_change():
 
 
 def test_error():
-    prog = """\
+    prog = b"""\
 builtin.module {
   "test.op"() {erroneous = false} : () -> ()
   "test.op"() : () -> ()
@@ -2019,7 +2019,7 @@ builtin.module {
 
 
 def test_attr_constr_rewrite_pattern():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
   ^bb0(%arg0: memref<2x4xui16>):
@@ -2054,7 +2054,7 @@ def test_attr_constr_rewrite_pattern():
 
 def test_pattern_rewriter_erase_op_with_region():
     """Test that erasing an operation with a region works correctly."""
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() ({
     "test.op"() {error_if_matching} : () -> ()
@@ -2083,7 +2083,7 @@ def test_pattern_rewriter_erase_op_with_region():
 
 def test_pattern_rewriter_notify_op_modified():
     """Test that notifying on op modifications works correctly."""
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() : () -> ()
   "test.op"() : () -> ()
@@ -2113,7 +2113,7 @@ def test_pattern_rewriter_notify_op_modified():
 
 
 def test_replace_matched_op():
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() {op1} : () -> ()
   "test.op"() {op2} : () -> ()
@@ -2146,7 +2146,7 @@ def test_replace_matched_op():
 
 
 def test_erase_op_deprecated():
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() {op1} : () -> ()
   "test.op"() {op2} : () -> ()
@@ -2176,7 +2176,7 @@ def test_erase_op_deprecated():
 
 
 def test_replace_op_deprecated():
-    prog = """
+    prog = b"""
 "builtin.module"() ({
   "test.op"() {op1} : () -> ()
   "test.op"() {op2} : () -> ()

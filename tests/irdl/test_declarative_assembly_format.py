@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import textwrap
 from collections.abc import Callable
 from io import StringIO
 from typing import ClassVar, Generic, cast
@@ -112,7 +111,7 @@ from xdsl.utils.exceptions import (
 ################################################################################
 
 
-def check_roundtrip(program: str, ctx: Context):
+def check_roundtrip(program: bytes, ctx: Context):
     """Check that the given program roundtrips exactly (including whitespaces)."""
     parser = Parser(ctx, program)
     ops: list[Operation] = []
@@ -126,10 +125,10 @@ def check_roundtrip(program: str, ctx: Context):
         printer.print_string("\n")
     printer.print_op(ops[-1])
 
-    assert program == res_io.getvalue()
+    assert program.decode("utf-8") == res_io.getvalue()
 
 
-def check_equivalence(program1: str, program2: str, ctx: Context):
+def check_equivalence(program1: bytes, program2: bytes, ctx: Context):
     """Check that the given programs are structurally equivalent."""
 
     parser = Parser(ctx, program1)
@@ -268,19 +267,19 @@ class AttrDictWithKeywordOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.attr_dict", '"test.attr_dict"() : () -> ()'),
-        ("test.attr_dict_with_keyword", '"test.attr_dict_with_keyword"() : () -> ()'),
+        (b"test.attr_dict", b'"test.attr_dict"() : () -> ()'),
+        (b"test.attr_dict_with_keyword", b'"test.attr_dict_with_keyword"() : () -> ()'),
         (
-            "test.attr_dict {a = 2 : i32}",
-            '"test.attr_dict"() {a = 2 : i32} : () -> ()',
+            b"test.attr_dict {a = 2 : i32}",
+            b'"test.attr_dict"() {a = 2 : i32} : () -> ()',
         ),
         (
-            "test.attr_dict_with_keyword attributes {a = 2 : i32}",
-            '"test.attr_dict_with_keyword"() {a = 2 : i32} : () -> ()',
+            b"test.attr_dict_with_keyword attributes {a = 2 : i32}",
+            b'"test.attr_dict_with_keyword"() {a = 2 : i32} : () -> ()',
         ),
     ],
 )
-def test_attr_dict(program: str, generic_program: str):
+def test_attr_dict(program: bytes, generic_program: bytes):
     """Test the 'attr-dict' and 'attr-dict-with-keyword' directives."""
     ctx = Context()
     ctx.load_op(AttrDictOp)
@@ -293,14 +292,14 @@ def test_attr_dict(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.prop {prop = true}", '"test.prop"() <{prop = true}> : () -> ()'),
+        (b"test.prop {prop = true}", b'"test.prop"() <{prop = true}> : () -> ()'),
         (
-            "test.prop {a = 2 : i32, prop = true}",
-            '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()',
+            b"test.prop {a = 2 : i32, prop = true}",
+            b'"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()',
         ),
     ],
 )
-def test_attr_dict_prop_fallback(program: str, generic_program: str):
+def test_attr_dict_prop_fallback(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
@@ -319,16 +318,16 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.prop false {prop2 = true}",
-            '"test.prop"() <{prop1 = false, prop2 = true}> : () -> ()',
+            b"test.prop false {prop2 = true}",
+            b'"test.prop"() <{prop1 = false, prop2 = true}> : () -> ()',
         ),
         (
-            "test.prop false {a = 2 : i32, prop2 = true}",
-            '"test.prop"() <{prop1 = false, prop2 = true}> {a = 2 : i32} : () -> ()',
+            b"test.prop false {a = 2 : i32, prop2 = true}",
+            b'"test.prop"() <{prop1 = false, prop2 = true}> {a = 2 : i32} : () -> ()',
         ),
     ],
 )
-def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
+def test_partial_attr_dict_prop_fallback(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
@@ -360,14 +359,14 @@ class OpWithAttrOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {attr = i32} : () -> ()'),
+        (b"test.one_attr i32", b'"test.one_attr"() {attr = i32} : () -> ()'),
         (
-            "test.one_attr i32 {attr2 = i64}",
-            '"test.one_attr"() {attr = i32, attr2 = i64} : () -> ()',
+            b"test.one_attr i32 {attr2 = i64}",
+            b'"test.one_attr"() {attr = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
-def test_standard_attr_directive(program: str, generic_program: str):
+def test_standard_attr_directive(program: bytes, generic_program: bytes):
     ctx = Context()
     ctx.load_op(OpWithAttrOp)
 
@@ -379,7 +378,7 @@ def test_attr_variable_shadowed():
     ctx = Context()
     ctx.load_op(OpWithAttrOp)
 
-    parser = Parser(ctx, "test.one_attr i32 {attr = i64}")
+    parser = Parser(ctx, b"test.one_attr i32 {attr = i64}")
     with pytest.raises(
         ParseError,
         match="attributes attr are defined in other parts",
@@ -390,14 +389,14 @@ def test_attr_variable_shadowed():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {irdl = i32} : () -> ()'),
+        (b"test.one_attr i32", b'"test.one_attr"() {irdl = i32} : () -> ()'),
         (
-            "test.one_attr i32 {attr2 = i64}",
-            '"test.one_attr"() {irdl = i32, attr2 = i64} : () -> ()',
+            b"test.one_attr i32 {attr2 = i64}",
+            b'"test.one_attr"() {irdl = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
-def test_attr_name(program: str, generic_program: str):
+def test_attr_name(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class RenamedAttrOp(IRDLOperation):
         name = "test.one_attr"
@@ -416,20 +415,20 @@ def test_attr_name(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.one_attr <5 : i64>",
-            '"test.one_attr"() {attr = #test.param<5 : i64>} : () -> ()',
+            b"test.one_attr <5 : i64>",
+            b'"test.one_attr"() {attr = #test.param<5 : i64>} : () -> ()',
         ),
         (
-            'test.one_attr <"hello">',
-            '"test.one_attr"() {attr = #test.param<"hello">} : () -> ()',
+            b'test.one_attr <"hello">',
+            b'"test.one_attr"() {attr = #test.param<"hello">} : () -> ()',
         ),
         (
-            'test.one_attr <#test.param<"nested">>',
-            '"test.one_attr"() {attr = #test.param<#test.param<"nested">>} : () -> ()',
+            b'test.one_attr <#test.param<"nested">>',
+            b'"test.one_attr"() {attr = #test.param<#test.param<"nested">>} : () -> ()',
         ),
     ],
 )
-def test_unqualified_attr(program: str, generic_program: str):
+def test_unqualified_attr(program: bytes, generic_program: bytes):
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute):
         name = "test.param"
@@ -496,14 +495,14 @@ def test_property_duplicated():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{prop = i32}> : () -> ()'),
+        (b"test.one_prop i32", b'"test.one_prop"() <{prop = i32}> : () -> ()'),
         (
-            "test.one_prop i32 {attr2 = i64}",
-            '"test.one_prop"() <{prop = i32}> {attr2 = i64} : () -> ()',
+            b"test.one_prop i32 {attr2 = i64}",
+            b'"test.one_prop"() <{prop = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
-def test_standard_prop_directive(program: str, generic_program: str):
+def test_standard_prop_directive(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.one_prop"
@@ -521,14 +520,14 @@ def test_standard_prop_directive(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{irdl = i32}> : () -> ()'),
+        (b"test.one_prop i32", b'"test.one_prop"() <{irdl = i32}> : () -> ()'),
         (
-            "test.one_prop i32 {attr2 = i64}",
-            '"test.one_prop"() <{irdl = i32}> {attr2 = i64} : () -> ()',
+            b"test.one_prop i32 {attr2 = i64}",
+            b'"test.one_prop"() <{irdl = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
-def test_prop_name(program: str, generic_program: str):
+def test_prop_name(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class RenamedPropOp(IRDLOperation):
         name = "test.one_prop"
@@ -547,16 +546,16 @@ def test_prop_name(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_property",
-            '"test.optional_property"() : () -> ()',
+            b"test.optional_property",
+            b'"test.optional_property"() : () -> ()',
         ),
         (
-            "test.optional_property prop i32",
-            '"test.optional_property"() <{prop = i32}> : () -> ()',
+            b"test.optional_property prop i32",
+            b'"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
-def test_optional_property(program: str, generic_program: str):
+def test_optional_property(program: bytes, generic_program: bytes):
     """Test the parsing of optional operands"""
 
     @irdl_op_definition
@@ -578,16 +577,16 @@ def test_optional_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_property",
-            '"test.optional_property"() : () -> ()',
+            b"test.optional_property",
+            b'"test.optional_property"() : () -> ()',
         ),
         (
-            "test.optional_property i32",
-            '"test.optional_property"() <{prop = i32}> : () -> ()',
+            b"test.optional_property i32",
+            b'"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
-def test_optional_qualified_property(program: str, generic_program: str):
+def test_optional_qualified_property(program: bytes, generic_program: bytes):
     """Test the parsing of optional operands"""
 
     @irdl_op_definition
@@ -609,16 +608,16 @@ def test_optional_qualified_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_property()",
-            '"test.optional_property"() : () -> ()',
+            b"test.optional_property()",
+            b'"test.optional_property"() : () -> ()',
         ),
         (
-            "test.optional_property( prop i32 )",
-            '"test.optional_property"() <{prop = i32}> : () -> ()',
+            b"test.optional_property( prop i32 )",
+            b'"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
-def test_optional_property_with_whitespace(program: str, generic_program: str):
+def test_optional_property_with_whitespace(program: bytes, generic_program: bytes):
     """Test the parsing of optional operands"""
 
     @irdl_op_definition
@@ -640,16 +639,16 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_unit_attr_prop",
-            '"test.optional_unit_attr_prop"() : () -> ()',
+            b"test.optional_unit_attr_prop",
+            b'"test.optional_unit_attr_prop"() : () -> ()',
         ),
         (
-            "test.optional_unit_attr_prop unit_attr",
-            '"test.optional_unit_attr_prop"() <{unit_attr}> : () -> ()',
+            b"test.optional_unit_attr_prop unit_attr",
+            b'"test.optional_unit_attr_prop"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
-def test_optional_unit_attr_property(program: str, generic_program: str):
+def test_optional_unit_attr_property(program: bytes, generic_program: bytes):
     """Test the parsing of optional UnitAttr operands"""
 
     @irdl_op_definition
@@ -671,16 +670,16 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_unit_attr",
-            '"test.optional_unit_attr"() : () -> ()',
+            b"test.optional_unit_attr",
+            b'"test.optional_unit_attr"() : () -> ()',
         ),
         (
-            "test.optional_unit_attr unit_attr",
-            '"test.optional_unit_attr"() <{unit_attr}> : () -> ()',
+            b"test.optional_unit_attr unit_attr",
+            b'"test.optional_unit_attr"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
-def test_optional_unit_attr_attribute(program: str, generic_program: str):
+def test_optional_unit_attr_attribute(program: bytes, generic_program: bytes):
     """Test the parsing of optional UnitAttr operands"""
 
     @irdl_op_definition
@@ -702,16 +701,16 @@ def test_optional_unit_attr_attribute(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.optional_attribute",
-            '"test.optional_attribute"() : () -> ()',
+            b"test.optional_attribute",
+            b'"test.optional_attribute"() : () -> ()',
         ),
         (
-            "test.optional_attribute attr i32",
-            '"test.optional_attribute"() {attr = i32} : () -> ()',
+            b"test.optional_attribute attr i32",
+            b'"test.optional_attribute"() {attr = i32} : () -> ()',
         ),
     ],
 )
-def test_optional_attribute(program: str, generic_program: str):
+def test_optional_attribute(program: bytes, generic_program: bytes):
     """Test the parsing of optional operands"""
 
     @irdl_op_definition
@@ -733,12 +732,12 @@ def test_optional_attribute(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.typed_attr 3 3.000000e+00",
-            '"test.typed_attr"() {attr = 3 : i32, float_attr = 3.000000e+00 : f64} : () -> ()',
+            b"test.typed_attr 3 3.000000e+00",
+            b'"test.typed_attr"() {attr = 3 : i32, float_attr = 3.000000e+00 : f64} : () -> ()',
         ),
     ],
 )
-def test_typed_attribute_variable(program: str, generic_program: str):
+def test_typed_attribute_variable(program: bytes, generic_program: bytes):
     """Test the parsing of typed attributes"""
 
     @irdl_op_definition
@@ -761,16 +760,16 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.symbol @test @test2",
-            '"test.symbol"() <{sym_name = "test"}> {attr_sym_name = "test2"} : () -> ()',
+            b"test.symbol @test @test2",
+            b'"test.symbol"() <{sym_name = "test"}> {attr_sym_name = "test2"} : () -> ()',
         ),
         (
-            'test.symbol @"123" @"456"',
-            '"test.symbol"() <{sym_name = "123"}> {attr_sym_name = "456"} : () -> ()',
+            b'test.symbol @"123" @"456"',
+            b'"test.symbol"() <{sym_name = "123"}> {attr_sym_name = "456"} : () -> ()',
         ),
     ],
 )
-def test_symbol_name_variable(program: str, generic_program: str):
+def test_symbol_name_variable(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
@@ -792,16 +791,16 @@ def test_symbol_name_variable(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.symbol @test symbol @test2",
-            '"test.symbol"() <{sym_name = "test2", other_sym_name = "test"}> : () -> ()',
+            b"test.symbol @test symbol @test2",
+            b'"test.symbol"() <{sym_name = "test2", other_sym_name = "test"}> : () -> ()',
         ),
         (
-            "test.symbol",
-            '"test.symbol"() : () -> ()',
+            b"test.symbol",
+            b'"test.symbol"() : () -> ()',
         ),
     ],
 )
-def test_optional_symbol_name_variable(program: str, generic_program: str):
+def test_optional_symbol_name_variable(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
@@ -824,18 +823,18 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
     "program, generic_program, format",
     [
         (
-            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00] [7.000000e+00]",
-            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>, f64s = array<f64: 7.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
+            b"test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00] [7.000000e+00]",
+            b'"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>, f64s = array<f64: 7.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
             "$i32s $i64s $f32s $f64s attr-dict",
         ),
         (
-            "test.symbol [7, 8] [1.000000e+01, 1.100000e+01]",
-            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>, f64s = array<f64: 1.000000e+01, 1.100000e+01>}> {i32s = array<i32: 7, 8>} : () -> ()',
+            b"test.symbol [7, 8] [1.000000e+01, 1.100000e+01]",
+            b'"test.symbol"() <{f32s = array<f32: 9.000000e+00>, f64s = array<f64: 1.000000e+01, 1.100000e+01>}> {i32s = array<i32: 7, 8>} : () -> ()',
             "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? $f64s attr-dict",
         ),
     ],
 )
-def test_dense_array_special_cases(program: str, generic_program: str, format: str):
+def test_dense_array_special_cases(program: bytes, generic_program: bytes, format: str):
     @irdl_op_definition
     class DenseArrayOp(IRDLOperation):
         name = "test.symbol"
@@ -868,42 +867,45 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
 @pytest.mark.parametrize(
     "format, program",
     [
-        ("`)` attr-dict", "test.punctuation)"),
-        ("`(` attr-dict", "test.punctuation("),
-        ("`->` attr-dict", "test.punctuation ->"),
+        ("`)` attr-dict", b"test.punctuation)"),
+        ("`(` attr-dict", b"test.punctuation("),
+        ("`->` attr-dict", b"test.punctuation ->"),
         (
             "`->` `->` attr-dict",
-            "test.punctuation -> ->",
+            b"test.punctuation -> ->",
         ),
         (
             "`(` `)` attr-dict",
-            "test.punctuation()",
+            b"test.punctuation()",
         ),
         (
             "`keyword` attr-dict",
-            "test.punctuation keyword",
+            b"test.punctuation keyword",
         ),
         (
             "`keyword` `,` `keyword` attr-dict",
-            "test.punctuation keyword, keyword",
+            b"test.punctuation keyword, keyword",
         ),
-        ("`keyword` ` ` `,` `keyword` attr-dict", "test.punctuation keyword , keyword"),
-        ("`keyword` `,` `` `keyword` attr-dict", "test.punctuation keyword,keyword"),
+        (
+            "`keyword` ` ` `,` `keyword` attr-dict",
+            b"test.punctuation keyword , keyword",
+        ),
+        ("`keyword` `,` `` `keyword` attr-dict", b"test.punctuation keyword,keyword"),
         (
             "`keyword` `\\n` `,` `keyword` attr-dict",
-            "test.punctuation keyword\n, keyword",
+            b"test.punctuation keyword\n, keyword",
         ),
         (
             "`keyword` `,` ` ` `keyword` attr-dict",
-            "test.punctuation keyword, keyword",
+            b"test.punctuation keyword, keyword",
         ),
         (
             "`keyword` `,` ` ` ` ` `keyword` attr-dict",
-            "test.punctuation keyword,  keyword",
+            b"test.punctuation keyword,  keyword",
         ),
     ],
 )
-def test_punctuations_and_keywords(format: str, program: str):
+def test_punctuations_and_keywords(format: str, program: bytes):
     """Test the punctuation and keyword directives."""
 
     @irdl_op_definition
@@ -915,7 +917,7 @@ def test_punctuations_and_keywords(format: str, program: str):
     ctx.load_op(PunctuationOp)
 
     check_roundtrip(program, ctx)
-    check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
+    check_equivalence(program, b'"test.punctuation"() : () -> ()', ctx)
 
 
 ################################################################################
@@ -1004,26 +1006,26 @@ def test_operands_duplicated_type():
     [
         (
             "$lhs $rhs type($lhs) type($rhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %0 %1 i32 i64',
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %0 %1 i32 i64',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
         (
             "$rhs $lhs type($rhs) type($lhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %1 %0 i64 i32',
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %1 %0 i64 i32',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
         (
             "$lhs `,` $rhs `:` type($lhs) `,` type($rhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.two_operands %0, %1 : i32, i64",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b"test.two_operands %0, %1 : i32, i64",
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
     ],
 )
-def test_operands(format: str, program: str, generic_program: str):
+def test_operands(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of operands"""
 
     @irdl_op_definition
@@ -1047,31 +1049,31 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\ntest.variadic_operand',
-            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"() : () -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.variadic_operand',
+            b'%0 = "test.op"() : () -> i32\n"test.variadic_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\ntest.variadic_operand %0 i32',
-            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"(%0) : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.variadic_operand %0 i32',
+            b'%0 = "test.op"() : () -> i32\n"test.variadic_operand"(%0) : (i32) -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.variadic_operand %0, %1 i32, i64",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.variadic_operand"(%0, %1) : (i32, i64) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b"test.variadic_operand %0, %1 i32, i64",
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.variadic_operand"(%0, %1) : (i32, i64) -> ()',
         ),
         (
             "$args `:` type($args) attr-dict",
-            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
-            "test.variadic_operand %0, %1, %2 : i32, i64, i128",
-            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
-            '"test.variadic_operand"(%0, %1, %2) : (i32, i64, i128) -> ()',
+            b'%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            b"test.variadic_operand %0, %1, %2 : i32, i64, i128",
+            b'%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            b'"test.variadic_operand"(%0, %1, %2) : (i32, i64, i128) -> ()',
         ),
     ],
 )
-def test_variadic_operand(format: str, program: str, generic_program: str):
+def test_variadic_operand(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of variadic operands"""
 
     @irdl_op_definition
@@ -1094,17 +1096,17 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\ntest.optional_operand',
-            '%0 = "test.op"() : () -> i32\n"test.optional_operand"() : () -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_operand',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\ntest.optional_operand %0 i32',
-            '%0 = "test.op"() : () -> i32\n"test.optional_operand"(%0) : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_operand %0 i32',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_operand"(%0) : (i32) -> ()',
         ),
     ],
 )
-def test_optional_operand(format: str, program: str, generic_program: str):
+def test_optional_operand(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of optional operands"""
 
     @irdl_op_definition
@@ -1126,35 +1128,35 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     "program, generic_program, as_property",
     [
         (
-            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
+            b'%0 = "test.op"() : () -> i32\n'
+            b'"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
             False,
         ),
         (
-            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
+            b'%0 = "test.op"() : () -> i32\n'
+            b'"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
             True,
         ),
         (
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b"test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
             False,
         ),
         (
-            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
-            "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
-            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
-            '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+            b'%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            b"test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
+            b'%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            b'"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
             False,
         ),
     ],
 )
 def test_multiple_variadic_operands(
-    program: str, generic_program: str, as_property: bool
+    program: bytes, generic_program: bytes, as_property: bool
 ):
     """Test the parsing of variadic operands"""
 
@@ -1182,17 +1184,17 @@ def test_multiple_variadic_operands(
     "program, generic_program",
     [
         (
-            "test.optional_operands(:) [:]",
-            '"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
+            b"test.optional_operands(:) [:]",
+            b'"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\ntest.optional_operands(%0 : i32) [%0 : i32]',
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.optional_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_operands(%0 : i32) [%0 : i32]',
+            b'%0 = "test.op"() : () -> i32\n'
+            b'"test.optional_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
         ),
     ],
 )
-def test_multiple_optional_operands(program: str, generic_program: str):
+def test_multiple_optional_operands(program: bytes, generic_program: bytes):
     """Test the parsing of variadic operands"""
 
     @irdl_op_definition
@@ -1220,12 +1222,12 @@ def test_multiple_optional_operands(program: str, generic_program: str):
     [
         (
             "$lhs `,` $rhs `:` type($lhs) `,` type($rhs) attr-dict",
-            "test.two_operands %0, %1 : i32, i64\n"
-            '%0, %1 = "test.op"() : () -> (i32, i64)',
+            b"test.two_operands %0, %1 : i32, i64\n"
+            b'%0, %1 = "test.op"() : () -> (i32, i64)',
         ),
     ],
 )
-def test_operands_graph_region(format: str, program: str):
+def test_operands_graph_region(format: str, program: bytes):
     """Test the parsing of operands in a graph region"""
 
     @irdl_op_definition
@@ -1246,12 +1248,12 @@ def test_operands_graph_region(format: str, program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.operands_directive %0 : i32",
-        "test.operands_directive %0, %1 : i32, i32",
-        "test.operands_directive %0, %1, %2 : i32, i32, i32",
+        b"test.operands_directive %0 : i32",
+        b"test.operands_directive %0, %1 : i32, i32",
+        b"test.operands_directive %0, %1, %2 : i32, i32, i32",
     ],
 )
-def test_operands_directive_with_variadic(program: str):
+def test_operands_directive_with_variadic(program: bytes):
     """Test the operands directive with a variadic operand"""
 
     @irdl_op_definition
@@ -1273,11 +1275,11 @@ def test_operands_directive_with_variadic(program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.operands_directive %0 : i32",
-        "test.operands_directive %0, %1 : i32, i32",
+        b"test.operands_directive %0 : i32",
+        b"test.operands_directive %0, %1 : i32, i32",
     ],
 )
-def test_operands_directive_with_optional(program: str):
+def test_operands_directive_with_optional(program: bytes):
     """Test the operands directive with an optional operand"""
 
     @irdl_op_definition
@@ -1312,7 +1314,7 @@ def test_operands_directive_with_no_variadic():
     ctx.load_op(OperandsDirectiveOp)
     ctx.load_dialect(Test)
 
-    check_roundtrip("test.operands_directive %0, %1 : i32, i32", ctx)
+    check_roundtrip(b"test.operands_directive %0, %1 : i32, i32", ctx)
 
 
 def test_operands_directive_fails_with_two_var():
@@ -1338,12 +1340,12 @@ def test_operands_directive_fails_with_two_var():
 @pytest.mark.parametrize(
     "program",
     [
-        "test.two_var_op :",
-        "test.two_var_op %0, %1 : i32, i32",
-        "test.two_var_op %0, %1, %2, %3 : i32, i32, i32, i32",
+        b"test.two_var_op :",
+        b"test.two_var_op %0, %1 : i32, i32",
+        b"test.two_var_op %0, %1, %2, %3 : i32, i32, i32, i32",
     ],
 )
-def test_operands_directive_works_with_two_var_and_option(program: str):
+def test_operands_directive_works_with_two_var_and_option(program: bytes):
     """
     Test operands directive can be used with two variadic operands as long as they have
     the same length.
@@ -1370,11 +1372,11 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.two_var_op :",
-        "test.two_var_op %0, %1 : i32, i32",
+        b"test.two_var_op :",
+        b"test.two_var_op %0, %1 : i32, i32",
     ],
 )
-def test_operands_directive_works_with_two_opt_and_option(program: str):
+def test_operands_directive_works_with_two_opt_and_option(program: bytes):
     """
     Test operands directive can be used with two optional operands as long as they have
     the same length.
@@ -1452,19 +1454,19 @@ def test_operands_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("test.two_operands %0 : i32, i32", "Expected 2 operands, but got 1"),
+        (b"test.two_operands %0 : i32, i32", "Expected 2 operands, but got 1"),
         (
-            "test.two_operands %0, %1, %2 : i32, i32",
+            b"test.two_operands %0, %1, %2 : i32, i32",
             "Expected 2 operands, but got 3",
         ),
-        ("test.two_operands %0, %1 : i32", "Expected 2 operand types, but got 1"),
+        (b"test.two_operands %0, %1 : i32", "Expected 2 operand types, but got 1"),
         (
-            "test.two_operands %0, %1 : i32, i32, i32",
+            b"test.two_operands %0, %1 : i32, i32, i32",
             "Expected 2 operand types, but got 3",
         ),
     ],
 )
-def test_operands_directive_bounds(program: str, error: str):
+def test_operands_directive_bounds(program: bytes, error: str):
     @irdl_op_definition
     class TwoOperandsOp(IRDLOperation):
         name = "test.two_operands"
@@ -1486,24 +1488,24 @@ def test_operands_directive_bounds(program: str, error: str):
     "program, error",
     [
         (
-            "test.three_operands %0 : i32, i32",
+            b"test.three_operands %0 : i32, i32",
             "Expected 2 or 3 operands, but got 1",
         ),
         (
-            "test.three_operands %0, %1, %2, %3 : i32, i32, i32",
+            b"test.three_operands %0, %1, %2, %3 : i32, i32, i32",
             "Expected 2 or 3 operands, but got 4",
         ),
         (
-            "test.three_operands %0, %1 : i32",
+            b"test.three_operands %0, %1 : i32",
             "Expected 2 or 3 operand types, but got 1",
         ),
         (
-            "test.three_operands %0, %1, %3 : i32, i32, i32, i32",
+            b"test.three_operands %0, %1, %3 : i32, i32, i32, i32",
             "Expected 2 or 3 operand types, but got 4",
         ),
     ],
 )
-def test_operands_directive_bounds_with_opt(program: str, error: str):
+def test_operands_directive_bounds_with_opt(program: bytes, error: str):
     @irdl_op_definition
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
@@ -1526,16 +1528,16 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
     "program, error",
     [
         (
-            "test.three_operands %0 : i32, i32",
+            b"test.three_operands %0 : i32, i32",
             "Expected at least 2 operands, but got 1",
         ),
         (
-            "test.three_operands %0, %1 : i32",
+            b"test.three_operands %0, %1 : i32",
             "Expected at least 2 operand types, but got 1",
         ),
     ],
 )
-def test_operands_directive_bound_with_var(program: str, error: str):
+def test_operands_directive_bound_with_var(program: bytes, error: str):
     @irdl_op_definition
     class ThreeOperandsOp(IRDLOperation):
         name = "test.three_operands"
@@ -1584,7 +1586,7 @@ def test_operands_directive_with_non_variadic_type_directive():
     ctx = Context()
     ctx.load_op(OneOperandOp)
 
-    check_roundtrip("test.one_operand %0 : i32", ctx)
+    check_roundtrip(b"test.one_operand %0 : i32", ctx)
 
 
 def test_operands_directive_with_variadic_type_directive():
@@ -1620,7 +1622,7 @@ def test_operands_directive_with_variadic_type_directive():
     ctx = Context()
     ctx.load_op(TwoOperandOp)
 
-    check_roundtrip("test.two_operand %0 : i32", ctx)
+    check_roundtrip(b"test.two_operand %0 : i32", ctx)
 
 
 ################################################################################
@@ -1661,22 +1663,22 @@ def test_results_duplicated_type():
     [
         (
             "type($lhs) type($rhs) attr-dict",
-            "%0, %1 = test.two_results i32 i64",
-            '%0, %1 = "test.two_results"() : () -> (i32, i64)',
+            b"%0, %1 = test.two_results i32 i64",
+            b'%0, %1 = "test.two_results"() : () -> (i32, i64)',
         ),
         (
             "type($rhs) type($lhs) attr-dict",
-            "%0, %1 = test.two_results i32 i64",
-            '%0, %1 = "test.two_results"() : () -> (i64, i32)',
+            b"%0, %1 = test.two_results i32 i64",
+            b'%0, %1 = "test.two_results"() : () -> (i64, i32)',
         ),
         (
             "`:` type($lhs) `,` type($rhs) attr-dict",
-            "%0, %1 = test.two_results : i32, i64",
-            '%0, %1 = "test.two_results"() : () -> (i32, i64)',
+            b"%0, %1 = test.two_results : i32, i64",
+            b'%0, %1 = "test.two_results"() : () -> (i32, i64)',
         ),
     ],
 )
-def test_results(format: str, program: str, generic_program: str):
+def test_results(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of results"""
 
     @irdl_op_definition
@@ -1700,27 +1702,27 @@ def test_results(format: str, program: str, generic_program: str):
     [
         (
             "`:` type($res) attr-dict",
-            "test.variadic_result :",
-            '"test.variadic_result"() : () -> ()',
+            b"test.variadic_result :",
+            b'"test.variadic_result"() : () -> ()',
         ),
         (
             "`:` type($res) attr-dict",
-            "%0 = test.variadic_result : i32",
-            '%0 = "test.variadic_result"() : () -> i32',
+            b"%0 = test.variadic_result : i32",
+            b'%0 = "test.variadic_result"() : () -> i32',
         ),
         (
             "`:` type($res) attr-dict",
-            "%0, %1 = test.variadic_result : i32, i64",
-            '%0, %1 = "test.variadic_result"() : () -> (i32, i64)',
+            b"%0, %1 = test.variadic_result : i32, i64",
+            b'%0, %1 = "test.variadic_result"() : () -> (i32, i64)',
         ),
         (
             "`:` type($res) attr-dict",
-            "%0, %1, %2 = test.variadic_result : i32, i64, i128",
-            '%0, %1, %2 = "test.variadic_result"() : () -> (i32, i64, i128)',
+            b"%0, %1, %2 = test.variadic_result : i32, i64, i128",
+            b'%0, %1, %2 = "test.variadic_result"() : () -> (i32, i64, i128)',
         ),
     ],
 )
-def test_variadic_result(format: str, program: str, generic_program: str):
+def test_variadic_result(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of variadic results"""
 
     @irdl_op_definition
@@ -1762,17 +1764,17 @@ def test_variadic_result_failure():
     [
         (
             "`:` type($res) attr-dict",
-            "test.optional_result :",
-            '"test.optional_result"() : () -> ()',
+            b"test.optional_result :",
+            b'"test.optional_result"() : () -> ()',
         ),
         (
             "`:` type($res) attr-dict",
-            "%0 = test.optional_result : i32",
-            '%0 = "test.optional_result"() : () -> i32',
+            b"%0 = test.optional_result : i32",
+            b'%0 = "test.optional_result"() : () -> i32',
         ),
     ],
 )
-def test_optional_result(format: str, program: str, generic_program: str):
+def test_optional_result(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of variadic results"""
 
     @irdl_op_definition
@@ -1793,12 +1795,12 @@ def test_optional_result(format: str, program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "%0 = test.results_directive : i32",
-        "%0, %1 = test.results_directive : i32, i32",
-        "%0, %1, %2 = test.results_directive : i32, i32, i32",
+        b"%0 = test.results_directive : i32",
+        b"%0, %1 = test.results_directive : i32, i32",
+        b"%0, %1, %2 = test.results_directive : i32, i32, i32",
     ],
 )
-def test_results_directive_with_variadic(program: str):
+def test_results_directive_with_variadic(program: bytes):
     """Test the results directive with a variadic result"""
 
     @irdl_op_definition
@@ -1820,11 +1822,11 @@ def test_results_directive_with_variadic(program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "%0 = test.results_directive : i32",
-        "%0, %1 = test.results_directive : i32, i32",
+        b"%0 = test.results_directive : i32",
+        b"%0, %1 = test.results_directive : i32, i32",
     ],
 )
-def test_results_directive_with_optional(program: str):
+def test_results_directive_with_optional(program: bytes):
     """Test the results directive with an optional result"""
 
     @irdl_op_definition
@@ -1859,7 +1861,7 @@ def test_results_directive_with_no_variadic():
     ctx.load_op(ResultsDirectiveOp)
     ctx.load_dialect(Test)
 
-    check_roundtrip("%0, %1 = test.results_directive : i32, i32", ctx)
+    check_roundtrip(b"%0, %1 = test.results_directive : i32, i32", ctx)
 
 
 def test_results_directive_fails_with_two_var():
@@ -1885,12 +1887,12 @@ def test_results_directive_fails_with_two_var():
 @pytest.mark.parametrize(
     "program",
     [
-        "test.two_var_op :",
-        "%0, %1 = test.two_var_op : i32, i32",
-        "%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32",
+        b"test.two_var_op :",
+        b"%0, %1 = test.two_var_op : i32, i32",
+        b"%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32",
     ],
 )
-def test_results_directive_works_with_two_var_and_option(program: str):
+def test_results_directive_works_with_two_var_and_option(program: bytes):
     """
     Test results directive can be used with two variadic results as long as they have
     the same length.
@@ -1917,11 +1919,11 @@ def test_results_directive_works_with_two_var_and_option(program: str):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.two_var_op :",
-        "%0, %1 = test.two_var_op : i32, i32",
+        b"test.two_var_op :",
+        b"%0, %1 = test.two_var_op : i32, i32",
     ],
 )
-def test_results_directive_works_with_two_opt_and_option(program: str):
+def test_results_directive_works_with_two_opt_and_option(program: bytes):
     """
     Test results directive can be used with two optional results as long as they have
     the same length.
@@ -1981,14 +1983,14 @@ def test_results_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("%0 = test.two_results : i32", "Expected 2 result types, but got 1"),
+        (b"%0 = test.two_results : i32", "Expected 2 result types, but got 1"),
         (
-            "%0, %1, %2 = test.two_results : i32, i32, i32",
+            b"%0, %1, %2 = test.two_results : i32, i32, i32",
             "Expected 2 result types, but got 3",
         ),
     ],
 )
-def test_results_directive_bounds(program: str, error: str):
+def test_results_directive_bounds(program: bytes, error: str):
     @irdl_op_definition
     class TwoResultsOp(IRDLOperation):
         name = "test.two_results"
@@ -2010,16 +2012,16 @@ def test_results_directive_bounds(program: str, error: str):
     "program, error",
     [
         (
-            "%0 = test.three_results : i32",
+            b"%0 = test.three_results : i32",
             "Expected 2 or 3 result types, but got 1",
         ),
         (
-            "%0, %1, %2, %3 = test.three_results : i32, i32, i32, i32",
+            b"%0, %1, %2, %3 = test.three_results : i32, i32, i32, i32",
             "Expected 2 or 3 result types, but got 4",
         ),
     ],
 )
-def test_results_directive_bounds_with_opt(program: str, error: str):
+def test_results_directive_bounds_with_opt(program: bytes, error: str):
     @irdl_op_definition
     class ThreeResultsOp(IRDLOperation):
         name = "test.three_results"
@@ -2053,7 +2055,7 @@ def test_results_directive_bound_with_var():
     ctx.load_op(ThreeResultsOp)
 
     with pytest.raises(ParseError, match="Expected at least 2 result types, but got 1"):
-        parser = Parser(ctx, "%0 = test.three_results : i32")
+        parser = Parser(ctx, b"%0 = test.three_results : i32")
         parser.parse_operation()
 
 
@@ -2086,7 +2088,7 @@ def test_results_directive_with_non_variadic_type_directive():
     ctx = Context()
     ctx.load_op(OneResultOp)
 
-    check_roundtrip("%0 = test.one_result : i32", ctx)
+    check_roundtrip(b"%0 = test.one_result : i32", ctx)
 
 
 def test_results_directive_with_variadic_type_directive():
@@ -2121,7 +2123,7 @@ def test_results_directive_with_variadic_type_directive():
     ctx = Context()
     ctx.load_op(TwoResultsOp)
 
-    check_roundtrip("%0 = test.two_results : i32", ctx)
+    check_roundtrip(b"%0 = test.two_results : i32", ctx)
 
 
 ################################################################################
@@ -2132,14 +2134,14 @@ def test_results_directive_with_variadic_type_directive():
 @pytest.mark.parametrize(
     "program",
     [
-        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
-        "test.functional_type %0, %1 : (i32, i32) -> ()",
-        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
-        "%0 = test.functional_type %1 : (i32) -> i32",
-        "%0 = test.functional_type : () -> i32",
+        b"%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        b"test.functional_type %0, %1 : (i32, i32) -> ()",
+        b"%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        b"%0 = test.functional_type %1 : (i32) -> i32",
+        b"%0 = test.functional_type : () -> i32",
     ],
 )
-def test_functional_type(program: str):
+def test_functional_type(program: bytes):
     """Test the parsing of the functional-type directive"""
 
     @irdl_op_definition
@@ -2160,23 +2162,23 @@ def test_functional_type(program: str):
 @pytest.mark.parametrize(
     "signature, expected_operand_types, expected_result_types",
     [
-        ("", None, None),
-        ("() -> ()", [], []),
-        ("() -> i32", [], [i32]),
-        ("(i32) -> (i32)", [i32], [i32]),
-        ("(i32, f32) -> ()", [i32, f32], []),
-        ("(i32, f32) -> (f32, i32)", [i32, f32], [f32, i32]),
+        (b"", None, None),
+        (b"() -> ()", [], []),
+        (b"() -> i32", [], [i32]),
+        (b"(i32) -> (i32)", [i32], [i32]),
+        (b"(i32, f32) -> ()", [i32, f32], []),
+        (b"(i32, f32) -> (f32, i32)", [i32, f32], [f32, i32]),
     ],
 )
 def test_functional_type_optional(
-    signature: str,
+    signature: bytes,
     expected_operand_types: list[Attribute] | None,
     expected_result_types: list[Attribute] | Attribute | None,
 ):
     """Exercise optional parsing directly, without a declarative optional group."""
     directive = FunctionalTypeDirective(OperandsDirective(), ResultsDirective())
     state = ParsingState(test.TestOp)
-    parser = Parser(Context(), f"{signature} next")
+    parser = Parser(Context(), signature + b" next")
     start_pos = parser.pos
 
     directive.parse_optional(parser, state)
@@ -2197,12 +2199,12 @@ def test_functional_type_optional(
 @pytest.mark.parametrize(
     "program",
     [
-        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
-        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
-        "%0 = test.functional_type %1 : (i32) -> i32",
+        b"%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        b"%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        b"%0 = test.functional_type %1 : (i32) -> i32",
     ],
 )
-def test_functional_type_with_operands_and_results(program: str):
+def test_functional_type_with_operands_and_results(program: bytes):
     """
     Test the parsing of the functional-type directive using the operands and
     results directives
@@ -2274,27 +2276,27 @@ def test_attr_dict_directly_before_region_variable():
     [
         (
             "$region attr-dict",
-            "test.region_attr_dict {\n} {a = 2 : i32}",
-            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
+            b"test.region_attr_dict {\n} {a = 2 : i32}",
+            b'"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
         (
             "attr-dict `,` $region",
-            'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
-            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
+            b'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
+            b'"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
         (
             "($region^)? attr-dict-with-keyword",
-            "test.region_attr_dict attributes {a = 2 : i32}",
-            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
+            b"test.region_attr_dict attributes {a = 2 : i32}",
+            b'"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
         (
             "($region^)? attr-dict-with-keyword",
-            'test.region_attr_dict {\n  "test.op"() : () -> ()\n} attributes {a = 2 : i32}',
-            '"test.region_attr_dict"() ({\n  "test.op"() : () -> ()\n}) {a = 2 : i32} : () -> ()',
+            b'test.region_attr_dict {\n  "test.op"() : () -> ()\n} attributes {a = 2 : i32}',
+            b'"test.region_attr_dict"() ({\n  "test.op"() : () -> ()\n}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
-def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
+def test_regions_with_attr_dict(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of regions"""
 
     @irdl_op_definition
@@ -2317,22 +2319,22 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
     [
         (
             "attr-dict-with-keyword $fst $snd",
-            "test.two_regions {\n} {\n}",
-            '"test.two_regions"() ({}, {}) : () -> ()',
+            b"test.two_regions {\n} {\n}",
+            b'"test.two_regions"() ({}, {}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
+            b'test.two_regions {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            b'"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions attributes {a = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
+            b'test.two_regions attributes {a = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            b'"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
-def test_regions(format: str, program: str, generic_program: str):
+def test_regions(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of regions"""
 
     @irdl_op_definition
@@ -2356,27 +2358,27 @@ def test_regions(format: str, program: str, generic_program: str):
     [
         (
             "attr-dict-with-keyword $region",
-            "test.variadic_region",
-            '"test.variadic_region"() : () -> ()',
+            b"test.variadic_region",
+            b'"test.variadic_region"() : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n}',
-            '"test.variadic_region"() ({ "test.op"() : () -> ()}) : () -> ()',
+            b'test.variadic_region {\n  "test.op"() : () -> ()\n}',
+            b'"test.variadic_region"() ({ "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.variadic_region"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
+            b'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            b'"test.variadic_region"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
+            b'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            b'"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
         ),
     ],
 )
-def test_variadic_region(format: str, program: str, generic_program: str):
+def test_variadic_region(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of variadic regions"""
 
     @irdl_op_definition
@@ -2399,17 +2401,17 @@ def test_variadic_region(format: str, program: str, generic_program: str):
     [
         (
             "attr-dict-with-keyword $region",
-            "test.optional_region",
-            '"test.optional_region"() : () -> ()',
+            b"test.optional_region",
+            b'"test.optional_region"() : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.optional_region {\n  "test.op"() : () -> ()\n}',
-            '"test.optional_region"() ({ "test.op"() : () -> ()}) : () -> ()',
+            b'test.optional_region {\n  "test.op"() : () -> ()\n}',
+            b'"test.optional_region"() ({ "test.op"() : () -> ()}) : () -> ()',
         ),
     ],
 )
-def test_optional_region(format: str, program: str, generic_program: str):
+def test_optional_region(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of optional regions"""
 
     @irdl_op_definition
@@ -2451,17 +2453,17 @@ def test_multiple_optional_regions():
     [
         (
             "(`keyword` $opt_region^)? attr-dict",
-            "test.optional_region_group",
-            '"test.optional_region_group"() : () -> ()',
+            b"test.optional_region_group",
+            b'"test.optional_region_group"() : () -> ()',
         ),
         (
             "(`keyword` $opt_region^)? attr-dict",
-            'test.optional_region_group keyword {\n  "test.op"() : () -> ()\n}',
-            '"test.optional_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+            b'test.optional_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            b'"test.optional_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
         ),
     ],
 )
-def test_optional_groups_regions(format: str, program: str, generic_program: str):
+def test_optional_groups_regions(format: str, program: bytes, generic_program: bytes):
     """Test the parsing of optional regions in an optional group"""
 
     @irdl_op_definition
@@ -2483,20 +2485,20 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     "program, generic_program",
     [
         (
-            "test.empty_region_group",
-            '"test.empty_region_group"() ({}) : () -> ()',
+            b"test.empty_region_group",
+            b'"test.empty_region_group"() ({}) : () -> ()',
         ),
         (
-            "test.empty_region_group keyword {\n^bb0:\n}",
-            '"test.empty_region_group"() ({^bb0:}) : () -> ()',
+            b"test.empty_region_group keyword {\n^bb0:\n}",
+            b'"test.empty_region_group"() ({^bb0:}) : () -> ()',
         ),
         (
-            'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
-            '"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+            b'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            b'"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
         ),
     ],
 )
-def test_optional_groups_empty_regions(program: str, generic_program: str):
+def test_optional_groups_empty_regions(program: bytes, generic_program: bytes):
     """Test the parsing of empty regions in an optional group"""
 
     @irdl_op_definition
@@ -2565,23 +2567,19 @@ def test_successor_duplicated():
 def test_successors():
     """Test the parsing of successors"""
 
-    program = textwrap.dedent(
-        """\
-        "test.op"() ({
-          "test.op"() [^bb1] : () -> ()
-        ^bb1:
-          test.two_successors ^bb1 ^bb1
-        }) : () -> ()"""
-    )
+    program = b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  test.two_successors ^bb1 ^bb1
+}) : () -> ()"""
 
-    generic_program = textwrap.dedent(
-        """\
-        "test.op"() ({
-          "test.op"() [^bb1] : () -> ()
-        ^bb1:
-          "test.two_successors"() [^bb1, ^bb1] : () -> ()
-        }) : () -> ()"""
-    )
+    generic_program = b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.two_successors"() [^bb1, ^bb1] : () -> ()
+}) : () -> ()"""
 
     @irdl_op_definition
     class TwoSuccessorsOp(IRDLOperation):
@@ -2603,55 +2601,45 @@ def test_successors():
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.var_successor\n}) : () -> ()',
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  "test.var_successor"() : () -> ()
-                }) : () -> ()"""
-            ),
+            b'"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.var_successor\n}) : () -> ()',
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.var_successor"() : () -> ()
+}) : () -> ()""",
         ),
         (
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  test.var_successor ^bb1
-                }) : () -> ()"""
-            ),
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  "test.var_successor"() [^bb1] : () -> ()
-                }) : () -> ()"""
-            ),
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  test.var_successor ^bb1
+}) : () -> ()""",
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.var_successor"() [^bb1] : () -> ()
+}) : () -> ()""",
         ),
         (
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  test.var_successor ^bb1, ^bb1
-                }) : () -> ()"""
-            ),
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  "test.var_successor"() [^bb1, ^bb1] : () -> ()
-                }) : () -> ()"""
-            ),
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  test.var_successor ^bb1, ^bb1
+}) : () -> ()""",
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.var_successor"() [^bb1, ^bb1] : () -> ()
+}) : () -> ()""",
         ),
     ],
 )
-def test_variadic_successor(program: str, generic_program: str):
+def test_variadic_successor(program: bytes, generic_program: bytes):
     """Test the parsing of successors"""
 
     @irdl_op_definition
@@ -2673,37 +2661,31 @@ def test_variadic_successor(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.opt_successor\n}) : () -> ()',
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  "test.opt_successor"() : () -> ()
-                }) : () -> ()"""
-            ),
+            b'"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.opt_successor\n}) : () -> ()',
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.opt_successor"() : () -> ()
+}) : () -> ()""",
         ),
         (
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  test.opt_successor ^bb1
-                }) : () -> ()"""
-            ),
-            textwrap.dedent(
-                """\
-                "test.op"() ({
-                  "test.op"() [^bb1] : () -> ()
-                ^bb1:
-                  "test.opt_successor"() [^bb1] : () -> ()
-                }) : () -> ()"""
-            ),
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  test.opt_successor ^bb1
+}) : () -> ()""",
+            b"""\
+"test.op"() ({
+  "test.op"() [^bb1] : () -> ()
+^bb1:
+  "test.opt_successor"() [^bb1] : () -> ()
+}) : () -> ()""",
         ),
     ],
 )
-def test_optional_successor(program: str, generic_program: str):
+def test_optional_successor(program: bytes, generic_program: bytes):
     """Test the parsing of successors"""
 
     @irdl_op_definition
@@ -2753,12 +2735,10 @@ def test_basic_inference(format: str):
     ctx = Context()
     ctx.load_op(TwoOperandsOneResultWithVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0, %1 = "test.op"() : () -> (i32, i32)
-    %2 = test.two_operands_one_result_with_var %0 %1 : i32
-    "test.op"(%2) : (i32) -> ()"""
-    )
+    program = b"""\
+%0, %1 = "test.op"() : () -> (i32, i32)
+%2 = test.two_operands_one_result_with_var %0 %1 : i32
+"test.op"(%2) : (i32) -> ()"""
     check_roundtrip(program, ctx)
 
 
@@ -2781,12 +2761,10 @@ def test_eq_attr_inference():
     ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0 = "test.op"() : () -> !test.unit
-    %1 = test.one_operand_eq_type %0
-    "test.op"(%1) : (!test.unit) -> ()"""
-    )
+    program = b"""\
+%0 = "test.op"() : () -> !test.unit
+%1 = test.one_operand_eq_type %0
+"test.op"(%1) : (!test.unit) -> ()"""
     check_roundtrip(program, ctx)
 
 
@@ -2808,11 +2786,9 @@ def test_all_of_attr_inference():
     ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeAllOfNestedOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0 = "test.op"() : () -> !test.unit
-    test.one_operand_eq_type_all_of_nested %0"""
-    )
+    program = b"""\
+%0 = "test.op"() : () -> !test.unit
+test.one_operand_eq_type_all_of_nested %0"""
     check_roundtrip(program, ctx)
 
 
@@ -2854,11 +2830,9 @@ def test_nested_inference():
     ctx.load_op(TwoOperandsNestedVarOp)
     ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
-    %2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
-    )
+    program = b"""\
+%0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
+%2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
     check_roundtrip(program, ctx)
 
 
@@ -2892,11 +2866,9 @@ def test_nested_inference_variable():
     ctx.load_op(ResultTypeIsOperandParamOp)
     ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0 = "test.op"() : () -> !test.param_one<i32>
-    %1 = test.result_type_is_operand_param %0 : !test.param_one<i32>"""
-    )
+    program = b"""\
+%0 = "test.op"() : () -> !test.param_one<i32>
+%1 = test.result_type_is_operand_param %0 : !test.param_one<i32>"""
     check_roundtrip(program, ctx)
 
 
@@ -2935,11 +2907,9 @@ def test_non_verifying_inference():
     ctx.load_op(OneOperandOneResultNestedOp)
     ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0 = "test.op"() : () -> i32
-    %1 = test.one_operand_one_result_nested %0 : i32"""
-    )
+    program = b"""\
+%0 = "test.op"() : () -> i32
+%1 = test.one_operand_one_result_nested %0 : i32"""
     with pytest.raises(
         VerifyException,
         match=re.escape("i32 should be of base attribute test.param_one"),
@@ -2962,12 +2932,10 @@ def test_variadic_length_inference():
     ctx = Context()
     ctx.load_op(RangeVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %in0, %in1 = "test.op"() : () -> (index, index)
-    %out0, %out1 = test.range_var %in0, %in1 : index, index
-    """
-    )
+    program = b"""\
+%in0, %in1 = "test.op"() : () -> (index, index)
+%out0, %out1 = test.range_var %in0, %in1 : index, index
+"""
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -2989,12 +2957,10 @@ def test_int_var_inference():
     ctx = Context()
     ctx.load_op(IntVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %in0, %in1 = "test.op"() : () -> (index, index)
-    %out0, %out1 = test.int_var %in0, %in1
-    """
-    )
+    program = b"""\
+%in0, %in1 = "test.op"() : () -> (index, index)
+%out0, %out1 = test.int_var %in0, %in1
+"""
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -3112,18 +3078,18 @@ def test_chained_variadic_operands_safeguard(
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> i32\ntest.optional_group(%0 : i32)',
-            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_group(%0 : i32)',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
-            "test.optional_group",
-            '"test.optional_group"() : () -> ()',
+            b"test.optional_group",
+            b'"test.optional_group"() : () -> ()',
         ),
     ],
 )
 def test_optional_group_optional_operand_anchor(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalGroupOp(IRDLOperation):
@@ -3145,18 +3111,18 @@ def test_optional_group_optional_operand_anchor(
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> i32\ntest.optional_else_group %0',
-            '%0 = "test.op"() : () -> i32\n"test.optional_else_group"(%0) : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_else_group %0',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_else_group"(%0) : (i32) -> ()',
         ),
         (
-            "test.optional_else_group 1",
-            '"test.optional_else_group"() <{a = 1 : i32}> : () -> ()',
+            b"test.optional_else_group 1",
+            b'"test.optional_else_group"() <{a = 1 : i32}> : () -> ()',
         ),
     ],
 )
 def test_optional_else_group(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalElseGroupOp(IRDLOperation):
@@ -3195,22 +3161,22 @@ def test_impossible_optional_else_group():
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> i32\ntest.optional_optional_group with "prop" %0',
-            '%0 = "test.op"() : () -> i32\n"test.optional_optional_group"(%0) <{prop="prop"}> : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_optional_group with "prop" %0',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_optional_group"(%0) <{prop="prop"}> : (i32) -> ()',
         ),
         (
-            'test.optional_optional_group with "prop"',
-            '"test.optional_optional_group"() <{prop="prop"}>: () -> ()',
+            b'test.optional_optional_group with "prop"',
+            b'"test.optional_optional_group"() <{prop="prop"}>: () -> ()',
         ),
         (
-            "test.optional_optional_group",
-            '"test.optional_optional_group"() : () -> ()',
+            b"test.optional_optional_group",
+            b'"test.optional_optional_group"() : () -> ()',
         ),
     ],
 )
 def test_optional_optional_group_optional_operand_anchor(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalOptionalGroupOp(IRDLOperation):
@@ -3233,24 +3199,24 @@ def test_optional_optional_group_optional_operand_anchor(
     "program, generic_program",
     [
         (
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.optional_group %0, %1 : i32, i64",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            '"test.optional_group"(%0, %1) : (i32, i64) -> ()',
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b"test.optional_group %0, %1 : i32, i64",
+            b'%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            b'"test.optional_group"(%0, %1) : (i32, i64) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\ntest.optional_group %0 : i32',
-            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
+            b'%0 = "test.op"() : () -> i32\ntest.optional_group %0 : i32',
+            b'%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
-            "test.optional_group",
-            '"test.optional_group"() : () -> ()',
+            b"test.optional_group",
+            b'"test.optional_group"() : () -> ()',
         ),
     ],
 )
 def test_optional_group_variadic_operand_anchor(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalGroupOp(IRDLOperation):
@@ -3272,18 +3238,18 @@ def test_optional_group_variadic_operand_anchor(
     "program, generic_program",
     [
         (
-            "%0 = test.optional_group(i32)",
-            '%0 = "test.optional_group"() : () -> (i32)',
+            b"%0 = test.optional_group(i32)",
+            b'%0 = "test.optional_group"() : () -> (i32)',
         ),
         (
-            "test.optional_group",
-            '"test.optional_group"() : () -> ()',
+            b"test.optional_group",
+            b'"test.optional_group"() : () -> ()',
         ),
     ],
 )
 def test_optional_group_optional_result_anchor(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalGroupOp(IRDLOperation):
@@ -3305,22 +3271,22 @@ def test_optional_group_optional_result_anchor(
     "program, generic_program",
     [
         (
-            "%0, %1 = test.optional_group(i32, i64)",
-            '%0, %1 = "test.optional_group"() : () -> (i32, i64)',
+            b"%0, %1 = test.optional_group(i32, i64)",
+            b'%0, %1 = "test.optional_group"() : () -> (i32, i64)',
         ),
         (
-            "%0 = test.optional_group(i32)",
-            '%0 = "test.optional_group"() : () -> (i32)',
+            b"%0 = test.optional_group(i32)",
+            b'%0 = "test.optional_group"() : () -> (i32)',
         ),
         (
-            "test.optional_group",
-            '"test.optional_group"() : () -> ()',
+            b"test.optional_group",
+            b'"test.optional_group"() : () -> ()',
         ),
     ],
 )
 def test_optional_group_variadic_result_anchor(
-    program: str,
-    generic_program: str,
+    program: bytes,
+    generic_program: bytes,
 ):
     @irdl_op_definition
     class OptionalGroupOp(IRDLOperation):
@@ -3383,23 +3349,23 @@ def test_optional_group_checkers(format: str, error: str):
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0()',
-            '%0 = "test.op"() : () -> !test.type<"index">\n'
-            '"test.mixed"(%0) : (!test.type<"index">) -> ()',
+            b'%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0()',
+            b'%0 = "test.op"() : () -> !test.type<"index">\n'
+            b'"test.mixed"(%0) : (!test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0)',
-            '%0 = "test.op"() : () -> !test.type<"index">\n'
-            '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
+            b'%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0)',
+            b'%0 = "test.op"() : () -> !test.type<"index">\n'
+            b'"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0, %0)',
-            '%0 = "test.op"() : () -> !test.type<"index">\n'
-            '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
+            b'%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0, %0)',
+            b'%0 = "test.op"() : () -> !test.type<"index">\n'
+            b'"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
         ),
     ],
 )
-def test_variadic_and_single_mixed(program: str, generic_program: str):
+def test_variadic_and_single_mixed(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class MixedOp(IRDLOperation):
         name = "test.mixed"
@@ -3433,53 +3399,53 @@ class DefaultOp(IRDLOperation):
     "program, output, generic",
     [
         (
-            "test.default",
-            "test.default",
-            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
-        ),
-        (
-            "test.default prop false opt_prop true",
-            "test.default",
-            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
-        ),
-        (
-            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
-            "test.default",
-            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
-        ),
-        (
-            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
+            b"test.default",
             "test.default",
             '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
-            "test.default prop true opt_prop false",
+            b"test.default prop false opt_prop true",
+            "test.default",
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
+        ),
+        (
+            b'"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
+        ),
+        (
+            b'"test.default"() <{prop = false}> {attr = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
+        ),
+        (
+            b"test.default prop true opt_prop false",
             "test.default prop true opt_prop false",
             '"test.default"() <{prop = true, opt_prop = false}> {attr = false} : () -> ()',
         ),
         (
-            "test.default attr false opt_attr true",
+            b"test.default attr false opt_attr true",
             "test.default",
             '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
-            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
+            b'"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
             "test.default",
             '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
-            "test.default attr true opt_attr false",
+            b"test.default attr true opt_attr false",
             "test.default attr true opt_attr false",
             '"test.default"() <{prop = false}> {attr = true, opt_attr = false} : () -> ()',
         ),
         (
-            '"test.default"() : () -> ()',
+            b'"test.default"() : () -> ()',
             "test.default",
             '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
     ],
 )
-def test_default_properties(program: str, output: str, generic: str):
+def test_default_properties(program: bytes, output: str, generic: str):
     ctx = Context()
     ctx.load_op(DefaultOp)
 
@@ -3515,23 +3481,23 @@ class RenamedPropOp(IRDLOperation):
     "program, output, generic",
     [
         (
-            "test.renamed",
+            b"test.renamed",
             "test.renamed",
             '"test.renamed"() <{test_prop1 = false}> : () -> ()',
         ),
         (
-            "test.renamed prop1 false prop2 false",
+            b"test.renamed prop1 false prop2 false",
             "test.renamed prop2 false",
             '"test.renamed"() <{test_prop1 = false, test_prop2 = false}> : () -> ()',
         ),
         (
-            "test.renamed prop1 true prop2 true",
+            b"test.renamed prop1 true prop2 true",
             "test.renamed prop1 true prop2 true",
             '"test.renamed"() <{test_prop1 = true, test_prop2 = true}> : () -> ()',
         ),
     ],
 )
-def test_renamed_optional_prop(program: str, output: str, generic: str):
+def test_renamed_optional_prop(program: bytes, output: str, generic: str):
     ctx = Context()
     ctx.load_op(RenamedPropOp)
 
@@ -3555,16 +3521,16 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     "program, generic",
     [
         (
-            "test.default_attr_dict",
-            '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
+            b"test.default_attr_dict",
+            b'"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
-            "test.default_attr_dict {attr = true, prop = true}",
-            '"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
+            b"test.default_attr_dict {attr = true, prop = true}",
+            b'"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
         ),
     ],
 )
-def test_default_property_in_attr_dict(program: str, generic: str):
+def test_default_property_in_attr_dict(program: bytes, generic: bytes):
     @irdl_op_definition
     class DefaultAttrDictOp(IRDLOperation):
         name = "test.default_attr_dict"
@@ -3588,16 +3554,16 @@ def test_default_property_in_attr_dict(program: str, generic: str):
     "program, generic",
     [
         (
-            "test.default_attr_dict",
-            '"test.default_attr_dict"() {attr = false} : () -> ()',
+            b"test.default_attr_dict",
+            b'"test.default_attr_dict"() {attr = false} : () -> ()',
         ),
         (
-            "test.default_attr_dict {attr = true}",
-            '"test.default_attr_dict"() {attr = true} : () -> ()',
+            b"test.default_attr_dict {attr = true}",
+            b'"test.default_attr_dict"() {attr = true} : () -> ()',
         ),
     ],
 )
-def test_default_attr_in_attr_dict(program: str, generic: str):
+def test_default_attr_in_attr_dict(program: bytes, generic: bytes):
     @irdl_op_definition
     class DefaultAttrDictOp(IRDLOperation):
         name = "test.default_attr_dict"
@@ -3635,7 +3601,7 @@ def test_all_of_extraction_fails():
     ctx.load_dialect(Test)
     parser = Parser(
         ctx,
-        '%0 = "test.op"() : () -> memref<10xindex>\ntest.all_of_extractor %0, %0 : memref<10xindex>',
+        b'%0 = "test.op"() : () -> memref<10xindex>\ntest.all_of_extractor %0, %0 : memref<10xindex>',
     )
     parser.parse_operation()
     with pytest.raises(
@@ -3673,7 +3639,7 @@ def test_param_extraction_fails():
     ctx.load_dialect(Test)
     parser = Parser(
         ctx,
-        '%0 = "test.op"() : () -> !test.param<i32,i64>\ntest.param_extractor %0, %0 : !test.param<i32,i64>',
+        b'%0 = "test.op"() : () -> !test.param<i32,i64>\ntest.param_extractor %0, %0 : !test.param<i32,i64>',
     )
     parser.parse_operation()
     with pytest.raises(
@@ -3700,7 +3666,7 @@ def test_multiple_operand_extraction_fails():
     ctx.load_dialect(Test)
     parser = Parser(
         ctx,
-        '%0, %1 = "test.op"() : () -> (index, i32)\ntest.multiple_operand_extractor %0, %1 : index, i32',
+        b'%0, %1 = "test.op"() : () -> (index, i32)\ntest.multiple_operand_extractor %0, %1 : index, i32',
     )
     parser.parse_operation()
     with pytest.raises(
@@ -3730,9 +3696,9 @@ class IntAttrExtractOp(IRDLOperation):
 
 @pytest.mark.parametrize(
     "program",
-    ["%0 = test.int_attr_extract 1", "%0, %1 = test.int_attr_extract 2"],
+    [b"%0 = test.int_attr_extract 1", b"%0, %1 = test.int_attr_extract 2"],
 )
-def test_int_attr_extraction(program: str):
+def test_int_attr_extraction(program: bytes):
     ctx = Context()
     ctx.load_op(IntAttrExtractOp)
 
@@ -3743,16 +3709,16 @@ def test_int_attr_extraction(program: str):
     "program, error",
     [
         (
-            "%0 = test.int_attr_extract 2",
+            b"%0 = test.int_attr_extract 2",
             "Operation has 2 results, but was given 1 to bind",
         ),
         (
-            "%0, %1 = test.int_attr_extract 1",
+            b"%0, %1 = test.int_attr_extract 1",
             "Operation has 1 results, but was given 2 to bind",
         ),
     ],
 )
-def test_int_attr_extraction_errors(program: str, error: str):
+def test_int_attr_extraction_errors(program: bytes, error: str):
     ctx = Context()
     ctx.load_op(IntAttrExtractOp)
     parser = Parser(ctx, program)
@@ -3778,13 +3744,13 @@ class IntAttrVerifyOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.int_attr_verify 1, %0",
-        "test.int_attr_verify 2, %0, %1",
-        "test.int_attr_verify 1 and 1, %0",
-        "test.int_attr_verify 2 and 2, %0, %1",
+        b"test.int_attr_verify 1, %0",
+        b"test.int_attr_verify 2, %0, %1",
+        b"test.int_attr_verify 1 and 1, %0",
+        b"test.int_attr_verify 2 and 2, %0, %1",
     ],
 )
-def test_int_attr_verify(program: str):
+def test_int_attr_verify(program: bytes):
     ctx = Context()
     ctx.load_op(IntAttrVerifyOp)
 
@@ -3795,24 +3761,24 @@ def test_int_attr_verify(program: str):
     "program, error",
     [
         (
-            "test.int_attr_verify 1, %0, %1",
+            b"test.int_attr_verify 1, %0, %1",
             "integer 2 expected from int variable 'I', but got 1",
         ),
         (
-            "test.int_attr_verify 1 and 2, %0",
+            b"test.int_attr_verify 1 and 2, %0",
             "integer 1 expected from int variable 'I', but got 2",
         ),
         (
-            "test.int_attr_verify 2, %0",
+            b"test.int_attr_verify 2, %0",
             "integer 1 expected from int variable 'I'",
         ),
         (
-            "test.int_attr_verify 2 and 1, %0, %1",
+            b"test.int_attr_verify 2 and 1, %0, %1",
             "integer 2 expected from int variable 'I', but got 1",
         ),
     ],
 )
-def test_int_attr_verify_errors(program: str, error: str):
+def test_int_attr_verify_errors(program: bytes, error: str):
     ctx = Context()
     ctx.load_op(IntAttrVerifyOp)
 
@@ -3843,7 +3809,7 @@ def test_non_qualified_attr():
     ctx.load_op(NonQualifiedAttrOp)
     ctx.load_attr_or_type(MyAttr)
     ctx.load_dialect(Test)
-    parser = Parser(ctx, 'test.non_qualified_attr <"test">')
+    parser = Parser(ctx, b'test.non_qualified_attr <"test">')
     op = parser.parse_operation()
     assert isinstance(op, NonQualifiedAttrOp)
     assert op.attr == MyAttr(StringAttr("test"))
@@ -3863,7 +3829,7 @@ def test_qualified_attr():
     ctx.load_op(QualifiedAttrOp)
     ctx.load_attr_or_type(MyAttr)
     ctx.load_dialect(Test)
-    parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
+    parser = Parser(ctx, b'test.qualified_attr #test.my_attr<"test">')
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
     assert op.attr == MyAttr(StringAttr("test"))
@@ -3896,11 +3862,11 @@ class CustomDirectiveOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.custom hello",
-        "test.custom hello {attr = 1 : i32}",
+        b"test.custom hello",
+        b"test.custom hello {attr = 1 : i32}",
     ],
 )
-def test_custom_directive(program: str):
+def test_custom_directive(program: bytes):
     ctx = Context()
     ctx.load_op(CustomDirectiveOp)
     ctx.load_dialect(Test)
@@ -3945,13 +3911,13 @@ class CustomDirectiveWithParamOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program",
     [
-        "test.custom_param",
-        "test.custom_param %0 : i32",
-        "test.custom_param %0 | %1 : i32, i32",
-        "test.custom_param %0 | %1 | %2 : i32, i32, i32",
+        b"test.custom_param",
+        b"test.custom_param %0 : i32",
+        b"test.custom_param %0 | %1 : i32, i32",
+        b"test.custom_param %0 | %1 | %2 : i32, i32, i32",
     ],
 )
-def test_custom_directive_param(program: str):
+def test_custom_directive_param(program: bytes):
     ctx = Context()
     ctx.load_op(CustomDirectiveWithParamOp)
     ctx.load_dialect(Test)
@@ -4051,33 +4017,33 @@ def test_ref_directives():
     ctx = Context()
     ctx.load_op(RefDirectivesOp)
     ctx.load_dialect(Test)
-    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)
+    check_roundtrip(b"%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)
 
 
 @pytest.mark.parametrize(
     "program, generic_program",
     [
         (
-            "test.dyn_index_list",
-            '"test.dyn_index_list"() <{static_indices = array<i64>}> : () -> ()',
+            b"test.dyn_index_list",
+            b'"test.dyn_index_list"() <{static_indices = array<i64>}> : () -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0]',
-            '%0 = "test.op"() : () -> i64\n'
-            '"test.dyn_index_list"(%0) <{static_indices = array<i64: -9223372036854775808>}> : (i64) -> ()',
+            b'%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0]',
+            b'%0 = "test.op"() : () -> i64\n'
+            b'"test.dyn_index_list"(%0) <{static_indices = array<i64: -9223372036854775808>}> : (i64) -> ()',
         ),
         (
-            "test.dyn_index_list keyword [3, 5, 7, 9]",
-            '"test.dyn_index_list"() <{static_indices = array<i64: 3, 5, 7 ,9>}> : () -> ()',
+            b"test.dyn_index_list keyword [3, 5, 7, 9]",
+            b'"test.dyn_index_list"() <{static_indices = array<i64: 3, 5, 7 ,9>}> : () -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0, 5, %0, 9]',
-            '%0 = "test.op"() : () -> i64\n'
-            '"test.dyn_index_list"(%0, %0) <{static_indices = array<i64: -9223372036854775808, 5, -9223372036854775808, 9>}> : (i64, i64) -> ()',
+            b'%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0, 5, %0, 9]',
+            b'%0 = "test.op"() : () -> i64\n'
+            b'"test.dyn_index_list"(%0, %0) <{static_indices = array<i64: -9223372036854775808, 5, -9223372036854775808, 9>}> : (i64, i64) -> ()',
         ),
     ],
 )
-def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
+def test_optional_anchor_dynamic_index_list(program: bytes, generic_program: bytes):
     @irdl_op_definition
     class DynIndexListOp(IRDLOperation):
         name = "test.dyn_index_list"
@@ -4107,10 +4073,10 @@ def test_keywords_are_non_optional():
     ctx = Context()
     ctx.load_op(NonOptionalKeyword)
 
-    parser = Parser(ctx, "test.non_optional_keyword keyword")
+    parser = Parser(ctx, b"test.non_optional_keyword keyword")
     parser.parse_op()
 
-    parser = Parser(ctx, "test.non_optional_keyword")
+    parser = Parser(ctx, b"test.non_optional_keyword")
 
     with pytest.raises(ParseError, match="Expected 'keyword'"):
         parser.parse_op()
@@ -4126,10 +4092,10 @@ def test_punctuation_is_non_optional():
     ctx = Context()
     ctx.load_op(NonOptionalPunctuation)
 
-    parser = Parser(ctx, "test.non_optional_punctuation :")
+    parser = Parser(ctx, b"test.non_optional_punctuation :")
     parser.parse_op()
 
-    parser = Parser(ctx, "test.non_optional_punctuation")
+    parser = Parser(ctx, b"test.non_optional_punctuation")
 
     with pytest.raises(ParseError, match="Expected ':'"):
         parser.parse_op()

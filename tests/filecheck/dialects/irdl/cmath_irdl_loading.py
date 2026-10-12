@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # Open the IRDL description of cmath, parse it
 
     file_path = Path(__file__).parent / "cmath.irdl.mlir"
-    f = file_path.open()
+    f = file_path.open("rb")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     ctx.register_dialect("cmath", lambda: dialect)
 
     # Roundtrip a cmath file!
-    f = (Path(__file__).parent.parent / "cmath" / "cmath_ops.mlir").open()
+    f = (Path(__file__).parent.parent / "cmath" / "cmath_ops.mlir").open("rb")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
     module.verify()

@@ -41,7 +41,7 @@ def test_operation_counter():
 
 
 def test_operation_counter_with_parsing_text():
-    text = """builtin.module {
+    text = b"""builtin.module {
   func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -70,7 +70,7 @@ def test_operation_counter_with_parsing_text():
 
 def test_get_diff_operation_count():
     # get input module
-    input_text = """builtin.module {
+    input_text = b"""builtin.module {
   func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -86,7 +86,7 @@ def test_get_diff_operation_count():
     input_module = parser.parse_module()
 
     # get output module
-    output_text = """builtin.module {
+    output_text = b"""builtin.module {
   func.func @hello(%n: index) -> index {
     %two = rv32.li 2 : !riscv.reg
     %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index

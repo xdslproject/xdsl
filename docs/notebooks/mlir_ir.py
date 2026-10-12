@@ -330,7 +330,7 @@ def _(Parser, abs_input_text, abs_text_area, ctx, run_func):
     try:
         abs_input = int(abs_input_text.value)
         abs_inputs = (abs_input,)
-        abs_module = Parser(ctx, abs_text_area.value).parse_module()
+        abs_module = Parser(ctx, abs_text_area.value.encode("utf-8")).parse_module()
         abs_results = run_func(abs_module, "abs", abs_inputs)
         abs_results_text = f"abs({abs_input}) = {abs_results}"
     except Exception as e:
@@ -431,7 +431,7 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
     try:
         second_input = int(second_input_text.value)
         second_inputs = (second_input,)
-        second_module = Parser(ctx, second_text_area.value).parse_module()
+        second_module = Parser(ctx, second_text_area.value.encode("utf-8")).parse_module()
         second_results = run_func(second_module, "factorial", second_inputs)
         second_results_text = f"factorial({second_input}) = {second_results}"
     except Exception as e:
@@ -591,7 +591,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(Parser, Printer, StringIO, ctx, mo, triangle_text):
-    _triangle_module = Parser(ctx, triangle_text).parse_module()
+    _triangle_module = Parser(ctx, triangle_text.encode("utf-8")).parse_module()
     _file = StringIO()
     Printer(print_generic_format=True, stream=_file).print_op(_triangle_module)
     mo.md(
@@ -654,7 +654,7 @@ def _(ctx, triangle_text):
 
     from xdsl.parser import Parser, Input
 
-    triangle_module = Parser(ctx, triangle_text, "").parse_module()
+    triangle_module = Parser(ctx, triangle_text.encode("utf-8"), "").parse_module()
     # triangle_module
     return Parser, StringIO
 
@@ -690,7 +690,7 @@ def _(Any, Parser, ctx, run_func):
         error_text = ""
         results_text = ""
         try:
-            module = Parser(ctx, module_text).parse_module()
+            module = Parser(ctx, module_text.encode("utf-8")).parse_module()
             results_text = "\n".join(
                 format + str(run_func(module, function_name, input))
                 for format, input in zip(formats, inputs, strict=True)

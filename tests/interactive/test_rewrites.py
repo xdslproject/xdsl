@@ -46,7 +46,7 @@ class Rewrite(RewritePattern):
 
 def test_get_all_possible_rewrites():
     # build module
-    prog = """
+    prog = b"""
     builtin.module {
     "test.rewrites"() {"label" = "a"} : () -> ()
     "test.rewrites"() {"label" = "b"} : () -> ()

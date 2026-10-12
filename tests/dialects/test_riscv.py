@@ -244,7 +244,7 @@ def test_riscv_parse_immediate_value():
     ctx = Context()
     ctx.load_dialect(riscv.RISCV)
 
-    prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""
+    prog = b"""riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match="Expected immediate"):
         parser.parse_operation()

@@ -615,7 +615,7 @@ def test_region_clone_into_circular_blocks():
     """
     Test that cloning a region with circular block dependency works.
     """
-    region_str = """
+    region_str = b"""
     {
     ^bb0:
         "test.op"() [^bb1] : () -> ()
@@ -755,31 +755,31 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
 
 ##################### Testing is_structurally_equal #####################
 
-program_region = """
+program_region = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
 }) : () -> ()
 """
 
-program_region_2 = """
+program_region_2 = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
 }) : () -> ()
 """
 
-program_region_2_diff_name = """
+program_region_2_diff_name = b"""
 "builtin.module"() ({
   %cst = "arith.constant"() {"value" = 2 : i32} : () -> i32
 }) : () -> ()
 """
 
-program_region_2_diff_type = """
+program_region_2_diff_type = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 2 : i64} : () -> i64
 }) : () -> ()
 """
 
-program_add = """
+program_add = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
@@ -787,7 +787,7 @@ program_add = """
 }) : () -> ()
 """
 
-program_add_2 = """
+program_add_2 = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
@@ -795,7 +795,7 @@ program_add_2 = """
 }) : () -> ()
 """
 
-program_func = """
+program_func = b"""
 "builtin.module"() ({
   "func.func"() ({
   ^bb0(%0: i32, %1: i32):
@@ -805,7 +805,7 @@ program_func = """
 }) : () -> ()
 """
 
-program_successors = """
+program_successors = b"""
 "builtin.module"() ({
   "func.func"() ({
   ^bb0:
@@ -836,7 +836,7 @@ program_successors = """
         ([program_successors, program_add], False),
     ],
 )
-def test_is_structurally_equivalent(args: list[str], expected_result: bool):
+def test_is_structurally_equivalent(args: list[bytes], expected_result: bool):
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
@@ -877,7 +877,7 @@ def test_is_structurally_equivalent_free_operands_fail():
 
 
 def test_is_structurally_equivalent_incompatible_ir_nodes():
-    program_func = """
+    program_func = b"""
 "builtin.module"() ({
   "func.func"() ({
   ^bb0(%0: i32, %1: i32):

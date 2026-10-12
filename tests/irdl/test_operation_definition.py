@@ -1087,7 +1087,7 @@ def test_default_accessors():
     ctx = Context()
     ctx.load_op(DefaultOp)
 
-    parsed = Parser(ctx, "test.default").parse_operation()
+    parsed = Parser(ctx, b"test.default").parse_operation()
 
     assert isinstance(parsed, DefaultOp)
 
@@ -1109,7 +1109,7 @@ def test_generic_accessors():
     ctx.load_op(DefaultOp)
 
     parsed = Parser(
-        ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
+        ctx, b'"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
     ).parse_operation()
 
     assert isinstance(parsed, DefaultOp)
