@@ -221,6 +221,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             self.body,
             bound_words=self.BOUND_WORDS,
         )
+        printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -231,8 +232,10 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             allow_static_step=True,
         )
         _, *iter_args = body.block.args
+        attrs = parser.parse_optional_attr_dict()
 
         op = cls(start, stop, step, iter_arg_operands, body)
+        op.attributes |= attrs
 
         if not iter_args:
             for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
