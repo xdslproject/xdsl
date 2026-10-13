@@ -104,8 +104,7 @@ def print_for_op_like(
     printer.print_string(" = ")
     _print_bound(printer, start)
 
-    for word in bound_words:
-        printer.print_string(f" {word} ")
+    printer.print_string(f" {' '.join(bound_words)} ")
 
     _print_bound(printer, stop)
     printer.print_string(" step ")

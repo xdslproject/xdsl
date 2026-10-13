@@ -8,7 +8,7 @@
 %lb_end, %res_for = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
-}
+} {hello = "world"}
 
 %lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
@@ -28,7 +28,7 @@
 %lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
     x86_scf.yield %res : !x86.reg64<rbx>
-}
+} {hello = "world"}
 
 %lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64 = %lb : !x86.reg64 to 100 : si32 step 2 : si32 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
     %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
@@ -43,7 +43,7 @@
 // CHECK-NEXT:    %lb_end, %res_for = x86_scf.for %i : !x86.reg64  = %lb : !x86.reg64 to %ub : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res = x86.ri.add %acc_in, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res : !x86.reg64<rbx>
-// CHECK-NEXT:    }
+// CHECK-NEXT:    } {hello = "world"}
 // CHECK-NEXT:    %lb_end_1, %res_rof = x86_scf.rof %j : !x86.reg64  = %ub : !x86.reg64 down  to %lb : !x86.reg64 step %step : !x86.reg64 iter_args(%acc_in_1 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_1 = x86.ri.add %acc_in_1, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_1 : !x86.reg64<rbx>
@@ -59,7 +59,7 @@
 // CHECK-NEXT:    %lb_end_4, %res_rof_static_step = x86_scf.rof %n : !x86.reg64  = %ub : !x86.reg64 down  to %lb : !x86.reg64 step 2 : si32 iter_args(%acc_in_4 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_4 = x86.ri.add %acc_in_4, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_4 : !x86.reg64<rbx>
-// CHECK-NEXT:    }
+// CHECK-NEXT:    } {hello = "world"}
 // CHECK-NEXT:    %lb_end_5, %res_for_static_bounds = x86_scf.for %p : !x86.reg64  = %lb : !x86.reg64 to 100 : si32 step 2 : si32 iter_args(%acc_in_5 = %acc) -> (!x86.reg64<rbx>) {
 // CHECK-NEXT:      %res_5 = x86.ri.add %acc_in_5, 1 : (!x86.reg64<rbx>) -> !x86.reg64<rbx>
 // CHECK-NEXT:      x86_scf.yield %res_5 : !x86.reg64<rbx>

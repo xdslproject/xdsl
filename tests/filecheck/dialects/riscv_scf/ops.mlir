@@ -7,13 +7,13 @@
 %acc = "rv32.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<t0>
 riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step %step : !riscv.reg {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
-}
+} {hello = "world"}
 riscv_scf.for %i_static : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 }
 riscv_scf.rof %j : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step %step : !riscv.reg {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
-}
+} {hello = "world"}
 riscv_scf.rof %j_static : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 2 : si12 {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 }
@@ -34,13 +34,13 @@ riscv_scf.rof %j_static : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg
 // CHECK-NEXT:   %acc = rv32.li 0 : !riscv.reg<t0>
 // CHECK-NEXT:   riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step %step : !riscv.reg {
 // CHECK-NEXT:     %0 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
-// CHECK-NEXT:   }
+// CHECK-NEXT:   } {hello = "world"}
 // CHECK-NEXT:   riscv_scf.for %i_static : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 {
 // CHECK-NEXT:     %1 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   riscv_scf.rof %j : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step %step : !riscv.reg {
 // CHECK-NEXT:     %2 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
-// CHECK-NEXT:   }
+// CHECK-NEXT:   } {hello = "world"}
 // CHECK-NEXT:   riscv_scf.rof %j_static : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 2 : si12 {
 // CHECK-NEXT:     %3 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:   }
