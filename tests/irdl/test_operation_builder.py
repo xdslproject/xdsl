@@ -156,6 +156,86 @@ def test_two_var_result_builder2():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
+def test_two_var_result_verifier_rejects_invalid_segment_sizes():
+    op = TwoVarResultOp.create(
+        result_types=[StringAttr("0"), StringAttr("1")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "result count (2) does not match with the total size (3) specified in "
+            "attribute 'resultSegmentSizes'"
+        ),
+    ):
+        op.verify()
+
+
+def test_two_var_result_verifier_rejects_negative_segment_sizes():
+    op = TwoVarResultOp.create(
+        result_types=[StringAttr("0"), StringAttr("1")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [-1, 3]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("'resultSegmentSizes' attribute cannot have negative elements"),
+    ):
+        op.verify()
+
+
+def test_two_var_result_verifier_rejects_wrong_number_of_segment_sizes():
+    op = TwoVarResultOp.create(
+        result_types=[StringAttr("0")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(i32, [1])
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("expected 2 values in resultSegmentSizes, but got 1"),
+    ):
+        op.verify()
+
+
+def test_optional_result_verifier_rejects_invalid_segment_size():
+    op = OptionalAndVariadicResultOp.create(
+        result_types=[StringAttr("0"), StringAttr("1")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [2, 0]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("expected 0 or 1 values for opt_res, but got 2"),
+    ):
+        op.verify()
+
+
+def test_required_result_verifier_rejects_invalid_segment_size():
+    op = MixedResultOp.create(
+        result_types=[StringAttr("0"), StringAttr("1")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [0, 0, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException, match=re.escape("expected 1 value for res2, but got 0")
+    ):
+        op.verify()
+
+
 @irdl_op_definition
 class MixedResultOp(IRDLOperation):
     name = "test.mixed"
@@ -163,6 +243,15 @@ class MixedResultOp(IRDLOperation):
     res1 = var_result_def(StringAttr)
     res2 = result_def(StringAttr)
     res3 = var_result_def(StringAttr)
+    irdl_options = (AttrSizedResultSegments(),)
+
+
+@irdl_op_definition
+class OptionalAndVariadicResultOp(IRDLOperation):
+    name = "test.optional_and_variadic_result_op"
+
+    opt_res = opt_result_def(StringAttr)
+    var_res = var_result_def(StringAttr)
     irdl_options = (AttrSizedResultSegments(),)
 
 
@@ -301,6 +390,116 @@ def test_two_var_operand_builder2():
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+def test_two_var_operand_verifier_rejects_invalid_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "operand count (2) does not match with the total size (3) specified in "
+            "attribute 'operandSegmentSizes'"
+        ),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_verifier_rejects_negative_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [-1, 3]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "'operandSegmentSizes' attribute cannot have negative elements"
+        ),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_verifier_rejects_wrong_number_of_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(i32, [2])
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("expected 2 values in operandSegmentSizes, but got 1"),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_verifier_rejects_too_many_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 1, 0]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("expected 2 values in operandSegmentSizes, but got 3"),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_prop_verifier_rejects_negative_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandPropOp.create(
+        operands=[op1.res, op1.res],
+        properties={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [-1, 3]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "'operandSegmentSizes' attribute cannot have negative elements"
+        ),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_prop_verifier_rejects_invalid_segment_total():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandPropOp.create(
+        operands=[op1.res, op1.res],
+        properties={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "operand count (2) does not match with the total size (3) specified in "
+            "attribute 'operandSegmentSizes'"
+        ),
+    ):
+        op.verify()
 
 
 def test_two_var_operand_prop_builder():

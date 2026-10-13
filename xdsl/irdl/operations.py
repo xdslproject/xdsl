@@ -1362,11 +1362,26 @@ def verify_variadic_attr_size(
             f"{option.attribute_name}, but got {len(def_sizes)}"
         )
 
-    for l, (name, d) in zip(def_sizes, defs):
+    segment_size = 0
+    for l, (name, d) in zip(def_sizes, defs, strict=True):
+        if l < 0:
+            raise VerifyException(
+                f"'{option.attribute_name}' attribute cannot have negative elements"
+            )
         if isinstance(d, OptionalDef) and l not in (0, 1):
             raise VerifyException(f"expected 0 or 1 values for {name}, but got {l}")
         if not isinstance(d, VariadicDef) and l != 1:
             raise VerifyException(f"expected 1 value for {name}, but got {l}")
+        segment_size += l
+
+    constructs = get_op_constructs(op, construct)
+    construct_count = len(constructs)
+    if segment_size != construct_count:
+        raise VerifyException(
+            f"{get_construct_name(construct)} count ({construct_count}) does not match "
+            f"with the total size ({segment_size}) specified in attribute "
+            f"'{option.attribute_name}'"
+        )
 
 
 def verify_variadic_same_size(
