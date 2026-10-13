@@ -201,9 +201,8 @@ def test_two_var_result_verifier_rejects_wrong_number_of_segment_sizes():
     with pytest.raises(
         VerifyException,
         match=re.escape("expected 2 values in resultSegmentSizes, but got 1"),
-    ) as exc:
+    ):
         op.verify()
-    assert exc.value.__cause__ is None
 
 
 def test_optional_result_verifier_rejects_invalid_segment_size():
@@ -443,9 +442,8 @@ def test_two_var_operand_verifier_rejects_wrong_number_of_segment_sizes():
     with pytest.raises(
         VerifyException,
         match=re.escape("expected 2 values in operandSegmentSizes, but got 1"),
-    ) as exc:
+    ):
         op.verify()
-    assert exc.value.__cause__ is None
 
 
 def test_two_var_operand_verifier_rejects_too_many_segment_sizes():
@@ -461,9 +459,8 @@ def test_two_var_operand_verifier_rejects_too_many_segment_sizes():
     with pytest.raises(
         VerifyException,
         match=re.escape("expected 2 values in operandSegmentSizes, but got 3"),
-    ) as exc:
+    ):
         op.verify()
-    assert exc.value.__cause__ is None
 
 
 def test_two_var_operand_prop_verifier_rejects_negative_segment_sizes():
