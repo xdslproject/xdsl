@@ -1368,11 +1368,11 @@ def verify_variadic_attr_size(
             if not isinstance(d, VariadicDef) and l != 1:
                 raise VerifyException(f"expected 1 value for {name}, but got {l}")
             segment_size += l
-    except ValueError as e:
+    except ValueError:
         raise VerifyException(
             f"expected {len(defs)} values in "
             f"{option.attribute_name}, but got {len(def_sizes)}"
-        ) from e
+        )
 
     constructs = get_op_constructs(op, construct)
     construct_count = len(constructs)
