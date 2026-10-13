@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Self
 
 import pytest
-from typing_extensions import Self
 
 from xdsl.analysis.dataflow import (
     DataFlowSolver,

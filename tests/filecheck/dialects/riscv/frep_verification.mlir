@@ -10,7 +10,7 @@
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-riscv_snitch.frep_outer %i0, 1, 0 {
+riscv_snitch.frep_outer %i0 : !riscv.reg<a0>, 1, 0 {
 }
 
 // CHECK: Operation does not verify: Non-zero stagger mask currently unsupported
@@ -19,7 +19,7 @@ riscv_snitch.frep_outer %i0, 1, 0 {
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-riscv_snitch.frep_outer %i0, 0, 1 {
+riscv_snitch.frep_outer %i0 : !riscv.reg<a0>, 0, 1 {
 }
 
 // CHECK: Operation does not verify: Non-zero stagger count currently unsupported
@@ -28,7 +28,7 @@ riscv_snitch.frep_outer %i0, 0, 1 {
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-riscv_snitch.frep_outer %i0 {
+riscv_snitch.frep_outer %i0 : !riscv.reg<a0> {
     riscv.sw %i0, %i0, 0 : (!riscv.reg<a0>, !riscv.reg<a0>) -> ()
 }
 

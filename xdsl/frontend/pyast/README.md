@@ -14,6 +14,8 @@ mapping using `register_type`, `register_function`, and `register_literal`
 respectively.
 All function arguments and return types must be annotated.
 Use `-> None` for functions that return no value.
+An explicit `return` must be the final statement directly in the function body, early
+returns are not supported.
 Using this, we can write our first simple program:
 
 ```python

@@ -14,13 +14,14 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
+    Self,
     TypeAlias,
     cast,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
+from typing_extensions import TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (

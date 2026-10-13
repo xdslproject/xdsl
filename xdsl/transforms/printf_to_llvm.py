@@ -15,6 +15,8 @@ from xdsl.pattern_rewriter import (
 
 i8 = builtin.IntegerType(8)
 
+_PRINTF_TYPE = llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True)
+
 
 def legalize_str_for_symbol_name(val: str):
     """
@@ -138,7 +140,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
             [
                 *casts,
                 (ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType())),
-                llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
+                llvm.CallOp("printf", ptr.result, *args, var_callee_type=_PRINTF_TYPE),
             ],
         )
 
@@ -158,7 +160,7 @@ class PrintfToLLVM(ModulePass):
             [
                 llvm.FuncOp(
                     "printf",
-                    llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True),
+                    _PRINTF_TYPE,
                     linkage=llvm.LinkageAttr("external"),
                 ),
                 *add_printf_call.collected_global_symbs.values(),

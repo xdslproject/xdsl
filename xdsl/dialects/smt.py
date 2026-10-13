@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias, overload
-
-from typing_extensions import Self
+from typing import ClassVar, Self, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
 from xdsl.interfaces import HasFolderInterface

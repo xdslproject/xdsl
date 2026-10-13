@@ -11,43 +11,43 @@ riscv_func.func @xfrep() {
   riscv_snitch.scfgwi %0, 42 : (!riscv.reg) -> ()
   // CHECK-NEXT: riscv_snitch.scfgwi %0, 42 : (!riscv.reg) -> ()
 
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg {
     %add_o = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
   }
-  // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_outer %0 : !riscv.reg {
   // CHECK-NEXT:    %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
   // CHECK-NEXT:  }
 
-  riscv_snitch.frep_inner %0 {
+  riscv_snitch.frep_inner %0 : !riscv.reg {
     %add_i = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
   }
-  // CHECK-NEXT:  riscv_snitch.frep_inner %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_inner %0 : !riscv.reg {
   // CHECK-NEXT:    %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
   // CHECK-NEXT:  }
 
   %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg {
     %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
     riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   }
   // CHECK-NEXT:  %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   // CHECK-NEXT:  %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
-  // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_outer %0 : !riscv.reg {
   // CHECK-NEXT:    %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
   // CHECK-NEXT:    %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
   // CHECK-NEXT:    riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   // CHECK-NEXT:  }
 
   %init = "test.op"() : () -> (!riscv.freg<ft3>)
-  %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+  %z = riscv_snitch.frep_outer %0 : !riscv.reg iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
     %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
     riscv_snitch.frep_yield %res : !riscv.freg<ft3>
   }
 
   // CHECK-NEXT:  %init = "test.op"() : () -> !riscv.freg<ft3>
-  // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+  // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 : !riscv.reg iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
   // CHECK-NEXT:      %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
   // CHECK-NEXT:      riscv_snitch.frep_yield %res : !riscv.freg<ft3>
   // CHECK-NEXT:    }
@@ -184,3 +184,14 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) {sym_name = "simd", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
+
+// -----
+
+// The repetition count can be a forward reference with an allocated register type.
+riscv_snitch.frep_outer %count : !riscv.reg<a0> {
+}
+%count = rv32.li 4 : !riscv.reg<a0>
+
+// CHECK:      riscv_snitch.frep_outer %count : !riscv.reg<a0> {
+// CHECK-NEXT: }
+// CHECK-NEXT: %count = rv32.li 4 : !riscv.reg<a0>

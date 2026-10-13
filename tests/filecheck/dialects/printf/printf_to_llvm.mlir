@@ -6,6 +6,7 @@ builtin.module {
         %12 = "arith.constant"() {value = 12 : i32} : () -> i32
 
         printf.print_format "Hello: {} {}\n", %pi : f32, %12 : i32
+        printf.print_format "No args\n"
 
         "func.return"() : () -> ()
     }) {sym_name = "main", function_type=() -> ()} : () -> ()
@@ -13,7 +14,10 @@ builtin.module {
 
 // CHECK:       %{{\d+}} = llvm.mlir.addressof @Hello_f_842f9d94ff2eba9703926bef3c2bc5f427db9871 : !llvm.ptr
 
-// CHECK:       llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}){{.*}} : (!llvm.ptr, f64, i32) -> ()
+// CHECK:       llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}) vararg(!llvm.func<void (!llvm.ptr, ...)>) : (!llvm.ptr, f64, i32) -> ()
+
+// CHECK:       %{{\d+}} = llvm.mlir.addressof @No_args_{{\w+}} : !llvm.ptr
+// CHECK-NEXT:  llvm.call @printf(%{{\d+}}) vararg(!llvm.func<void (!llvm.ptr, ...)>) : (!llvm.ptr) -> ()
 
 // CHECK:       llvm.func @printf(!llvm.ptr, ...)
 

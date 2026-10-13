@@ -4,6 +4,9 @@ import pytest
 
 from xdsl import ir
 from xdsl.backend.liveness import VerifyLivenessContext
+from xdsl.backend.register_allocator import live_ins_per_block
+from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
+from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_scf, test
 from xdsl.dialects.builtin import IntegerAttr
@@ -31,25 +34,28 @@ def test_for_rof_init(
     iter_arg_types: tuple[ir.Attribute, ...],
     gen_block: bool,
 ):
-    lb = create_ssa_value(riscv.Registers.A0)
-    ub = create_ssa_value(riscv.Registers.A1)
+    start = create_ssa_value(riscv.Registers.A0)
+    stop = create_ssa_value(riscv.Registers.A1)
     operands = tuple(create_ssa_value(t) for t in iter_arg_types)
 
     if gen_block:
         body = ir.Block(
-            arg_types=[riscv.Registers.A0, *iter_arg_types],
+            arg_types=[start.type, *iter_arg_types],
         )
     else:
         body = None
 
     op = loop_cls(
-        lb,
-        ub,
+        start,
+        stop,
         step,
         operands,
         body,
     )
-    assert op.body.block.arg_types == (riscv.Registers.A0, *iter_arg_types)
+    assert op.start is start
+    assert op.stop is stop
+    assert tuple(op.operands[:2]) == (start, stop)
+    assert op.body.block.arg_types == (start.type, *iter_arg_types)
     with ImplicitBuilder(op.body) as (_i, *args):
         riscv_scf.YieldOp(*args)
     op.verify()
@@ -62,6 +68,28 @@ def test_for_rof_init(
         assert op.step_val is None
 
     assert op.step is step
+
+
+@pytest.mark.parametrize("loop_cls", [riscv_scf.ForOp, riscv_scf.RofOp])
+def test_for_rof_allocate_bounds(
+    loop_cls: type[riscv_scf.ForOp | riscv_scf.RofOp],
+):
+    reg = riscv.Registers.UNALLOCATED_INT
+    start, stop = (create_ssa_value(reg) for _ in range(2))
+    op = loop_cls(start, stop, IntegerAttr(1, i12), ())
+    op.body.block.add_op(riscv_scf.YieldOp())
+    allocator = RegisterAllocatorLivenessBlockNaive(
+        RiscvRegisterStack(allow_infinite=True)
+    )
+    allocator.live_ins_per_block = live_ins_per_block(op.body.block)
+    op.allocate_registers(allocator)
+    op.verify()
+
+    start, stop = op.start, op.stop
+    # With no uses in the body, the initial bound can reuse the IV's register.
+    # The termination bound must survive each iteration in a separate register.
+    assert start.type == op.body.block.args[0].type
+    assert start.type != stop.type
 
 
 @pytest.mark.parametrize("loop_cls", [riscv_scf.ForOp, riscv_scf.RofOp])
@@ -80,13 +108,13 @@ def test_for_rof_recursive_memory_effects(
     effects: set[EffectInstance] | None,
 ):
     reg = riscv.Registers.UNALLOCATED_INT
-    lb = create_ssa_value(reg)
-    ub = create_ssa_value(reg)
+    start = create_ssa_value(reg)
+    stop = create_ssa_value(reg)
     step_val = create_ssa_value(reg)
 
     op = loop_cls(
-        lb,
-        ub,
+        start,
+        stop,
         step_val,
         (),
         ir.Block(
@@ -183,9 +211,9 @@ def test_effect_traits():
 
 
 def test_riscv_scf_for_update_liveness_not_implemented():
-    lb = create_ssa_value(riscv.Registers.A0)
-    ub = create_ssa_value(riscv.Registers.A1)
-    op = riscv_scf.ForOp(lb, ub, IntegerAttr(1, i12), ())
+    start = create_ssa_value(riscv.Registers.A0)
+    stop = create_ssa_value(riscv.Registers.A1)
+    op = riscv_scf.ForOp(start, stop, IntegerAttr(1, i12), ())
     ctx = VerifyLivenessContext(set())
     with pytest.raises(
         NotImplementedError, match="does not yet implement update_liveness"

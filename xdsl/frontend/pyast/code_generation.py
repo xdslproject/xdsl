@@ -52,6 +52,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
+    last_return: ast.Return | None = field(default=None)
+    """The most recently visited return in the function being generated."""
+
     file: str | None
     """Path of the file containing the program being processed."""
 
@@ -426,6 +429,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Cannot have an inner function '{node.name}' inside another function.",
             )
         self.symbol_table = dict()
+        self.last_return = None
 
         # Then, convert types in the function signature.
         argument_types: list[Attribute] = []
@@ -498,7 +502,16 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for stmt in itertools.islice(node.body, visit_start_index, None):
             self.visit(stmt)
 
-        if not node.body or not isinstance(node.body[-1], ast.Return):
+        if self.last_return is not None and self.last_return is not node.body[-1]:
+            raise CodeGenerationException(
+                self.file,
+                self.last_return.lineno,
+                self.last_return.col_offset,
+                "Return statement must be the final statement directly "
+                "in the function body.",
+            )
+
+        if self.last_return is None:
             self.visit(ast.copy_location(ast.Return(value=None), node))
 
         # When function definition is processed, reset the symbol table and set
@@ -574,6 +587,16 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         pass
 
     def visit_Return(self, node: ast.Return) -> None:
+        if self.last_return is not None:
+            raise CodeGenerationException(
+                self.file,
+                self.last_return.lineno,
+                self.last_return.col_offset,
+                "Return statement must be the final statement directly "
+                "in the function body.",
+            )
+        self.last_return = node
+
         value = node.value
         if value is None or (isinstance(value, ast.Constant) and value.value is None):
             operands = ()

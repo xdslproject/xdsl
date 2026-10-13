@@ -1,7 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-
-from typing_extensions import Self
+from typing import Self
 
 from xdsl.ir import Block, Operation
 from xdsl.traits import IsTerminator

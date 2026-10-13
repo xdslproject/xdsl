@@ -41,19 +41,32 @@ from xdsl.utils.target import Target
 _CSL_KW_SET = {
     "align",
     "and",
+    "anytype",
+    "asm",
     "bool",
     "break",
+    "color",
+    "comptime",
     "comptime_float",
     "comptime_int",
     "comptime_string",
     "comptime_struct",
     "const",
     "continue",
+    "control_task_id",
+    "data_task_id",
+    "direction",
+    "dsr_dest",
+    "dsr_src0",
+    "dsr_src1",
     "else",
+    "enum",
     "export",
     "extern",
     "f16",
     "f32",
+    "fabin_dsd",
+    "fabout_dsd",
     "false",
     "fn",
     "for",
@@ -62,28 +75,44 @@ _CSL_KW_SET = {
     "i64",
     "i8",
     "if",
+    "imported_module",
+    "inline",
+    "input_queue",
+    "layout",
     "linkname",
     "linksection",
+    "local_task_id",
+    "mem1d_dsd",
+    "mem4d_dsd",
+    "noinline",
     "or",
+    "output_queue",
+    "packed",
     "param",
     "return",
+    "struct",
     "switch",
     "task",
     "true",
+    "type",
     "u16",
     "u32",
     "u64",
     "u8",
+    "union",
+    "ut_id",
     "var",
     "void",
+    "volatile",
     "while",
 }
 """
-The set of CSL language keywords. These should not be used as variable names.
+The set of CSL language keywords and builtin type names. These should not be used
+as variable names.
 
 There is no official list of all reserved keywords in CSL, this list was
-compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax)
-and should be expanded as needed.
+compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax),
+extended with identifiers rejected by `cslc`, and should be expanded as needed.
 """
 
 

@@ -3,8 +3,6 @@
 name: CI - MLIR-based Testing
 
 on:
-  # Trigger the workflow on push or pull request,
-  # but only for the main branch
   push:
     branches:
       - main
@@ -22,7 +20,7 @@ jobs:
         shell: nix develop --command bash -eo pipefail {0}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     env:
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.14' }}
@@ -38,17 +36,17 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install the package locally and nbval
+      - name: Set up virtual environment
         run: make venv
 
       - name: Test with pytest and generate code coverage

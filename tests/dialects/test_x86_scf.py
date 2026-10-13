@@ -3,6 +3,10 @@ from collections.abc import Callable
 import pytest
 
 from xdsl import ir
+from xdsl.backend.liveness import VerifyLivenessContext
+from xdsl.backend.register_allocator import live_ins_per_block
+from xdsl.backend.x86.register_allocation import X86RegisterAllocator
+from xdsl.backend.x86.register_stack import X86RegisterStack
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import test, x86, x86_scf
 from xdsl.dialects.builtin import IntegerAttr
@@ -15,6 +19,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
     get_effects,
 )
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -26,28 +31,31 @@ def test_for_rof_init(
     iter_arg_types: tuple[ir.Attribute, ...],
     gen_block: bool,
 ):
-    lb = create_ssa_value(x86.registers.R12)
-    ub = create_ssa_value(x86.registers.R13)
+    start = create_ssa_value(x86.registers.R12)
+    stop = create_ssa_value(x86.registers.R13)
     step = create_ssa_value(x86.registers.R10)
     operands = tuple(create_ssa_value(t) for t in iter_arg_types)
 
     if gen_block:
         body = ir.Block(
-            arg_types=[x86.registers.R12, *iter_arg_types],
+            arg_types=[start.type, *iter_arg_types],
         )
     else:
         body = None
 
     op = loop_cls(
-        lb,
-        ub,
+        start,
+        stop,
         step,
         operands,
         body,
     )
-    assert op.body.block.arg_types == (x86.registers.R12, *iter_arg_types)
+    assert op.start is start
+    assert op.stop is stop
+    assert tuple(op.operands[:2]) == (start, stop)
+    assert op.body.block.arg_types == (start.type, *iter_arg_types)
     assert len(op.results) == 1 + len(iter_arg_types)
-    assert op.lb_end.type == lb.type
+    assert op.iv_end.type == start.type
     with ImplicitBuilder(op.body) as (_i, *args):
         x86_scf.YieldOp(*args)
     op.verify()
@@ -56,41 +64,134 @@ def test_for_rof_init(
 
 
 @pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
-@pytest.mark.parametrize("static_ub", [False, True])
+@pytest.mark.parametrize("static_stop", [False, True])
 @pytest.mark.parametrize("static_step", [False, True])
 def test_for_rof_bounds_and_step(
     loop_cls: type[x86_scf.ForOp | x86_scf.RofOp],
-    static_ub: bool,
+    static_stop: bool,
     static_step: bool,
 ):
     reg = x86.registers.UNALLOCATED_REG64
-    lb = create_ssa_value(reg)
-    ub_val = create_ssa_value(reg)
+    start = create_ssa_value(reg)
+    stop_val = create_ssa_value(reg)
     step_val = create_ssa_value(reg)
-    ub_attr = IntegerAttr(42, si32)
+    stop_attr = IntegerAttr(42, si32)
     step_attr = IntegerAttr(3, si32)
 
-    ub = ub_attr if static_ub else ub_val
+    stop = stop_attr if static_stop else stop_val
     step = step_attr if static_step else step_val
 
-    op = loop_cls(
-        lb,
-        ub,
-        step,
-        (),
-        ir.Block((x86_scf.YieldOp(),), arg_types=[reg]),
-    )
+    op = loop_cls(start, stop, step, ())
+    op.body.block.add_op(x86_scf.YieldOp())
     op.verify()
 
-    assert (op.ub_attr is None) is (not static_ub)
-    assert (op.ub_val is None) is static_ub
+    assert (op.stop_attr is None) is (not static_stop)
+    assert (op.stop_val is None) is static_stop
     assert (op.step_attr is None) is (not static_step)
     assert (op.step_val is None) is static_step
 
-    assert op.ub is (ub_attr if static_ub else ub_val)
+    assert op.stop is stop
     assert op.step is (step_attr if static_step else step_val)
     assert len(op.results) == 1
-    assert op.lb_end.type == lb.type
+    assert op.iv_end.type == start.type
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+def test_for_rof_register_constraints(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp],
+):
+    start = create_ssa_value(x86.registers.R12)
+    stop = create_ssa_value(x86.registers.R13)
+    step = create_ssa_value(x86.registers.R10)
+    init = create_ssa_value(x86.registers.R11)
+    op = loop_cls(start, stop, step, (init,))
+    op.body.block.add_op(x86_scf.YieldOp(op.body.block.args[1]))
+    op.verify()
+
+    constraints = op.get_register_constraints()
+    assert tuple(constraints.ins) == (stop, step)
+    assert constraints.outs == ()
+    assert constraints.inouts == ((start, op.iv_end), (init, op.res[0]))
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+@pytest.mark.parametrize("wrong_result", [False, True])
+def test_for_rof_reject_mismatched_iv(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp], wrong_result: bool
+):
+    start = create_ssa_value(x86.registers.R12)
+    stop = create_ssa_value(x86.registers.R13)
+    op = loop_cls(start, stop, IntegerAttr(1, si32), ())
+    op.body.block.add_op(x86_scf.YieldOp())
+    if wrong_result:
+        # The result must follow the initial bound, not the termination bound.
+        op = loop_cls.create(
+            operands=op.operands,
+            result_types=[stop.type],
+            properties=op.properties,
+            regions=[op.detach_region(op.body)],
+        )
+        message = "Expected induction var to be same type as iv_end result"
+    else:
+        op.body.block.erase_arg(op.body.block.args[0])
+        op.body.block.insert_arg(stop.type, 0)
+        message = "Expected induction var to be same type as start"
+    with pytest.raises(VerifyException, match=message):
+        op.verify()
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+def test_for_rof_allocate_iv(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp],
+):
+    reg = x86.registers.UNALLOCATED_REG64
+    start, stop = (create_ssa_value(reg) for _ in range(2))
+    op = loop_cls(start, stop, IntegerAttr(1, si32), ())
+    op.body.block.add_op(x86_scf.YieldOp())
+    allocator = X86RegisterAllocator(X86RegisterStack(allow_infinite=True))
+    allocator.live_ins_per_block = live_ins_per_block(op.body.block)
+    op.allocate_registers(allocator)
+    op.verify()
+
+    start, stop = op.start, op.stop
+    assert isinstance(stop, ir.SSAValue)
+    assert op.iv_end.type == op.body.block.args[0].type == start.type
+    assert start.type != stop.type
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+@pytest.mark.parametrize("live_bound", ["start", "stop"])
+def test_for_rof_bound_liveness(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp], live_bound: str
+):
+    start = create_ssa_value(x86.registers.R12)
+    stop = create_ssa_value(x86.registers.R13)
+    op = loop_cls(start, stop, IntegerAttr(1, si32), ())
+    op.body.block.add_op(x86_scf.YieldOp())
+    ctx = VerifyLivenessContext({start if live_bound == "start" else stop})
+    if live_bound == "start":
+        with pytest.raises(
+            VerifyException, match="should not be read after in/out usage"
+        ):
+            ctx.process_op(op)
+    else:
+        ctx.process_op(op)
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+@pytest.mark.parametrize("alias_step", [False, True])
+def test_for_rof_start_aliases_control(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp], alias_step: bool
+):
+    reg = x86.registers.UNALLOCATED_REG64
+    start, stop = (create_ssa_value(reg) for _ in range(2))
+    step = start if alias_step else create_ssa_value(reg)
+    if not alias_step:
+        stop = start
+    op = loop_cls(start, stop, step, ())
+    op.body.block.add_op(x86_scf.YieldOp())
+    with pytest.raises(VerifyException, match="should not be read after in/out usage"):
+        VerifyLivenessContext(set()).process_op(op)
 
 
 @pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
@@ -109,13 +210,13 @@ def test_for_rof_recursive_memory_effects(
     effects: set[EffectInstance] | None,
 ):
     reg = x86.registers.UNALLOCATED_REG64
-    lb = create_ssa_value(reg)
-    ub = create_ssa_value(reg)
+    start = create_ssa_value(reg)
+    stop = create_ssa_value(reg)
     step_val = create_ssa_value(reg)
 
     op = loop_cls(
-        lb,
-        ub,
+        start,
+        stop,
         step_val,
         (),
         ir.Block(

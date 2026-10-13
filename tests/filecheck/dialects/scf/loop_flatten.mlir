@@ -554,7 +554,7 @@ scf.for %outer = %c0 to %upper step %c4 {
 
 // -----
 
-// The unused-IV rewrite requires a known zero outer lower bound.
+// The unused-induction-variable rewrite requires a known zero outer lower bound.
 // Keep an unknown lower bound, with all other tiling conditions satisfied.
 %c0 = arith.constant 0 : index
 %c2 = arith.constant 2 : index
@@ -596,7 +596,7 @@ scf.for %outer = %lower to %c8 step %c4 {
 
 // -----
 
-// A zero-trip inner range is an exact empty tile. The unused-IV rewrite
+// A zero-trip inner range is an exact empty tile. The unused-induction-variable rewrite
 // produces a zero upper bound and preserves the initial carried value.
 %c0 = arith.constant 0 : index
 %c1 = arith.constant 1 : index
