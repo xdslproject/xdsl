@@ -8,6 +8,12 @@
 // -----
 
 %source, %index, %padding = "test.op"() : () -> (memref<?x?xf32>, index, f32)
+"vector.transfer_read"(%source, %index, %index, %padding) <{in_bounds=[true, true], operandSegmentSizes = array<i32: 1, 1, 1, 0>, permutation_map = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<?x?xf32>, index, index, f32) -> vector<4x3xf32>
+// CHECK: operand count (4) does not match with the total size (3) specified in attribute 'operandSegmentSizes'
+
+// -----
+
+%source, %index, %padding = "test.op"() : () -> (memref<?x?xf32>, index, f32)
 "vector.transfer_read"(%source, %index, %index, %index, %padding) <{in_bounds=[true], operandSegmentSizes = array<i32: 1, 3, 1, 0>, permutation_map = affine_map<() -> (0)>}> : (memref<?x?xf32>, index, index, index, f32) -> vector<128xf32>
 // CHECK: Expected an index for each memref/tensor dimension
 

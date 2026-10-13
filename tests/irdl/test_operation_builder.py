@@ -167,7 +167,10 @@ def test_two_var_result_verifier_rejects_invalid_segment_sizes():
     )
     with pytest.raises(
         VerifyException,
-        match="segment sizes in resultSegmentSizes to sum to 2 results, but got 3",
+        match=re.escape(
+            "result count (2) does not match with the total size (3) specified in "
+            "attribute 'resultSegmentSizes'"
+        ),
     ):
         op.verify()
 
@@ -331,7 +334,10 @@ def test_two_var_operand_verifier_rejects_invalid_segment_sizes():
     )
     with pytest.raises(
         VerifyException,
-        match="segment sizes in operandSegmentSizes to sum to 2 operands, but got 3",
+        match=re.escape(
+            "operand count (2) does not match with the total size (3) specified in "
+            "attribute 'operandSegmentSizes'"
+        ),
     ):
         op.verify()
 
@@ -346,7 +352,27 @@ def test_two_var_operand_verifier_rejects_negative_segment_sizes():
             )
         },
     )
-    with pytest.raises(VerifyException, match="expected non-negative values"):
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "'operandSegmentSizes' attribute cannot have negative elements"
+        ),
+    ):
+        op.verify()
+
+
+def test_two_var_operand_verifier_rejects_wrong_number_of_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(i32, [2])
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("expected 2 values in operandSegmentSizes, but got 1"),
+    ):
         op.verify()
 
 

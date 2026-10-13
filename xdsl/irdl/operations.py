@@ -1356,30 +1356,31 @@ def verify_variadic_attr_size(
     defs = get_construct_defs(op_def, construct)
     def_sizes = attribute.get_values()
 
-    if len(def_sizes) != len(defs):
+    segment_size = 0
+    try:
+        for l, (name, d) in zip(def_sizes, defs, strict=True):
+            if l < 0:
+                raise VerifyException(
+                    f"'{option.attribute_name}' attribute cannot have negative elements"
+                )
+            if isinstance(d, OptionalDef) and l not in (0, 1):
+                raise VerifyException(f"expected 0 or 1 values for {name}, but got {l}")
+            if not isinstance(d, VariadicDef) and l != 1:
+                raise VerifyException(f"expected 1 value for {name}, but got {l}")
+            segment_size += l
+    except ValueError as e:
         raise VerifyException(
             f"expected {len(defs)} values in "
             f"{option.attribute_name}, but got {len(def_sizes)}"
-        )
-
-    for l, (name, d) in zip(def_sizes, defs):
-        if l < 0:
-            raise VerifyException(
-                f"expected non-negative values in {option.attribute_name}, but got {l}"
-            )
-        if isinstance(d, OptionalDef) and l not in (0, 1):
-            raise VerifyException(f"expected 0 or 1 values for {name}, but got {l}")
-        if not isinstance(d, VariadicDef) and l != 1:
-            raise VerifyException(f"expected 1 value for {name}, but got {l}")
+        ) from e
 
     constructs = get_op_constructs(op, construct)
-    segment_size = sum(def_sizes)
     construct_count = len(constructs)
     if segment_size != construct_count:
         raise VerifyException(
-            f"expected segment sizes in {option.attribute_name} to sum to "
-            f"{get_plural_name(construct_count, get_construct_name(construct))}, "
-            f"but got {segment_size}"
+            f"{get_construct_name(construct)} count ({construct_count}) does not match "
+            f"with the total size ({segment_size}) specified in attribute "
+            f"'{option.attribute_name}'"
         )
 
 
