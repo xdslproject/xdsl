@@ -32,10 +32,10 @@ from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -110,8 +110,8 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     """
 
     value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
-    dimension = attr_def(IntAttr)
+    dm = prop_def(IntAttr)
+    dimension = prop_def(IntAttr)
 
     def __init__(
         self,
@@ -121,7 +121,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     ):
         super().__init__(
             operands=[value],
-            attributes={
+            properties={
                 "dm": dm,
                 "dimension": dimension,
             },
@@ -142,12 +142,12 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     """
 
     value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
+    dm = prop_def(IntAttr)
 
     def __init__(self, value: Operation | SSAValue, dm: IntAttr):
         super().__init__(
             operands=[value],
-            attributes={
+            properties={
                 "dm": dm,
             },
         )

@@ -28,6 +28,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_attr_def,
     opt_result_def,
+    prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -75,7 +76,7 @@ class RiscvFunctionCallMemoryEffect(MemoryEffect):
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
     args = var_operand_def(riscv.IntRegisterType)
-    syscall_num = attr_def(IntegerAttr[I32])
+    syscall_num = prop_def(IntegerAttr[I32])
     result = opt_result_def(riscv.IntRegisterType)
 
     # Function calls can have arbitrary memory effects, and may overwrite the
@@ -98,7 +99,7 @@ class SyscallOp(IRDLOperation):
             num = IntegerAttr(num, i32)
         super().__init__(
             operands=[operands],
-            attributes={"syscall_num": num},
+            properties={"syscall_num": num},
             result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
         )
 

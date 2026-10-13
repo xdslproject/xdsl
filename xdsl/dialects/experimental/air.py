@@ -33,7 +33,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -103,7 +102,7 @@ class ChannelOp(IRDLOperation):
 class ChannelGetOp(IRDLOperation):
     name = "air.channel.get"
 
-    chan_name = attr_def(SymbolRefAttr)
+    chan_name = prop_def(SymbolRefAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(AsyncTokenAttr())
     dst = operand_def(MemRefType)
@@ -126,7 +125,7 @@ class ChannelGetOp(IRDLOperation):
         dst_strides: list[Operation | SSAValue],
     ):
         super().__init__(
-            attributes={"chan_name": chan_name},
+            properties={"chan_name": chan_name},
             operands=[
                 async_dependencies,
                 indices,
@@ -144,7 +143,7 @@ class ChannelGetOp(IRDLOperation):
 class ChannelPutOp(IRDLOperation):
     name = "air.channel.put"
 
-    chan_name = attr_def(SymbolRefAttr)
+    chan_name = prop_def(SymbolRefAttr)
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(IndexType())
@@ -187,7 +186,7 @@ class ChannelPutOp(IRDLOperation):
 class CustomOp(IRDLOperation):
     name = "air.custom"
 
-    symbol = attr_def(SymbolRefAttr)
+    symbol = prop_def(SymbolRefAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr)
     custom_operands = var_operand_def(Attribute)
 
@@ -202,7 +201,7 @@ class CustomOp(IRDLOperation):
         custom_operands: list[Operation | SSAValue],
     ):
         super().__init__(
-            attributes={"symbol": symbol},
+            properties={"symbol": symbol},
             operands=[async_dependencies, custom_operands],
             result_types=[AsyncTokenAttr()],
         )

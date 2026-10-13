@@ -11,11 +11,11 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -69,8 +69,8 @@ class PragmaDataflowOp(IRDLOperation):
 @irdl_op_definition
 class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
-    variable = opt_attr_def(StringAttr)
-    array_type = opt_attr_def()  # look at memref.Global
+    variable = opt_prop_def(StringAttr)
+    array_type = opt_prop_def()  # look at memref.Global
     factor = operand_def()
     dim = operand_def()
 
@@ -83,7 +83,7 @@ class PragmaArrayPartitionOp(IRDLOperation):
     ):
         super().__init__(
             operands=[factor, dim],
-            attributes={"variable": variable, "array_type": array_type},
+            properties={"variable": variable, "array_type": array_type},
         )
 
 
@@ -97,17 +97,17 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class HLSStreamOp(IRDLOperation):
     name = "hls.stream"
-    elem_type = attr_def()
+    elem_type = prop_def()
     result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
 
     @staticmethod
     def get(elem_type: Attribute) -> HLSStreamOp:
-        attrs: dict[str, Attribute] = {}
+        props: dict[str, Attribute] = {}
 
-        attrs["elem_type"] = elem_type
+        props["elem_type"] = elem_type
 
         stream_type = HLSStreamType(elem_type)
-        return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
+        return HLSStreamOp.build(result_types=[stream_type], properties=props)
 
 
 @irdl_op_definition
@@ -136,7 +136,7 @@ class HLSStreamReadOp(IRDLOperation):
 class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position = attr_def(DenseArrayBase.constr(i64))
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -149,7 +149,7 @@ class HLSExtractStencilValueOp(IRDLOperation):
     ):
         super().__init__(
             operands=[container],
-            attributes={
+            properties={
                 "position": position,
             },
             result_types=[result_type],

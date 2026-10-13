@@ -543,7 +543,7 @@ def test_stencil_index():
     offset = IndexAttr.from_indices(1)
 
     index = IndexOp.build(
-        attributes={
+        properties={
             "dim": dim,
             "offset": offset,
         },
