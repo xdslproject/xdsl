@@ -1373,11 +1373,13 @@ def verify_variadic_attr_size(
             raise VerifyException(f"expected 1 value for {name}, but got {l}")
 
     constructs = get_op_constructs(op, construct)
-    if sum(def_sizes) != len(constructs):
+    segment_size = sum(def_sizes)
+    construct_count = len(constructs)
+    if segment_size != construct_count:
         raise VerifyException(
             f"expected segment sizes in {option.attribute_name} to sum to "
-            f"{get_plural_name(len(constructs), get_construct_name(construct))}, "
-            f"but got {sum(def_sizes)}"
+            f"{get_plural_name(construct_count, get_construct_name(construct))}, "
+            f"but got {segment_size}"
         )
 
 
