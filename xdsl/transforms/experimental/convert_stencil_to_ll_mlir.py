@@ -182,7 +182,7 @@ class ReturnOpToMemRef(RewritePattern):
                 arg = op.arg[j * unroll_factor + k]
                 index_ops: list[Operation] = list(
                     IndexOp(
-                        attributes={
+                        properties={
                             "dim": builtin.IntegerAttr.from_index_int_value(i),
                             "offset": IndexAttr.from_indices(*([0] * n_dims)),
                         },
@@ -490,7 +490,7 @@ class AccessOpToMemRef(RewritePattern):
 
         args = [
             IndexOp(
-                attributes={
+                properties={
                     "dim": builtin.IntegerAttr.from_index_int_value(i),
                     "offset": IndexAttr.from_indices(
                         *([0] * op.get_apply().get_rank())

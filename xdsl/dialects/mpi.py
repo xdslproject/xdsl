@@ -27,14 +27,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
+    prop_def,
     result_def,
 )
 from xdsl.utils.hints import isa
@@ -174,7 +174,7 @@ class ReduceOp(MPIBaseOp):
     recv_buffer = operand_def(Attribute)
     count = operand_def(i32)
     datatype = operand_def(DataType)
-    operationtype = attr_def(OperationType)
+    operationtype = prop_def(OperationType)
     root = operand_def(i32)
 
     def __init__(
@@ -188,7 +188,7 @@ class ReduceOp(MPIBaseOp):
     ):
         return super().__init__(
             operands=[send_buffer, recv_buffer, count, datatype, root],
-            attributes={"operationtype": operationtype},
+            properties={"operationtype": operationtype},
             result_types=[],
         )
 
@@ -224,7 +224,7 @@ class AllreduceOp(MPIBaseOp):
     recv_buffer = operand_def(Attribute)
     count = operand_def(i32)
     datatype = operand_def(DataType)
-    operationtype = attr_def(OperationType)
+    operationtype = prop_def(OperationType)
 
     def __init__(
         self,
@@ -245,7 +245,7 @@ class AllreduceOp(MPIBaseOp):
 
         return super().__init__(
             operands=operands_to_add,
-            attributes={"operationtype": operationtype},
+            properties={"operationtype": operationtype},
             result_types=[],
         )
 
@@ -593,14 +593,14 @@ class GetStatusFieldOp(MPIBaseOp):
 
     status = operand_def(StatusType)
 
-    field = attr_def(StringAttr)
+    field = prop_def(StringAttr)
 
     result = result_def(i32)
 
     def __init__(self, status_obj: Operand, field: StatusTypeField):
         return super().__init__(
             operands=[status_obj],
-            attributes={"field": StringAttr(field.value)},
+            properties={"field": StringAttr(field.value)},
             result_types=[i32],
         )
 
@@ -687,7 +687,7 @@ class GetDtypeOp(MPIBaseOp):
 
     So, e.g. if you want to get the `MPI_Datatype` for an `i32` you can use
 
-        %dtype = "mpi.get_dtype"() {"dtype" = i32} : () -> mpi.datatype
+        %dtype = "mpi.get_dtype"() <{"dtype" = i32}> : () -> mpi.datatype
 
     to get the magic constant. See `_MPIToLLVMRewriteBase._translate_to_mpi_type`
     docstring for more detail on which types are supported.
@@ -695,12 +695,12 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype = attr_def()
+    dtype = prop_def()
 
     result = result_def(DataType)
 
     def __init__(self, dtype: Attribute):
-        return super().__init__(result_types=[DataType()], attributes={"dtype": dtype})
+        return super().__init__(result_types=[DataType()], properties={"dtype": dtype})
 
 
 @irdl_op_definition
@@ -717,8 +717,8 @@ class AllocateTypeOp(MPIBaseOp):
 
     name = "mpi.allocate"
 
-    bindc_name = opt_attr_def(StringAttr)
-    dtype = attr_def(VectorWrappableConstr)
+    bindc_name = opt_prop_def(StringAttr)
+    dtype = prop_def(VectorWrappableConstr)
     count = operand_def(i32)
 
     result = result_def(VectorType)
@@ -731,7 +731,7 @@ class AllocateTypeOp(MPIBaseOp):
     ):
         return super().__init__(
             result_types=[VectorType(dtype())],
-            attributes={
+            properties={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,
             },

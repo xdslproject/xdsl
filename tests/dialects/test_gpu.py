@@ -72,7 +72,7 @@ def test_alloc():
     assert len(full_alloc.dynamicSizes) == 3
     assert full_alloc.dynamicSizes == tuple(d.result for d in dynamic_sizes)
     assert full_alloc.asyncToken is None
-    assert "hostShared" in full_alloc.attributes.keys()
+    assert "hostShared" in full_alloc.properties.keys()
     assert isinstance(full_alloc.hostShared, builtin.UnitAttr)
 
 

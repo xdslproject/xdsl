@@ -145,7 +145,7 @@ class LoopDimMapAttr(ParametrizedAttribute):
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
-    hostShared = opt_attr_def(UnitAttr)
+    hostShared = opt_prop_def(UnitAttr)
     asyncDependencies = var_operand_def(AsyncTokenType)
     dynamicSizes = var_operand_def(IndexType)
     symbolOperands = var_operand_def(IndexType)
@@ -181,13 +181,13 @@ class AllocOp(IRDLOperation):
         async_dependencies_vals: list[SSAValue] = (
             [SSAValue.get(e) for e in async_dependencies] if async_dependencies else []
         )
-        attributes: dict[str, Attribute] = (
+        properties: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
         )
         super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
-            attributes=attributes,
+            properties=properties,
         )
 
 

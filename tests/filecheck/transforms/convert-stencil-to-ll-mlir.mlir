@@ -881,7 +881,7 @@ func.func @buffered_combine(%115: !stencil.field<?x?xf64>) {
     func.return
   }
 
-// CHECK:           "stencil.store"(%2, %0) {bounds = #stencil.bounds<[0, 0, 0], [64, 64, 64]>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
+// CHECK:           "stencil.store"(%2, %0) <{bounds = #stencil.bounds<[0, 0, 0], [64, 64, 64]>}> : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
 // CHECK-NEXT:      ^^^^^^^^^^^^^^^-------------------------------------------------------------------------------------------------------------------------
 // CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before.
 // CHECK-NEXT:      ----------------------------------------------------------------------------------------------------------------------------------------

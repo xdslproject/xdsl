@@ -40,11 +40,9 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_region_def,
@@ -2968,9 +2966,9 @@ class StringLitOp(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size = attr_def(IntegerAttr[IntegerType])
-    value = opt_attr_def(StringAttr)
-    xlist = opt_attr_def(ArrayAttr)
+    size = prop_def(IntegerAttr[IntegerType])
+    value = opt_prop_def(StringAttr)
+    xlist = opt_prop_def(ArrayAttr)
     result_0 = result_def()
 
 

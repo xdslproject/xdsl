@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -839,8 +840,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntegerAttr[IndexType])
-    index = attr_def(IntegerAttr[IndexType])
+    dim = prop_def(IntegerAttr[IndexType])
+    index = prop_def(IntegerAttr[IndexType])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -891,8 +892,8 @@ class DynAccessOp(IRDLOperation):
     )
 
     offset = var_operand_def(builtin.IndexType())
-    lb = attr_def(IndexAttr)
-    ub = attr_def(IndexAttr)
+    lb = prop_def(IndexAttr)
+    ub = prop_def(IndexAttr)
 
     res = result_def(
         MessageConstraint(
@@ -921,7 +922,7 @@ class DynAccessOp(IRDLOperation):
         temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
-            attributes={"lb": lb, "ub": ub},
+            properties={"lb": lb, "ub": ub},
             result_types=[temp_type.element_type],
         )
 
@@ -981,8 +982,8 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntegerAttr[IndexType])
-    offset = attr_def(IndexAttr)
+    dim = prop_def(IntegerAttr[IndexType])
+    offset = prop_def(IndexAttr)
     idx = result_def(builtin.IndexType())
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
@@ -1436,7 +1437,7 @@ class StoreOp(IRDLOperation):
             ),
         )
     )
-    bounds = attr_def(StencilBoundsAttr)
+    bounds = prop_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
@@ -1448,7 +1449,7 @@ class StoreOp(IRDLOperation):
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
     ):
-        super().__init__(operands=[temp, field], attributes={"bounds": bounds})
+        super().__init__(operands=[temp, field], properties={"bounds": bounds})
 
 
 @irdl_op_definition
