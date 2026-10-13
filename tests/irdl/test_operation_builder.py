@@ -156,6 +156,22 @@ def test_two_var_result_builder2():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
+def test_two_var_result_verifier_rejects_invalid_segment_sizes():
+    op = TwoVarResultOp.create(
+        result_types=[StringAttr("0"), StringAttr("1")],
+        attributes={
+            AttrSizedResultSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match="segment sizes in resultSegmentSizes to sum to 2 results, but got 3",
+    ):
+        op.verify()
+
+
 @irdl_op_definition
 class MixedResultOp(IRDLOperation):
     name = "test.mixed"
@@ -301,6 +317,37 @@ def test_two_var_operand_builder2():
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+def test_two_var_operand_verifier_rejects_invalid_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [1, 2]
+            )
+        },
+    )
+    with pytest.raises(
+        VerifyException,
+        match="segment sizes in operandSegmentSizes to sum to 2 operands, but got 3",
+    ):
+        op.verify()
+
+
+def test_two_var_operand_verifier_rejects_negative_segment_sizes():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op = TwoVarOperandOp.create(
+        operands=[op1.res, op1.res],
+        attributes={
+            AttrSizedOperandSegments.attribute_name: DenseArrayBase.from_list(
+                i32, [-1, 3]
+            )
+        },
+    )
+    with pytest.raises(VerifyException, match="expected non-negative values"):
+        op.verify()
 
 
 def test_two_var_operand_prop_builder():
