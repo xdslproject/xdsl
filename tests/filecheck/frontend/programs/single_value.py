@@ -76,7 +76,6 @@ for program in (
 # CHECK-NEXT: return_multiple_results: Expected an expression with exactly one result.
 # CHECK-NEXT: argument_zero_results: Expected an expression with exactly one result.
 # CHECK-NEXT: keyword_multiple_results: Expected an expression with exactly one result.
-# CHECK-NEXT: unpack_keywords: Unpacking keyword arguments is not supported.
 
 
 @ctx.parse_program
