@@ -250,11 +250,11 @@ KIND_BY_PUNCTUATION_SPELLING = {
 }
 
 
-MLIRToken = Token[MLIRTokenKind]
+MLIRToken = Token[MLIRTokenKind, str]
 
 
 @dataclass
-class MLIRLexer(Lexer[MLIRTokenKind]):
+class MLIRLexer(Lexer[MLIRTokenKind, str]):
     def _get_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
         Read `[pos, pos + end_offset)` and advance to its end, even on failure.

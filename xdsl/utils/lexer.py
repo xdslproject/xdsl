@@ -215,20 +215,30 @@ TokenKindT = TypeVar("TokenKindT", bound=Enum)
 
 
 @dataclass
-class Token(Generic[TokenKindT]):
+class Token(Generic[TokenKindT, ContentT]):
     kind: TokenKindT
 
-    span: Span[str]
+    span: Span[ContentT]
 
     @property
-    def text(self):
-        """The text composing the token."""
+    def content(self) -> ContentT:
+        """The source slice, without encoding or decoding."""
+        return self.span.content
+
+    @property
+    def text(self) -> str:
+        """The token as text, decoding byte inputs with strict UTF-8."""
         return self.span.text
+
+    @property
+    def bytes(self) -> bytes:
+        """The token as bytes, encoding string inputs with strict UTF-8."""
+        return self.span.bytes
 
 
 @dataclass
-class Lexer(ABC, Generic[TokenKindT]):
-    input: Input[str]
+class Lexer(ABC, Generic[TokenKindT, ContentT]):
+    input: Input[ContentT]
     """Input that is currently being lexed."""
 
     pos: Position = field(init=False, default=0)
@@ -237,14 +247,16 @@ class Lexer(ABC, Generic[TokenKindT]):
     The position can be out of bounds, in which case the lexer is in EOF state.
     """
 
-    def _form_token(self, kind: TokenKindT, start_pos: Position) -> Token[TokenKindT]:
+    def _form_token(
+        self, kind: TokenKindT, start_pos: Position
+    ) -> Token[TokenKindT, ContentT]:
         """
         Return a token with the given kind, and the start position.
         """
         return Token(kind, Span(start_pos, self.pos, self.input))
 
     @abstractmethod
-    def lex(self) -> Token[TokenKindT]:
+    def lex(self) -> Token[TokenKindT, ContentT]:
         """
         Lex a token from the input, and returns it.
         """

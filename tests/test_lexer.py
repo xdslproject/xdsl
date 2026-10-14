@@ -1,8 +1,19 @@
+from enum import Enum, auto
+
 import pytest
 from typing_extensions import assert_type
 
 from xdsl.utils.exceptions import MultipleSpansParseError, ParseError
-from xdsl.utils.lexer import ContentT, Input, Location, Offset, Position, Span
+from xdsl.utils.lexer import (
+    ContentT,
+    Input,
+    Lexer,
+    Location,
+    Offset,
+    Position,
+    Span,
+    Token,
+)
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
@@ -262,6 +273,59 @@ def test_span_diagnostic(
         lines.insert(3, " " * indent + msg)
         expected = "\n".join(lines)
     assert span.print_with_context(msg) == expected
+
+
+class UnitTokenKind(Enum):
+    UNIT = auto()
+    EOF = auto()
+
+
+class UnitLexer(Lexer[UnitTokenKind, ContentT]):
+    """A test lexer that returns one source element per token."""
+
+    def lex(self) -> Token[UnitTokenKind, ContentT]:
+        start = self.pos
+        if start == len(self.input):
+            return self._form_token(UnitTokenKind.EOF, start)
+        self.pos += 1
+        return self._form_token(UnitTokenKind.UNIT, start)
+
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        ("é😀x", ("é", "😀", "x")),
+        (
+            "é😀x".encode() + b"\xff",
+            (b"\xc3", b"\xa9", b"\xf0", b"\x9f", b"\x98", b"\x80", b"x", b"\xff"),
+        ),
+    ],
+)
+def test_lexer_representation(source: ContentT, expected: tuple[ContentT, ...]):
+    input = Input(source, "test")
+    lexer = UnitLexer(input)
+    for i, text in enumerate(expected):
+        token = lexer.lex()
+        assert token.kind == UnitTokenKind.UNIT
+        assert token.content == text
+        assert token.span == Span(i, i + 1, input)
+    eof = lexer.lex()
+    assert eof.kind == UnitTokenKind.EOF
+    assert eof.span == Span(len(expected), len(expected), input)
+    assert not eof.content
+
+
+def test_token_accessor_types():
+    text_token = Token(UnitTokenKind.UNIT, Span(1, 2, Input("é😀x", "test")))
+    byte_token = Token(UnitTokenKind.UNIT, Span(2, 6, Input("é😀x".encode(), "test")))
+    assert_type(text_token, Token[UnitTokenKind, str])
+    assert_type(byte_token, Token[UnitTokenKind, bytes])
+    assert assert_type(text_token.content, str) == "😀"
+    assert assert_type(byte_token.content, bytes) == "😀".encode()
+    assert assert_type(text_token.text, str) == "😀"
+    assert assert_type(byte_token.text, str) == "😀"
+    assert assert_type(text_token.bytes, bytes) == "😀".encode()
+    assert assert_type(byte_token.bytes, bytes) == "😀".encode()
 
 
 @pytest.mark.parametrize(
