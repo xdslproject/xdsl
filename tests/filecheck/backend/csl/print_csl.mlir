@@ -518,6 +518,18 @@ csl.func @builtins() {
   csl.return
 }
 
+csl.func @memref_alloc_bitcast(%f : f32, %i : i32) {
+  %alloc = memref.alloc() : memref<10xf32>
+  %alloca = memref.alloca() : memref<2x3xi16>
+  %n = arith.constant 4 : index
+  %dyn = memref.alloc(%n) : memref<?xf32>
+  %f_to_i = arith.bitcast %f : f32 to i32
+  %i_to_f = arith.bitcast %i : i32 to f32
+  %i_to_u = arith.bitcast %i : i32 to ui32
+  %f_to_f = arith.bitcast %f : f32 to f32
+  csl.return
+}
+
 }) {sym_name = "program.csl"} : () -> ()
 
 
@@ -952,6 +964,17 @@ csl.func @builtins() {
 // CHECK-NEXT:   @activate(@get_data_task_id(0));
 // CHECK-NEXT:   @activate(@get_local_task_id(1));
 // CHECK-NEXT:   @activate(@get_control_task_id(42));
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-EMPTY:
+// CHECK-NEXT: fn memref_alloc_bitcast(f : f32, i : i32) void {
+// CHECK-NEXT:   var alloc : [10]f32 = @zeros([10]f32);
+// CHECK-NEXT:   var alloca : [2,3]i16 = @zeros([2,3]i16);
+// CHECK-NEXT:   var dyn : [4]f32 = @zeros([4]f32);
+// CHECK-NEXT:   const f_to_i : i32 = @bitcast(i32, f);
+// CHECK-NEXT:   const i_to_f : f32 = @bitcast(f32, i);
+// CHECK-NEXT:   const i_to_u : u32 = @bitcast(u32, i);
+// CHECK-NEXT:   const f_to_f : f32 = @bitcast(f32, f);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----
