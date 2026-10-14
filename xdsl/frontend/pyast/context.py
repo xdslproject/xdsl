@@ -8,6 +8,12 @@ from typing import Any, NamedTuple
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.pyast.code_generation import (
+    FunctionDefinitionConstructor,
+    ReturnConstructor,
+    build_func,
+    build_return,
+)
 from xdsl.frontend.pyast.program import P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.type_conversion import (
@@ -67,6 +73,12 @@ class PyASTContext:
     )
     """The xDSL context to use when applying transformations to the built module."""
 
+    function_definition_constructor: FunctionDefinitionConstructor = build_func
+    """Construct the enclosing operation before visiting function statements."""
+
+    return_constructor: ReturnConstructor = build_return
+    """Construct return operations, optionally omitting the terminator."""
+
     def register_type(
         self,
         source_type: type,
@@ -86,6 +98,16 @@ class PyASTContext:
     ) -> None:
         """Associate a Python literal type with an IR constructor."""
         self.literal_registry.insert(value_type, ir_constructor)
+
+    def register_function_definition(
+        self, ir_constructor: FunctionDefinitionConstructor
+    ) -> None:
+        """Set the definition constructor, receiving name, type, body, and location."""
+        self.function_definition_constructor = ir_constructor
+
+    def register_return(self, ir_constructor: ReturnConstructor) -> None:
+        """Set the return constructor, receiving expression results and location."""
+        self.return_constructor = ir_constructor
 
     def register_post_transform(self, transform: ModulePass) -> None:
         """Add a module pass to be run on the generated IR."""
@@ -146,5 +168,7 @@ class PyASTContext:
             function_ast=func_ast,
             build_context=self.ir_context,
             post_transforms=self.pass_pipeline,
+            function_definition_constructor=self.function_definition_constructor,
+            return_constructor=self.return_constructor,
         )
         return self._get_wrapped_program(func, builder)
