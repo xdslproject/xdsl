@@ -530,6 +530,13 @@ csl.func @memref_alloc_bitcast(%f : f32, %i : i32) {
   csl.return
 }
 
+csl.func @intptrcast(%p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>, %u : ui16) {
+  %p_to_idx = csl.intptrcast %p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+  %p_to_u = csl.intptrcast %p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+  %u_to_p = csl.intptrcast %u : ui16 to !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  csl.return
+}
+
 }) {sym_name = "program.csl"} : () -> ()
 
 
@@ -975,6 +982,13 @@ csl.func @memref_alloc_bitcast(%f : f32, %i : i32) {
 // CHECK-NEXT:   const i_to_f : f32 = @bitcast(f32, i);
 // CHECK-NEXT:   const i_to_u : u32 = @bitcast(u32, i);
 // CHECK-NEXT:   const f_to_f : f32 = @bitcast(f32, f);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-EMPTY:
+// CHECK-NEXT: fn intptrcast(p : [*]const i32, u : u16) void {
+// CHECK-NEXT:   const p_to_idx : i32 = @bitcast(i32, p);
+// CHECK-NEXT:   const p_to_u : u16 = @bitcast(u16, p);
+// CHECK-NEXT:   const u_to_p : *f32 = @bitcast(*f32, u);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----

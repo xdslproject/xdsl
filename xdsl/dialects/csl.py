@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     FloatAttr,
     FunctionType,
+    IndexType,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -344,6 +345,44 @@ class PtrCastOp(IRDLOperation):
 
     def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
         super().__init__(operands=[ptr], result_types=[result_type])
+
+
+IntPtrCastTypeConstr = base(PtrType) | base(IntegerType) | base(IndexType)
+
+
+@irdl_op_definition
+class IntPtrCastOp(IRDLOperation):
+    """
+    Implements `@bitcast(destination_type, value)` between a pointer and an integer.
+
+    Exactly one of the input and result types must be a pointer, the other must be
+    an integer or index. Use `csl.ptrcast` for pointer to pointer casts.
+    """
+
+    name = "csl.intptrcast"
+
+    input = operand_def(IntPtrCastTypeConstr)
+    result = result_def(IntPtrCastTypeConstr)
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(
+        self,
+        input: Operation | SSAValue,
+        result_type: PtrType | IntegerType | IndexType,
+    ):
+        super().__init__(operands=[input], result_types=[result_type])
+
+    def verify_(self) -> None:
+        in_ptr = isinstance(self.input.type, PtrType)
+        out_ptr = isinstance(self.result.type, PtrType)
+        if in_ptr == out_ptr:
+            raise VerifyException(
+                "Expected exactly one of input and result to be a pointer, got "
+                f"{self.input.type} and {self.result.type}"
+            )
 
 
 DsdElementTypeConstr = (
@@ -2142,6 +2181,7 @@ CSL = Dialect(
         GetMemDsdOp,
         ImportModuleConstOp,
         IncrementDsdOffsetOp,
+        IntPtrCastOp,
         LayoutOp,
         MemberAccessOp,
         MemberCallOp,

@@ -84,6 +84,9 @@ csl.func @initialize() {
 
     %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
     %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+    %ptr_to_idx = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+    %ptr_to_int = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+    %int_to_ptr = csl.intptrcast %scalar : i32 to !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 
     %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
     %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
@@ -389,6 +392,9 @@ csl.func @builtins() {
 // CHECK-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %ptr_to_idx = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+// CHECK-NEXT:       %ptr_to_int = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+// CHECK-NEXT:       %int_to_ptr = csl.intptrcast %scalar : i32 to !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-NEXT:       %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %dir = "csl.get_dir"() <{dir = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
@@ -636,6 +642,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %ptr_to_idx = "csl.intptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> index
+// CHECK-GENERIC-NEXT:       %ptr_to_int = "csl.intptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> ui16
+// CHECK-GENERIC-NEXT:       %int_to_ptr = "csl.intptrcast"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-GENERIC-NEXT:       %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %dir = "csl.get_dir"() <{dir = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
