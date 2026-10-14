@@ -693,6 +693,11 @@ class CslPrintContext:
                 type_out = self.mlir_type_to_csl_type(res.type)
                 value_str = f"@as({type_out}, {name_in})"
                 self._print_or_promote_to_inline_expr(res, value_str)
+            case arith.BitcastOp(input=inp, result=res):
+                name_in = self._get_variable_name_for(inp)
+                type_out = self.mlir_type_to_csl_type(res.type)
+                value_str = f"@bitcast({type_out}, {name_in})"
+                self._print_or_promote_to_inline_expr(res, value_str)
             case arith.CmpiOp(result=res) | arith.CmpfOp(result=res):
                 self._print_or_promote_to_inline_expr(
                     res, self._cmp_value_expr(op), brackets=True
@@ -729,6 +734,10 @@ class CslPrintContext:
                 res_name = self._get_variable_name_for(res)
                 kind = "const" if constness else "var"
                 self.print(f"{kind} {res_name} : {type} = @zeros({type});")
+            case memref.AllocOp(memref=res) | memref.AllocaOp(memref=res):
+                type = self._memref_type_to_string(res)
+                res_name = self._get_variable_name_for(res)
+                self.print(f"var {res_name} : {type} = @zeros({type});")
             case csl.ConstantsOp(value=val, result=res, is_const=constness):
                 type = self._memref_type_to_string(res)
                 res_name = self._get_variable_name_for(res)
