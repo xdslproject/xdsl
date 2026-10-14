@@ -117,7 +117,7 @@ class BuilderNotFoundException(Exception):
 
 @dataclass
 class ParseError(Exception):
-    span: Span
+    span: Span[str] | Span[bytes]
     msg: str
 
     def __str__(self) -> str:
@@ -127,7 +127,7 @@ class ParseError(Exception):
 @dataclass
 class MultipleSpansParseError(ParseError):
     ref_text: str | None
-    refs: list[tuple[Span, str | None]]
+    refs: list[tuple[Span[str] | Span[bytes], str | None]]
 
     def __str__(self) -> str:
         res = self.span.print_with_context(self.msg)

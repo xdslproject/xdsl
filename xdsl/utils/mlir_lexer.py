@@ -35,7 +35,7 @@ PunctuationSpelling: TypeAlias = Literal[
 
 
 @dataclass(frozen=True, repr=False)
-class StringLiteral(Span):
+class StringLiteral(Span[str]):
     def __post_init__(self):
         if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
             raise ParseError(self, "Invalid string literal!")

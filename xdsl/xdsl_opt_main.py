@@ -19,7 +19,6 @@ from xdsl.universe import Universe
 from xdsl.utils.arg_spec import parse_spec
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
-from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
 
 
@@ -110,8 +109,7 @@ class xDSLOptMain(CommandLineTool):
                         output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
                 except ParseError as e:
-                    s = e.span
-                    e.span = Span(s.start, s.end, s.input, offset)
+                    e.span = dataclasses.replace(e.span, line_offset=offset)
                     if self.args.parsing_diagnostics:
                         print(e)
                     else:
