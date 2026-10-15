@@ -4,10 +4,10 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from string import hexdigits
-from typing import Literal, TypeAlias, TypeGuard, cast, overload
+from typing import Literal, TypeAlias, TypeGuard, overload
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, Token
+from xdsl.utils.lexer import Lexer, Offset, Position, Span, Token
 
 PunctuationSpelling: TypeAlias = Literal[
     "->",
@@ -255,33 +255,27 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
-    def _is_in_bounds(self, *, offset: Position) -> bool:
+    def _get_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
-        Check whether `pos + offset` is before EOF; offset 0 checks `pos` itself.
-        """
-        return self.pos + offset < self.input.len
-
-    def _get_chars(self, *, offset: Position = 1) -> str | None:
-        """
-        Read `[pos, pos + offset)` and advance by `offset`, even on failure.
+        Read `[pos, pos + end_offset)` and advance to its end, even on failure.
         The exclusive end may equal EOF; return None if it exceeds EOF.
         """
-        res = self.input.slice(self.pos, self.pos + offset)
-        self.pos += offset
+        res = self.input.slice(self.pos, self.pos + end_offset)
+        self.pos += end_offset
         return res
 
-    def _peek_chars(self, *, offset: Position = 1) -> str | None:
+    def _peek_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
-        Read `[pos, pos + offset)` without advancing.
+        Read `[pos, pos + end_offset)` without advancing.
         The exclusive end may equal EOF; return None if it exceeds EOF.
         """
-        return self.input.slice(self.pos, self.pos + offset)
+        return self.input.slice(self.pos, self.pos + end_offset)
 
-    def _consume_chars(self, *, offset: Position = 1) -> None:
+    def _consume_chars(self, *, end_offset: Offset = 1) -> None:
         """
-        Advance by `offset` source units without checking bounds.
+        Move to `pos + end_offset` without checking bounds.
         """
-        self.pos += offset
+        self.pos += end_offset
 
     def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
@@ -349,7 +343,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # '...'
         if current_char == ".":
-            if self._get_chars(offset=2) != "..":
+            if self._get_chars(end_offset=2) != "..":
                 raise ParseError(
                     Span(start_pos, start_pos + 1, self.input),
                     "Expected three consecutive '.' for an ellipsis",
@@ -365,14 +359,14 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # '{' and '{-#'
         if current_char == "{":
-            if self._peek_chars(offset=2) == "-#":
-                self._consume_chars(offset=2)
+            if self._peek_chars(end_offset=2) == "-#":
+                self._consume_chars(end_offset=2)
                 return self._form_token(MLIRTokenKind.FILE_METADATA_BEGIN, start_pos)
             return self._form_token(MLIRTokenKind.L_BRACE, start_pos)
 
         # '#-}'
-        if current_char == "#" and self._peek_chars(offset=2) == "-}":
-            self._consume_chars(offset=2)
+        if current_char == "#" and self._peek_chars(end_offset=2) == "-}":
+            self._consume_chars(end_offset=2)
             return self._form_token(MLIRTokenKind.FILE_METADATA_END, start_pos)
 
         # '@' and at-identifier
@@ -534,10 +528,10 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(offset=1)
-            and cast(str, self.input.at(self.pos + 1)) in hexdigits
+            and (hex_digit := self.input.at(self.pos + 1)) is not None
+            and hex_digit in hexdigits
         ):
-            self._consume_chars(offset=2)
+            self._consume_chars(end_offset=2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
 

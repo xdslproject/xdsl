@@ -10,9 +10,20 @@ from typing_extensions import TypeVar
 
 Position = int
 """
-A source coordinate measured in Unicode code points for `str`, or bytes for `bytes`.
+Zero-based position from the start of the input, measured in Unicode code points
+for `str` or bytes for `bytes`.
+"""
 
-Zero-based by default, but one-based when indexing into columns in a file.
+Offset = int
+"""
+Signed displacement between positions, measured in Unicode code points for `str`
+or bytes for `bytes`.
+"""
+
+Column = int
+"""
+One-based position within a line, measured in Unicode code points for `str`
+or bytes for `bytes`.
 """
 
 
@@ -22,7 +33,7 @@ class Location(NamedTuple):
     file: str
     line: int
     "One-based line number."
-    col: Position
+    col: Column
     "One-based position within the line."
 
     def __str__(self) -> str:
@@ -37,12 +48,12 @@ class Input:
 
     content: str = field(repr=False)
     name: str
-    len: int = field(init=False, repr=False)
+    len: Offset = field(init=False, repr=False)
 
     def __post_init__(self):
         object.__setattr__(self, "len", len(self.content))
 
-    def __len__(self):
+    def __len__(self) -> Offset:
         return self.len
 
     def get_start_of_line(self, pos: Position) -> Position:
@@ -101,11 +112,11 @@ class Span:
     A line offset, to just add to ht file number in input when printed.
     """
 
-    def __len__(self):
+    def __len__(self) -> Offset:
         return self.len
 
     @property
-    def len(self):
+    def len(self) -> Offset:
         return self.end - self.start
 
     @property
