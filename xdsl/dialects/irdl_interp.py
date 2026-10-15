@@ -205,7 +205,9 @@ class GetOperandTypesOp(IRDLOperation):
     assembly_format = "$op attr-dict"
 
     def __init__(self, op: SSAValue | Operation):
-        super().__init__(operands=[op], result_types=[TensorType[AttrType]()])
+        super().__init__(
+            operands=[op], result_types=[TensorType(AttrType(), (DYNAMIC_INDEX,))]
+        )
 
 
 @irdl_op_definition
@@ -219,7 +221,9 @@ class GetResultTypesOp(IRDLOperation):
     assembly_format = "$op attr-dict"
 
     def __init__(self, op: SSAValue | Operation):
-        super().__init__(operands=[op], result_types=[TensorType[AttrType]()])
+        super().__init__(
+            operands=[op], result_types=[TensorType(AttrType(), (DYNAMIC_INDEX,))]
+        )
 
 
 # ==============================================================================
