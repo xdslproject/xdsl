@@ -35,6 +35,12 @@
   "csl.member_call"(%param_import, %const27) <{field = "bar"}> : (!csl.imported_module, i16) -> ()
   %val2 = "csl.member_call"(%param_import) <{field = "baz"}> : (!csl.imported_module) -> (f32)
 
+  // csl.const_str
+  %short_str = csl.const_str "hello"
+  "csl.member_call"(%param_import, %short_str) <{field = "qux"}> : (!csl.imported_module, !csl.comptime_string) -> ()
+  %long_str = csl.const_str "this string is long enough not to be inlined as an expression"
+  "csl.member_call"(%param_import, %long_str) <{field = "qux"}> : (!csl.imported_module, !csl.comptime_string) -> ()
+
   %val3 = "csl.member_access"(%param_import) <{field = "f"}> :  (!csl.imported_module) -> (i32)
 
 
@@ -628,6 +634,9 @@ csl.func @intptrcast(%p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const cons
 // CHECK-NEXT: param_import.foo();
 // CHECK-NEXT: param_import.bar(const27);
 // CHECK-NEXT: const val2 : f32 = param_import.baz();
+// CHECK-NEXT: param_import.qux("hello");
+// CHECK-NEXT: const long_str : comptime_string = "this string is long enough not to be inlined as an expression";
+// CHECK-NEXT: param_import.qux(long_str);
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn main() void {
 // CHECK-NEXT:   no_args_no_return();

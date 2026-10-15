@@ -446,9 +446,11 @@ class CslPrintContext:
         - type
         - comptime_string
 
-        This method supports all of these except type and comptime_string
+        This method supports all of these except type
         """
         match type_attr:
+            case csl.ComptimeStringType():
+                return "comptime_string"
             case csl.ComptimeStructType():
                 return "comptime_struct"
             case csl.ImportedModuleType():
@@ -624,7 +626,7 @@ class CslPrintContext:
                 self._print_or_promote_to_inline_expr(
                     op.results[0], self._binop_value_expr(op), brackets=True
                 )
-            case arith.ConstantOp(value=v, result=r):
+            case arith.ConstantOp(value=v, result=r) | csl.ConstStrOp(value=v, res=r):
                 self._print_or_promote_to_inline_expr(r, self.attribute_value_to_str(v))
             case csl.ImportModuleConstOp(module=module, params=params, result=res):
                 name = self._get_variable_name_for(res)
