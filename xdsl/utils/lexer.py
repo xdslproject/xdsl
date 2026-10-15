@@ -11,6 +11,8 @@ from typing_extensions import TypeVar
 Position = int
 """
 A source coordinate measured in Unicode code points for `str`, or bytes for `bytes`.
+
+Zero-based by default, but one-based when indexing into columns in a file.
 """
 
 
