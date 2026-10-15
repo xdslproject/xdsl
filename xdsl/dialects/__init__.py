@@ -178,6 +178,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return IRDL
 
+    def get_irdl_interp():
+        from xdsl.dialects.irdl_interp import IRDLInterp
+
+        return IRDLInterp
+
     def get_llvm():
         from xdsl.dialects.llvm import LLVM
 
@@ -438,6 +443,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "hw": get_hw,
         "linalg": get_linalg,
         "irdl": get_irdl,
+        "irdl_interp": get_irdl_interp,
         "llvm": get_llvm,
         "ltl": get_ltl,
         "math": get_math,
