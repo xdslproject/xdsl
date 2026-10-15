@@ -257,12 +257,10 @@ class RescaleOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser):
         # parse operands
-        operands: list[SSAValue] = []
-
-        def parse_arg():
-            operands.append(parser.parse_operand())
-
-        parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_arg)
+        operands_pos = parser.pos
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
 
         # parse attr-dict
         properties: Mapping[str, Attribute | None] = {}
@@ -283,19 +281,16 @@ class RescaleOp(IRDLOperation):
         )
 
         # parse results
-        operand_types: list[Attribute] = []
-
-        def parse_operand_type():
-            operand_types.append(parser.parse_attribute())
-
         parser.parse_punctuation(":")
-        parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_operand_type)
+        operand_types = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_attribute
+        )
         parser.parse_punctuation("->")
 
         result_type = parser.parse_attribute()
 
         return cls(
-            operands=operands,
+            operands=parser.resolve_operands(operands, operand_types, operands_pos),
             result_types=[result_type],
             regions=[],
             properties=properties,
