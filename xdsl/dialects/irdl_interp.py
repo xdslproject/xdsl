@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xdsl.dialects.builtin import IndexType, StringAttr, TensorType
+from xdsl.dialects.builtin import DYNAMIC_INDEX, IndexType, StringAttr, TensorType
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -49,6 +49,13 @@ class AttrType(ParametrizedAttribute, TypeAttribute):
     """Wrapper for concrete attribute values."""
 
     name = "irdl_interp.attr"
+
+
+@irdl_attr_definition
+class OperationType(ParametrizedAttribute, TypeAttribute):
+    """Type for operation handles."""
+
+    name = "irdl_interp.operation"
 
 
 # ==============================================================================
@@ -168,6 +175,53 @@ class CheckBaseOp(IRDLOperation):
         super().__init__(operands=[attr], properties={"base": base})
 
 
+@irdl_op_definition
+class GetPropOp(IRDLOperation):
+    """Extract a property from an operation by name."""
+
+    name = "irdl_interp.get_prop"
+    op = operand_def(OperationType)
+    prop_name = prop_def(StringAttr)
+    result = result_def(AttrType)
+
+    assembly_format = "$op `,` $prop_name attr-dict"
+
+    def __init__(self, op: SSAValue | Operation, prop_name: StringAttr):
+        super().__init__(
+            operands=[op],
+            properties={"prop_name": prop_name},
+            result_types=[AttrType()],
+        )
+
+
+@irdl_op_definition
+class GetOperandTypesOp(IRDLOperation):
+    """Extract all operand types as a tensor."""
+
+    name = "irdl_interp.get_operand_types"
+    op = operand_def(OperationType)
+    result = result_def(TensorType(AttrType(), (DYNAMIC_INDEX,)))
+
+    assembly_format = "$op attr-dict"
+
+    def __init__(self, op: SSAValue | Operation):
+        super().__init__(operands=[op], result_types=[TensorType[AttrType]()])
+
+
+@irdl_op_definition
+class GetResultTypesOp(IRDLOperation):
+    """Extract all result types as a tensor."""
+
+    name = "irdl_interp.get_result_types"
+    op = operand_def(OperationType)
+    result = result_def(TensorType(AttrType(), (DYNAMIC_INDEX,)))
+
+    assembly_format = "$op attr-dict"
+
+    def __init__(self, op: SSAValue | Operation):
+        super().__init__(operands=[op], result_types=[TensorType[AttrType]()])
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -183,11 +237,15 @@ IRDLInterp = Dialect(
         UnifyIntOp,
         UnifyRangeOp,
         CheckBaseOp,
+        GetPropOp,
+        GetOperandTypesOp,
+        GetResultTypesOp,
     ],
     [
         VariableAttrType,
         VariableRangeType,
         VariableIntType,
         AttrType,
+        OperationType,
     ],
 )

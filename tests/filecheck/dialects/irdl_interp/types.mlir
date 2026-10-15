@@ -10,6 +10,9 @@
   !irdl_interp.variable.int,
   // CHECK-SAME: !irdl_interp.variable.int
 
-  !irdl_interp.attr
+  !irdl_interp.attr,
   // CHECK-SAME: !irdl_interp.attr
+
+  !irdl_interp.operation
+  // CHECK-SAME: !irdl_interp.operation
 ]}: () -> ()
