@@ -132,6 +132,7 @@ constraints subclassing `IntConstraint`.
 Attribute constraints (`AttrConstraint`) are the most common, and are used to constrain
 a single attribute value. They are typically used for the types of operands, results,
 and properties. These include:
+
 - `AnyAttr` - Matches any attribute (the most permissive constraint)
 - `BaseAttr` - Matches attributes of a specific base type
 - `EqAttrConstraint` - Matches exactly one specific attribute value
@@ -149,6 +150,7 @@ and properties. These include:
 Range constraints (`RangeConstraint`) constrain a sequence of attributes, and are
 primarily used for operands and results that may have variable arity (including optional
 operands). These include:
+
 - `AnyRange` - Matches any range of attributes (the most permissive constraint)
 - `RangeOf` - Each element in the range must satisfy the given attribute constraint
 - `SingleOf` - Range must contain exactly one element satisfying the constraint
@@ -160,6 +162,7 @@ The length of a range can also be constrained by
 
 Integer constraints (`IntConstraint`) constrain integer values, such as dimension sizes,
 bit widths, or counts. These include:
+
 - `AnyInt` - Matches any integer (the most permissive constraint)
 - `EqIntConstraint` - Matches exactly one specific integer value
 - `NotEqualIntConstraint` - Matches any integer except the given value
@@ -179,8 +182,9 @@ Constraints can be instantiated directly, but many provide smart `get` construct
 accept shorthand inputs and automatically convert them to the appropriate constraint
 type. The conversion is performed by `irdl_to_attr_constraint`, which for example
 converts attribute instances to `EqAttrConstraint(attr)` and attribute classes
-(`type[Attribute]`) to `BaseAttr(cls)`. TypeVars (from Python's typing module) are converted to `TypeVarConstraint`
-using their bound, and Union types become `AnyOf` constraints.
+(`type[Attribute]`) to `BaseAttr(cls)`. TypeVars (from Python's typing module) are
+converted to `TypeVarConstraint` using their bound, and Union types become `AnyOf`
+constraints.
 
 For example:
 
@@ -317,8 +321,8 @@ class ParamAttrConstraint(AttrConstraint):
 ```
 
 The critical point is that the same `VerificationContext` must be passed through to all
-nested constraint verification calls. This ensures that variable assignments are shared across
-the entire constraint tree.
+nested constraint verification calls. This ensures that variable assignments are shared
+across the entire constraint tree.
 
 ### VarConstraint and VerificationContext
 
@@ -335,7 +339,7 @@ values (attributes, ranges, or integers). The key invariant is that once a varia
 assigned, it cannot be reassigned to a different value. If `set_attr_variable` is called
 twice with the same name but different attributes, it raises a `VerifyException`:
 
-```
+```text
 VerifyException: attribute i32 expected from variable 'T', but got i64
 ```
 
@@ -386,6 +390,7 @@ constraint can query the context for `T` and return `i32`.
 
 The solved variables are passed in through an `InferenceContext`, which provides
 read-only access to these assignments:
+
 - `get_variable(name)` - Get an attribute variable
 - `get_range_variable(name)` - Get a range variable
 - `get_int_variable(name)` - Get an integer variable
@@ -440,8 +445,8 @@ allowed values.
 
 ### Custom constraints
 
-Users can define custom constraints by subclassing `AttrConstraint`, `RangeConstraint`, or
-`IntConstraint` and implementing the required methods:
+Users can define custom constraints by subclassing `AttrConstraint`, `RangeConstraint`,
+or `IntConstraint` and implementing the required methods:
 
 ```python
 @dataclass(frozen=True)
@@ -467,7 +472,7 @@ correctly to ensure `AnyOf` compatibility.
 
 To see how constraints work together, consider parsing this IR:
 
-```
+```mlir
 %result = arith.addi %lhs, %rhs : i32
 ```
 
