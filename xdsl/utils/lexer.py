@@ -10,19 +10,31 @@ from typing_extensions import TypeVar
 
 Position = int
 """
-A position in a file.
-The position correspond to the character index in the file.
+Zero-based position from the start of the input, measured in Unicode code points
+for `str` or bytes for `bytes`.
+"""
+
+Offset = int
+"""
+Signed displacement between positions, measured in Unicode code points for `str`
+or bytes for `bytes`.
+"""
+
+Column = int
+"""
+One-based position within a line, measured in Unicode code points for `str`
+or bytes for `bytes`.
 """
 
 
 class Location(NamedTuple):
-    "Structure definition a location in a file."
+    """A file location using the originating input's coordinate units."""
 
     file: str
     line: int
-    "1-index of line in file"
-    col: int
-    "1-index of column in file"
+    "One-based line number."
+    col: Column
+    "One-based position within the line."
 
     def __str__(self) -> str:
         return f"{self.file}:{self.line}:{self.col}"
@@ -36,12 +48,12 @@ class Input:
 
     content: str = field(repr=False)
     name: str
-    len: int = field(init=False, repr=False)
+    len: Offset = field(init=False, repr=False)
 
     def __post_init__(self):
         object.__setattr__(self, "len", len(self.content))
 
-    def __len__(self):
+    def __len__(self) -> Offset:
         return self.len
 
     def get_start_of_line(self, pos: Position) -> Position:
@@ -84,11 +96,11 @@ class Span:
 
     start: Position
     """
-    Start of tokens location in source file, global byte offset in file
+    Inclusive, zero-based start position within the input.
     """
     end: Position
     """
-    End of tokens location in source file, global byte offset in file
+    Exclusive, zero-based end position within the input.
     """
     input: Input
     """
@@ -100,11 +112,11 @@ class Span:
     A line offset, to just add to ht file number in input when printed.
     """
 
-    def __len__(self):
+    def __len__(self) -> Offset:
         return self.len
 
     @property
-    def len(self):
+    def len(self) -> Offset:
         return self.end - self.start
 
     @property
@@ -174,7 +186,7 @@ class Lexer(ABC, Generic[TokenKindT]):
 
     pos: Position = field(init=False, default=0)
     """
-    Current position in the input.
+    Current zero-based position within the input.
     The position can be out of bounds, in which case the lexer is in EOF state.
     """
 
