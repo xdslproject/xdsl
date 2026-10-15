@@ -50,7 +50,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     IsTerminator,
@@ -340,16 +340,16 @@ class ForOp(IRDLOperation):
 
         if parser.parse_optional_characters("iter_args") is not None:
 
-            def parse_iter_arg() -> tuple[Parser.UnresolvedArgument, SSAValue]:
+            def parse_iter_arg() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
                 arg = parser.parse_argument(expect_type=False)
                 parser.parse_characters("=")
-                return arg, parser.parse_operand()
+                return arg, parser.parse_unresolved_operand()
 
+            iter_args_pos = parser.pos
             pairs = parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, parse_iter_arg
             )
             unresolved_iter_args = tuple(arg for arg, _ in pairs)
-            iter_arg_operands = tuple(val for _, val in pairs)
             parser.parse_characters("->")
 
             # MLIR's `parseArrowTypeList` also accepts a single bare type
@@ -361,6 +361,10 @@ class ForOp(IRDLOperation):
                 parser.parse_punctuation(")")
             else:
                 iter_arg_types = (parser.parse_type(),)
+
+            iter_arg_operands = parser.resolve_operands(
+                tuple(val for _, val in pairs), iter_arg_types, iter_args_pos
+            )
 
         iter_args = tuple(
             u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)

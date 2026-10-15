@@ -854,19 +854,18 @@ class CreateOperationOp(IRDLOperation):
 
     @staticmethod
     def _parse_input_list(parser: Parser) -> list[SSAValue]:
-        values: list[SSAValue] = []
-        if parser.parse_optional_punctuation("("):
-            values = parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
-                parse=lambda: parser.parse_operand(),
-            )
-            parser.parse_punctuation(":")
-            parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
-                parse=lambda: parser.parse_type(),
-            )
-            parser.parse_punctuation(")")
-        return values
+        if not parser.parse_optional_punctuation("("):
+            return []
+        pos = parser.pos
+        values = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        types = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_type
+        )
+        parser.parse_punctuation(")")
+        return list(parser.resolve_operands(values, types, pos))
 
     @classmethod
     def parse(cls, parser: Parser) -> CreateOperationOp:

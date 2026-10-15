@@ -1064,7 +1064,7 @@ class TransferReadOp(VectorTransferOperation):
             Parser.Delimiter.SQUARE, parser.parse_operand
         )
         parser.parse_punctuation(",")
-        padding = parser.parse_operand()
+        padding = parser.parse_unresolved_operand()
         if parser.parse_optional_punctuation(","):
             mask_start_pos = parser.pos
             mask = parser.parse_unresolved_operand()
@@ -1106,7 +1106,7 @@ class TransferReadOp(VectorTransferOperation):
         return TransferReadOp(
             source=source,
             indices=indices,
-            padding=padding,
+            padding=parser.resolve_operand(padding, shaped_type.element_type),
             mask=mask,
             permutation_map=permutation_map,
             in_bounds=in_bounds,

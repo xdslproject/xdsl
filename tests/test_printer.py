@@ -684,13 +684,19 @@ class PlusCustomFormatOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> PlusCustomFormatOp:
-        lhs = parser.parse_operand("Expected SSA Value name here!")
+        lhs = parser.parse_unresolved_operand("Expected SSA Value name here!")
         parser.parse_characters("+", "Malformed operation format, expected `+`!")
-        rhs = parser.parse_operand("Expected SSA Value name here!")
+        rhs = parser.parse_unresolved_operand("Expected SSA Value name here!")
         parser.parse_punctuation(":")
         type = parser.parse_type()
 
-        return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
+        return PlusCustomFormatOp.create(
+            operands=[
+                parser.resolve_operand(lhs, type),
+                parser.resolve_operand(rhs, type),
+            ],
+            result_types=[type],
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -735,15 +741,15 @@ def test_custom_format():
     """
     prog = """\
 builtin.module {
-  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = test.add %0 + %0 : i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
 }
 """
 
     expected = """\
 builtin.module {
-  %0 = arith.constant 42 : i32
-  %1 = test.add %0 + %0 : i32
+  %0 = test.add %1 + %1 : i32
+  %1 = arith.constant 42 : i32
 }
 """
 
