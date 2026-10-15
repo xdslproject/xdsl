@@ -520,7 +520,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             (
                 op.rewriter,
                 PDLInterpFunctions.get_root(interpreter),
-                args,
+                args[: len(op.inputs)],
             )
         )
         return Successor(op.dest, ()), ()
