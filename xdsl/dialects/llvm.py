@@ -2876,7 +2876,7 @@ class ZeroOp(IRDLOperation):
     res = result_def(LLVMTypeConstr)
 
 
-class GenericCastOp(IRDLOperation, ABC):
+class GenericCastOperation(IRDLOperation, ABC):
     arg = operand_def(Attribute)
     """
     LLVM-compatible non-aggregate type
@@ -2895,6 +2895,30 @@ class GenericCastOp(IRDLOperation, ABC):
         super().__init__(
             operands=[SSAValue.get(val)],
             result_types=[res_type],
+        )
+
+
+class GenericCastWithFastMathOperation(GenericCastOperation, ABC):
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "$arg (`fastmath` $fastmathFlags^)? attr-dict `:` type($arg) `to` type($result)"
+    )
+
+    def __init__(
+        self,
+        val: Operation | SSAValue,
+        res_type: Attribute,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+
+        IRDLOperation.__init__(
+            self,
+            operands=[SSAValue.get(val)],
+            result_types=[res_type],
+            properties={"fastmathFlags": fast_math},
         )
 
 
@@ -3046,22 +3070,22 @@ class FCmpOp(IRDLOperation):
 
 
 @irdl_op_definition
-class BitcastOp(GenericCastOp):
+class BitcastOp(GenericCastOperation):
     name = "llvm.bitcast"
 
 
 @irdl_op_definition
-class SIToFPOp(GenericCastOp):
+class SIToFPOp(GenericCastOperation):
     name = "llvm.sitofp"
 
 
 @irdl_op_definition
-class FPExtOp(GenericCastOp):
+class FPExtOp(GenericCastWithFastMathOperation):
     name = "llvm.fpext"
 
 
 @irdl_op_definition
-class FPTruncOp(GenericCastOp):
+class FPTruncOp(GenericCastWithFastMathOperation):
     name = "llvm.fptrunc"
 
 
