@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import (
+    IRDLOperation,
+    irdl_attr_definition,
+    irdl_op_definition,
+    result_def,
+)
 
 # ==============================================================================
 # Types
@@ -37,12 +42,51 @@ class AttrType(ParametrizedAttribute, TypeAttribute):
 
 
 # ==============================================================================
+# Operations
+# ==============================================================================
+
+
+@irdl_op_definition
+class NewVarAttrOp(IRDLOperation):
+    """Create a new attribute constraint variable."""
+
+    name = "irdl_interp.new_var.attr"
+    result = result_def(VariableAttrType)
+
+    assembly_format = "attr-dict"
+
+
+@irdl_op_definition
+class NewVarRangeOp(IRDLOperation):
+    """Create a new range constraint variable."""
+
+    name = "irdl_interp.new_var.range"
+    result = result_def(VariableRangeType)
+
+    assembly_format = "attr-dict"
+
+
+@irdl_op_definition
+class NewVarIntOp(IRDLOperation):
+    """Create a new integer constraint variable."""
+
+    name = "irdl_interp.new_var.int"
+    result = result_def(VariableIntType)
+
+    assembly_format = "attr-dict"
+
+
+# ==============================================================================
 # Dialect Definition
 # ==============================================================================
 
 IRDLInterp = Dialect(
     "irdl_interp",
-    [],
+    [
+        NewVarAttrOp,
+        NewVarRangeOp,
+        NewVarIntOp,
+    ],
     [
         VariableAttrType,
         VariableRangeType,
