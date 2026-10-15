@@ -693,7 +693,10 @@ class CslPrintContext:
                 type_out = self.mlir_type_to_csl_type(res.type)
                 value_str = f"@as({type_out}, {name_in})"
                 self._print_or_promote_to_inline_expr(res, value_str)
-            case arith.BitcastOp(input=inp, result=res):
+            case (
+                arith.BitcastOp(input=inp, result=res)
+                | csl.IntPtrCastOp(input=inp, result=res)
+            ):
                 name_in = self._get_variable_name_for(inp)
                 type_out = self.mlir_type_to_csl_type(res.type)
                 value_str = f"@bitcast({type_out}, {name_in})"
