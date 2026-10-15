@@ -74,9 +74,9 @@ def test_memref_stream_generic():
 
     op.verify()
 
-    a = ShapedArray(TypedPtr.new_float64([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = ShapedArray(TypedPtr.new_float64([1, 4, 2, 5, 3, 6]), [3, 2])
-    c = ShapedArray(TypedPtr.new_float64([-1, -1, -1, -1, -1, -1]), [1, 6])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
+    b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
+    c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
 
@@ -128,9 +128,9 @@ def test_memref_stream_generic_scalar():
 
     op.verify()
 
-    a = ShapedArray(TypedPtr.new_float64([1, 2, 3, 4, 5, 6]), [2, 3])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = 2
-    c = ShapedArray(TypedPtr.new_float64([-1, -1, -1, -1, -1, -1]), [1, 6])
+    c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
 
@@ -169,9 +169,9 @@ def test_memref_stream_generic_reduction():
 
     op.verify()
 
-    a = ShapedArray(TypedPtr.new_float64([1, 2, 3]), [3])
-    b = ShapedArray(TypedPtr.new_float64([4, 5, 6]), [3])
-    c = ShapedArray(TypedPtr.new_float64([0]), [])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3]), [3])
+    b = ShapedArray(TypedPtr.new_int32([4, 5, 6]), [3])
+    c = ShapedArray(TypedPtr.new_int32([0]), [])
 
     interpreter.run_op(op, (a, b, c))
 
@@ -344,7 +344,7 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
     b = ShapedArray(
         TypedPtr.new_float32([float(i) / 100 for i in range(5 * 8)]), [5, 8]
     )
-    c = ShapedArray(TypedPtr.new_float32([-1000.0] * (3 * 5)), [3, 5])
+    c = ShapedArray(TypedPtr.new_float32([-1000.0] * (3 * 8)), [3, 8])
 
     with pytest.raises(
         NotImplementedError,
