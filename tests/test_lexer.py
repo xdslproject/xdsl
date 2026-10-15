@@ -162,7 +162,9 @@ def test_prefixed_ident_split(text: str, expected: str):
     assert_single_token("!" + text, MLIRTokenKind.EXCLAMATION_IDENT, "!" + expected)
 
 
-@pytest.mark.parametrize("text", ["0", "01", "123456789", "99", "0x1234", "0xabcdef"])
+@pytest.mark.parametrize(
+    "text", ["0", "01", "123456789", "99", "0x0", "0xf", "0x1234", "0xabcdef"]
+)
 def test_integer_literal(text: str):
     assert_single_token(text, MLIRTokenKind.INTEGER_LIT)
 

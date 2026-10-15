@@ -171,7 +171,7 @@ class ToyLexer(Lexer[ToyTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(offset=2)
+            and self._is_in_bounds(offset=1)
             and cast(str, self.input.at(self.pos + 1)) in hexdigits
         ):
             self._consume_chars(offset=2)

@@ -255,11 +255,11 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
-    def _is_in_bounds(self, *, offset: int) -> bool:
+    def _is_in_bounds(self, *, offset: Position) -> bool:
         """
-        Check if the current position is within the bounds of the input.
+        Check if the position at the given lookahead offset is within the input.
         """
-        return self.pos + offset - 1 < self.input.len
+        return self.pos + offset < self.input.len
 
     def _get_chars(self, *, offset: int = 1) -> str | None:
         """
@@ -534,7 +534,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(offset=2)
+            and self._is_in_bounds(offset=1)
             and cast(str, self.input.at(self.pos + 1)) in hexdigits
         ):
             self._consume_chars(offset=2)
