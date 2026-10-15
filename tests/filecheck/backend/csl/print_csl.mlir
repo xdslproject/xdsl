@@ -410,6 +410,36 @@ csl.func @ctrlflow() {
   csl.return
 }
 
+csl.func @yields(%ycond : i1, %ya : i32, %yb : i32) -> i32 {
+  %swap:2 = scf.if %ycond -> (i32, i32) {
+    scf.yield %ya, %yb : i32, i32
+  } else {
+    scf.yield %yb, %ya : i32, i32
+  }
+  %nested = scf.if %ycond -> (i32) {
+    %inner = scf.if %ycond -> (i32) {
+      scf.yield %ya : i32
+    } else {
+      scf.yield %yb : i32
+    }
+    scf.yield %inner : i32
+  } else {
+    scf.yield %ya : i32
+  }
+  %lb = arith.constant 0 : i32
+  %ub = arith.constant 4 : i32
+  %step = arith.constant 1 : i32
+  %x, %y = scf.for %i = %lb to %ub step %step iter_args(%xi = %ya, %yi = %yb) -> (i32, i32) : i32 {
+    %sum = arith.addi %xi, %yi : i32
+    scf.yield %yi, %sum : i32, i32
+  }
+  %r0 = arith.addi %swap#0, %swap#1 : i32
+  %r1 = arith.addi %r0, %nested : i32
+  %r2 = arith.addi %r1, %x : i32
+  %r3 = arith.addi %r2, %y : i32
+  csl.return %r3 : i32
+}
+
 %tsc = "csl.import_module"() <{"module" = "<time>"}> : () -> !csl.imported_module
 %tsc_buf = "csl.zeros"() : () -> memref<6xui16>
 
@@ -836,7 +866,7 @@ csl.func @intptrcast(%p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const cons
 // CHECK-NEXT:     var tmp : f32 = 0.0;
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT:     for(@range(i32, 0, 6, 1)) |j| {
-// CHECK-NEXT:       tmp = tmp + ((A[((i * 6) + j)]) * (x[j]));
+// CHECK-NEXT:       tmp = (tmp + ((A[((i * 6) + j)]) * (x[j])));
 // CHECK-NEXT:     }
 // CHECK-NEXT:     y[i] = (tmp + (b[i]));
 // CHECK-NEXT:   }
@@ -862,6 +892,43 @@ csl.func @intptrcast(%p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const cons
 // CHECK-NEXT:     i32ret = 222;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn yields(ycond : bool, ya : i32, yb : i32) i32 {
+// CHECK-NEXT:   var swap : i32;
+// CHECK-NEXT:   var swap1 : i32;
+// CHECK-NEXT:   if (ycond) {
+// CHECK-NEXT:     swap = ya;
+// CHECK-NEXT:     swap1 = yb;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     swap = yb;
+// CHECK-NEXT:     swap1 = ya;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var nested : i32;
+// CHECK-NEXT:   if (ycond) {
+// CHECK-NEXT:     var inner : i32;
+// CHECK-NEXT:     if (ycond) {
+// CHECK-NEXT:       inner = ya;
+// CHECK-NEXT:     }
+// CHECK-NEXT:     else {
+// CHECK-NEXT:       inner = yb;
+// CHECK-NEXT:     }
+// CHECK-NEXT:     nested = inner;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     nested = ya;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var x : i32 = ya;
+// CHECK-NEXT:   var y : i32 = yb;
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT:   for(@range(i32, 0, 4, 1)) |i| {
+// CHECK-NEXT:     const x_next2 = y;
+// CHECK-NEXT:     const y_next3 = (x + y);
+// CHECK-NEXT:     x = x_next2;
+// CHECK-NEXT:     y = y_next3;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   return ((((swap + swap1) + nested) + x) + y);
 // CHECK-NEXT: }
 // CHECK-NEXT: const tsc : imported_module = @import_module("<time>");
 // CHECK-NEXT: var tsc_buf : [6]u16 = @zeros([6]u16);

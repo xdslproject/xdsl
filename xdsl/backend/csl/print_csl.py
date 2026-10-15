@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from typing import IO, Literal
@@ -400,13 +400,7 @@ class CslPrintContext:
             name = hint
         else:
             prefix = "v" if val.name_hint is None else val.name_hint
-
-            name = f"{prefix}{self._counter}"
-            self._counter += 1
-
-            while name in taken_names:
-                name = f"{prefix}{self._counter}"
-                self._counter += 1
+            name = self._fresh_name(prefix, taken_names)
 
         self.variables[val] = name
         return name
@@ -574,6 +568,44 @@ class CslPrintContext:
         else:
             self.print(f"{self._var_use(var)} = {value_expr};")
 
+    def _print_yield(self, op: scf.YieldOp, args: Sequence[SSAValue]):
+        """
+        Assign the values yielded by an `scf.yield` to the variables holding the
+        results of the parent `scf.if` or the iteration variables of the parent
+        `scf.for`.
+        """
+        match parent := op.parent_op():
+            case scf.IfOp(output=targets) | scf.ForOp(res=targets):
+                pass
+            case _:
+                return
+        assigns = [
+            (self._get_variable_name_for(t), self._get_variable_name_for(a))
+            for t, a in zip(targets, args)
+        ]
+        assigns = [(t, a) for t, a in assigns if t != a]
+        if isinstance(parent, scf.ForOp) and len(assigns) > 1:
+            tmps: list[tuple[str, str]] = []
+            for t, a in assigns:
+                tmp = self._fresh_name(f"{t}_next")
+                self.print(f"const {tmp} = {a};")
+                tmps.append((t, tmp))
+            assigns = tmps
+        for t, a in assigns:
+            self.print(f"{t} = {a};")
+
+    def _fresh_name(self, prefix: str, taken_names: set[str] | None = None) -> str:
+        """
+        Get a variable name not associated with any SSA value.
+        """
+        taken_names = taken_names or set(self.variables.values()) | _CSL_KW_SET
+        name = f"{prefix}{self._counter}"
+        self._counter += 1
+        while name in taken_names:
+            name = f"{prefix}{self._counter}"
+            self._counter += 1
+        return name
+
     def print_op(self, op: Operation):
         match op:
             case (
@@ -639,13 +671,9 @@ class CslPrintContext:
                 true_region=true_region,
                 false_region=false_region,
             ):
+                # outputs are assigned by the yield at the end of each branch
                 for o in outputs:
                     self.print(f"{self._var_use(o, 'var')};")
-                # Search for all yield operations and match yield argument names to for argument names
-                for blk in [true_region, false_region]:
-                    if isinstance(blk.block.last_op, scf.YieldOp):
-                        for yield_arg, o in zip(blk.block.last_op.arguments, outputs):
-                            self.variables[yield_arg] = self.variables[o]
                 with self.descend(f"if ({self._get_variable_name_for(cond)})") as inner:
                     inner.print_block(true_region.block)
                 if false_region:
@@ -660,14 +688,11 @@ class CslPrintContext:
             ):
                 idx, *args = bdy.block.args
                 # declare for loop iterators as mutable variables and match their names to for result names
+                # they are updated by the yield at the end of the loop body
                 for result, iter, arg in zip(results, iters, args):
                     iter_name = self._get_variable_name_for(iter)
                     self.print(f"{self._var_use(result, 'var')} = {iter_name};")
                     self.variables[arg] = self.variables[result]
-                # Search for all yield operations and match yield argument names to for argument names
-                if isinstance(bdy.block.last_op, scf.YieldOp):
-                    for yield_arg, arg in zip(bdy.block.last_op.arguments, args):
-                        self.variables[yield_arg] = self.variables[arg]
 
                 idx_type = self.mlir_type_to_csl_type(idx.type)
                 lower_name, upper_name, stp_name, idx_name = map(
@@ -676,8 +701,8 @@ class CslPrintContext:
                 loop_definition = f"\nfor(@range({idx_type}, {lower_name}, {upper_name}, {stp_name})) |{idx_name}|"
                 with self.descend(loop_definition) as inner:
                     inner.print_block(bdy.block)
-            case scf.YieldOp():
-                pass
+            case scf.YieldOp(arguments=args):
+                self._print_yield(op, args)
             case (
                 arith.IndexCastOp(input=inp, result=res)
                 | arith.SIToFPOp(input=inp, result=res)
