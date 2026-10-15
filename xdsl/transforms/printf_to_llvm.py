@@ -77,9 +77,13 @@ def _format_str_for_type(t: Attribute):
     match t:
         case builtin.f64:
             return "%f"
-        case builtin.i32:
+        case builtin.IntegerType(width=builtin.IntAttr(data=32)):
+            if t.signedness.data == builtin.Signedness.UNSIGNED:
+                return "%u"
             return "%i"
-        case builtin.i64:
+        case builtin.IntegerType(width=builtin.IntAttr(data=64)):
+            if t.signedness.data == builtin.Signedness.UNSIGNED:
+                return "%lu"
             return "%li"
         case _:
             raise ValueError(f"Cannot find printf code for {t}")
