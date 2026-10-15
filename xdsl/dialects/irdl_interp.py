@@ -1,10 +1,19 @@
 from __future__ import annotations
 
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.dialects.builtin import IndexType, TensorType
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     prop_def,
     result_def,
 )
@@ -103,6 +112,48 @@ class ConstantOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class UnifyAttrOp(IRDLOperation):
+    """Unify two attributes or attribute variables."""
+
+    name = "irdl_interp.unify.attr"
+    lhs = operand_def(AttrType)
+    rhs = operand_def(AttrType | VariableAttrType)
+
+    assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
+
+    def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
+        super().__init__(operands=[lhs, rhs])
+
+
+@irdl_op_definition
+class UnifyIntOp(IRDLOperation):
+    """Unify two integers or integer variables."""
+
+    name = "irdl_interp.unify.int"
+    lhs = operand_def(IndexType)
+    rhs = operand_def(IndexType | VariableIntType)
+
+    assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
+
+    def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
+        super().__init__(operands=[lhs, rhs])
+
+
+@irdl_op_definition
+class UnifyRangeOp(IRDLOperation):
+    """Unify two ranges or range variables."""
+
+    name = "irdl_interp.unify.range"
+    lhs = operand_def(TensorType[AttrType])
+    rhs = operand_def(TensorType[AttrType] | VariableRangeType)
+
+    assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
+
+    def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
+        super().__init__(operands=[lhs, rhs])
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -114,6 +165,9 @@ IRDLInterp = Dialect(
         NewVarRangeOp,
         NewVarIntOp,
         ConstantOp,
+        UnifyAttrOp,
+        UnifyIntOp,
+        UnifyRangeOp,
     ],
     [
         VariableAttrType,

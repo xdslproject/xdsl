@@ -101,17 +101,18 @@ The core operation. Takes two operands of the same category (attr/range/int). Th
 
 ```mlir
 # Variable with concrete value
-irdl_interp.unify.attr %attr and %var : !irdl_interp.variable.attr
+irdl_interp.unify.attr %attr : !irdl_interp.attr and %var : !irdl_interp.variable.attr
 %int_val = arith.constant 42 : index
-irdl_interp.unify.int %int_val and %var : !irdl_interp.variable.int
-irdl_interp.unify.range %range and %var_range : !irdl_interp.variable.range
+irdl_interp.unify.int %int_val : index and %var : !irdl_interp.variable.int
+irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
 
 # Concrete with concrete (verification)
-irdl_interp.unify.attr %attr1 and %attr2 : !irdl_interp.attr
-irdl_interp.unify.int %count1 and %count2 : index
+irdl_interp.unify.attr %attr1 : !irdl_interp.attr and %attr2 : !irdl_interp.attr
+irdl_interp.unify.int %count1 : index and %count2 : index
+irdl_interp.unify.range %range1 : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
 ```
 
-**Assembly format**: Second operand's type is printed (first is always concrete). Operands separated by `and` keyword.
+**Assembly format**: Each operand's type is printed inline after the operand. This is required because concrete range types (tensors) cannot be inferred from the operation context. Operands separated by `and` keyword.
 
 **Semantics**:
 - First unify with a value: sets the variable
@@ -172,8 +173,8 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 
   %two = arith.constant 2 : index
   %one = arith.constant 1 : index
-  irdl_interp.unify.int %operand_count and %two : index
-  irdl_interp.unify.int %result_count and %one : index
+  irdl_interp.unify.int %operand_count : index and %two : index
+  irdl_interp.unify.int %result_count : index and %one : index
 
   // Create constraint variable for the shared type
   %T = irdl_interp.new_var.attr
@@ -184,9 +185,9 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   %result_type = tensor.extract %result_types[0] : tensor<?x!irdl_interp.attr>
 
   // Unify all types with the constraint variable
-  irdl_interp.unify.attr %lhs_type and %T : !irdl_interp.variable.attr
-  irdl_interp.unify.attr %rhs_type and %T : !irdl_interp.variable.attr
-  irdl_interp.unify.attr %result_type and %T : !irdl_interp.variable.attr
+  irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+  irdl_interp.unify.attr %rhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+  irdl_interp.unify.attr %result_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
 
   // Verify %T has the correct base type (no-op if %T is unbound)
   irdl_interp.check_base %T : !irdl_interp.variable.attr, "IntegerType"
