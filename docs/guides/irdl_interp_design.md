@@ -129,7 +129,7 @@ irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
 irdl_interp.check_base %var : !irdl_interp.variable.attr, "IntegerType"
 ```
 
-**Assembly format**: Operand type is printed (distinguishes concrete vs variable). Base type name as a bare string attribute. Operand order: `%attr, "TypeName"`.
+**Assembly format**: Operand type is printed (distinguishes concrete vs variable). Base type name as a bare string attribute. `attr-dict` at end for consistency.
 
 **Semantics**:
 - If the operand is a concrete attribute: verifies the base type, throws on mismatch

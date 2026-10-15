@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xdsl.dialects.builtin import IndexType, TensorType
+from xdsl.dialects.builtin import IndexType, StringAttr, TensorType
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -154,6 +154,20 @@ class UnifyRangeOp(IRDLOperation):
         super().__init__(operands=[lhs, rhs])
 
 
+@irdl_op_definition
+class CheckBaseOp(IRDLOperation):
+    """Check that an attribute has a specific base type."""
+
+    name = "irdl_interp.check_base"
+    attr = operand_def(AttrType | VariableAttrType)
+    base = prop_def(StringAttr)
+
+    assembly_format = "$attr `:` type($attr) `,` $base attr-dict"
+
+    def __init__(self, attr: SSAValue | Operation, base: StringAttr):
+        super().__init__(operands=[attr], properties={"base": base})
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -168,6 +182,7 @@ IRDLInterp = Dialect(
         UnifyAttrOp,
         UnifyIntOp,
         UnifyRangeOp,
+        CheckBaseOp,
     ],
     [
         VariableAttrType,

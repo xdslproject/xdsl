@@ -60,3 +60,11 @@ irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !i
 // CHECK: irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
 // CHECK-GENERIC: "irdl_interp.unify.range"(%range, %range2) : (tensor<2x!irdl_interp.attr>, tensor<2x!irdl_interp.attr>) -> ()
 irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
+
+// CHECK: irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
+// CHECK-GENERIC: "irdl_interp.check_base"(%attr) <{base = "IntegerType"}> : (!irdl_interp.attr) -> ()
+irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
+
+// CHECK: irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
+// CHECK-GENERIC: "irdl_interp.check_base"(%var_attr) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> ()
+irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
