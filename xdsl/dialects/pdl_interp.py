@@ -152,7 +152,7 @@ class GetOperandsOp(IRDLOperation):
         if index is not None:
             index = IntegerAttr(index, 32)
         parser.parse_characters("of")
-        input_op = parser.parse_operand()
+        input_op = parser.parse_operand(OperationType())
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         return GetOperandsOp.build(
@@ -366,7 +366,7 @@ class GetResultsOp(IRDLOperation):
         if index is not None:
             index = IntegerAttr(index, 32)
         parser.parse_characters("of")
-        input_op = parser.parse_operand()
+        input_op = parser.parse_operand(OperationType())
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         return GetResultsOp.build(
@@ -849,7 +849,7 @@ class CreateOperationOp(IRDLOperation):
     def _parse_attr(parser: Parser) -> tuple[Attribute, SSAValue]:
         attrname = parser.parse_attribute()
         parser.parse_punctuation("=")
-        operand = parser.parse_operand()
+        operand = parser.parse_operand(AttributeType())
         return (attrname, operand)
 
     @staticmethod
@@ -1444,7 +1444,11 @@ class ForEachOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ForEachOp:
         arg = parser.parse_argument()
         parser.parse_characters("in")
-        values = parser.parse_operand()
+        if not isa(arg.type, AnyPDLType):
+            parser.raise_error(
+                "expected a PDL type for the iteration argument", arg.name
+            )
+        values = parser.parse_operand(RangeType(arg.type))
         region = parser.parse_region(arguments=[arg])
         parser.parse_punctuation("->")
         successor = parser.parse_successor()

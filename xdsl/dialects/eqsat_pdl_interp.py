@@ -100,7 +100,7 @@ class GetResultsOp(IRDLOperation):
         if index is not None:
             index = IntegerAttr(index, 32)
         parser.parse_characters("of")
-        input_op = parser.parse_operand()
+        input_op = parser.parse_operand(OperationType())
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         return GetResultsOp.build(
@@ -224,7 +224,7 @@ class CreateOperationOp(IRDLOperation):
     def _parse_attr(parser: Parser) -> tuple[Attribute, SSAValue]:
         attrname = parser.parse_attribute()
         parser.parse_punctuation("=")
-        operand = parser.parse_operand()
+        operand = parser.parse_operand(AttributeType())
         return (attrname, operand)
 
     @staticmethod

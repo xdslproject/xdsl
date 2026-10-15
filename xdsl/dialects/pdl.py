@@ -415,7 +415,7 @@ class OperationOp(IRDLOperation):
         def parse_attribute_entry() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
-            type = parser.parse_operand()
+            type = parser.parse_operand(AttributeType())
             return (name, type)
 
         attributes = parser.parse_optional_comma_separated_list(
@@ -761,11 +761,11 @@ class ResultsOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
         if parser.parse_optional_keyword("of") is not None:
-            parent = parser.parse_operand()
+            parent = parser.parse_operand(OperationType())
             return ResultsOp(parent)
         index = parser.parse_integer()
         parser.parse_keyword("of")
-        parent = parser.parse_operand()
+        parent = parser.parse_operand(OperationType())
         parser.parse_punctuation("->")
         result_type = parser.parse_attribute()
         return ResultsOp(parent, index, result_type)

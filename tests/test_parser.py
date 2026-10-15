@@ -1,5 +1,6 @@
 import builtins
 import re
+import warnings
 from collections.abc import Sequence
 from io import StringIO
 from typing import cast
@@ -68,6 +69,91 @@ def test_utf8_input():
 def test_invalid_utf8_input():
     with pytest.raises(UnicodeDecodeError):
         Parser(Context(), b"// \xff")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("defined", [False, True])
+def test_parse_typed_operand(optional: bool, defined: bool):
+    parser = Parser(Context(), "%x#1 %x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    if defined:
+        parser.ssa_values["x"] = tuple(values)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        if optional:
+            value = assert_type(
+                parser.parse_optional_operand(IndexType()), SSAValue[IndexType] | None
+            )
+            repeated = parser.parse_optional_operand(IndexType())
+        else:
+            value = assert_type(parser.parse_operand(IndexType()), SSAValue[IndexType])
+            repeated = parser.parse_operand(IndexType())
+
+    assert value is not None
+    assert value.type == IndexType()
+    assert repeated is value
+    if defined:
+        assert value is values[1]
+    else:
+        assert value is parser.forward_ssa_references["x"][1]
+
+
+def test_parse_optional_typed_operand_absent():
+    parser = Parser(Context(), ",")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert parser.parse_optional_operand(IndexType()) is None
+    parser.parse_punctuation(",")
+
+
+def test_parse_typed_operand_custom_message():
+    parser = Parser(Context(), "")
+    with pytest.raises(ParseError, match="Expected an index operand"):
+        parser.parse_operand(IndexType(), msg="Expected an index operand")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_parse_operand_deprecated(optional: bool, explicit_none: bool):
+    parser = Parser(Context(), "%x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    parser.ssa_values["x"] = tuple(values)
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+
+    with pytest.warns(DeprecationWarning, match="without a type") as warnings:
+        value = parse(None) if explicit_none else parse()
+
+    assert value is values[1]
+    assert len(warnings) == 1
+    assert warnings[0].filename == __file__
+
+
+@pytest.mark.parametrize("positional_message", [False, True])
+def test_parse_operand_deprecated_custom_message(positional_message: bool):
+    parser = Parser(Context(), "")
+    message = "Expected a legacy operand"
+    if positional_message:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(message)  # pyright: ignore[reportDeprecated]
+    else:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(msg=message)  # pyright: ignore[reportDeprecated]
+
+
+@pytest.mark.parametrize("optional", [False, True])
+def test_parse_operand_deprecated_forward_reference(optional: bool):
+    parser = Parser(Context(), "%x")
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+    with pytest.warns(DeprecationWarning, match="without a type"):
+        with pytest.raises(ParseError, match="SSA value used before assignment"):
+            parse()
 
 
 @pytest.mark.parametrize("defined", [False, True])

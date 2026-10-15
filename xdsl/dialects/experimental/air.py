@@ -8,6 +8,8 @@ of the original dialect can be found here https://xilinx.github.io/mlir-air/AIRD
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
@@ -300,7 +302,7 @@ class ExecuteOp(IRDLOperation):
 
     def __init__(
         self,
-        async_dependencies: list[SSAValue] | None,
+        async_dependencies: Sequence[SSAValue] | None,
         result_types: list[Attribute] | None,
         body: Region,
     ):
@@ -313,7 +315,7 @@ class ExecuteOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ExecuteOp:
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(AsyncTokenAttr())
         )
 
         result_types: list[Attribute] | None = []
@@ -383,7 +385,7 @@ class HerdOp(IRDLOperation):
     def __init__(
         self,
         sym_name: StringAttr | None,
-        async_dependencies: list[SSAValue] | None,
+        async_dependencies: Sequence[SSAValue] | None,
         sizes: list[Operation | SSAValue],
         herd_operands: list[Operation | SSAValue] | None,
         region: Region | None,
@@ -459,7 +461,7 @@ class HerdOp(IRDLOperation):
     def parse(cls, parser: Parser) -> HerdOp:
         sym_name = parser.parse_optional_symbol_name()
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(AsyncTokenAttr())
         )
         parser.parse_keyword("tile")
         arg_list = parser.parse_op_args_list()
@@ -470,7 +472,7 @@ class HerdOp(IRDLOperation):
         for n_arg in range(len(arg_list)):
             parser.parse_optional_argument(False)
             parser.parse_characters("=")
-            tile_size = parser.parse_operand()
+            tile_size = parser.parse_operand(IndexType())
             tile_size_lst.append(tile_size)
             if n_arg < len(arg_list) - 1:
                 parser.parse_characters(",")
@@ -540,7 +542,7 @@ class LaunchOp(IRDLOperation):
     def __init__(
         self,
         sym_name: StringAttr | None,
-        async_dependencies: list[SSAValue] | None,
+        async_dependencies: Sequence[SSAValue] | None,
         sizes: list[Operation | SSAValue],
         launch_operands: list[Operation | SSAValue],
         body: Region | None,
@@ -557,7 +559,7 @@ class LaunchOp(IRDLOperation):
         sym_name = parser.parse_optional_symbol_name()
 
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(AsyncTokenAttr())
         )
 
         block_args_lst: list[Parser.Argument] = []
@@ -577,7 +579,7 @@ class LaunchOp(IRDLOperation):
         while not parser.parse_optional_characters(")"):
             argument = parser.parse_argument(expect_type=False)
             parser.parse_characters("=")
-            operand = parser.parse_operand()
+            operand = parser.parse_operand(IndexType())
 
             argument = argument.resolve(operand.type)
             arguments_lst.append(argument)
@@ -715,7 +717,7 @@ class WaitAllOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr)
     async_token = result_def(AsyncTokenAttr)
 
-    def __init__(self, async_dependencies: list[SSAValue] | None):
+    def __init__(self, async_dependencies: Sequence[SSAValue] | None):
         super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr()])
 
     def print(self, printer: Printer):
@@ -727,7 +729,7 @@ class WaitAllOp(IRDLOperation):
     def parse(cls, parser: Parser) -> WaitAllOp:
         parser.parse_keyword("async")
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(AsyncTokenAttr())
         )
 
         return WaitAllOp(async_dependencies)
