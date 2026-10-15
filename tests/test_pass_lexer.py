@@ -46,6 +46,15 @@ def test_pass_lex_errors():
         list(generator("pass-1{thing$=1}"))
 
 
+def test_pass_lexer_unicode():
+    source = 'pass{a="é😀" b=1}'
+    tokens = list(generator(source))
+    token = next(token for token in tokens if token.text == "b")
+    assert token.span.start == len('pass{a="é😀" '.encode())
+    assert token.span.end == token.span.start + 1
+    assert next(parse_pipeline(source)).parameters == {"a": ("é😀",), "b": (1,)}
+
+
 @pytest.mark.parametrize(
     "input_str, pass_name, pass_arg_names",
     [

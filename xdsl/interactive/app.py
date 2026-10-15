@@ -497,7 +497,7 @@ class InputApp(App[None]):
             return
         try:
             ctx = get_new_registered_context(self.all_dialects)
-            parser = Parser(ctx, input_text)
+            parser = Parser(ctx, input_text.encode("utf-8"))
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
             PassPipeline(self.pass_pipeline).apply(ctx, module)

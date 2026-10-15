@@ -4,7 +4,7 @@ from xdsl.dialects.test import Test, TestOp, TestTermOp
 from xdsl.ir import Block
 from xdsl.parser import Parser
 
-test_prog = """
+test_prog = b"""
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
   %1 = "test.op"(%0, %0) : (i32, i32) -> i32
@@ -71,7 +71,7 @@ def test_uses_methods():
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
 
-    test_prog = """
+    test_prog = b"""
     "builtin.module"() ({
       %0 = "test.op"() : () -> i32
       %1 = "test.op"(%0, %0) : (i32, i32) -> i32
@@ -106,7 +106,7 @@ def test_uses_methods():
     assert res2.get_user_of_unique_use() is None
 
 
-test_prog_blocks = """
+test_prog_blocks = b"""
 "test.op"() ({
   "test.termop"() [^bb0, ^bb1] : () -> ()
 ^bb0:

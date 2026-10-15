@@ -136,7 +136,7 @@ def _(extracted_module):
 
 @app.cell(hide_code=True)
 def _():
-    input_module_string = """
+    input_module_string = b"""
     func.func @impl(%a: i32) -> i32 {
       %two   = arith.constant 2  : i32
       %mul   = arith.muli %a, %two : i32
@@ -145,7 +145,7 @@ def _():
     }
     """
 
-    pdl_interp_module_string = """
+    pdl_interp_module_string = b"""
 
     pdl_interp.func @matcher(%arg0: !pdl.operation) {
       %0 = eqsat_pdl_interp.get_result 0 of %arg0

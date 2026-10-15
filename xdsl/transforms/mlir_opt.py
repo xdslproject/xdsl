@@ -46,9 +46,8 @@ class MLIROptPass(ModulePass):
 
         completed_process = subprocess.run(
             [self.executable, *self.arguments],
-            input=my_string,
+            input=my_string.encode("utf-8"),
             capture_output=True,
-            text=True,
         )
 
         try:

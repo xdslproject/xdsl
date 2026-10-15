@@ -228,21 +228,21 @@ class BitEnumData(BitEnumAttribute[TestEnum]):
 @pytest.mark.parametrize(
     "input,output",
     [
-        (None, "#test.bitenum<none>"),
-        ([], "#test.bitenum<none>"),
-        ([TestEnum.No], "#test.bitenum<no>"),
-        ([TestEnum.Yes], "#test.bitenum<yes>"),
-        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
-        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
-        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
-        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
-        ("all", "#test.bitenum<all>"),
-        ("none", "#test.bitenum<none>"),
+        (None, b"#test.bitenum<none>"),
+        ([], b"#test.bitenum<none>"),
+        ([TestEnum.No], b"#test.bitenum<no>"),
+        ([TestEnum.Yes], b"#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], b"#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], b"#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], b"#test.bitenum<no>"),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], b"#test.bitenum<all>"),
+        ("all", b"#test.bitenum<all>"),
+        ("none", b"#test.bitenum<none>"),
     ],
 )
-def test_bit_enum_attribute(input: Sequence[TestEnum] | str | None, output: str):
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str | None, output: bytes):
     attr = BitEnumData(input)
-    assert str(attr) == output
+    assert str(attr) == output.decode("utf-8")
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
     ctx.load_attr_or_type(BitEnumData)
@@ -302,7 +302,7 @@ def test_bit_enum_attribute_piped_separator(
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
     ctx.load_attr_or_type(BitEnumWithModifiers)
-    assert Parser(ctx, output).parse_attribute() == attr
+    assert Parser(ctx, output.encode("utf-8")).parse_attribute() == attr
 
 
 @pytest.mark.parametrize("separator", [",", "|"])
@@ -348,7 +348,7 @@ def test_bit_enum_attribute_spaced_opaque_syntax(
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
     ctx.load_attr_or_type(BitEnumWithModifiers)
-    assert Parser(ctx, output).parse_attribute() == attr
+    assert Parser(ctx, output.encode("utf-8")).parse_attribute() == attr
 
 
 @irdl_attr_definition(init=False)
@@ -359,20 +359,20 @@ class BitEnumNoNoneData(BitEnumAttribute[TestEnum]):
 @pytest.mark.parametrize(
     "input,output",
     [
-        (None, "#test.bitenum<>"),
-        ([], "#test.bitenum<>"),
-        ([TestEnum.No], "#test.bitenum<no>"),
-        ([TestEnum.Yes], "#test.bitenum<yes>"),
-        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
-        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
-        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
+        (None, b"#test.bitenum<>"),
+        ([], b"#test.bitenum<>"),
+        ([TestEnum.No], b"#test.bitenum<no>"),
+        ([TestEnum.Yes], b"#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], b"#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], b"#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], b"#test.bitenum<no>"),
     ],
 )
 def test_bit_enum_attribute_with_no_none_value(
-    input: Sequence[TestEnum] | str | None, output: str
+    input: Sequence[TestEnum] | str | None, output: bytes
 ):
     attr = BitEnumNoNoneData(input)
-    assert str(attr) == output
+    assert str(attr) == output.decode("utf-8")
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
     ctx.load_attr_or_type(BitEnumNoNoneData)
@@ -465,7 +465,7 @@ def test_typed_attribute_parsing_printing():
 
     ctx = Context()
     ctx.load_attr_or_type(TypedAttr)
-    attr = Parser(ctx, "#test.typed<42> : i32").parse_attribute()
+    attr = Parser(ctx, b"#test.typed<42> : i32").parse_attribute()
     assert attr == TypedAttr(IntAttr(42), i32)
 
     assert str(attr) == "#test.typed<42> : i32"

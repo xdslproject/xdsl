@@ -344,7 +344,7 @@ def test_inner_sym_attr():
 
 
 def test_instance_builder():
-    MODULE_CTX = """
+    MODULE_CTX = b"""
 hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
   hw.output %foo, %bar : i32, i64
 }

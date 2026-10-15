@@ -15,7 +15,9 @@ from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 def rewrite_and_compare(
-    prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
+    prog: bytes,
+    expected_prog: str,
+    transformation: Callable[[ModuleOp, Rewriter], None],
 ):
     ctx = Context()
     ctx.load_dialect(Builtin)
@@ -38,7 +40,7 @@ def rewrite_and_compare(
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()
@@ -59,7 +61,7 @@ def test_operation_deletion():
 
 # Test an operation replacement
 def test_replace_op_one_op():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -84,7 +86,7 @@ def test_replace_op_one_op():
 
 # Test an operation replacement with multiple ops
 def test_replace_op_multiple_op():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 2 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -112,7 +114,7 @@ def test_replace_op_multiple_op():
 
 # Test an operation replacement with manually specified results
 def test_replace_op_new_results():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 2 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -140,7 +142,7 @@ def test_replace_op_new_results():
 
 # Test an operation replacement with name hints
 def test_replace_op_name_hints():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %a = "arith.constant"() <{value = 2 : i32}> : () -> i32
   %b, %c, %0 = "test.op"(%a, %a) : (i32, i32) -> (i32, i32, i32)
@@ -175,7 +177,7 @@ def test_replace_op_name_hints():
 def test_inline_block_at_end():
     """Test the inlining of a block at end."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   "test.op"() ({
@@ -208,7 +210,7 @@ def test_inline_block_at_end():
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   "test.op"() ({
@@ -240,7 +242,7 @@ def test_inline_block_before():
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
 
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   "test.op"() ({
@@ -271,7 +273,7 @@ def test_inline_block_after():
 
 def test_insert_block():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
@@ -293,7 +295,7 @@ def test_insert_block():
 
 def test_insert_block2():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
@@ -314,7 +316,7 @@ def test_insert_block2():
 
 def test_insert_block_before():
     """Test the insertion of a block before another block."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
@@ -338,7 +340,7 @@ def test_insert_block_before():
 
 def test_insert_block_after():
     """Test the insertion of a block after another block."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
@@ -363,7 +365,7 @@ def test_insert_block_after():
 
 def test_insert_op_before():
     """Test the insertion of an operation before another operation."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
 }) : () -> ()
@@ -387,7 +389,7 @@ def test_insert_op_before():
 
 def test_insert_op_after():
     """Test the insertion of an operation after another operation."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
 }) : () -> ()
@@ -411,7 +413,7 @@ def test_insert_op_after():
 
 def test_preserve_naming_single_op():
     """Test the preservation of names of SSAValues"""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %i = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -437,7 +439,7 @@ def test_preserve_naming_single_op():
 
 def test_preserve_naming_multiple_ops():
     """Test the preservation of names of SSAValues for transformations to multiple ops"""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %i = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -465,7 +467,7 @@ def test_preserve_naming_multiple_ops():
 
 def test_no_result_rewriter():
     """Test rewriter on ops without results"""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   "test.termop"() : () -> ()
 }) : () -> ()
@@ -489,7 +491,7 @@ def test_no_result_rewriter():
 
 # Test erase operation
 def test_erase_op():
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -530,7 +532,7 @@ def test_erase_orphan_op():
 
 def test_inline_region_before():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -564,7 +566,7 @@ def test_inline_region_before():
 
 def test_inline_region_after():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -598,7 +600,7 @@ def test_inline_region_after():
 
 def test_inline_region_at_start():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:
@@ -632,7 +634,7 @@ def test_inline_region_at_start():
 
 def test_inline_region_at_end():
     """Test the insertion of a block in a region."""
-    prog = """\
+    prog = b"""\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
 ^bb0:

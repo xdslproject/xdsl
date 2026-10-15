@@ -53,7 +53,7 @@ class ApplyEqsatPDLPass(ModulePass):
         """Load PDL module from file or use the input module."""
         if self.pdl_file is not None:
             assert os.path.exists(self.pdl_file)
-            with open(self.pdl_file) as f:
+            with open(self.pdl_file, "rb") as f:
                 pdl_module_str = f.read()
                 parser = Parser(ctx, pdl_module_str)
                 return parser.parse_module()

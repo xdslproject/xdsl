@@ -61,13 +61,20 @@ def test_utf8_input():
     source = '// comment\r\n"é😀"'
     parser = Parser(Context(), source.encode("utf-8"))
 
-    assert parser.lexer.input.content == source
+    assert parser.lexer.input.content == source.encode("utf-8")
     assert parser.parse_attribute() == StringAttr("é😀")
 
 
 def test_invalid_utf8_input():
     with pytest.raises(UnicodeDecodeError):
-        Parser(Context(), b"// \xff")
+        Parser(Context(), b'"\xff"')
+
+
+def test_str_input_deprecated():
+    with pytest.warns(DeprecationWarning, match="Passing str to Parser") as warnings:
+        parser = Parser(Context(), '"é"')
+    assert len(warnings) == 1
+    assert parser.parse_attribute() == StringAttr("é")
 
 
 @pytest.mark.parametrize("defined", [False, True])
@@ -76,7 +83,7 @@ def test_invalid_utf8_input():
     [IndexType(), IntegerType(32), MemRefType(i32, [2])],
 )
 def test_resolve_operand_matching_type(defined: bool, t: Attribute):
-    parser = Parser(Context(), "%x %x")
+    parser = Parser(Context(), b"%x %x")
     first = parser.parse_unresolved_operand()
     second = parser.parse_unresolved_operand()
     if defined:
@@ -102,7 +109,7 @@ def test_resolve_operand_matching_type(defined: bool, t: Attribute):
 def test_resolve_operand_conflicting_type(
     defined: bool, previous_type: Attribute, requested_type: Attribute
 ):
-    parser = Parser(Context(), "%x %x")
+    parser = Parser(Context(), b"%x %x")
     first = parser.parse_unresolved_operand()
     second = parser.parse_unresolved_operand()
     if defined:
@@ -124,7 +131,7 @@ def test_resolve_operand_conflicting_type(
 
 @pytest.mark.parametrize("block_argument", [False, True])
 def test_resolve_operand_forward_definition(block_argument: bool):
-    parser = Parser(Context(), "%x#0 %x#1 %x#0")
+    parser = Parser(Context(), b"%x#0 %x#1 %x#0")
     first, second, repeated = (parser.parse_unresolved_operand() for _ in range(3))
     first_value = parser.resolve_operand(first, i32)
     second_value = parser.resolve_operand(second, IndexType())
@@ -150,7 +157,7 @@ def test_resolve_operand_forward_definition(block_argument: bool):
 
 @pytest.mark.parametrize("block_argument", [False, True])
 def test_resolve_operand_conflicting_definition(block_argument: bool):
-    parser = Parser(Context(), "%x")
+    parser = Parser(Context(), b"%x")
     operand = parser.parse_unresolved_operand()
     value = parser.resolve_operand(operand, i32)
     user = TestOp.create(operands=[value])
@@ -170,7 +177,7 @@ def test_resolve_operand_conflicting_definition(block_argument: bool):
 @pytest.mark.parametrize("defined", [False, True])
 @pytest.mark.parametrize("attribute", [i32])
 def test_resolve_operand_typing(defined: bool, attribute: Attribute):
-    parser = Parser(Context(), "%i %m %a")
+    parser = Parser(Context(), b"%i %m %a")
     index, memref, attr = (parser.parse_unresolved_operand() for _ in range(3))
     index_type = IndexType()
     memref_type = MemRefType(i32, [2])
@@ -214,13 +221,13 @@ def test_dictionary_attr(data: dict[str, Attribute]):
 
     with StringIO() as io:
         Printer(io).print_attribute(attr)
-        text = io.getvalue()
+        text = io.getvalue().encode("utf-8")
 
     ctx = Context()
     ctx.load_dialect(Builtin)
 
     attr1 = Parser(ctx, text).parse_attribute()
-    attr2 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    attr2 = Parser(ctx, (b"attributes " + text)).parse_optional_attr_dict_with_keyword()
     assert isinstance(attr1, DictionaryAttr)
     assert isinstance(attr2, DictionaryAttr)
 
@@ -228,8 +235,8 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     assert attr2.data == data
 
 
-@pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
-def test_dictionary_attr_with_keyword_missing(text: str):
+@pytest.mark.parametrize("text", [b"{}", b"{a = 1}", b"attr {}"])
+def test_dictionary_attr_with_keyword_missing(text: bytes):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
@@ -238,27 +245,27 @@ def test_dictionary_attr_with_keyword_missing(text: str):
 
 @pytest.mark.parametrize(
     "text, reserved_names",
-    [("{a = 1}", ["a"]), ("{a = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["a"])],
+    [(b"{a = 1}", ["a"]), (b"{a = 1}", ["b", "a"]), (b"{b = 1, a = 1}", ["a"])],
 )
-def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
+def test_dictionary_attr_with_keyword_reserved(text: bytes, reserved_names: list[str]):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
     with pytest.raises(ParseError):
-        Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+        Parser(ctx, b"attributes" + text).parse_optional_attr_dict_with_keyword(
             reserved_names
         )
 
 
 @pytest.mark.parametrize(
     "text, expected",
-    [("{b = 1}", ["a"]), ("{c = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["c"])],
+    [(b"{b = 1}", ["a"]), (b"{c = 1}", ["b", "a"]), (b"{b = 1, a = 1}", ["c"])],
 )
-def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
+def test_dictionary_attr_with_keyword_not_reserved(text: bytes, expected: list[str]):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
-    res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+    res = Parser(ctx, b"attributes" + text).parse_optional_attr_dict_with_keyword(
         expected
     )
     assert isinstance(res, DictionaryAttr)
@@ -277,7 +284,7 @@ def test_parsing():
     ctx = Context()
     ctx.load_attr_or_type(DummyAttr)
 
-    prog = '#dummy.attr "foo"'
+    prog = b'#dummy.attr "foo"'
     parser = Parser(ctx, prog)
 
     r = parser.parse_attribute()
@@ -287,18 +294,18 @@ def test_parsing():
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("@a", StringAttr("a")),
-        ("@_", StringAttr("_")),
-        ("@a1_2", StringAttr("a1_2")),
-        ("@a$_.", StringAttr("a$_.")),
-        ('@"foo"', StringAttr("foo")),
-        ('@"@"', StringAttr("@")),
-        ('@"\\t"', StringAttr("\t")),
-        ("f", None),
-        ('"f"', None),
+        (b"@a", StringAttr("a")),
+        (b"@_", StringAttr("_")),
+        (b"@a1_2", StringAttr("a1_2")),
+        (b"@a$_.", StringAttr("a$_.")),
+        (b'@"foo"', StringAttr("foo")),
+        (b'@"@"', StringAttr("@")),
+        (b'@"\\t"', StringAttr("\t")),
+        (b"f", None),
+        (b'"f"', None),
     ],
 )
-def test_symbol_name(text: str, expected: StringAttr | None):
+def test_symbol_name(text: bytes, expected: StringAttr | None):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
@@ -316,14 +323,14 @@ def test_symbol_name(text: str, expected: StringAttr | None):
 @pytest.mark.parametrize(
     "ref,expected",
     [
-        ("@foo", SymbolRefAttr("foo")),
-        ("@foo::@bar", SymbolRefAttr("foo", ["bar"])),
-        ("@foo::@bar:", SymbolRefAttr("foo", ["bar"])),
-        ('@foo::@"bar"', SymbolRefAttr("foo", ["bar"])),
-        ("@foo::@bar::@baz", SymbolRefAttr("foo", ["bar", "baz"])),
+        (b"@foo", SymbolRefAttr("foo")),
+        (b"@foo::@bar", SymbolRefAttr("foo", ["bar"])),
+        (b"@foo::@bar:", SymbolRefAttr("foo", ["bar"])),
+        (b'@foo::@"bar"', SymbolRefAttr("foo", ["bar"])),
+        (b"@foo::@bar::@baz", SymbolRefAttr("foo", ["bar", "baz"])),
     ],
 )
-def test_symref(ref: str, expected: Attribute | None):
+def test_symref(ref: bytes, expected: Attribute | None):
     """
     Test that symbol references are correctly parsed.
     """
@@ -339,19 +346,19 @@ def test_symref(ref: str, expected: Attribute | None):
 @pytest.mark.parametrize(
     "text,expected,expect_type",
     [
-        ("%foo", ("foo", None), False),
-        ("%-1foo", ("-1foo", None), False),
-        ("%foo : i32", ("foo", i32), True),
-        ("i32 : %bar", None, False),
-        ("i32 : %bar", None, True),
-        ("i32 %bar", None, False),
-        ("i32 %bar", None, True),
-        ("i32", None, False),
-        ("i32", None, True),
+        (b"%foo", ("foo", None), False),
+        (b"%-1foo", ("-1foo", None), False),
+        (b"%foo : i32", ("foo", i32), True),
+        (b"i32 : %bar", None, False),
+        (b"i32 : %bar", None, True),
+        (b"i32 %bar", None, False),
+        (b"i32 %bar", None, True),
+        (b"i32", None, False),
+        (b"i32", None, True),
     ],
 )
 def test_parse_argument(
-    text: str, expected: tuple[str, Attribute | None] | None, expect_type: bool
+    text: bytes, expected: tuple[str, Attribute | None] | None, expect_type: bool
 ):
     """
     arg ::= percent-id              if expect_type is False
@@ -393,13 +400,13 @@ def test_parse_argument(
 @pytest.mark.parametrize(
     "text,expect_type",
     [
-        ("%foo : %bar", True),
-        ("%foo : ", True),
-        ("%foo", True),
-        ("%foo %bar", True),
+        (b"%foo : %bar", True),
+        (b"%foo : ", True),
+        (b"%foo", True),
+        (b"%foo %bar", True),
     ],
 )
-def test_parse_argument_fail(text: str, expect_type: bool):
+def test_parse_argument_fail(text: bytes, expect_type: bool):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
@@ -418,12 +425,12 @@ def test_parse_argument_fail(text: str, expect_type: bool):
     "text,num_ops_and_args",
     [
         # no blocks
-        ("{}", []),
+        (b"{}", []),
         # One entry block
-        ("""{ "test.op"() : () -> () }""", [(1, 0)]),
+        (b"""{ "test.op"() : () -> () }""", [(1, 0)]),
         # One entry block and another block
         (
-            """{
+            b"""{
           "test.op"() : () -> ()
         ^bb0(%x: i32):
           "test.op"() : () -> ()
@@ -433,7 +440,7 @@ def test_parse_argument_fail(text: str, expect_type: bool):
         ),
         # One labeled entry block and another block
         (
-            """{
+            b"""{
         ^bb0:
           "test.op"() : () -> ()
           "test.op"() : () -> ()
@@ -444,7 +451,7 @@ def test_parse_argument_fail(text: str, expect_type: bool):
         ),
         # One labeled entry block with args and another block
         (
-            """{
+            b"""{
         ^bb0(%x: i32, %y: i32):
           "test.op"() : () -> ()
           "test.op"() : () -> ()
@@ -454,13 +461,13 @@ def test_parse_argument_fail(text: str, expect_type: bool):
             [(2, 2), (1, 1)],
         ),
         # Not regions
-        ("""^bb:""", None),
-        ("""}""", None),
-        (""""test.op"() : () -> ()""", None),
+        (b"""^bb:""", None),
+        (b"""}""", None),
+        (b""""test.op"() : () -> ()""", None),
     ],
 )
 def test_parse_region_no_args(
-    text: str, num_ops_and_args: list[tuple[int, int]] | None
+    text: bytes, num_ops_and_args: list[tuple[int, int]] | None
 ):
     ctx = Context()
     ctx.load_dialect(Builtin)
@@ -490,11 +497,11 @@ def test_parse_region_no_args(
 @pytest.mark.parametrize(
     "text",
     [
-        """{""",
-        """{ "test.op"() : () -> ()""",
+        b"""{""",
+        b"""{ "test.op"() : () -> ()""",
     ],
 )
-def test_parse_region_fail(text: str):
+def test_parse_region_fail(text: bytes):
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
@@ -511,11 +518,11 @@ def test_parse_region_fail(text: str):
 @pytest.mark.parametrize(
     "text",
     [
-        """%x : i32 { "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { "test.op"(%x) : (i32) -> () ^bb0: }""",
+        b"""%x : i32 { "test.op"(%x) : (i32) -> () }""",
+        b"""%x : i32 { "test.op"(%x) : (i32) -> () ^bb0: }""",
     ],
 )
-def test_parse_region_with_args(text: str):
+def test_parse_region_with_args(text: bytes):
     """Parse a region with args already provided."""
     ctx = Context()
     ctx.load_dialect(Builtin)
@@ -536,12 +543,12 @@ def test_parse_region_with_args(text: str):
 @pytest.mark.parametrize(
     "text",
     [
-        """%x : i32 { ^bb: "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { ^bb(%y: i32): "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { %x = "test.op"() : () -> (i32) }""",
+        b"""%x : i32 { ^bb: "test.op"(%x) : (i32) -> () }""",
+        b"""%x : i32 { ^bb(%y: i32): "test.op"(%x) : (i32) -> () }""",
+        b"""%x : i32 { %x = "test.op"() : () -> (i32) }""",
     ],
 )
-def test_parse_region_with_args_fail(text: str):
+def test_parse_region_with_args_fail(text: bytes):
     """Parse a region with args already provided."""
     ctx = Context()
     ctx.load_dialect(Builtin)
@@ -569,7 +576,7 @@ def test_parse_multi_region_mlir():
     ctx = Context()
     ctx.load_op(MultiRegionOp)
 
-    op_str = """
+    op_str = b"""
     "test.multi_region" () ({
     }, {
     }) : () -> ()
@@ -592,7 +599,7 @@ def test_is_default_block_name():
 
 
 def test_parse_block_name():
-    block_str = """
+    block_str = b"""
     ^bb0(%name: i32, %100: i32):
     """
 
@@ -623,7 +630,7 @@ def test_parse_list(separator: str, delimiter: Parser.Delimiter, arr: list[int])
             parse_str = left_punctuation + parse_str + right_punctuation
 
     ctx = Context()
-    parser = Parser(ctx, parse_str)
+    parser = Parser(ctx, parse_str.encode("utf-8"))
     parse_res = parser.parse_list(
         delimiter, parser.parse_integer, separator, " in test"
     )
@@ -633,17 +640,17 @@ def test_parse_list(separator: str, delimiter: Parser.Delimiter, arr: list[int])
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (Parser.Delimiter.NONE, "", ""),
-        (Parser.Delimiter.PAREN, "(", ")"),
-        (Parser.Delimiter.SQUARE, "[", "]"),
-        (Parser.Delimiter.BRACES, "{", "}"),
-        (Parser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.NONE, b"", b""),
+        (Parser.Delimiter.PAREN, b"(", b")"),
+        (Parser.Delimiter.SQUARE, b"[", b"]"),
+        (Parser.Delimiter.BRACES, b"{", b"}"),
+        (Parser.Delimiter.ANGLE, b"<", b">"),
     ],
 )
 def test_parse_comma_separated_list(
-    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: bytes, close_bracket: bytes
 ):
-    input = open_bracket + "2, 4, 5" + close_bracket
+    input = open_bracket + b"2, 4, 5" + close_bracket
 
     parser = Parser(Context(), input)
     res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
@@ -664,14 +671,14 @@ def test_parse_comma_separated_list(
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (Parser.Delimiter.PAREN, "(", ")"),
-        (Parser.Delimiter.SQUARE, "[", "]"),
-        (Parser.Delimiter.BRACES, "{", "}"),
-        (Parser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, b"(", b")"),
+        (Parser.Delimiter.SQUARE, b"[", b"]"),
+        (Parser.Delimiter.BRACES, b"{", b"}"),
+        (Parser.Delimiter.ANGLE, b"<", b">"),
     ],
 )
 def test_parse_comma_separated_list_empty(
-    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: bytes, close_bracket: bytes
 ):
     input = open_bracket + close_bracket
     parser = Parser(Context(), input)
@@ -680,7 +687,7 @@ def test_parse_comma_separated_list_empty(
 
 
 def test_parse_comma_separated_list_none_delimiter_empty():
-    parser = Parser(Context(), "o")
+    parser = Parser(Context(), b"o")
     with pytest.raises(ParseError):
         parser.parse_comma_separated_list(
             Parser.Delimiter.NONE, parser.parse_integer, " in test"
@@ -689,14 +696,14 @@ def test_parse_comma_separated_list_none_delimiter_empty():
 
 def test_parse_comma_separated_list_none_delimiter_two_no_comma():
     """Test that a list without commas will only parse the first element."""
-    parser = Parser(Context(), "1 2")
+    parser = Parser(Context(), b"1 2")
     res = parser.parse_comma_separated_list(
         Parser.Delimiter.NONE, parser.parse_integer, " in test"
     )
     assert res == [1]
     assert parser.parse_optional_integer() is not None
 
-    parser = Parser(Context(), "1 2")
+    parser = Parser(Context(), b"1 2")
     parser.parse_optional_undelimited_comma_separated_list(
         parser.parse_optional_integer, parser.parse_integer
     )
@@ -714,13 +721,13 @@ def test_parse_comma_separated_list_none_delimiter_two_no_comma():
     ],
 )
 def test_parse_optional_comma_separated_list(delimiter: Parser.Delimiter):
-    parser = Parser(Context(), "o")
+    parser = Parser(Context(), b"o")
     res = parser.parse_optional_comma_separated_list(delimiter, parser.parse_integer)
     assert res is None
 
 
 def test_parse_optional_undelimited_comma_separated_list_empty():
-    parser = Parser(Context(), "o")
+    parser = Parser(Context(), b"o")
     res = parser.parse_optional_undelimited_comma_separated_list(
         parser.parse_optional_integer, parser.parse_integer
     )
@@ -730,16 +737,16 @@ def test_parse_optional_undelimited_comma_separated_list_empty():
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (Parser.Delimiter.PAREN, "(", ")"),
-        (Parser.Delimiter.SQUARE, "[", "]"),
-        (Parser.Delimiter.BRACES, "{", "}"),
-        (Parser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, b"(", b")"),
+        (Parser.Delimiter.SQUARE, b"[", b"]"),
+        (Parser.Delimiter.BRACES, b"{", b"}"),
+        (Parser.Delimiter.ANGLE, b"<", b">"),
     ],
 )
 def test_parse_comma_separated_list_error_element(
-    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: bytes, close_bracket: bytes
 ):
-    input = open_bracket + "o" + close_bracket
+    input = open_bracket + b"o" + close_bracket
     parser = Parser(Context(), input)
     with pytest.raises(ParseError, match="Expected integer literal"):
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
@@ -754,16 +761,16 @@ def test_parse_comma_separated_list_error_element(
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (Parser.Delimiter.PAREN, "(", ")"),
-        (Parser.Delimiter.SQUARE, "[", "]"),
-        (Parser.Delimiter.BRACES, "{", "}"),
-        (Parser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, b"(", ")"),
+        (Parser.Delimiter.SQUARE, b"[", "]"),
+        (Parser.Delimiter.BRACES, b"{", "}"),
+        (Parser.Delimiter.ANGLE, b"<", ">"),
     ],
 )
 def test_parse_comma_separated_list_error_delimiters(
-    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: bytes, close_bracket: str
 ):
-    input = open_bracket + "2, 4 5"
+    input = open_bracket + b"2, 4 5"
     parser = Parser(Context(), input)
     with pytest.raises(
         ParseError, match=re.escape(f"'{close_bracket}' expected in test")
@@ -813,7 +820,7 @@ def test_get_punctuation_kind(punctuation: MLIRTokenKind):
 
 @pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation(punctuation: PunctuationSpelling):
-    parser = Parser(Context(), punctuation)
+    parser = Parser(Context(), punctuation.encode("utf-8"))
 
     res = parser.parse_punctuation(punctuation)
     assert res == punctuation
@@ -822,7 +829,7 @@ def test_parse_punctuation(punctuation: PunctuationSpelling):
 
 @pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
-    parser = Parser(Context(), "e +")
+    parser = Parser(Context(), b"e +")
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
     assert e.value.span.text == "e"
@@ -831,7 +838,7 @@ def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
 
 @pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
-    parser = Parser(Context(), punctuation)
+    parser = Parser(Context(), punctuation.encode("utf-8"))
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
     assert parser._parse_token(MLIRTokenKind.EOF, "").kind == MLIRTokenKind.EOF
@@ -839,20 +846,20 @@ def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
 
 @pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation_fail(punctuation: PunctuationSpelling):
-    parser = Parser(Context(), "e +")
+    parser = Parser(Context(), b"e +")
     assert parser.parse_optional_punctuation(punctuation) is None
 
 
 @pytest.mark.parametrize(
     "text, expected_value",
     [
-        ("true", True),
-        ("false", False),
-        ("True", None),
-        ("False", None),
+        (b"true", True),
+        (b"false", False),
+        (b"True", None),
+        (b"False", None),
     ],
 )
-def test_parse_boolean(text: str, expected_value: bool | None):
+def test_parse_boolean(text: bytes, expected_value: bool | None):
     parser = Parser(Context(), text)
     assert parser.parse_optional_boolean() == expected_value
 
@@ -867,36 +874,36 @@ def test_parse_boolean(text: str, expected_value: bool | None):
 @pytest.mark.parametrize(
     "text, expected_value, allow_boolean, allow_negative",
     [
-        ("42", 42, False, False),
-        ("42", 42, True, False),
-        ("42", 42, False, True),
-        ("42", 42, True, True),
-        ("-1", None, False, False),
-        ("-1", None, True, False),
-        ("-1", -1, False, True),
-        ("-1", -1, True, True),
-        ("true", None, False, False),
-        ("true", 1, True, False),
-        ("true", None, False, True),
-        ("true", 1, True, True),
-        ("false", None, False, False),
-        ("false", 0, True, False),
-        ("false", None, False, True),
-        ("false", 0, True, True),
-        ("True", None, True, True),
-        ("False", None, True, True),
-        ("0x1a", 26, False, False),
-        ("0x1a", 26, True, False),
-        ("0x1a", 26, False, True),
-        ("0x1a", 26, True, True),
-        ("-0x1a", None, False, False),
-        ("-0x1a", None, True, False),
-        ("-0x1a", -26, False, True),
-        ("-0x1a", -26, True, True),
+        (b"42", 42, False, False),
+        (b"42", 42, True, False),
+        (b"42", 42, False, True),
+        (b"42", 42, True, True),
+        (b"-1", None, False, False),
+        (b"-1", None, True, False),
+        (b"-1", -1, False, True),
+        (b"-1", -1, True, True),
+        (b"true", None, False, False),
+        (b"true", 1, True, False),
+        (b"true", None, False, True),
+        (b"true", 1, True, True),
+        (b"false", None, False, False),
+        (b"false", 0, True, False),
+        (b"false", None, False, True),
+        (b"false", 0, True, True),
+        (b"True", None, True, True),
+        (b"False", None, True, True),
+        (b"0x1a", 26, False, False),
+        (b"0x1a", 26, True, False),
+        (b"0x1a", 26, False, True),
+        (b"0x1a", 26, True, True),
+        (b"-0x1a", None, False, False),
+        (b"-0x1a", None, True, False),
+        (b"-0x1a", -26, False, True),
+        (b"-0x1a", -26, True, True),
     ],
 )
 def test_parse_int(
-    text: str, expected_value: int | None, allow_boolean: bool, allow_negative: bool
+    text: bytes, expected_value: int | None, allow_boolean: bool, allow_negative: bool
 ):
     parser = Parser(Context(), text)
     assert (
@@ -921,8 +928,8 @@ def test_parse_int(
         )
 
 
-@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
-def test_parse_optional_bool_int_or_float_nonnumeric(nonnumeric: str):
+@pytest.mark.parametrize("nonnumeric", [b"--", b"+", b"a", b"{", b"(1.0, 1.0)"])
+def test_parse_optional_bool_int_or_float_nonnumeric(nonnumeric: bytes):
     parser = Parser(Context(), nonnumeric)
     assert parser._parse_optional_bool_int_or_float() is None
 
@@ -930,15 +937,15 @@ def test_parse_optional_bool_int_or_float_nonnumeric(nonnumeric: str):
 @pytest.mark.parametrize(
     "numeric,typ",
     [
-        ("1", int),
-        ("true", bool),
-        ("1.0", float),
-        ("-1", int),
-        ("-1.0", float),
-        ("false", bool),
+        (b"1", int),
+        (b"true", bool),
+        (b"1.0", float),
+        (b"-1", int),
+        (b"-1.0", float),
+        (b"false", bool),
     ],
 )
-def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
+def test_parse_optional_bool_int_or_float_numeric(numeric: bytes, typ: type):
     parser = Parser(Context(), numeric)
     value_span = parser._parse_optional_bool_int_or_float()
     assert value_span is not None
@@ -946,20 +953,20 @@ def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
     match typ:
         case builtins.int:
             assert value == typ(numeric)
-            assert span.text == numeric
+            assert span.bytes == numeric
         case builtins.float:
             assert value == typ(numeric)
-            assert span.text == numeric
+            assert span.bytes == numeric
         case builtins.bool:
-            expected = numeric == "true"
+            expected = numeric == b"true"
             assert value == expected
-            assert span.text == numeric
+            assert span.bytes == numeric
         case _:
             pytest.fail("unreachable")
 
 
-@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
-def test_parse_bool_int_or_float_nonnumeric(nonnumeric: str):
+@pytest.mark.parametrize("nonnumeric", [b"--", b"+", b"a", b"{", b"(1.0, 1.0)"])
+def test_parse_bool_int_or_float_nonnumeric(nonnumeric: bytes):
     parser = Parser(Context(), nonnumeric)
     with pytest.raises(ParseError):
         parser._parse_bool_int_or_float()
@@ -968,15 +975,15 @@ def test_parse_bool_int_or_float_nonnumeric(nonnumeric: str):
 @pytest.mark.parametrize(
     "numeric,typ",
     [
-        ("1", int),
-        ("true", bool),
-        ("1.0", float),
-        ("-1", int),
-        ("-1.0", float),
-        ("false", bool),
+        (b"1", int),
+        (b"true", bool),
+        (b"1.0", float),
+        (b"-1", int),
+        (b"-1.0", float),
+        (b"false", bool),
     ],
 )
-def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
+def test_parse_bool_int_or_float_numeric(numeric: bytes, typ: type):
     parser = Parser(Context(), numeric)
     value_span = parser._parse_optional_bool_int_or_float()
     assert value_span is not None
@@ -984,14 +991,14 @@ def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
     match typ:
         case builtins.int:
             assert value == typ(numeric)
-            assert span.text == numeric
+            assert span.bytes == numeric
         case builtins.float:
             assert value == typ(numeric)
-            assert span.text == numeric
+            assert span.bytes == numeric
         case builtins.bool:
-            expected = numeric == "true"
+            expected = numeric == b"true"
             assert value == expected
-            assert span.text == numeric
+            assert span.bytes == numeric
         case _:
             pytest.fail("unreachable")
 
@@ -999,15 +1006,17 @@ def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
 @pytest.mark.parametrize(
     "text, allow_boolean, allow_negative",
     [
-        ("-false", False, True),
-        ("-false", True, True),
-        ("-true", False, True),
-        ("-true", True, True),
-        ("-k", True, True),
-        ("-(", False, True),
+        (b"-false", False, True),
+        (b"-false", True, True),
+        (b"-true", False, True),
+        (b"-true", True, True),
+        (b"-k", True, True),
+        (b"-(", False, True),
     ],
 )
-def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative: bool):
+def test_parse_optional_int_error(
+    text: bytes, allow_boolean: bool, allow_negative: bool
+):
     """Test that parsing a negative without an integer after raise an error."""
     parser = Parser(Context(), text)
     with pytest.raises(ParseError):
@@ -1023,28 +1032,28 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
 @pytest.mark.parametrize(
     "text, allow_boolean, expected_value",
     [
-        ("42", False, 42),
-        ("-1", False, -1),
-        ("true", False, None),
-        ("false", False, None),
-        ("0x1a", False, 26),
-        ("-0x1a", False, -26),
-        ("0.", False, 0.0),
-        ("1.", False, 1.0),
-        ("0.2", False, 0.2),
-        ("38.1243", False, 38.1243),
-        ("92.54e43", False, 92.54e43),
-        ("92.5E43", False, 92.5e43),
-        ("43.3e-54", False, 43.3e-54),
-        ("32.E+25", False, 32.0e25),
-        ("true", True, 1),
-        ("false", True, 0),
-        ("42", True, 42),
-        ("0.2", True, 0.2),
+        (b"42", False, 42),
+        (b"-1", False, -1),
+        (b"true", False, None),
+        (b"false", False, None),
+        (b"0x1a", False, 26),
+        (b"-0x1a", False, -26),
+        (b"0.", False, 0.0),
+        (b"1.", False, 1.0),
+        (b"0.2", False, 0.2),
+        (b"38.1243", False, 38.1243),
+        (b"92.54e43", False, 92.54e43),
+        (b"92.5E43", False, 92.5e43),
+        (b"43.3e-54", False, 43.3e-54),
+        (b"32.E+25", False, 32.0e25),
+        (b"true", True, 1),
+        (b"false", True, 0),
+        (b"42", True, 42),
+        (b"0.2", True, 0.2),
     ],
 )
 def test_parse_number(
-    text: str, allow_boolean: bool, expected_value: int | float | None
+    text: bytes, allow_boolean: bool, expected_value: int | float | None
 ):
     parser = Parser(Context(), text)
     assert parser.parse_optional_number(allow_boolean=allow_boolean) == expected_value
@@ -1060,30 +1069,30 @@ def test_parse_number(
 @pytest.mark.parametrize(
     "text, expected_value",
     [
-        ("3: i16", IntegerAttr(3, 16)),
-        ("24: i32", IntegerAttr(24, 32)),
-        ("0: index", IntegerAttr.from_index_int_value(0)),
-        ("-64: i64", IntegerAttr(-64, 64)),
-        ("-64.4: f64", FloatAttr(-64.4, 64)),
-        ("32.4: f32", FloatAttr(32.4, 32)),
-        ("0x7e00 : f16", FloatAttr(float("nan"), 16)),
-        ("0x7c00 : f16", FloatAttr(float("inf"), 16)),
-        ("0xfc00 : f16", FloatAttr(float("-inf"), 16)),
-        ("0x7fc00000 : f32", FloatAttr(float("nan"), 32)),
-        ("0x7f800000 : f32", FloatAttr(float("inf"), 32)),
-        ("0xff800000 : f32", FloatAttr(float("-inf"), 32)),
-        ("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64)),
-        ("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64)),
-        ("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64)),
-        ("-1.5: bf16", FloatAttr(-1.5, bf16)),
-        ("0x7fc0 : bf16", FloatAttr(float("nan"), bf16)),
-        ("0x7f80 : bf16", FloatAttr(float("inf"), bf16)),
-        ("0xff80 : bf16", FloatAttr(float("-inf"), bf16)),
+        (b"3: i16", IntegerAttr(3, 16)),
+        (b"24: i32", IntegerAttr(24, 32)),
+        (b"0: index", IntegerAttr.from_index_int_value(0)),
+        (b"-64: i64", IntegerAttr(-64, 64)),
+        (b"-64.4: f64", FloatAttr(-64.4, 64)),
+        (b"32.4: f32", FloatAttr(32.4, 32)),
+        (b"0x7e00 : f16", FloatAttr(float("nan"), 16)),
+        (b"0x7c00 : f16", FloatAttr(float("inf"), 16)),
+        (b"0xfc00 : f16", FloatAttr(float("-inf"), 16)),
+        (b"0x7fc00000 : f32", FloatAttr(float("nan"), 32)),
+        (b"0x7f800000 : f32", FloatAttr(float("inf"), 32)),
+        (b"0xff800000 : f32", FloatAttr(float("-inf"), 32)),
+        (b"0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64)),
+        (b"0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64)),
+        (b"0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64)),
+        (b"-1.5: bf16", FloatAttr(-1.5, bf16)),
+        (b"0x7fc0 : bf16", FloatAttr(float("nan"), bf16)),
+        (b"0x7f80 : bf16", FloatAttr(float("inf"), bf16)),
+        (b"0xff80 : bf16", FloatAttr(float("-inf"), bf16)),
         # ("3 : f64", None),  # todo this fails in mlir-opt but not in xdsl
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: IntegerAttr | FloatAttr
+    text: bytes, expected_value: IntegerAttr | FloatAttr
 ):
     parser = Parser(Context(), text)
     assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
@@ -1092,15 +1101,15 @@ def test_parse_optional_builtin_int_or_float_attr(
 @pytest.mark.parametrize(
     "text, allow_boolean",
     [
-        ("-false", False),
-        ("-true", False),
-        ("-false", True),
-        ("-true", True),
-        ("-k", False),
-        ("-(", False),
+        (b"-false", False),
+        (b"-true", False),
+        (b"-false", True),
+        (b"-true", True),
+        (b"-k", False),
+        (b"-(", False),
     ],
 )
-def test_parse_number_error(text: str, allow_boolean: bool):
+def test_parse_number_error(text: bytes, allow_boolean: bool):
     """
     Test that parsing a negative without an
     integer or a float after raise an error.
@@ -1126,14 +1135,14 @@ def test_properties_retrocompatibility():
     # Straightforward case
     ctx = Context()
     ctx.load_op(PropertyOp)
-    parser = Parser(ctx, '"test.prop_op"() <{first = "str", second = 42}> : () -> ()')
+    parser = Parser(ctx, b'"test.prop_op"() <{first = "str", second = 42}> : () -> ()')
 
     op = parser.parse_op()
     assert isinstance(op, PropertyOp)
     op.verify()
 
     # Retrocompatibility case, only target
-    parser = Parser(ctx, '"test.prop_op"() {first = "str", second = 42} : () -> ()')
+    parser = Parser(ctx, b'"test.prop_op"() {first = "str", second = 42} : () -> ()')
     retro_op = parser.parse_op()
     assert isinstance(retro_op, PropertyOp)
     retro_op.verify()
@@ -1142,7 +1151,7 @@ def test_properties_retrocompatibility():
     assert op.properties == retro_op.properties
 
     # Test partial case
-    parser = Parser(ctx, '"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
+    parser = Parser(ctx, b'"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
     partial_op = parser.parse_op()
     assert isinstance(partial_op, PropertyOp)
     partial_op.verify()
@@ -1153,40 +1162,40 @@ def test_properties_retrocompatibility():
 
 def test_parse_location():
     ctx = Context()
-    attr = Parser(ctx, "loc(unknown)").parse_optional_location()
+    attr = Parser(ctx, b"loc(unknown)").parse_optional_location()
     assert attr == UnknownLoc()
 
-    attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
+    attr = Parser(ctx, b'loc("one":2:3)').parse_optional_location()
     assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
-    attr = Parser(ctx, 'loc("abc")').parse_optional_location()
+    attr = Parser(ctx, b'loc("abc")').parse_optional_location()
     assert attr == NameLoc(StringAttr("abc"), NoneAttr())
 
-    attr = Parser(ctx, 'loc("abc"("def"))').parse_optional_location()
+    attr = Parser(ctx, b'loc("abc"("def"))').parse_optional_location()
     assert attr == NameLoc(StringAttr("abc"), NameLoc(StringAttr("def"), NoneAttr()))
 
     attr = Parser(
-        ctx, """loc(callsite("callee" at "caller"))"""
+        ctx, b"""loc(callsite("callee" at "caller"))"""
     ).parse_optional_location()
     assert attr == CallSiteLoc(
         NameLoc(StringAttr("callee"), NoneAttr()),
         NameLoc(StringAttr("caller"), NoneAttr()),
     )
 
-    attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
+    attr = Parser(ctx, b"loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 
     with pytest.raises(ParseError, match=re.escape("Unsupported location type.")):
-        Parser(ctx, "loc(unexpected)").parse_optional_location()
+        Parser(ctx, b"loc(unexpected)").parse_optional_location()
 
-    parser = Parser(ctx, "loc(#loc1)")
+    parser = Parser(ctx, b"loc(#loc1)")
     parser.attribute_aliases["#loc1"] = FileLineColLoc(
         StringAttr("alias.mlir"), IntAttr(7), IntAttr(9)
     )
     attr = parser.parse_optional_location()
     assert attr == FileLineColLoc(StringAttr("alias.mlir"), IntAttr(7), IntAttr(9))
 
-    parser = Parser(ctx, 'loc("root"(#loc2))')
+    parser = Parser(ctx, b'loc("root"(#loc2))')
     parser.attribute_aliases["#loc2"] = FileLineColLoc(
         StringAttr("nested.mlir"), IntAttr(3), IntAttr(4)
     )
@@ -1196,13 +1205,13 @@ def test_parse_location():
         FileLineColLoc(StringAttr("nested.mlir"), IntAttr(3), IntAttr(4)),
     )
 
-    parser = Parser(ctx, "loc(#not_loc)")
+    parser = Parser(ctx, b"loc(#not_loc)")
     parser.attribute_aliases["#not_loc"] = IntAttr(42)
     with pytest.raises(ParseError, match=re.escape("Expected location alias.")):
         parser.parse_optional_location()
 
     with pytest.raises(ParseError, match=re.escape("Unexpected location syntax.")):
-        Parser(ctx, "loc(1)").parse_optional_location()
+        Parser(ctx, b"loc(1)").parse_optional_location()
 
 
 def test_parse_func_argument_location_is_preserved() -> None:
@@ -1211,7 +1220,7 @@ def test_parse_func_argument_location_is_preserved() -> None:
 
     op = Parser(
         ctx,
-        'func.func private @f(%arg0: i32 {test.arg_name = "x"} loc("one":2:3), %arg1: i32) { func.return }',
+        b'func.func private @f(%arg0: i32 {test.arg_name = "x"} loc("one":2:3), %arg1: i32) { func.return }',
     ).parse_op()
     assert isinstance(op, FuncOp)
 
@@ -1228,39 +1237,39 @@ def test_parse_func_argument_location_is_preserved() -> None:
     [
         (
             "registered",
-            '"test.op"() : () -> () loc("one":2:3)',
+            b'"test.op"() : () -> () loc("one":2:3)',
             "op",
             FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
         ),
-        ("registered", '"test.op"() : () -> ()', "op", UnknownLoc()),
+        ("registered", b'"test.op"() : () -> ()', "op", UnknownLoc()),
         (
             "registered",
-            '"test.op"() ({^bb0(%arg0: i32 loc("one":2:3)): "test.termop"() : () -> ()}) : () -> ()',
+            b'"test.op"() ({^bb0(%arg0: i32 loc("one":2:3)): "test.termop"() : () -> ()}) : () -> ()',
             "block_arg",
             FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
         ),
         (
             "registered",
-            '"test.op"() ({^bb0(%arg0: i32): "test.termop"() : () -> ()}) : () -> ()',
+            b'"test.op"() ({^bb0(%arg0: i32): "test.termop"() : () -> ()}) : () -> ()',
             "block_arg",
             UnknownLoc(),
         ),
         (
             "unregistered",
-            '"foo.unknown"() : () -> () loc("one":2:3)',
+            b'"foo.unknown"() : () -> () loc("one":2:3)',
             "op",
             FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
         ),
-        ("unregistered", '"foo.unknown"() : () -> ()', "op", UnknownLoc()),
+        ("unregistered", b'"foo.unknown"() : () -> ()', "op", UnknownLoc()),
         (
             "unregistered",
-            '"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
+            b'"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
             "block_arg",
             FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
         ),
         (
             "unregistered",
-            '"foo.with_region"() ({^bb0(%arg0: i32): "foo.term"() : () -> ()}) : () -> ()',
+            b'"foo.with_region"() ({^bb0(%arg0: i32): "foo.term"() : () -> ()}) : () -> ()',
             "block_arg",
             UnknownLoc(),
         ),
@@ -1268,7 +1277,7 @@ def test_parse_func_argument_location_is_preserved() -> None:
 )
 def test_parse_locations_are_preserved(
     context_mode: str,
-    text: str,
+    text: bytes,
     location_target: str,
     expected_location: Attribute,
 ):
@@ -1290,14 +1299,14 @@ def test_parse_locations_are_preserved(
 @pytest.mark.parametrize(
     "keyword,expected",
     [
-        ("public", StringAttr("public")),
-        ("nested", StringAttr("nested")),
-        ("private", StringAttr("private")),
-        ("privateeee", None),
-        ("unknown", None),
+        (b"public", StringAttr("public")),
+        (b"nested", StringAttr("nested")),
+        (b"private", StringAttr("private")),
+        (b"privateeee", None),
+        (b"unknown", None),
     ],
 )
-def test_parse_visibility(keyword: str, expected: StringAttr | None):
+def test_parse_visibility(keyword: bytes, expected: StringAttr | None):
     assert Parser(Context(), keyword).parse_optional_visibility_keyword() == expected
 
     parser = Parser(Context(), keyword)
@@ -1318,18 +1327,18 @@ class MyEnum(StrEnum):
 @pytest.mark.parametrize(
     "keyword, expected",
     [
-        ("a", MyEnum.A),
-        ('"a"', MyEnum.A),
-        ("b", MyEnum.B),
-        ('"b"', MyEnum.B),
-        ("c", MyEnum.C),
-        ('"c"', MyEnum.C),
-        ('"d-non-keyword"', MyEnum.D),
-        ("other", None),
-        ('"other"', None),
+        (b"a", MyEnum.A),
+        (b'"a"', MyEnum.A),
+        (b"b", MyEnum.B),
+        (b'"b"', MyEnum.B),
+        (b"c", MyEnum.C),
+        (b'"c"', MyEnum.C),
+        (b'"d-non-keyword"', MyEnum.D),
+        (b"other", None),
+        (b'"other"', None),
     ],
 )
-def test_parse_str_enum_right_token(keyword: str, expected: MyEnum | None):
+def test_parse_str_enum_right_token(keyword: bytes, expected: MyEnum | None):
     """
     Test parsing of string enums where the next
     token is a keyword or a string literal.
@@ -1352,8 +1361,8 @@ def test_parse_str_enum_right_token(keyword: str, expected: MyEnum | None):
         assert parser.parse_str_enum(MyEnum) == expected
 
 
-@pytest.mark.parametrize("keyword", ["2", "-"])
-def test_parse_str_enum_wrong_token(keyword: str):
+@pytest.mark.parametrize("keyword", [b"2", b"-"])
+def test_parse_str_enum_wrong_token(keyword: bytes):
     """
     Test parsing of string enums where the next
     token is a keyword or a string literal.
@@ -1364,8 +1373,8 @@ def test_parse_str_enum_wrong_token(keyword: str):
         Parser(Context(), keyword).parse_str_enum(MyEnum)
 
 
-@pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
-def test_parse_optional_complex_error(value: str):
+@pytest.mark.parametrize("value", [b"(1., 2)", b"(1, 2.)"])
+def test_parse_optional_complex_error(value: bytes):
     parser = Parser(Context(), value)
     with pytest.raises(
         ParseError,
@@ -1374,37 +1383,37 @@ def test_parse_optional_complex_error(value: str):
         parser._parse_optional_complex()
 
 
-@pytest.mark.parametrize("noncomplex", ["1", "-1", "A", "{"])
-def test_parse_optional_complex_noncomplex(noncomplex: str):
+@pytest.mark.parametrize("noncomplex", [b"1", b"-1", b"A", b"{"])
+def test_parse_optional_complex_noncomplex(noncomplex: bytes):
     parser = Parser(Context(), noncomplex)
     assert parser._parse_optional_complex() is None
 
 
 @pytest.mark.parametrize(
-    "toks, pyval", [("(-1., 2.)", (-1.0, 2.0)), ("(1, 2)", (1, 2))]
+    "toks, pyval", [(b"(-1., 2.)", (-1.0, 2.0)), (b"(1, 2)", (1, 2))]
 )
 def test_parse_optional_complex_success(
-    toks: str, pyval: tuple[int, int] | tuple[float, float]
+    toks: bytes, pyval: tuple[int, int] | tuple[float, float]
 ):
     parser = Parser(Context(), toks)
     value_and_span = parser._parse_optional_complex()
     assert value_and_span is not None
     value, span = value_and_span
     assert value == pyval
-    assert span.text == toks
+    assert span.bytes == toks
 
 
 @pytest.mark.parametrize(
     "start, end, text",
     [
-        ("<", ">", "<1>"),
-        ("[", "]", "[1]"),
-        ("{", "}", "{1}"),
-        ("(", ")", "(1)"),
-        ("{-#", "#-}", "{-# 1 #-}"),
+        ("<", ">", b"<1>"),
+        ("[", "]", b"[1]"),
+        ("{", "}", b"{1}"),
+        ("(", ")", b"(1)"),
+        ("{-#", "#-}", b"{-# 1 #-}"),
     ],
 )
-def test_delimiters(start: str, end: str, text: str):
+def test_delimiters(start: str, end: str, text: bytes):
     parser = Parser(Context(), text)
     with parser.delimited(start, end):
         value = parser.parse_integer()
@@ -1414,7 +1423,7 @@ def test_delimiters(start: str, end: str, text: str):
 
 
 def test_angle_brackets():
-    parser = Parser(Context(), "<1>")
+    parser = Parser(Context(), b"<1>")
     with parser.in_angle_brackets():
         value = parser.parse_integer()
 
@@ -1423,7 +1432,7 @@ def test_angle_brackets():
 
 
 def test_square_brackets():
-    parser = Parser(Context(), "[1]")
+    parser = Parser(Context(), b"[1]")
     with parser.in_square_brackets():
         value = parser.parse_integer()
 
@@ -1432,7 +1441,7 @@ def test_square_brackets():
 
 
 def test_braces():
-    parser = Parser(Context(), "{1}")
+    parser = Parser(Context(), b"{1}")
     with parser.in_braces():
         value = parser.parse_integer()
 
@@ -1441,7 +1450,7 @@ def test_braces():
 
 
 def test_parens():
-    parser = Parser(Context(), "(1)")
+    parser = Parser(Context(), b"(1)")
     with parser.in_parens():
         value = parser.parse_integer()
 
@@ -1450,7 +1459,7 @@ def test_parens():
 
 
 def test_wrong_delimiter():
-    parser = Parser(Context(), "(1)")
+    parser = Parser(Context(), b"(1)")
     with pytest.raises(ParseError, match="'<' expected"):
         with parser.in_angle_brackets():
             parser.parse_integer()
@@ -1463,7 +1472,7 @@ def test_early_return_delimiter():
                 return 1
             return 2
 
-    parser = Parser(Context(), "<1>")
+    parser = Parser(Context(), b"<1>")
     assert my_parse(parser) == 1
     assert parser.pos == 3
 
@@ -1473,7 +1482,7 @@ class MySingletonEnum(StrEnum):
 
 
 def test_parse_singleton_enum_fail():
-    parser = Parser(Context(), "b")
+    parser = Parser(Context(), b"b")
     with pytest.raises(ParseError, match="Expected `a`"):
         parser.parse_str_enum(MySingletonEnum)
 
@@ -1481,7 +1490,7 @@ def test_parse_singleton_enum_fail():
 def test_metadata_parsing():
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
-    metadata_dict = '{-# dialect_resources: {test: {some_res: "0x1"}} #-}'
+    metadata_dict = b'{-# dialect_resources: {test: {some_res: "0x1"}} #-}'
 
     parser = Parser(ctx, metadata_dict)
     assert parser._parse_file_metadata_dictionary() is None
@@ -1497,14 +1506,14 @@ def test_metadata_parsing():
 @pytest.mark.parametrize(
     "input, expected",
     [
-        ("a", "a"),
-        ('"a"', "a"),
-        ("a-b", "a"),
-        ('"a-b"', "a-b"),
-        ("2a", None),
+        (b"a", "a"),
+        (b'"a"', "a"),
+        (b"a-b", "a"),
+        (b'"a-b"', "a-b"),
+        (b"2a", None),
     ],
 )
-def test_parse_identifier_or_str_literal(input: str, expected: str | None):
+def test_parse_identifier_or_str_literal(input: bytes, expected: str | None):
     parser = Parser(Context(), input)
     result = parser.parse_optional_identifier_or_str_literal()
     assert result == expected
@@ -1520,13 +1529,13 @@ def test_parse_identifier_or_str_literal(input: str, expected: str | None):
 @pytest.mark.parametrize(
     "input, expected",
     [
-        ("", []),
-        ("2x3x4", [2, 3, 4]),
-        ("9x1x5x", [9, 1, 5]),
-        ("9x?x1x?", [9, DYNAMIC_INDEX, 1, DYNAMIC_INDEX]),
+        (b"", []),
+        (b"2x3x4", [2, 3, 4]),
+        (b"9x1x5x", [9, 1, 5]),
+        (b"9x?x1x?", [9, DYNAMIC_INDEX, 1, DYNAMIC_INDEX]),
     ],
 )
-def test_parse_dimension_list(input: str, expected: list[int]):
+def test_parse_dimension_list(input: bytes, expected: list[int]):
     parser = Parser(Context(), input)
 
     result = parser.parse_dimension_list()
@@ -1534,35 +1543,45 @@ def test_parse_dimension_list(input: str, expected: list[int]):
 
 
 @pytest.mark.parametrize(
+    "source",
+    ['!unknown.type<"é😀", [i32]>', '!unknown<type "é😀">'],
+)
+def test_unregistered_type_unicode(source: str):
+    parser = Parser(Context(allow_unregistered=True), (source + " tail").encode())
+    assert str(parser.parse_type()) == source
+    assert parser.parse_identifier() == "tail"
+
+
+@pytest.mark.parametrize(
     "body",
     [
-        "a (] b",
-        "a [} b",
-        "a {) b",
-        "a ) b",
-        "a ] b",
-        "a } b",
+        b"a (] b",
+        b"a [} b",
+        b"a {) b",
+        b"a ) b",
+        b"a ] b",
+        b"a } b",
     ],
 )
-def test_unregistered_type_unbalanced_brackets(body: str):
+def test_unregistered_type_unbalanced_brackets(body: bytes):
     """_raw_scan_balanced rejects mismatched bracket pairs."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="Unbalanced"):
-        Parser(ctx, f"!unknowndialect.t<{body}>").parse_type()
+        Parser(ctx, b"!unknowndialect.t<" + body + b">").parse_type()
 
 
 def test_unregistered_type_unterminated_string():
     """_raw_scan_balanced rejects unterminated string literals."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="Unterminated string literal"):
-        Parser(ctx, '!unknowndialect.t<"no end>').parse_type()
+        Parser(ctx, b'!unknowndialect.t<"no end>').parse_type()
 
 
 def test_unregistered_type_unexpected_eof():
     """_raw_scan_balanced rejects unexpected end of file."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="end of file"):
-        Parser(ctx, "!unknowndialect.t<no close").parse_type()
+        Parser(ctx, b"!unknowndialect.t<no close").parse_type()
 
 
 def test_unregistered_attr_name_rejected():
@@ -1570,7 +1589,7 @@ def test_unregistered_attr_name_rejected():
     ctx = Context(allow_unregistered=False)
     ctx.load_dialect(Test)
     with pytest.raises(ParseError, match="is not registered"):
-        parser = Parser(ctx, '"test.op"() : () -> !nonexistent.type<foo>')
+        parser = Parser(ctx, b'"test.op"() : () -> !nonexistent.type<foo>')
         parser.parse_optional_operation()
 
 
@@ -1598,7 +1617,7 @@ def test_slash_punctuation_in_registered_attr():
     ctx = Context()
     ctx.load_attr_or_type(SlashAttr)
 
-    parser = Parser(ctx, "#test_slash.attr</>")
+    parser = Parser(ctx, b"#test_slash.attr</>")
     attr = parser.parse_attribute()
     assert isinstance(attr, SlashAttr)
 
@@ -1608,34 +1627,34 @@ def test_slash_punctuation_in_registered_attr():
 
 
 def test_parse_optional_keyword_in_matching():
-    parser = Parser(Context(), "fastcc remaining")
+    parser = Parser(Context(), b"fastcc remaining")
     result = parser.parse_optional_keyword_in({"fastcc", "ccc", "tailcc"})
     assert result == "fastcc"
     assert parser.parse_optional_identifier() == "remaining"
 
 
 def test_parse_optional_keyword_in_non_matching():
-    parser = Parser(Context(), "other remaining")
+    parser = Parser(Context(), b"other remaining")
     result = parser.parse_optional_keyword_in({"fastcc", "ccc"})
     assert result is None
     assert parser.parse_optional_identifier() == "other"
 
 
 def test_parse_optional_keyword_in_non_identifier():
-    parser = Parser(Context(), "42 remaining")
+    parser = Parser(Context(), b"42 remaining")
     result = parser.parse_optional_keyword_in({"fastcc"})
     assert result is None
 
 
 def test_parse_keyword_in_matching():
-    parser = Parser(Context(), "fastcc remaining")
+    parser = Parser(Context(), b"fastcc remaining")
     result = parser.parse_keyword_in({"fastcc", "ccc", "tailcc"})
     assert result == "fastcc"
     assert parser.parse_optional_identifier() == "remaining"
 
 
 def test_parse_keyword_in_non_matching():
-    parser = Parser(Context(), "other remaining")
+    parser = Parser(Context(), b"other remaining")
     with pytest.raises(ParseError, match="Expected one of"):
         parser.parse_keyword_in({"fastcc", "ccc"})
 
@@ -1644,16 +1663,16 @@ def test_parse_keyword_in_non_matching():
     "text, expected_map, expected_names",
     [
         # Only constants
-        ("[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
+        (b"[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
         # Just SSA dims
         (
-            "[%i0, %i1]",
+            b"[%i0, %i1]",
             AffineMap.from_callable(lambda s0, s1: (s0, s1), dim_symbol_split=(0, 2)),
             ("%i0", "%i1"),
         ),
         # SSA dims + const sums
         (
-            "[%i0 + 3, %i1 + 7]",
+            b"[%i0 + 3, %i1 + 7]",
             AffineMap.from_callable(
                 lambda s0, s1: (s0 + 3, s1 + 7), dim_symbol_split=(0, 2)
             ),
@@ -1661,7 +1680,7 @@ def test_parse_keyword_in_non_matching():
         ),
         # SSA dims + complex expression
         (
-            "[%i0 + 3, 7 * %i1 + 7]",
+            b"[%i0 + 3, 7 * %i1 + 7]",
             AffineMap.from_callable(
                 lambda s0, s1: (s0 + 3, 7 * s1 + 7), dim_symbol_split=(0, 2)
             ),
@@ -1669,20 +1688,20 @@ def test_parse_keyword_in_non_matching():
         ),
         # Same SSA value used twice resolves to the same operand
         (
-            "[%i0, %i0 + 7]",
+            b"[%i0, %i0 + 7]",
             AffineMap.from_callable(lambda s0: (s0, s0 + 7), dim_symbol_split=(0, 1)),
             ("%i0",),
         ),
     ],
 )
 def test_parse_affine_map_of_ssa_ids(
-    text: str, expected_map: AffineMap, expected_names: tuple[str, ...]
+    text: bytes, expected_map: AffineMap, expected_names: tuple[str, ...]
 ):
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
 
-    definitions = '%i0, %i1 = "test.op"() : () -> (index, index)\n'
+    definitions = b'%i0, %i1 = "test.op"() : () -> (index, index)\n'
     parser = Parser(ctx, definitions + text)
     op = parser.parse_op()
     affine_map, operands = parser.parse_affine_map_of_ssa_ids()

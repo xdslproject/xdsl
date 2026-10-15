@@ -44,7 +44,7 @@ class IRDLDialectLoader(importlib.abc.Loader):
         from xdsl.parser import Parser
 
         # Open the irdl file
-        with open(self.path) as file:
+        with open(self.path, "rb") as file:
             # Parse it
             ctx = Context()
             for dialect_name, dialect_factory in self.get_all_dialects().items():

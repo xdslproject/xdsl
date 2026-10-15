@@ -408,16 +408,16 @@ def test_inline_assembly_op():
 
 def test_parse_optional_llvm_type():
     # verify parsing returns correct types or none for invalid/empty input
-    def parse_helper(text: str):
+    def parse_helper(text: bytes):
         ctx = Context()
         ctx.load_dialect(llvm.LLVM)
         p = Parser(ctx, text)
         return llvm.parse_optional_llvm_type(p)
 
-    assert isinstance(parse_helper("ptr"), llvm.LLVMPointerType)
-    assert parse_helper("i32") == builtin.i32
-    assert parse_helper("") is None
-    assert parse_helper("bla") is None
+    assert isinstance(parse_helper(b"ptr"), llvm.LLVMPointerType)
+    assert parse_helper(b"i32") == builtin.i32
+    assert parse_helper(b"") is None
+    assert parse_helper(b"bla") is None
 
 
 def test_overflow_attr_int_conversion():

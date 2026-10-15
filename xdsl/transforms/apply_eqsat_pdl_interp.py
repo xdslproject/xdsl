@@ -88,7 +88,7 @@ class ApplyEqsatPDLInterpPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.pdl_interp_file is not None:
             assert os.path.exists(self.pdl_interp_file)
-            with open(self.pdl_interp_file) as f:
+            with open(self.pdl_interp_file, "rb") as f:
                 pdl_interp_module_str = f.read()
                 parser = Parser(ctx, pdl_interp_module_str)
                 pdl_interp_module = parser.parse_module()

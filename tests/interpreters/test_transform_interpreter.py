@@ -18,7 +18,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 @pytest.mark.parametrize("num_targets", [0, 1, 2])
 def test_empty_transform_module(num_targets: int):
-    payload = """
+    payload = b"""
     module {
         func.func @foo() {
             func.return

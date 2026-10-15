@@ -82,7 +82,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(Parser, builtin, ctx, xmo):
-    first_text = """
+    first_text = b"""
     func.func @first(%x: i32) -> i32 {
       %c0 = arith.constant 0 : i32
       %y = arith.muli %x, %c0 : i32
@@ -90,7 +90,7 @@ def _(Parser, builtin, ctx, xmo):
     }
     """
 
-    second_text = """
+    second_text = b"""
     func.func @second(%x: i32) -> i32 {
       %c0 = arith.constant 0 : i32
       func.return %c0 : i32
@@ -116,7 +116,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
-    times_zero_text = """
+    times_zero_text = b"""
     pdl.pattern @x_times_zero : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
@@ -492,7 +492,7 @@ def _(
     _results_text = ""
     try:
         _patterns_text = x_minus_x_text_area.value + x_plus_zero_text_area.value + x_div_x_text_area.value + x_div_one_text_area.value
-        _module = Parser(ctx, _patterns_text).parse_module()
+        _module = Parser(ctx, _patterns_text.encode("utf-8")).parse_module()
         _cloned_func = main.module.body.ops.first.clone()
         Rewriter.insert_op(_cloned_func, InsertPoint.at_start(_module.body.block))
         ApplyPDLPass().apply(ctx, _module)
@@ -543,7 +543,7 @@ def _(
 ):
     def test_solutions():
         _solutions_text = x_minus_x_text_solution + x_plus_zero_text_solution + x_div_x_text_solution + x_div_one_text_solution
-        _module = Parser(ctx, _solutions_text).parse_module()
+        _module = Parser(ctx, _solutions_text.encode("utf-8")).parse_module()
         _cloned_func = main.module.body.ops.first.clone()
         Rewriter.insert_op(_cloned_func, InsertPoint.at_start(_module.body.block))
         ApplyPDLPass().apply(ctx, _module)

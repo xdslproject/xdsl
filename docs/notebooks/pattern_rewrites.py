@@ -66,7 +66,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(Parser, ctx):
-    _before_text = """\
+    _before_text = b"""\
     func.func @my_func(%x: index) -> index {
       %c0 = arith.constant 0 : index
       %c2 = arith.constant 2 : index
@@ -82,7 +82,7 @@ def _(Parser, ctx):
 
 @app.cell(hide_code=True)
 def _(Parser, ctx):
-    _after_text = """\
+    _after_text = b"""\
     func.func @my_func(%x: index) -> index {
       %two_x = arith.addi %x, %x : index
       func.return %two_x : index

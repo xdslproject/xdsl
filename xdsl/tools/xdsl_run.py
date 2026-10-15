@@ -80,7 +80,7 @@ class xDSLRunMain(CommandLineTool):
                 self.register_implementations(interpreter)
                 symbol = self.args.symbol
                 assert isinstance(symbol, str)
-                parser = Parser(self.ctx, self.args.args, "args")
+                parser = Parser(self.ctx, self.args.args.encode("utf-8"), "args")
                 runner_args = parser.parse_optional_undelimited_comma_separated_list(
                     parser.parse_optional_attribute, parser.parse_attribute
                 )

@@ -261,29 +261,29 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         """
         return self.pos + size - 1 < self.input.len
 
-    def _get_chars(self, size: int = 1) -> str | None:
+    def _get_bytes(self, size: int = 1) -> bytes | None:
         """
-        Get the character at the current location, or multiple characters ahead.
+        Get bytes at the current location and advance by the requested size.
         Return None if the position is out of bounds.
         """
         res = self.input.slice(self.pos, self.pos + size)
         self.pos += size
         return res
 
-    def _peek_chars(self, size: int = 1) -> str | None:
+    def _peek_bytes(self, size: int = 1) -> bytes | None:
         """
-        Peek at the character at the current location, or multiple characters ahead.
+        Peek at bytes at the current location without advancing.
         Return None if the position is out of bounds.
         """
         return self.input.slice(self.pos, self.pos + size)
 
-    def _consume_chars(self, size: int = 1) -> None:
+    def _consume_bytes(self, size: int = 1) -> None:
         """
-        Advance the lexer position in the input by the given amount.
+        Advance the lexer position in the input by the given number of bytes.
         """
         self.pos += size
 
-    def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
+    def _consume_regex(self, regex: re.Pattern[bytes]) -> re.Match[bytes] | None:
         """
         Advance the lexer position to the end of the next match of the given
         regular expression.
@@ -294,7 +294,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         self.pos = match.end()
         return match
 
-    _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
+    _whitespace_regex = re.compile(rb"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
 
     def _consume_whitespace(self) -> None:
         """
@@ -316,40 +316,40 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         self._consume_whitespace()
 
         start_pos = self.pos
-        current_char = self._get_chars()
+        current_char = self._get_bytes()
 
         # Handle end of file
         if current_char is None:
             return self._form_token(MLIRTokenKind.EOF, start_pos)
 
         # bare identifier
-        if current_char.isalpha() or current_char == "_":
+        if current_char.isalpha() or current_char == b"_":
             return self._lex_bare_identifier(start_pos)
 
         # single-char punctuation that are not part of a multi-char token
         single_char_punctuation = {
-            ":": MLIRTokenKind.COLON,
-            ",": MLIRTokenKind.COMMA,
-            "(": MLIRTokenKind.L_PAREN,
-            ")": MLIRTokenKind.R_PAREN,
-            "}": MLIRTokenKind.R_BRACE,
-            "[": MLIRTokenKind.L_SQUARE,
-            "]": MLIRTokenKind.R_SQUARE,
-            "<": MLIRTokenKind.LESS,
-            ">": MLIRTokenKind.GREATER,
-            "=": MLIRTokenKind.EQUAL,
-            "+": MLIRTokenKind.PLUS,
-            "/": MLIRTokenKind.SLASH,
-            "*": MLIRTokenKind.STAR,
-            "?": MLIRTokenKind.QUESTION,
-            "|": MLIRTokenKind.VERTICAL_BAR,
+            b":": MLIRTokenKind.COLON,
+            b",": MLIRTokenKind.COMMA,
+            b"(": MLIRTokenKind.L_PAREN,
+            b")": MLIRTokenKind.R_PAREN,
+            b"}": MLIRTokenKind.R_BRACE,
+            b"[": MLIRTokenKind.L_SQUARE,
+            b"]": MLIRTokenKind.R_SQUARE,
+            b"<": MLIRTokenKind.LESS,
+            b">": MLIRTokenKind.GREATER,
+            b"=": MLIRTokenKind.EQUAL,
+            b"+": MLIRTokenKind.PLUS,
+            b"/": MLIRTokenKind.SLASH,
+            b"*": MLIRTokenKind.STAR,
+            b"?": MLIRTokenKind.QUESTION,
+            b"|": MLIRTokenKind.VERTICAL_BAR,
         }
         if current_char in single_char_punctuation:
             return self._form_token(single_char_punctuation[current_char], start_pos)
 
         # '...'
-        if current_char == ".":
-            if self._get_chars(2) != "..":
+        if current_char == b".":
+            if self._get_bytes(2) != b"..":
                 raise ParseError(
                     Span(start_pos, start_pos + 1, self.input),
                     "Expected three consecutive '.' for an ellipsis",
@@ -357,46 +357,46 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             return self._form_token(MLIRTokenKind.ELLIPSIS, start_pos)
 
         # '-' and '->'
-        if current_char == "-":
-            if self._peek_chars() == ">":
-                self._consume_chars()
+        if current_char == b"-":
+            if self._peek_bytes() == b">":
+                self._consume_bytes()
                 return self._form_token(MLIRTokenKind.ARROW, start_pos)
             return self._form_token(MLIRTokenKind.MINUS, start_pos)
 
         # '{' and '{-#'
-        if current_char == "{":
-            if self._peek_chars(2) == "-#":
-                self._consume_chars(2)
+        if current_char == b"{":
+            if self._peek_bytes(2) == b"-#":
+                self._consume_bytes(2)
                 return self._form_token(MLIRTokenKind.FILE_METADATA_BEGIN, start_pos)
             return self._form_token(MLIRTokenKind.L_BRACE, start_pos)
 
         # '#-}'
-        if current_char == "#" and self._peek_chars(2) == "-}":
-            self._consume_chars(2)
+        if current_char == b"#" and self._peek_bytes(2) == b"-}":
+            self._consume_bytes(2)
             return self._form_token(MLIRTokenKind.FILE_METADATA_END, start_pos)
 
         # '@' and at-identifier
-        if current_char == "@":
+        if current_char == b"@":
             return self._lex_at_ident(start_pos)
 
         # '#', '!', '^', '%' identifiers
-        if current_char in ["#", "!", "^", "%"]:
+        if current_char in [b"#", b"!", b"^", b"%"]:
             return self._lex_prefixed_ident(start_pos)
 
-        if current_char == '"':
+        if current_char == b'"':
             return self._lex_string_literal(start_pos)
 
-        if current_char.isnumeric():
+        if current_char.isdigit():
             return self._lex_number(start_pos)
 
         raise ParseError(
             Span(start_pos, start_pos + 1, self.input),
-            f"Unexpected character: {current_char}",
+            f"Unexpected character: {current_char.decode('utf-8', 'backslashreplace')}",
         )
 
     IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
     bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
-    bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
+    bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX.encode("ascii"))
 
     def _lex_bare_identifier(self, start_pos: Position) -> MLIRToken:
         """
@@ -416,7 +416,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         The first character `@` is expected to have already been parsed.
         """
-        current_char = self._get_chars()
+        current_char = self._get_bytes()
 
         if current_char is None:
             raise ParseError(
@@ -425,12 +425,12 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             )
 
         # bare identifier case
-        if current_char.isalpha() or current_char == "_":
+        if current_char.isalpha() or current_char == b"_":
             token = self._lex_bare_identifier(start_pos)
             return self._form_token(MLIRTokenKind.AT_IDENT, token.span.start)
 
         # literal string case
-        if current_char == '"':
+        if current_char == b'"':
             self._lex_string_literal(start_pos + 1)  # + 1 to skip the '@'
             return self._form_token(MLIRTokenKind.AT_IDENT, start_pos)
 
@@ -439,7 +439,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             "@ identifier expected to start with letter, '_', or '\"'.",
         )
 
-    _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
+    _suffix_id = re.compile(rb"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
     def _lex_prefixed_ident(self, start_pos: Position) -> MLIRToken:
         """
@@ -460,15 +460,15 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         assert self.pos != 0, (
             "First prefixed identifier character must have been parsed"
         )
-        first_char = self.input.at(self.pos - 1)
-        if first_char == "#":
+        first_char = self.input.slice(self.pos - 1, self.pos)
+        if first_char == b"#":
             kind = MLIRTokenKind.HASH_IDENT
-        elif first_char == "!":
+        elif first_char == b"!":
             kind = MLIRTokenKind.EXCLAMATION_IDENT
-        elif first_char == "^":
+        elif first_char == b"^":
             kind = MLIRTokenKind.CARET_IDENT
         else:
-            assert first_char == "%", (
+            assert first_char == b"%", (
                 "First prefixed identifier character must have been parsed correctly"
             )
             kind = MLIRTokenKind.PERCENT_IDENT
@@ -484,13 +484,15 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
     # Match a double-quoted string literal, allowing valid escape sequences (\n, \t, \\, \", and two hex digits).
     _unescaped_characters_regex = re.compile(
-        r'"(?:[^"\\\n\v\f]+|\\(?:["nt\\]|[0-9A-Fa-f]{2}))*"'
+        rb'"(?:[^"\\\n\v\f]+|\\(?:["nt\\]|[0-9A-Fa-f]{2}))*"'
     )
 
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
-        Lex a string literal. Return STRING_LIT when the payload can be decoded
-        as UTF‑8, otherwise BYTES_LIT.
+        Lex a string literal.
+        Unescaped UTF-8 literals are `STRING_LIT`.
+        Escaped literals are `STRING_LIT` if composed only of ASCII characters,
+        otherwise `BYTES_LIT`.
         """
         m = self._unescaped_characters_regex.match(self.input.content, start_pos)
         if m is None:
@@ -517,27 +519,27 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         return Token(MLIRTokenKind.BYTES_LIT, lit)
 
-    _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
-    _digits_star_regex = re.compile(r"[0-9]*")
-    _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
+    _hexdigits_star_regex = re.compile(rb"[0-9a-fA-F]*")
+    _digits_star_regex = re.compile(rb"[0-9]*")
+    _fractional_suffix_regex = re.compile(rb"\.[0-9]*([eE][+-]?[0-9]+)?")
 
     def _lex_number(self, start_pos: Position) -> MLIRToken:
         """
         Lex a number literal, which is either a decimal or an hexadecimal.
         The first character is expected to have already been parsed.
         """
-        first_digit = self.input.at(self.pos - 1)
+        first_digit = self.input.slice(self.pos - 1, self.pos)
 
         # Hexadecimal case, we only parse it if we see the first '0x' characters,
         # and then a first digit.
         # Otherwise, a string like '0xi32' would not be parsed correctly.
         if (
-            first_digit == "0"
-            and self._peek_chars() == "x"
+            first_digit == b"0"
+            and self._peek_bytes() == b"x"
             and self._is_in_bounds(2)
-            and cast(str, self.input.at(self.pos + 1)) in hexdigits
+            and cast(int, self.input.at(self.pos + 1)) in b"0123456789abcdefABCDEF"
         ):
-            self._consume_chars(2)
+            self._consume_bytes(2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
 

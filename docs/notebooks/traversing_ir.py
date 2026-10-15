@@ -96,7 +96,7 @@ def _(Context, arith, builtin, func, scf):
 
 @app.cell
 def _(Parser, ctx, sum_of_squares_text, xmo):
-    sum_of_squares_module = Parser(ctx, sum_of_squares_text).parse_module()
+    sum_of_squares_module = Parser(ctx, sum_of_squares_text.encode("utf-8")).parse_module()
 
     # We can then parse and reprint the same module
     xmo.module_html(sum_of_squares_module)

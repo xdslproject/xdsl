@@ -12,31 +12,31 @@ from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (
     get_immutable_copy,
 )
 
-program_region = """
+program_region = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
 }) : () -> ()
 """
 
-program_region_2 = """
+program_region_2 = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
 }) : () -> ()
 """
 
-program_region_2_diff_name = """
+program_region_2_diff_name = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
 }) : () -> ()
 """
 
-program_region_2_diff_type = """
+program_region_2_diff_type = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i64}> : () -> i64
 }) : () -> ()
 """
 
-program_add = """
+program_add = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
@@ -44,7 +44,7 @@ program_add = """
 }) : () -> ()
 """
 
-program_add_2 = """
+program_add_2 = b"""
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
@@ -52,7 +52,7 @@ program_add_2 = """
 }) : () -> ()
 """
 
-program_func = """
+program_func = b"""
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"}> ({
   ^bb0(%0: i32, %1: i32):
@@ -62,7 +62,7 @@ program_func = """
 }) : () -> ()
 """
 
-program_successors = """
+program_successors = b"""
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"}> ({
   ^bb0:
@@ -73,7 +73,7 @@ program_successors = """
 }) : () -> ()
 """
 
-program_attr_and_prop = """
+program_attr_and_prop = b"""
 "builtin.module"() ({
   "test.op"() <{"prop1" = i32}> {"attr1" = i64} : () -> ()
 }) : () -> ()
@@ -94,7 +94,7 @@ program_attr_and_prop = """
         program_attr_and_prop,
     ],
 )
-def test_immutable_ir(program_str: str):
+def test_immutable_ir(program_str: bytes):
     ctx = Context()
     ctx.load_dialect(Test)
     ctx.load_dialect(Builtin)

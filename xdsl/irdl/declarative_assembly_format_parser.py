@@ -104,7 +104,7 @@ class FormatLexer(MLIRLexer):
         self._consume_whitespace()
 
         start_pos = self.pos
-        current_char = self._peek_chars()
+        current_char = self._peek_bytes()
 
         # Handle end of file
         if current_char is None:
@@ -112,13 +112,13 @@ class FormatLexer(MLIRLexer):
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$", "\\", "^"):
-            self._consume_chars()
+        if current_char in (b"`", b"$", b"\\", b"^"):
+            self._consume_bytes()
             return self._form_token(MLIRTokenKind.BARE_IDENT, start_pos)
         return super().lex()
 
     # Authorize `-` in bare identifier
-    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
+    bare_identifier_suffix_regex = re.compile(rb"[a-zA-Z0-9_$.\-]*")
 
 
 @dataclass(init=False)
@@ -148,7 +148,9 @@ class FormatParser(BaseParser):
     """The successor variables that are already parsed."""
 
     def __init__(self, input: str, op_def: OpDef):
-        super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
+        super().__init__(
+            ParserState(FormatLexer(Input(input.encode("utf-8"), "<input>")))
+        )
         self.op_def = op_def
         self.seen_operands = [False] * len(op_def.operands)
         self.seen_operand_types = [False] * len(op_def.operands)
@@ -737,7 +739,7 @@ class FormatParser(BaseParser):
         if self.parse_optional_characters("`"):
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
-            ]
+            ].decode("utf-8")
             if whitespace != " " and whitespace != "":
                 self.raise_error(
                     "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
@@ -915,7 +917,9 @@ class AttrFormatParser(BaseParser):
     attr_def: ParamAttrDef
 
     def __init__(self, input_str: str, attr_def: ParamAttrDef):
-        super().__init__(ParserState(FormatLexer(Input(input_str, "<attr-format>"))))
+        super().__init__(
+            ParserState(FormatLexer(Input(input_str.encode("utf-8"), "<attr-format>")))
+        )
         self.attr_def = attr_def
 
     def parse_format(self) -> AttrFormatProgram:
@@ -944,7 +948,7 @@ class AttrFormatParser(BaseParser):
         if self.parse_optional_characters("`"):
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
-            ]
+            ].decode("utf-8")
             if whitespace != " " and whitespace != "":
                 self.raise_error(
                     "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"

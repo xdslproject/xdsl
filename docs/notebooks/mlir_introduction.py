@@ -55,7 +55,7 @@ def _(mo, xmo):
         return module
 
     def parse_mlir(code: str) -> builtin.ModuleOp:
-        parser = Parser(get_ctx(), code)
+        parser = Parser(get_ctx(), code.encode("utf-8"))
         return parser.parse_module(code)
 
     def compilation_output(code_editor: Any) -> mo.md:

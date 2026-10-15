@@ -21,7 +21,7 @@ if __name__ == "__main__":
         ctx.register_dialect(n, f)
 
     # Open the IRDL description of cmath, parse it
-    f = (Path(__file__).parent / "cmath.irdl.mlir").open()
+    f = (Path(__file__).parent / "cmath.irdl.mlir").open("rb")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
 
