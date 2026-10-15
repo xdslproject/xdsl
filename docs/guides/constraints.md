@@ -324,6 +324,10 @@ The critical point is that the same `VerificationContext` must be passed through
 nested constraint verification calls. This ensures that variable assignments are shared
 across the entire constraint tree.
 
+Further, it is essential that a `VerifyException` in a nested constraint causes a
+`VerifyException` in the parent constraint, and so a `VerifyException` should only be
+caught if another one is immediately thrown in the catch block.
+
 ### VarConstraint and VerificationContext
 
 `VarConstraint` is the primary reason constraints need a verification context. A
