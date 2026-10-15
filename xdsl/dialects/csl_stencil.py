@@ -499,7 +499,7 @@ class AccessOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        temp = parser.parse_operand()
+        temp = parser.parse_unresolved_operand()
 
         index = 0
         offset = list[int]()
@@ -528,13 +528,13 @@ class AccessOp(IRDLOperation):
         res_type = parser.parse_attribute()
         if stencil.StencilTypeConstr.verifies(res_type):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[res_type.get_element_type()],
                 properties=props,
             )
         elif isa(res_type, TensorType):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[
                     TensorType(res_type.element_type, res_type.get_shape()[-1:])
                 ],
@@ -542,7 +542,7 @@ class AccessOp(IRDLOperation):
             )
         elif MemRefType.constr().verifies(res_type):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[
                     memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
                 ],

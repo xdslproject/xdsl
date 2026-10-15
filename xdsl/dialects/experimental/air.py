@@ -44,7 +44,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
@@ -341,13 +341,17 @@ class ExecuteTerminatorOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ExecuteTerminatorOp:
-        results_op: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters(":"):
-            results_op.append(parser.parse_operand())
-        while parser.parse_optional_type():
-            parser.parse_optional_characters(",")
-
-        return ExecuteTerminatorOp(results_op)
+        pos = parser.pos
+        operands = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
+        )
+        return ExecuteTerminatorOp(
+            list(parser.resolve_operands(operands or [], types or [], pos))
+        )
 
 
 @irdl_op_definition
@@ -476,26 +480,26 @@ class HerdOp(IRDLOperation):
 
         operands_lst: list[Operation | SSAValue] = []
         if parser.parse_optional_keyword("args"):
-            parser.parse_characters("(")
-            while True:
+
+            def parse_binding() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
                 argument = parser.parse_argument(expect_type=False)
-                parser.parse_characters("=")
-                operand = parser.parse_operand()
+                parser.parse_punctuation("=")
+                return argument, parser.parse_unresolved_operand()
 
-                # The type of the block argument is not known until the operand has been parsed, e.g. %ext0 = %arg0
-                argument = argument.resolve(operand.type)
-                arguments_lst.append(argument)
-                operands_lst.append(operand)
-
-                if not parser.parse_optional_characters(","):
-                    break
-            parser.parse_characters(")")
-
-            parser.parse_characters(":")
-
-            for n_arg in range(len(operands_lst)):
-                parser.parse_type()
-                parser.parse_optional_characters(",")
+            pos = parser.pos
+            bindings = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parse_binding
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            operands_lst.extend(
+                parser.resolve_operands([value for _, value in bindings], types, pos)
+            )
+            arguments_lst.extend(
+                argument.resolve(type) for (argument, _), type in zip(bindings, types)
+            )
 
         parser.parse_keyword("attributes")
         parser.parse_optional_attr_dict()
@@ -584,24 +588,26 @@ class LaunchOp(IRDLOperation):
         launch_operands_lst: list[Operation | SSAValue] = []
         attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("args"):
-            parser.parse_characters("(")
-            while True:
+
+            def parse_binding() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
                 argument = parser.parse_argument(expect_type=False)
-                parser.parse_characters("=")
-                operand = parser.parse_operand()
+                parser.parse_punctuation("=")
+                return argument, parser.parse_unresolved_operand()
 
-                argument = argument.resolve(operand.type)
-                block_args_lst.append(argument)
-                launch_operands_lst.append(operand)
-
-                if not parser.parse_optional_characters(","):
-                    break
-            parser.parse_characters(")")
-
-            parser.parse_characters(":")
-            for _ in range(len(launch_operands_lst)):
-                parser.parse_type()
-                parser.parse_optional_characters(",")
+            pos = parser.pos
+            bindings = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parse_binding
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            launch_operands_lst.extend(
+                parser.resolve_operands([value for _, value in bindings], types, pos)
+            )
+            block_args_lst.extend(
+                argument.resolve(type) for (argument, _), type in zip(bindings, types)
+            )
 
             if parser.parse_optional_keyword("attributes"):
                 attr_dict = parser.parse_optional_attr_dict()
@@ -668,31 +674,32 @@ class SegmentOp(IRDLOperation):
         arguments_lst: list[Parser.Argument] = []
         segment_operands_lst: list[Operation | SSAValue] = []
         if parser.parse_optional_keyword("args"):
-            if parser.parse_optional_characters("("):
-                while True:
-                    argument = parser.parse_argument(expect_type=False)
-                    parser.parse_characters("=")
-                    operand = parser.parse_operand()
 
-                    argument = argument.resolve(operand.type)
-                    arguments_lst.append(argument)
-                    segment_operands_lst.append(operand)
+            def parse_binding() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
+                argument = parser.parse_argument(expect_type=False)
+                parser.parse_punctuation("=")
+                return argument, parser.parse_unresolved_operand()
 
-                    if not parser.parse_optional_characters(","):
-                        break
-                parser.parse_characters(")")
-
-            parser.parse_characters(":")
-
-            for _ in range(len(segment_operands_lst)):
-                parser.parse_type()
-                parser.parse_optional_characters(",")
+            pos = parser.pos
+            bindings = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parse_binding
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            segment_operands_lst.extend(
+                parser.resolve_operands([value for _, value in bindings], types, pos)
+            )
+            arguments_lst.extend(
+                argument.resolve(type) for (argument, _), type in zip(bindings, types)
+            )
 
         attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("attributes"):
             attr_dict = parser.parse_optional_attr_dict()
 
-        body = parser.parse_optional_region()
+        body = parser.parse_optional_region(arguments_lst)
 
         segment_op = SegmentOp(
             sym_name, async_dependencies, sizes, segment_operands_lst, body

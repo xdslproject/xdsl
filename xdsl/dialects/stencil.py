@@ -573,11 +573,11 @@ class ApplyOp(IRDLOperation):
         def parse_assign_args():
             arg = parser.parse_argument(expect_type=False)
             parser.parse_punctuation("=")
-            value = parser.parse_operand()
+            value = parser.parse_unresolved_operand()
             parser.parse_punctuation(":")
             type = parser.parse_attribute()
             arg = arg.resolve(type)
-            return arg, value
+            return arg, parser.resolve_operand(value, type)
 
         def parse_operand():
             op = parser.parse_unresolved_operand()
@@ -1109,7 +1109,7 @@ class AccessOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        temp = parser.parse_operand()
+        temp = parser.parse_unresolved_operand()
 
         index = 0
         offset = list[int]()
@@ -1141,7 +1141,9 @@ class AccessOp(IRDLOperation):
                 "Expected return type to be a stencil.temp or stencil.field"
             )
         return cls.build(
-            operands=[temp], result_types=[res_type.element_type], attributes=attrs
+            operands=[parser.resolve_operand(temp, res_type)],
+            result_types=[res_type.element_type],
+            attributes=attrs,
         )
 
     def verify_(self) -> None:

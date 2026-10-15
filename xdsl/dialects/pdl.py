@@ -57,24 +57,13 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
     """
     pos = parser.pos
     operands = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_operand
+        Parser.Delimiter.NONE, parser.parse_unresolved_operand
     )
     parser.parse_punctuation(":")
     types = parser.parse_comma_separated_list(
         Parser.Delimiter.NONE, parser.parse_attribute
     )
-    end_pos = parser.pos
-    if len(operands) != len(types):
-        parser.raise_error(
-            "Mismatched between the numbers of operands and types", pos, end_pos
-        )
-    for operand, type in zip(operands, types):
-        if operand.type != type:
-            parser.raise_error(
-                "Mismatched between operands and their types", pos, end_pos
-            )
-
-    return operands
+    return list(parser.resolve_operands(operands, types, pos))
 
 
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
