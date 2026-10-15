@@ -257,29 +257,29 @@ MLIRToken = Token[MLIRTokenKind]
 class MLIRLexer(Lexer[MLIRTokenKind]):
     def _is_in_bounds(self, *, offset: Position) -> bool:
         """
-        Check if the position at the given lookahead offset is within the input.
+        Check whether `pos + offset` is before EOF; offset 0 checks `pos` itself.
         """
         return self.pos + offset < self.input.len
 
-    def _get_chars(self, *, offset: int = 1) -> str | None:
+    def _get_chars(self, *, offset: Position = 1) -> str | None:
         """
-        Get the character at the current location, or multiple characters ahead.
-        Return None if the position is out of bounds.
+        Read `[pos, pos + offset)` and advance by `offset`, even on failure.
+        The exclusive end may equal EOF; return None if it exceeds EOF.
         """
         res = self.input.slice(self.pos, self.pos + offset)
         self.pos += offset
         return res
 
-    def _peek_chars(self, *, offset: int = 1) -> str | None:
+    def _peek_chars(self, *, offset: Position = 1) -> str | None:
         """
-        Peek at the character at the current location, or multiple characters ahead.
-        Return None if the position is out of bounds.
+        Read `[pos, pos + offset)` without advancing.
+        The exclusive end may equal EOF; return None if it exceeds EOF.
         """
         return self.input.slice(self.pos, self.pos + offset)
 
-    def _consume_chars(self, *, offset: int = 1) -> None:
+    def _consume_chars(self, *, offset: Position = 1) -> None:
         """
-        Advance the lexer position in the input by the given amount.
+        Advance by `offset` source units without checking bounds.
         """
         self.pos += offset
 
