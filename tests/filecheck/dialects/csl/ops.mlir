@@ -70,6 +70,8 @@ csl.func @initialize() {
 
     %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 
+    %str = csl.const_str "hello world"
+
     %three = arith.constant 3 : i16
     %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 
@@ -382,6 +384,7 @@ csl.func @builtins() {
 // CHECK-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"], items = {i = 42 : i32, f = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:       %str = csl.const_str "hello world"
 // CHECK-NEXT:       %three = arith.constant 3 : i16
 // CHECK-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 // CHECK-NEXT:       %three_ui = csl.mlir.signedness_cast %three : i16 to ui16
@@ -632,6 +635,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"], items = {i = 42 : i32, f = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-GENERIC-NEXT:       %str = "csl.const_str"() <{value = "hello world"}> : () -> !csl.comptime_string
 // CHECK-GENERIC-NEXT:       %three = "arith.constant"() <{value = 3 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 // CHECK-GENERIC-NEXT:       %three_ui = "csl.mlir.signedness_cast"(%three) : (i16) -> ui16
