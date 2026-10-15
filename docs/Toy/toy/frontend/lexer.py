@@ -63,33 +63,33 @@ ToyToken: TypeAlias = Token[ToyTokenKind]
 
 
 class ToyLexer(Lexer[ToyTokenKind]):
-    def _is_in_bounds(self, size: Position = 1) -> bool:
+    def _is_in_bounds(self, *, offset: Position) -> bool:
         """
-        Check if the current position is within the bounds of the input.
+        Check if the position at the given lookahead offset is within the input.
         """
-        return self.pos + size - 1 < self.input.len
+        return self.pos + offset < self.input.len
 
-    def _get_chars(self, size: int = 1) -> str | None:
+    def _get_chars(self, *, offset: Position = 1) -> str | None:
         """
         Get the character at the current location, or multiple characters ahead.
         Return None if the position is out of bounds.
         """
-        res = self.input.slice(self.pos, self.pos + size)
-        self.pos += size
+        res = self.input.slice(self.pos, self.pos + offset)
+        self.pos += offset
         return res
 
-    def _peek_chars(self, size: int = 1) -> str | None:
+    def _peek_chars(self, *, offset: Position = 1) -> str | None:
         """
         Peek at the character at the current location, or multiple characters ahead.
         Return None if the position is out of bounds.
         """
-        return self.input.slice(self.pos, self.pos + size)
+        return self.input.slice(self.pos, self.pos + offset)
 
-    def _consume_chars(self, size: int = 1) -> None:
+    def _consume_chars(self, *, offset: Position = 1) -> None:
         """
         Advance the lexer position in the input by the given amount.
         """
-        self.pos += size
+        self.pos += offset
 
     def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
@@ -171,10 +171,10 @@ class ToyLexer(Lexer[ToyTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(2)
+            and self._is_in_bounds(offset=2)
             and cast(str, self.input.at(self.pos + 1)) in hexdigits
         ):
-            self._consume_chars(2)
+            self._consume_chars(offset=2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(ToyTokenKind.NUMBER, start_pos)
 

@@ -10,19 +10,18 @@ from typing_extensions import TypeVar
 
 Position = int
 """
-A position in a file.
-The position correspond to the character index in the file.
+A source coordinate measured in Unicode code points for `str`, or bytes for `bytes`.
 """
 
 
 class Location(NamedTuple):
-    "Structure definition a location in a file."
+    """A file location using the originating input's coordinate units."""
 
     file: str
     line: int
-    "1-index of line in file"
-    col: int
-    "1-index of column in file"
+    "One-based line number."
+    col: Position
+    "One-based position within the line."
 
     def __str__(self) -> str:
         return f"{self.file}:{self.line}:{self.col}"
@@ -84,11 +83,11 @@ class Span:
 
     start: Position
     """
-    Start of tokens location in source file, global byte offset in file
+    Inclusive, zero-based start position within the input.
     """
     end: Position
     """
-    End of tokens location in source file, global byte offset in file
+    Exclusive, zero-based end position within the input.
     """
     input: Input
     """
@@ -174,7 +173,7 @@ class Lexer(ABC, Generic[TokenKindT]):
 
     pos: Position = field(init=False, default=0)
     """
-    Current position in the input.
+    Current zero-based position within the input.
     The position can be out of bounds, in which case the lexer is in EOF state.
     """
 

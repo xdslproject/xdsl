@@ -255,33 +255,33 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
-    def _is_in_bounds(self, size: Position = 1) -> bool:
+    def _is_in_bounds(self, *, offset: int) -> bool:
         """
         Check if the current position is within the bounds of the input.
         """
-        return self.pos + size - 1 < self.input.len
+        return self.pos + offset - 1 < self.input.len
 
-    def _get_chars(self, size: int = 1) -> str | None:
+    def _get_chars(self, *, offset: int = 1) -> str | None:
         """
         Get the character at the current location, or multiple characters ahead.
         Return None if the position is out of bounds.
         """
-        res = self.input.slice(self.pos, self.pos + size)
-        self.pos += size
+        res = self.input.slice(self.pos, self.pos + offset)
+        self.pos += offset
         return res
 
-    def _peek_chars(self, size: int = 1) -> str | None:
+    def _peek_chars(self, *, offset: int = 1) -> str | None:
         """
         Peek at the character at the current location, or multiple characters ahead.
         Return None if the position is out of bounds.
         """
-        return self.input.slice(self.pos, self.pos + size)
+        return self.input.slice(self.pos, self.pos + offset)
 
-    def _consume_chars(self, size: int = 1) -> None:
+    def _consume_chars(self, *, offset: int = 1) -> None:
         """
         Advance the lexer position in the input by the given amount.
         """
-        self.pos += size
+        self.pos += offset
 
     def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
@@ -349,7 +349,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # '...'
         if current_char == ".":
-            if self._get_chars(2) != "..":
+            if self._get_chars(offset=2) != "..":
                 raise ParseError(
                     Span(start_pos, start_pos + 1, self.input),
                     "Expected three consecutive '.' for an ellipsis",
@@ -365,14 +365,14 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # '{' and '{-#'
         if current_char == "{":
-            if self._peek_chars(2) == "-#":
-                self._consume_chars(2)
+            if self._peek_chars(offset=2) == "-#":
+                self._consume_chars(offset=2)
                 return self._form_token(MLIRTokenKind.FILE_METADATA_BEGIN, start_pos)
             return self._form_token(MLIRTokenKind.L_BRACE, start_pos)
 
         # '#-}'
-        if current_char == "#" and self._peek_chars(2) == "-}":
-            self._consume_chars(2)
+        if current_char == "#" and self._peek_chars(offset=2) == "-}":
+            self._consume_chars(offset=2)
             return self._form_token(MLIRTokenKind.FILE_METADATA_END, start_pos)
 
         # '@' and at-identifier
@@ -534,10 +534,10 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(2)
+            and self._is_in_bounds(offset=2)
             and cast(str, self.input.at(self.pos + 1)) in hexdigits
         ):
-            self._consume_chars(2)
+            self._consume_chars(offset=2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
 
