@@ -12,7 +12,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.utils.comparisons import to_signed
+from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -137,27 +137,33 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.CmpiOp)
     def run_cmpi(self, interpreter: Interpreter, op: arith.CmpiOp, args: PythonValues):
-        match op.predicate.value.data:
+        assert isa(op.lhs.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.lhs.type)
+        predicate = op.predicate.value.data
+        interpret = to_unsigned if predicate >= 6 else to_signed
+        lhs = interpret(args[0], bitwidth)
+        rhs = interpret(args[1], bitwidth)
+        match predicate:
             case 0:  # "eq"
-                return (args[0] == args[1],)
+                return (lhs == rhs,)
             case 1:  # "ne"
-                return (args[0] != args[1],)
+                return (lhs != rhs,)
             case 2:  # "slt"
-                return (args[0] < args[1],)
+                return (lhs < rhs,)
             case 3:  # "sle"
-                return (args[0] <= args[1],)
+                return (lhs <= rhs,)
             case 4:  # "sgt"
-                return (args[0] > args[1],)
+                return (lhs > rhs,)
             case 5:  # "sge"
-                return (args[0] >= args[1],)
+                return (lhs >= rhs,)
             case 6:  # "ult"
-                return (args[0] < args[1],)
+                return (lhs < rhs,)
             case 7:  # "ule"
-                return (args[0] <= args[1],)
+                return (lhs <= rhs,)
             case 8:  # "ugt"
-                return (args[0] > args[1],)
+                return (lhs > rhs,)
             case 9:  # "uge"
-                return (args[0] >= args[1],)
+                return (lhs >= rhs,)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
