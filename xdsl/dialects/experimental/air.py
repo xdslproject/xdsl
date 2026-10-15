@@ -8,8 +8,6 @@ of the original dialect can be found here https://xilinx.github.io/mlir-air/AIRD
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
@@ -19,7 +17,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -620,133 +617,6 @@ class LaunchOp(IRDLOperation):
 
 
 @irdl_op_definition
-class HerdPipelineOp(IRDLOperation):
-    name = "air.pipeline"
-
-    body = opt_region_def()
-
-    traits = traits_def(HasParent(HerdOp))
-
-    def __init__(self, body: Region | None):
-        super().__init__(regions=[body])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> HerdPipelineOp:
-        attr_dict: dict[str, Attribute] = dict()
-        if parser.parse_optional_keyword("attributes"):
-            attr_dict = parser.parse_optional_attr_dict()
-
-        body = parser.parse_optional_region()
-
-        herd_pipeline_op = HerdPipelineOp(body)
-        herd_pipeline_op.attributes |= attr_dict
-
-        return herd_pipeline_op
-
-
-@irdl_op_definition
-class PipelineGetOp(IRDLOperation):
-    name = "air.pipeline.get"
-
-    src0 = operand_def(Attribute)
-    src1 = operand_def(Attribute)
-    results = var_result_def(Attribute)
-
-    def __init__(
-        self,
-        src0: Operation | SSAValue,
-        src1: Operation | SSAValue,
-        result_types: list[Attribute],
-    ):
-        super().__init__(operands=[src0, src1], result_types=result_types)
-
-
-@irdl_op_definition
-class PipelinePutOp(IRDLOperation):
-    name = "air.pipeline.put"
-
-    dst0 = operand_def(Attribute)
-    dst1 = operand_def(Attribute)
-    opers = var_operand_def(Attribute)
-
-    def __init__(
-        self,
-        dst0: Operation | SSAValue,
-        dst1: Operation | SSAValue,
-        opers: list[Operation | SSAValue],
-    ):
-        super().__init__(operands=[dst0, dst1, opers])
-
-
-@irdl_op_definition
-class PipelineStageOp(IRDLOperation):
-    name = "air.pipeline.stage"
-
-    opers = var_operand_def(Attribute)
-    result = var_result_def()
-
-    body = opt_region_def()
-
-    traits = traits_def(HasParent(HerdPipelineOp))
-
-    def __init__(
-        self,
-        opers: list[Operation | SSAValue],
-        result_types: Sequence[Attribute],
-        body: Region | None,
-    ):
-        if not result_types:
-            result_types = []
-        super().__init__(operands=[opers], result_types=[result_types], regions=[body])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> PipelineStageOp:
-        kernel_ops_lst: list[Operation | SSAValue] = []
-        result_types_lst: list[Attribute] = []
-
-        arguments_lst: list[Parser.Argument] = []
-        pipeline_operands_lst: list[Operation | SSAValue] = []
-        if parser.parse_optional_keyword("args"):
-            parser.parse_characters("(")
-            while not parser.parse_optional_characters(")"):
-                argument = parser.parse_argument(expect_type=False)
-                parser.parse_characters("=")
-                operand = parser.parse_operand()
-                pipeline_operands_lst.append(operand)
-
-                argument = argument.resolve(operand.type)
-                arguments_lst.append(argument)
-
-                parser.parse_optional_characters(",")
-
-            if parser.parse_optional_characters(":"):
-                for _ in range(len(arguments_lst)):
-                    parser.parse_type()
-                    parser.parse_optional_characters(",")
-
-        body = parser.parse_optional_region(arguments=arguments_lst)
-        if parser.parse_optional_characters(":"):
-            result_types_lst.append(parser.parse_type())
-            parser.parse_optional_characters(",")
-
-        return PipelineStageOp(kernel_ops_lst, result_types_lst, body)
-
-
-@irdl_op_definition
-class PipelineTerminatorOp(AbstractYieldOperation[Attribute]):
-    name = "air.pipeline.terminator"
-
-    traits = traits_def(HasParent(HerdPipelineOp), IsTerminator())
-
-
-@irdl_op_definition
-class PipelineYieldOp(AbstractYieldOperation[Attribute]):
-    name = "air.pipeline.yield"
-
-    traits = traits_def(HasParent(PipelineStageOp), IsTerminator())
-
-
-@irdl_op_definition
 class SegmentTerminatorOp(IRDLOperation):
     name = "air.segment_terminator"
 
@@ -872,12 +742,6 @@ AIR = Dialect(
         HerdTerminatorOp,
         LaunchOp,
         LaunchTerminatorOp,
-        HerdPipelineOp,
-        PipelineGetOp,
-        PipelinePutOp,
-        PipelineStageOp,
-        PipelineTerminatorOp,
-        PipelineYieldOp,
         SegmentOp,
         SegmentTerminatorOp,
         WaitAllOp,
