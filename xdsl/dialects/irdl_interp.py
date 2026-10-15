@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    prop_def,
     result_def,
 )
 
@@ -55,6 +56,9 @@ class NewVarAttrOp(IRDLOperation):
 
     assembly_format = "attr-dict"
 
+    def __init__(self):
+        super().__init__(result_types=[VariableAttrType()])
+
 
 @irdl_op_definition
 class NewVarRangeOp(IRDLOperation):
@@ -65,6 +69,9 @@ class NewVarRangeOp(IRDLOperation):
 
     assembly_format = "attr-dict"
 
+    def __init__(self):
+        super().__init__(result_types=[VariableRangeType()])
+
 
 @irdl_op_definition
 class NewVarIntOp(IRDLOperation):
@@ -74,6 +81,26 @@ class NewVarIntOp(IRDLOperation):
     result = result_def(VariableIntType)
 
     assembly_format = "attr-dict"
+
+    def __init__(self):
+        super().__init__(result_types=[VariableIntType()])
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    """Wrap a concrete attribute value."""
+
+    name = "irdl_interp.constant.attr"
+    value = prop_def(Attribute)
+    result = result_def(AttrType)
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: Attribute):
+        super().__init__(
+            properties={"value": value},
+            result_types=[AttrType()],
+        )
 
 
 # ==============================================================================
@@ -86,6 +113,7 @@ IRDLInterp = Dialect(
         NewVarAttrOp,
         NewVarRangeOp,
         NewVarIntOp,
+        ConstantOp,
     ],
     [
         VariableAttrType,

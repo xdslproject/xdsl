@@ -12,3 +12,11 @@
 // CHECK: %var_int = irdl_interp.new_var.int
 // CHECK-GENERIC: %var_int = "irdl_interp.new_var.int"() : () -> !irdl_interp.variable.int
 %var_int = irdl_interp.new_var.int
+
+// CHECK: %attr = irdl_interp.constant.attr i32
+// CHECK-GENERIC: %attr = "irdl_interp.constant.attr"() <{value = i32}> : () -> !irdl_interp.attr
+%attr = irdl_interp.constant.attr i32
+
+// CHECK: %attr2 = irdl_interp.constant.attr true
+// CHECK-GENERIC: %attr2 = "irdl_interp.constant.attr"() <{value = true}> : () -> !irdl_interp.attr
+%attr2 = irdl_interp.constant.attr true
