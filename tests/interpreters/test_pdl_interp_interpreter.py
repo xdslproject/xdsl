@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    OpImplResult,
     PythonValues,
     Successor,
     impl_external,
@@ -632,6 +633,16 @@ def test_replace_with_range_invalid():
     with pytest.raises(InterpretationError):
         # include one result too little:
         interpreter.run_op(replace_op, (target_op, c0, (c1,), c3))
+
+
+def test_branch():
+    interpreter = Interpreter(ModuleOp([]))
+    destination = Block()
+    op = pdl_interp.BranchOp(destination)
+
+    assert PDLInterpFunctions().run_branch(interpreter, op, ()) == OpImplResult(
+        (), Successor(destination, ())
+    )
 
 
 def test_func():
