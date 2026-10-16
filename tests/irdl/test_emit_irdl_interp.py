@@ -12,7 +12,7 @@ from xdsl.dialects.irdl_interp import (
     UnifyAttrOp,
 )
 from xdsl.ir import Block
-from xdsl.irdl import AnyAttr, BaseAttr, VarConstraint
+from xdsl.irdl import AnyAttr, BaseAttr, EqAttrConstraint, VarConstraint
 from xdsl.irdl.emit_irdl_interp import EmitContext
 from xdsl.rewriter import InsertPoint
 
@@ -163,3 +163,40 @@ def test_var_constraint_emit_with_base_attr():
     assert isinstance(unify_op, UnifyAttrOp)
     assert unify_op.lhs is constant_op.result
     assert unify_op.rhs is var_op.result
+
+
+def test_eq_attr_constraint_emit():
+    """Test that EqAttrConstraint.emit_irdl_interp generates constant + unify."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a constant attribute value to test with (the value to verify)
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    # Create empty context (EqAttrConstraint doesn't need variables)
+    context = EmitContext()
+
+    # Create EqAttrConstraint with a specific attribute value
+    expected_attr = IntegerAttr.from_index_int_value(42)
+    eq_constraint = EqAttrConstraint(expected_attr)
+    eq_constraint.emit_irdl_interp(value_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: value ConstantOp, constraint ConstantOp, UnifyAttrOp
+    assert len(ops) == 3
+
+    # Check that ConstantOp was created for the constraint
+    constraint_constant_op = ops[1]
+    assert isinstance(constraint_constant_op, ConstantOp)
+    assert constraint_constant_op.value == expected_attr
+
+    # Check that UnifyAttrOp was created
+    unify_op = ops[2]
+    assert isinstance(unify_op, UnifyAttrOp)
+    assert unify_op.lhs is value_op.result
+    assert unify_op.rhs is constraint_constant_op.result

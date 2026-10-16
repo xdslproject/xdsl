@@ -419,6 +419,16 @@ class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     ) -> AttrConstraint[AttributeCovT]:
         return self
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+        context: EmitContext,
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_eq_attr_constraint_irdl_interp
+
+        emit_eq_attr_constraint_irdl_interp(self, value, builder)
+
 
 @dataclass(frozen=True)
 class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):

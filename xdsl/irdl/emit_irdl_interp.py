@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, UnifyAttrOp
+from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp, UnifyAttrOp
 from xdsl.ir import SSAValue
-from xdsl.irdl import BaseAttr, VarConstraint
+from xdsl.irdl import BaseAttr, EqAttrConstraint, VarConstraint
 
 
 @dataclass(frozen=True)
@@ -108,4 +108,30 @@ def emit_var_constraint_irdl_interp(
 
     # Unify the value with the variable
     unify_op = UnifyAttrOp(value, var_ssa)
+    builder.insert(unify_op)
+
+
+def emit_eq_attr_constraint_irdl_interp(
+    constraint: EqAttrConstraint,
+    value: SSAValue,
+    builder: Builder,
+) -> None:
+    """
+    Emit irdl_interp IR to verify an EqAttrConstraint.
+
+    Generates:
+      %concrete = irdl_interp.constant.attr <attr>
+      irdl_interp.unify.attr %value : !irdl_interp.attr and %concrete : !irdl_interp.attr
+
+    Args:
+        constraint: The EqAttrConstraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+    """
+    # Create a constant operation with the attribute value
+    constant_op = ConstantOp(constraint.attr)
+    builder.insert(constant_op)
+
+    # Unify the value with the constant
+    unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
