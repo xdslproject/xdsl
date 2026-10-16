@@ -21,6 +21,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return apply_eqsat_pdl_interp.ApplyEqsatPDLInterpPass
 
+    def get_apply_match():
+        from xdsl.transforms.apply_match import ApplyMatchPass
+
+        return ApplyMatchPass
+
     def get_apply_pdl():
         from xdsl.transforms import apply_pdl
 
@@ -101,6 +106,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass
 
+    def get_convert_match_to_pdl_interp():
+        from xdsl.transforms.convert_match_to_pdl_interp import (
+            ConvertMatchToPDLInterpPass,
+        )
+
+        return ConvertMatchToPDLInterpPass
+
     def get_convert_memref_stream_to_loops():
         from xdsl.transforms import convert_memref_stream_to_loops
 
@@ -127,13 +139,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import convert_ml_program_to_memref
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
-
-    def get_convert_match_to_pdl_interp():
-        from xdsl.transforms.convert_match_to_pdl_interp import (
-            ConvertMatchToPDLInterpPass,
-        )
-
-        return ConvertMatchToPDLInterpPass
 
     def get_convert_pdl_interp_to_eqsat_pdl_interp():
         from xdsl.transforms import convert_pdl_interp_to_eqsat_pdl_interp
@@ -690,6 +695,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-individual-rewrite": get_apply_individual_rewrite,
         "apply-eqsat-pdl": get_apply_eqsat_pdl,
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
+        "apply-match": get_apply_match,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
         "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
@@ -707,12 +713,12 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "expand-math-to-polynomials": get_expand_math_to_polynomials,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
+        "convert-match-to-pdl-interp": get_convert_match_to_pdl_interp,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
-        "convert-match-to-pdl-interp": get_convert_match_to_pdl_interp,
         "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
         "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,

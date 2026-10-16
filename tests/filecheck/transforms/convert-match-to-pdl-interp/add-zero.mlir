@@ -1,4 +1,5 @@
 // RUN: cat %p/../../dialects/match/add-zero.mlir %s | xdsl-opt -p convert-match-to-pdl-interp,apply-pdl-interp | filecheck %s
+// RUN: cat %p/../../dialects/match/add-zero.mlir %s | xdsl-opt -p apply-match | filecheck %s
 
 // Reuse the handwritten Match pattern and its PDLInterp rewriter.
 // Matching must forward the lhs, not the zero rhs or location operands.

@@ -1,9 +1,10 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, match, pdl, pdl_interp, test
+from xdsl.dialects import arith, builtin, func, match, pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     IntegerAttr,
     ModuleOp,
@@ -12,9 +13,13 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.interpreter import Interpreter
 from xdsl.interpreters.match import MatchResult, run_match_op, run_matcher
-from xdsl.ir import Block
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Block, Region
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.transforms.convert_match_to_pdl_interp import ConvertMatchToPDLInterpPass
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
@@ -99,25 +104,45 @@ def test_add_zero_captures_and_reuse():
     module = Parser(ctx, path.read_text()).parse_module()
     module.verify()
     matcher = next(op for op in module.walk() if isinstance(op, match.MatcherOp))
-    lhs = Block(arg_types=[i32]).args[0]
+    lowered = module.clone()
+    ConvertMatchToPDLInterpPass().apply(ctx, lowered)
+    lowered.verify()
+    lowered_interpreter = Interpreter(lowered)
+    pdl_functions = PDLInterpFunctions()
+    lowered_interpreter.register_implementations(pdl_functions)
+
+    block = Block(arg_types=[i32])
+    lhs = block.args[0]
     zero = arith.ConstantOp.from_int_and_width(0, i32)
     seven = arith.ConstantOp.from_int_and_width(7, i32)
     first = arith.AddiOp(lhs, zero)
     second = arith.AddiOp(seven, zero)
-    payload = ModuleOp([zero, seven, first, second])
-    before = payload.clone()
-    for root, expected in (
+    cases = (
         (first, (first, lhs)),
         (arith.AddiOp(lhs, seven), None),
         (second, (second, seven.result)),
         (arith.AddiOp(zero, lhs), None),
         (arith.SubiOp(lhs, zero), None),
-    ):
+    )
+    block.add_ops(
+        [zero, seven, *(root for root, _ in cases), func.ReturnOp(first, second)]
+    )
+    payload = ModuleOp([func.FuncOp("payload", ([i32], [i32, i32]), Region(block))])
+    payload.verify()
+    before = payload.clone()
+    symbol = SymbolRefAttr("rewriters", ["add_zero"])
+    for root, expected in cases:
         assert run_matcher(matcher, root) == (
-            None
-            if expected is None
-            else MatchResult(SymbolRefAttr("rewriters", ["add_zero"]), expected)
+            None if expected is None else MatchResult(symbol, expected)
         )
+        pdl_functions.set_rewriter(lowered_interpreter, PatternRewriter(root))
+        lowered_interpreter.call_op("matcher", (root,))
+        with patch.object(lowered_interpreter, "call_op") as rewrite:
+            pdl_functions.apply_pending_rewrites(lowered_interpreter)
+            if expected is None:
+                rewrite.assert_not_called()
+            else:
+                rewrite.assert_called_once_with(symbol, expected)
     assert payload.is_structurally_equivalent(before)
 
 
