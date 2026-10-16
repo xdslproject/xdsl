@@ -13,6 +13,12 @@
   !irdl_interp.attr,
   // CHECK-SAME: !irdl_interp.attr
 
-  !irdl_interp.operation
+  !irdl_interp.operation,
   // CHECK-SAME: !irdl_interp.operation
+
+  !irdl_interp.region,
+  // CHECK-SAME: !irdl_interp.region
+
+  !irdl_interp.block
+  // CHECK-SAME: !irdl_interp.block
 ]}: () -> ()

@@ -64,6 +64,20 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
     name = "irdl_interp.operation"
 
 
+@irdl_attr_definition
+class RegionType(ParametrizedAttribute, TypeAttribute):
+    """Type for region handles."""
+
+    name = "irdl_interp.region"
+
+
+@irdl_attr_definition
+class BlockType(ParametrizedAttribute, TypeAttribute):
+    """Type for block handles (successors)."""
+
+    name = "irdl_interp.block"
+
+
 # ==============================================================================
 # Operations
 # ==============================================================================
@@ -282,6 +296,38 @@ class GetPropCountOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class GetRegionsOp(IRDLOperation):
+    """Extract all regions as a tensor."""
+
+    name = "irdl_interp.get_regions"
+    op = operand_def(OperationType)
+    result = result_def(TensorType(RegionType(), (DYNAMIC_INDEX,)))
+
+    assembly_format = "$op attr-dict"
+
+    def __init__(self, op: SSAValue | Operation):
+        super().__init__(
+            operands=[op], result_types=[TensorType(RegionType(), (DYNAMIC_INDEX,))]
+        )
+
+
+@irdl_op_definition
+class GetSuccessorsOp(IRDLOperation):
+    """Extract all successors as a tensor."""
+
+    name = "irdl_interp.get_successors"
+    op = operand_def(OperationType)
+    result = result_def(TensorType(BlockType(), (DYNAMIC_INDEX,)))
+
+    assembly_format = "$op attr-dict"
+
+    def __init__(self, op: SSAValue | Operation):
+        super().__init__(
+            operands=[op], result_types=[TensorType(BlockType(), (DYNAMIC_INDEX,))]
+        )
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -303,6 +349,8 @@ IRDLInterp = Dialect(
         GetResultTypesOp,
         GetParamsOp,
         GetPropCountOp,
+        GetRegionsOp,
+        GetSuccessorsOp,
     ],
     [
         VariableAttrType,
@@ -310,5 +358,7 @@ IRDLInterp = Dialect(
         VariableIntType,
         AttrType,
         OperationType,
+        RegionType,
+        BlockType,
     ],
 )

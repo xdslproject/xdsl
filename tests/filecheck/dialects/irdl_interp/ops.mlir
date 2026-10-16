@@ -95,3 +95,11 @@ irdl_interp.assert %check_attr, "Expected IntegerType"
 // CHECK: %prop_count = irdl_interp.get_prop_count %op
 // CHECK-GENERIC: %prop_count = "irdl_interp.get_prop_count"(%op) : (!irdl_interp.operation) -> index
 %prop_count = irdl_interp.get_prop_count %op
+
+// CHECK: %regions = irdl_interp.get_regions %op
+// CHECK-GENERIC: %regions = "irdl_interp.get_regions"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.region>
+%regions = irdl_interp.get_regions %op
+
+// CHECK: %successors = irdl_interp.get_successors %op
+// CHECK-GENERIC: %successors = "irdl_interp.get_successors"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.block>
+%successors = irdl_interp.get_successors %op

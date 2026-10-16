@@ -79,6 +79,24 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   // CHECK: irdl_interp.unify.int %prop_count : index and %one : index
   irdl_interp.unify.int %prop_count : index and %one : index
 
+  // Check no regions (arith.addi has no regions)
+  // CHECK: %regions = irdl_interp.get_regions %op
+  %regions = irdl_interp.get_regions %op
+  // CHECK: %region_count = tensor.dim %regions, %[[C0]] : tensor<?x!irdl_interp.region>
+  %region_count = tensor.dim %regions, %c0 : tensor<?x!irdl_interp.region>
+  // CHECK: %zero = arith.constant 0 : index
+  %zero = arith.constant 0 : index
+  // CHECK: irdl_interp.unify.int %region_count : index and %zero : index
+  irdl_interp.unify.int %region_count : index and %zero : index
+
+  // Check no successors (arith.addi has no successors)
+  // CHECK: %successors = irdl_interp.get_successors %op
+  %successors = irdl_interp.get_successors %op
+  // CHECK: %succ_count = tensor.dim %successors, %[[C0]] : tensor<?x!irdl_interp.block>
+  %succ_count = tensor.dim %successors, %c0 : tensor<?x!irdl_interp.block>
+  // CHECK: irdl_interp.unify.int %succ_count : index and %zero : index
+  irdl_interp.unify.int %succ_count : index and %zero : index
+
   func.return
 }
 
@@ -111,5 +129,12 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 // CHECK-GENERIC-NEXT:   "irdl_interp.assert"(%overflow_check) <{message = "Expected IntegerOverflowAttr"}> : (i1) -> ()
 // CHECK-GENERIC-NEXT:   %prop_count = "irdl_interp.get_prop_count"(%op) : (!irdl_interp.operation) -> index
 // CHECK-GENERIC-NEXT:   "irdl_interp.unify.int"(%prop_count, %one) : (index, index) -> ()
+// CHECK-GENERIC-NEXT:   %regions = "irdl_interp.get_regions"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.region>
+// CHECK-GENERIC-NEXT:   %region_count = "tensor.dim"(%regions, %c0) : (tensor<?x!irdl_interp.region>, index) -> index
+// CHECK-GENERIC-NEXT:   %zero = "arith.constant"() <{value = 0 : index}> : () -> index
+// CHECK-GENERIC-NEXT:   "irdl_interp.unify.int"(%region_count, %zero) : (index, index) -> ()
+// CHECK-GENERIC-NEXT:   %successors = "irdl_interp.get_successors"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.block>
+// CHECK-GENERIC-NEXT:   %succ_count = "tensor.dim"(%successors, %c0) : (tensor<?x!irdl_interp.block>, index) -> index
+// CHECK-GENERIC-NEXT:   "irdl_interp.unify.int"(%succ_count, %zero) : (index, index) -> ()
 // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

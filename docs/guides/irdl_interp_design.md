@@ -34,6 +34,16 @@ index                        - concrete integer (MLIR index type)
 
 **Rationale for tensor<?x!irdl_interp.attr>**: Ranges are sequences of attributes with potentially dynamic sizes. Using MLIR's tensor type allows runtime-determined lengths.
 
+### Structure Handles
+
+```
+!irdl_interp.operation       - wrapper for an Operation
+!irdl_interp.region          - wrapper for a Region
+!irdl_interp.block           - wrapper for a Block (successor)
+```
+
+**Rationale**: Operations, regions, and blocks are first-class handles that can be passed around and queried for their properties (counts, contents, etc.).
+
 ## Operations
 
 ### Operation Access
@@ -57,6 +67,12 @@ To work with operations in constraint solving, we need to access their structure
 # Extract all result types
 %result_types = irdl_interp.get_result_types %op
 
+# Extract all regions (gives length + individual access via tensor.extract)
+%regions = irdl_interp.get_regions %op
+
+# Extract all successors (gives length + individual access via tensor.extract)
+%successors = irdl_interp.get_successors %op
+
 # Extract all parameters from a parametrized attribute
 %params = irdl_interp.get_params %attr
 
@@ -68,6 +84,12 @@ irdl_interp.assert %is_int, "Expected IntegerType"
 ```
 
 **Assembly format**: All types elided (results are always the same types).
+
+**Design decisions**:
+- Return whole collections rather than indexed access
+- Length available via tensor operations (`tensor.dim`)
+- Individual elements accessible via `tensor.extract`
+- Regions and blocks are opaque handles (contents accessed separately)
 
 **Design decisions**:
 - Return whole collections rather than indexed access
@@ -160,15 +182,22 @@ Constraint variables should be thought of as **non-backtracking Datalog logic va
 ## Open Questions
 
 1. **Additional accessors**: Do we need access to:
-   - Successors? Eventually yes
-   - Regions? Eventually yes
+   - Successors? Implemented via `irdl_interp.get_successors` (opaque handles)
+   - Regions? Implemented via `irdl_interp.get_regions` (opaque handles)
    - Attribute parameters (for ParamAttrConstraint)? Implemented via `irdl_interp.get_params`
    - Operation attributes (vs properties)? No, these are being deprecated
 
 2. **Attribute operations**: Do we need primitives to:
    - Extract parameters from parametrized attributes? Implemented via `irdl_interp.get_params`
-   - Check attribute base type? Yes
+   - Check attribute base type? Implemented via `irdl_interp.check_base`
    - Construct attributes from parameters? I don't think so.
+
+3. **Region and block operations**: Future work needed:
+   - Get region body (iterate over operations in a region)
+   - Check region properties (single-block, etc.)
+   - Get block arguments and terminators
+   - Iterate over successor blocks
+   - Verify block signatures
 
 ## Example: arith.addi verify function
 
@@ -220,6 +249,17 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   %prop_count = irdl_interp.get_prop_count %op
   irdl_interp.unify.int %prop_count : index and %one : index
 
+  // Verify no regions (arith.addi has no regions)
+  %regions = irdl_interp.get_regions %op
+  %region_count = tensor.dim %regions, %c0 : tensor<?x!irdl_interp.region>
+  %zero = arith.constant 0 : index
+  irdl_interp.unify.int %region_count : index and %zero : index
+
+  // Verify no successors (arith.addi has no successors)
+  %successors = irdl_interp.get_successors %op
+  %succ_count = tensor.dim %successors, %c0 : tensor<?x!irdl_interp.block>
+  irdl_interp.unify.int %succ_count : index and %zero : index
+
   func.return
 }
 ```
@@ -229,6 +269,7 @@ The generated code demonstrates:
 - **Check every time**: Each operand/result type is checked against the constraint individually
 - **Unify for equality**: All types are unified to ensure they are equal (VarConstraint "T" semantics)
 - Property count matches expected (combined with explicit property checks, ensures no extra properties)
+- Region/successor counts match expected (ensures no unexpected regions or successors)
 
 **VarConstraint lowering**: A `VarConstraint("T", constraint)` is lowered to:
 1. Check the constraint on each concrete value that uses the variable (returns `i1`)
@@ -247,3 +288,9 @@ This generates redundant checks, but optimization passes (CSE, canonicalization)
 - Break first prototype into easy to implement and check parts (maybe type by type/op by op)
 - Implement one operation at a time with filecheck tests
 - Write the arith.addi example as a filecheck test
+- Add region and block operations:
+  - `irdl_interp.get_region_body %region` → iterate over operations
+  - `irdl_interp.check_region_single_block %region` → verify single-block property
+  - `irdl_interp.get_block_args %block` → get block arguments
+  - `irdl_interp.get_block_terminator %block` → get terminator operation
+  - `irdl_interp.check_block_signature %block, %expected` → verify signature
