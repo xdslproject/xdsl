@@ -690,6 +690,16 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             *(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+        context: EmitContext,
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_any_of_constraint_irdl_interp
+
+        emit_any_of_constraint_irdl_interp(self, value, builder, context)
+
 
 @dataclass(frozen=True)
 class AllOf(AttrConstraint[AttributeCovT]):

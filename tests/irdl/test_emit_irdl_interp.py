@@ -5,7 +5,7 @@ Tests for emit_irdl_interp functionality.
 from xdsl.builder import Builder
 from xdsl.dialects.arith import ConstantOp as ArithConstantOp
 from xdsl.dialects.arith import OrIOp
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, StringAttr
 from xdsl.dialects.irdl_interp import (
     AssertOp,
     CheckBaseOp,
@@ -13,9 +13,11 @@ from xdsl.dialects.irdl_interp import (
     NewVarAttrOp,
     UnifyAttrOp,
 )
-from xdsl.ir import Block
+from xdsl.dialects.scf import IfOp, YieldOp
+from xdsl.ir import Attribute, Block
 from xdsl.irdl import (
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     AttrSetConstraint,
     BaseAttr,
@@ -362,3 +364,233 @@ def test_attr_set_constraint_emit_empty():
     assert isinstance(assert_op, AssertOp)
     assert assert_op.condition is false_const.result
     assert "Expected one of (empty set)" in assert_op.message.data
+
+
+def test_any_of_constraint_emit():
+    """Test that AnyOf constraint lowering generates scf.if dispatch."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a constant attribute value to test with (the value to verify)
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    # Create empty context
+    context = EmitContext()
+
+    # Create AnyOf constraint with two BaseAttr constraints
+    any_of_constraint = AnyOf.get(BaseAttr(IntegerAttr), BaseAttr(StringAttr))
+    assert isinstance(any_of_constraint, AnyOf)
+    any_of_constraint.emit_irdl_interp(value_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: value ConstantOp, check_base, scf.if, yield
+    # The scf.if contains nested regions
+    assert len(ops) >= 4
+
+    # Check that check_base was created
+    check_op = ops[1]
+    assert isinstance(check_op, CheckBaseOp)
+
+    # Check that scf.if was created
+    if_op = ops[2]
+    assert isinstance(if_op, IfOp)
+
+    # Check the true region has the constraint check
+    true_block = if_op.true_region.blocks[0]
+    true_ops = list(true_block.ops)
+    # Should have constraint check + yield
+    assert len(true_ops) >= 2
+    assert isinstance(true_ops[-1], YieldOp)
+
+    # Check the false region has another check or fail
+    false_block = if_op.false_region.blocks[0]
+    false_ops = list(false_block.ops)
+    # Should have check + if or assert + yield
+    assert len(false_ops) >= 2
+    assert isinstance(false_ops[-1], YieldOp)
+
+
+def test_any_of_constraint_emit_empty():
+    """Test that empty AnyOf constraint lowering generates immediate failure."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a constant attribute value to test with (the value to verify)
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    # Create empty context
+    context = EmitContext()
+
+    # Create empty AnyOf constraint
+    any_of_constraint = AnyOf.get()
+    assert isinstance(any_of_constraint, AnyOf)
+    any_of_constraint.emit_irdl_interp(value_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: value ConstantOp, arith.constant false, AssertOp, scf.yield
+    # But since there are no constraints to dispatch, it should just fail immediately
+    assert len(ops) >= 3
+
+    # Check that arith.constant false was created
+    false_const = ops[1]
+    assert isinstance(false_const, ArithConstantOp)
+
+    # Check that AssertOp was created (in the else block of scf.if)
+    # The structure should be: check_base (on empty dict), scf.if, yield
+    # Since there are no based_constrs, we go straight to abstract/fail
+    assert_op_found = False
+    for op in ops:
+        if isinstance(op, AssertOp):
+            assert_op_found = True
+            assert "Expected one of" in op.message.data
+            break
+    assert assert_op_found, "Expected AssertOp in generated IR"
+
+
+class AbstractTestAttr(Attribute):
+    pass
+
+
+def test_any_of_constraint_emit_with_abstract():
+    """Test that AnyOf constraint with abstract constraint generates proper dispatch."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a constant attribute value to test with (the value to verify)
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    # Create empty context
+    context = EmitContext()
+
+    # Create AnyOf with one concrete and one abstract constraint
+    any_of_constraint = AnyOf.get(BaseAttr(IntegerAttr), BaseAttr(AbstractTestAttr))
+    assert isinstance(any_of_constraint, AnyOf)
+    assert any_of_constraint._abstr_constr is not None  # pyright: ignore[reportPrivateUsage]
+    any_of_constraint.emit_irdl_interp(value_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: value ConstantOp, check_base, scf.if, yield
+    assert len(ops) >= 4
+
+    # Check that check_base was created for the concrete constraint
+    check_op = ops[1]
+    assert isinstance(check_op, CheckBaseOp)
+    assert check_op.base.data == "IntegerAttr"
+
+    # Check that scf.if was created
+    if_op = ops[2]
+    assert isinstance(if_op, IfOp)
+
+    # Check the true region has the IntegerAttr constraint check
+    true_block = if_op.true_region.blocks[0]
+    true_ops = list(true_block.ops)
+    # Should have BaseAttr check (check_base + assert) + yield
+    assert len(true_ops) >= 3
+    assert isinstance(true_ops[-1], YieldOp)
+
+    # Check the false region has the abstract constraint
+    false_block = if_op.false_region.blocks[0]
+    false_ops = list(false_block.ops)
+    # Should have abstract constraint check + yield
+    assert len(false_ops) >= 2
+    assert isinstance(false_ops[-1], YieldOp)
+
+
+def test_any_of_constraint_emit_with_var_constraint():
+    """Test that AnyOf constraint with VarConstraint correctly passes EmitContext."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a constant attribute value to test with (the value to verify)
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    # Create a variable first (simulating Phase 2 setup)
+    var_op = NewVarAttrOp()
+    builder.insert(var_op)
+
+    # Create context with the variable
+    context = EmitContext(_attr_variables={"T": var_op.result})
+
+    # Create AnyOf with VarConstraint and BaseAttr
+    # VarConstraint("T", BaseAttr(IntegerAttr))
+    var_constraint = VarConstraint("T", BaseAttr(IntegerAttr))
+    any_of_constraint = AnyOf.get(var_constraint, BaseAttr(StringAttr))
+    assert isinstance(any_of_constraint, AnyOf)
+    any_of_constraint.emit_irdl_interp(value_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # The structure is:
+    # ops[0] = value ConstantOp
+    # ops[1] = NewVarAttrOp
+    # ops[2] = check_base for IntegerAttr (first in _based_constrs)
+    # ops[3] = scf.if (dispatches to VarConstraint or StringAttr check)
+    # ops[4] = yield
+
+    assert len(ops) >= 5
+
+    # Check that NewVarAttrOp was created
+    assert isinstance(ops[1], NewVarAttrOp)
+
+    # Check that check_base was created for IntegerAttr (first constraint)
+    check_op = ops[2]
+    assert isinstance(check_op, CheckBaseOp)
+    # The first check is for IntegerAttr because VarConstraint has BaseAttr(IntegerAttr)
+    assert check_op.base.data == "IntegerAttr"
+
+    # Check that scf.if was created
+    if_op = ops[3]
+    assert isinstance(if_op, IfOp)
+
+    # Check the true region has the VarConstraint logic
+    true_block = if_op.true_region.blocks[0]
+    true_ops = list(true_block.ops)
+    # Should have: check_base (IntegerType), assert, unify with T, assert, yield
+    assert len(true_ops) >= 5
+
+    # Find the UnifyAttrOp - this proves the context was passed correctly
+    # and the VarConstraint could access context.attr_variables["T"]
+    unify_found = False
+    for op in true_ops:
+        if isinstance(op, UnifyAttrOp):
+            unify_found = True
+            # Check that it unifies with the variable T
+            assert op.rhs is var_op.result
+            break
+    assert unify_found, (
+        "Expected UnifyAttrOp in true region (proves context was passed)"
+    )
+
+    # Check the false region has the StringAttr check
+    false_block = if_op.false_region.blocks[0]
+    false_ops = list(false_block.ops)
+    # Should have: check_base (StringAttr), assert, yield
+    assert len(false_ops) >= 3
+    assert isinstance(false_ops[-1], YieldOp)
+
+    # Verify the StringAttr check is in the false region
+    string_check_found = False
+    for op in false_ops:
+        if isinstance(op, CheckBaseOp) and op.base.data == "StringAttr":
+            string_check_found = True
+            break
+    assert string_check_found, "Expected StringAttr check in false region"

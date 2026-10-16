@@ -447,7 +447,7 @@ irdl_interp.assert %result, "Expected %expected"
 |------------|-------------|
 | `BaseAttr(T)` | `%check = irdl_interp.check_base %type, "T" : i1`<br>`irdl_interp.assert %check, "Expected T"` |
 | `AnyAttr()` | No check (accepts anything) |
-| `AnyOf([c1, c2])` | Check each constraint, OR results, assert |
+| `AnyOf([c1, c2])` | Check base type, `scf.if` dispatch to matching constraint |
 | `VarConstraint("T", c)` | Get `%T` from context, check `c` on value, unify, assert |
 | `EqAttrConstraint(a)` | `%concrete = irdl_interp.constant.attr a`<br>`%eq = irdl_interp.unify.attr %type, %concrete`<br>`irdl_interp.assert %eq, "Expected a"` |
 | `AttrSetConstraint({a, b, c})` | Create constants for each attr, unify with each, OR results, assert |
@@ -469,10 +469,5 @@ irdl_interp.assert %result, "Expected %expected"
 - Iterate on this design document
 - Break first prototype into easy to implement and check parts (maybe type by type/op by op)
 - Implement one operation at a time with filecheck tests
-- Write the arith.addi example as a filecheck test
-- Add region and block operations:
-  - `irdl_interp.get_region_body %region` → iterate over operations
-  - `irdl_interp.check_region_single_block %region` → verify single-block property
-  - `irdl_interp.get_block_args %block` → get block arguments
-  - `irdl_interp.get_block_terminator %block` → get terminator operation
-  - `irdl_interp.check_block_signature %block, %expected` → verify signature
+- Implement region and block operations (see "Future Phases" above)
+- Improve error messages (include actual values in assertion failures)

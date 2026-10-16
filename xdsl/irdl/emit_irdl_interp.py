@@ -8,13 +8,20 @@ It is separate from constraints.py to avoid circular imports.
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.arith import ConstantOp as ArithConstantOp
 from xdsl.dialects.arith import OrIOp
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp, UnifyAttrOp
-from xdsl.ir import SSAValue
-from xdsl.irdl import AttrSetConstraint, BaseAttr, EqAttrConstraint, VarConstraint
+from xdsl.dialects.scf import IfOp, YieldOp
+from xdsl.ir import Block, Region, SSAValue
+from xdsl.irdl import (
+    AnyOf,
+    AttrSetConstraint,
+    BaseAttr,
+    EqAttrConstraint,
+    VarConstraint,
+)
 
 
 @dataclass(frozen=True)
@@ -200,3 +207,117 @@ def emit_attr_set_constraint_irdl_interp(
         message = StringAttr(f"Expected one of {attrs_str}")
     assert_op = AssertOp(accum_result, message)
     builder.insert(assert_op)
+
+
+def emit_any_of_constraint_irdl_interp(
+    constraint: AnyOf,
+    value: SSAValue,
+    builder: Builder,
+    context: EmitContext,
+) -> None:
+    """
+    Emit irdl_interp IR to verify an AnyOf constraint using scf.if dispatch.
+
+    Generates nested scf.if operations that check the attribute's base type
+    and dispatch to the appropriate constraint:
+
+      %is_base0 = irdl_interp.check_base %value, "BaseType0"
+      scf.if %is_base0 {
+        // Check constraint for base0
+        irdl_interp.check_base %value, "ExpectedType"
+        irdl_interp.assert ...
+        scf.yield
+      } else {
+        %is_base1 = irdl_interp.check_base %value, "BaseType1"
+        scf.if %is_base1 {
+          // Check constraint for base1
+          scf.yield
+        } else {
+          // Abstract constraint or fail
+          irdl_interp.assert false, "Expected one of ..."
+          scf.yield
+        }
+      }
+
+    Args:
+        constraint: The AnyOf constraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+        context: Immutable context containing all constraint variables
+    """
+    from xdsl.irdl import BaseAttr
+
+    # Build error message with all expected types
+    expected_types: list[str] = []
+    for base_type, constr in constraint._based_constrs.items():  # pyright: ignore[reportPrivateUsage]
+        if isinstance(constr, BaseAttr):
+            expected_types.append(constr.attr.__name__)
+    abstr_constr = constraint._abstr_constr  # pyright: ignore[reportPrivateUsage]
+    if abstr_constr is not None and isinstance(abstr_constr, BaseAttr):
+        expected_types.append(abstr_constr.attr.__name__)
+    error_msg = StringAttr(f"Expected one of {', '.join(expected_types)}")
+
+    # Build nested scf.if chain from innermost to outermost
+    # Start with the innermost else block (abstract constraint or fail)
+    innermost_else_block = Block()
+    innermost_builder = Builder(InsertPoint.at_end(innermost_else_block))
+    if abstr_constr is not None:
+        # Emit abstract constraint check
+        abstr_constr.emit_irdl_interp(value, innermost_builder, context)
+    else:
+        # No abstract constraint - always fail
+        false_const = ArithConstantOp(IntegerAttr.from_bool(False))
+        innermost_builder.insert(false_const)
+        assert_op = AssertOp(false_const.result, error_msg)
+        innermost_builder.insert(assert_op)
+    yield_op = YieldOp()
+    innermost_builder.insert(yield_op)
+
+    innermost_else_region = Region([innermost_else_block])
+
+    # Build the chain of scf.if operations from last to first
+    current_else_region = innermost_else_region
+    based_constrs_list = list(constraint._based_constrs.items())  # pyright: ignore[reportPrivateUsage]
+
+    for base_type, attr_constr in reversed(based_constrs_list):
+        # Create the true region that checks this specific constraint
+        true_block = Block()
+        true_builder = Builder(InsertPoint.at_end(true_block))
+        attr_constr.emit_irdl_interp(value, true_builder, context)
+        yield_op = YieldOp()
+        true_builder.insert(yield_op)
+
+        true_region = Region([true_block])
+
+        # Get the base type name for check_base
+        base_type_name = StringAttr(base_type.__name__)
+
+        # Create a block to hold the check and if
+        outer_block = Block()
+        outer_builder = Builder(InsertPoint.at_end(outer_block))
+
+        # Insert the check
+        check_op = CheckBaseOp(value, base_type_name)
+        outer_builder.insert(check_op)
+
+        # Insert the if
+        if_op = IfOp(
+            check_op.result,
+            [],
+            true_region,
+            current_else_region,
+        )
+        outer_builder.insert(if_op)
+
+        yield_op = YieldOp()
+        outer_builder.insert(yield_op)
+
+        current_else_region = Region([outer_block])
+
+    # Now insert the outermost region's operations into the actual builder
+    # The outermost region has a single block with check + if + yield
+    outermost_block = current_else_region.blocks[0]
+    # Move operations from the temporary block to the actual builder's block
+    for op in list(outermost_block.ops):
+        op.detach()
+        builder.insert(op)
