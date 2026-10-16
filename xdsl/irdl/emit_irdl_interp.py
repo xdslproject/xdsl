@@ -71,18 +71,14 @@ def emit_base_attr_irdl_interp(
         builder: The builder to use for inserting operations
     """
     # Get the type name for the constraint
-    type_name = (
-        constraint.attr.name
-        if hasattr(constraint.attr, "name")
-        else constraint.attr.__name__
-    )
+    type_name = constraint.attr.name
 
     # Create the check_base operation
     check_op = CheckBaseOp(value, StringAttr(type_name))
     builder.insert(check_op)
 
     # Create the assert operation
-    message = StringAttr(f"Expected {type_name}")
+    message = f"Expected {type_name}"
     assert_op = AssertOp(check_op.result, message)
     builder.insert(assert_op)
 
@@ -120,7 +116,7 @@ def emit_var_constraint_irdl_interp(
     builder.insert(unify_op)
     assert_op = AssertOp(
         unify_op.result,
-        StringAttr(f"Expected to unify with variable {constraint.name}"),
+        f"Expected to unify with variable {constraint.name}",
     )
     builder.insert(assert_op)
 
@@ -149,7 +145,7 @@ def emit_eq_attr_constraint_irdl_interp(
     # Unify the value with the constant
     unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
-    assert_op = AssertOp(unify_op.result, StringAttr(f"Expected {constraint.attr}"))
+    assert_op = AssertOp(unify_op.result, f"Expected {constraint.attr}")
     builder.insert(assert_op)
 
 
@@ -186,8 +182,11 @@ def emit_attr_set_constraint_irdl_interp(
     builder.insert(false_const)
     accum_result = false_const.result
 
+    # Sort values for deterministic order
+    sorted_values = sorted(((v, str(v)) for v in constraint.values), key=lambda x: x[1])
+
     # Create constants for each attribute in the set and unify
-    for attr in constraint.values:
+    for attr, _ in sorted_values:
         const_op = ConstantOp(attr)
         builder.insert(const_op)
 
@@ -201,10 +200,10 @@ def emit_attr_set_constraint_irdl_interp(
 
     # Assert the final result
     if len(constraint.values) == 0:
-        message = StringAttr("Expected one of (empty set)")
+        message = "Expected one of (empty set)"
     else:
-        attrs_str = ", ".join(sorted(str(attr) for attr in constraint.values))
-        message = StringAttr(f"Expected one of {attrs_str}")
+        attrs_str = ", ".join(s for _, s in sorted_values)
+        message = f"Expected one of {attrs_str}"
     assert_op = AssertOp(accum_result, message)
     builder.insert(assert_op)
 
@@ -245,79 +244,50 @@ def emit_any_of_constraint_irdl_interp(
         builder: The builder to use for inserting operations
         context: Immutable context containing all constraint variables
     """
-    from xdsl.irdl import BaseAttr
-
-    # Build error message with all expected types
-    expected_types: list[str] = []
-    for base_type, constr in constraint._based_constrs.items():  # pyright: ignore[reportPrivateUsage]
-        if isinstance(constr, BaseAttr):
-            expected_types.append(constr.attr.__name__)
+    based_constrs = constraint._based_constrs  # pyright: ignore[reportPrivateUsage]
     abstr_constr = constraint._abstr_constr  # pyright: ignore[reportPrivateUsage]
-    if abstr_constr is not None and isinstance(abstr_constr, BaseAttr):
-        expected_types.append(abstr_constr.attr.__name__)
-    error_msg = StringAttr(f"Expected one of {', '.join(expected_types)}")
 
-    # Build nested scf.if chain from innermost to outermost
-    # Start with the innermost else block (abstract constraint or fail)
-    innermost_else_block = Block()
-    innermost_builder = Builder(InsertPoint.at_end(innermost_else_block))
-    if abstr_constr is not None:
-        # Emit abstract constraint check
-        abstr_constr.emit_irdl_interp(value, innermost_builder, context)
-    else:
-        # No abstract constraint - always fail
-        false_const = ArithConstantOp(IntegerAttr.from_bool(False))
-        innermost_builder.insert(false_const)
-        assert_op = AssertOp(false_const.result, error_msg)
-        innermost_builder.insert(assert_op)
-    yield_op = YieldOp()
-    innermost_builder.insert(yield_op)
-
-    innermost_else_region = Region([innermost_else_block])
-
-    # Build the chain of scf.if operations from last to first
-    current_else_region = innermost_else_region
-    based_constrs_list = list(constraint._based_constrs.items())  # pyright: ignore[reportPrivateUsage]
-
-    for base_type, attr_constr in reversed(based_constrs_list):
+    current_builder = builder
+    for base_type, attr_constr in based_constrs.items():
         # Create the true region that checks this specific constraint
         true_block = Block()
         true_builder = Builder(InsertPoint.at_end(true_block))
+        true_builder.extend_from_listener(current_builder)
         attr_constr.emit_irdl_interp(value, true_builder, context)
-        yield_op = YieldOp()
-        true_builder.insert(yield_op)
+        true_builder.insert(YieldOp())
 
         true_region = Region([true_block])
 
         # Get the base type name for check_base
-        base_type_name = StringAttr(base_type.__name__)
+        base_type_name = StringAttr(base_type.name)
 
-        # Create a block to hold the check and if
-        outer_block = Block()
-        outer_builder = Builder(InsertPoint.at_end(outer_block))
+        false_block = Block()
+        false_region = Region([false_block])
 
         # Insert the check
-        check_op = CheckBaseOp(value, base_type_name)
-        outer_builder.insert(check_op)
+        check_op = current_builder.insert(CheckBaseOp(value, base_type_name))
 
         # Insert the if
-        if_op = IfOp(
-            check_op.result,
-            [],
-            true_region,
-            current_else_region,
+        current_builder.insert(
+            IfOp(
+                check_op.result,
+                [],
+                true_region,
+                false_region,
+            )
         )
-        outer_builder.insert(if_op)
 
-        yield_op = YieldOp()
-        outer_builder.insert(yield_op)
+        false_builder = Builder(InsertPoint.at_start(false_block))
+        false_builder.extend_from_listener(current_builder)
+        false_builder.insert(YieldOp())
+        false_builder.insertion_point = InsertPoint.at_start(false_block)
+        current_builder = false_builder
 
-        current_else_region = Region([outer_block])
-
-    # Now insert the outermost region's operations into the actual builder
-    # The outermost region has a single block with check + if + yield
-    outermost_block = current_else_region.blocks[0]
-    # Move operations from the temporary block to the actual builder's block
-    for op in list(outermost_block.ops):
-        op.detach()
-        builder.insert(op)
+    # Deal with the abstract constraint
+    if abstr_constr is not None:
+        abstr_constr.emit_irdl_interp(value, current_builder, context)
+    else:
+        # No abstract constraint - always fail
+        false_const = ArithConstantOp(IntegerAttr.from_bool(False))
+        current_builder.insert(false_const)
+        current_builder.insert(AssertOp(false_const.result, "Unexpected attribute"))

@@ -223,8 +223,10 @@ class AssertOp(IRDLOperation):
 
     assembly_format = "$condition `,` $message attr-dict"
 
-    def __init__(self, condition: SSAValue | Operation, message: StringAttr):
-        super().__init__(operands=[condition], properties={"message": message})
+    def __init__(self, condition: SSAValue | Operation, message: str | StringAttr):
+        super().__init__(
+            operands=[condition], properties={"message": StringAttr.get(message)}
+        )
 
 
 @irdl_op_definition
