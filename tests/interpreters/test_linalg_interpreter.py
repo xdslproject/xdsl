@@ -63,7 +63,7 @@ def test_linalg_generic():
             create_ssa_value(MemRefType(i32, [3, 2])),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.transpose_map()),
@@ -81,13 +81,14 @@ def test_linalg_generic():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
+
+    op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
@@ -108,6 +109,7 @@ def test_linalg_generic():
         op.iterator_types,
         (TensorType(i32, [1, 6]),),
     )
+    tensor_op.verify()
 
     c_in = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
@@ -128,7 +130,7 @@ def test_linalg_generic_scalar():
             create_ssa_value(i32),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.from_callable(lambda i, j: ())),
@@ -146,13 +148,14 @@ def test_linalg_generic_scalar():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
+
+    op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = 2

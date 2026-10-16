@@ -481,7 +481,7 @@ def test_select_shaped_cond():
     vector_rhs_op = test.TestOp(result_types=[vector_type])
     select = SelectOp(cond_op, vector_lhs_op, vector_rhs_op)
 
-    cond = ShapedArray(TypedPtr.new_int32([1, 0, 0, 1]), [2, 2])
+    cond = ShapedArray(TypedPtr[int].new([1, 0, 0, 1], xtype=i1), [2, 2])
     lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
     rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
 
@@ -497,7 +497,7 @@ def test_select_shaped_cond_shape_mismatch():
     vector_rhs_op = test.TestOp(result_types=[VectorType(i32, (2, 2))])
     select = SelectOp(cond_op, vector_lhs_op, vector_rhs_op)
 
-    cond = ShapedArray(TypedPtr.new_int32([1, 0, 0, 1]), [4])
+    cond = ShapedArray(TypedPtr[int].new([1, 0, 0, 1], xtype=i1), [4])
     lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
     rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
 

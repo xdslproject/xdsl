@@ -26,8 +26,9 @@ def test_tensor_reshape():
         create_ssa_value(TensorType(i32, [1])),
         TensorType(f32, [4]),
     )
+    op.verify()
     a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [4, 1])
-    b = ShapedArray(TypedPtr.new_float32([4]), [1])
+    b = ShapedArray(TypedPtr.new_int32([4]), [1])
     (c,) = interpreter.run_op(op, (a, b))
     assert c == ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [4])
 
@@ -40,8 +41,9 @@ def test_tensor_reshape_error():
         create_ssa_value(TensorType(i32, [1])),
         TensorType(f32, [3]),
     )
+    op.verify()
     a = ShapedArray(TypedPtr.new_float32([1, 2, 3]), [3, 1])
-    b = ShapedArray(TypedPtr.new_float32([2]), [1])
+    b = ShapedArray(TypedPtr.new_int32([2]), [1])
     with pytest.raises(
         InterpretationError, match="Mismatch between static shape and new shape"
     ):
