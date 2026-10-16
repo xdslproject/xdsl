@@ -89,7 +89,7 @@ pip install xdsl[gui] # or [jax], [riscv]
 
 ## Getting Started
 
-Check out the dedicated [Getting Started guide](https://docs.xdsl.dev)
+Check out the dedicated [Getting Started guide](https://docs.xdsl.dev/guides/getting-started/)
 for a comprehensive tutorial.
 
 To get familiar with xDSL, we recommend starting with our tutorial notebooks. The
