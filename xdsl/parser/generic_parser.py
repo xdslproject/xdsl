@@ -23,12 +23,12 @@ class ParserState(Generic[TokenKindT]):
     share the same position.
     """
 
-    lexer: Lexer[TokenKindT]
-    current_token: Token[TokenKindT]
+    lexer: Lexer[TokenKindT, str]
+    current_token: Token[TokenKindT, str]
     dialect_stack: list[str]
 
     def __init__(
-        self, lexer: Lexer[TokenKindT], dialect_stack: list[str] | None = None
+        self, lexer: Lexer[TokenKindT, str], dialect_stack: list[str] | None = None
     ):
         if dialect_stack is None:
             dialect_stack = ["builtin"]
@@ -102,12 +102,12 @@ class GenericParser(Generic[TokenKindT]):
             self._parser_state = pos
 
     @property
-    def _current_token(self) -> Token[TokenKindT]:
+    def _current_token(self) -> Token[TokenKindT, str]:
         """Get the token that is currently being parsed. Do not consume the token."""
         return self._parser_state.current_token
 
     @property
-    def lexer(self) -> Lexer[TokenKindT]:
+    def lexer(self) -> Lexer[TokenKindT, str]:
         """The lexer used to parse the current input."""
         return self._parser_state.lexer
 
@@ -121,7 +121,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _consume_token(
         self, expected_kind: TokenKindT | None = None
-    ) -> Token[TokenKindT]:
+    ) -> Token[TokenKindT, str]:
         """
         Advance the lexer to the next token.
         Assert that the current token was of a specific kind, if specified.
@@ -137,7 +137,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_optional_token(
         self, expected_kind: TokenKindT
-    ) -> Token[TokenKindT] | None:
+    ) -> Token[TokenKindT, str] | None:
         """
         If the current token is of the expected kind, consume it and return it.
         Otherwise, return None.
@@ -147,7 +147,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_token(
         self, expected_kind: TokenKindT, error_msg: str
-    ) -> Token[TokenKindT]:
+    ) -> Token[TokenKindT, str]:
         """
         Parse a specific token, and raise an error if it is not present.
         Returns the token that was parsed.
@@ -158,7 +158,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_optional_token_in(
         self, expected_kinds: Iterable[TokenKindT]
-    ) -> Token[TokenKindT] | None:
+    ) -> Token[TokenKindT, str] | None:
         """Parse one of the expected tokens if present, and returns it."""
         if self._current_token.kind not in expected_kinds:
             return None

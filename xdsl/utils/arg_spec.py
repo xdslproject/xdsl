@@ -293,7 +293,7 @@ class SpecTokenKind(Enum):
     COMMA = ","
 
 
-SpecToken: TypeAlias = Token[SpecTokenKind]
+SpecToken: TypeAlias = Token[SpecTokenKind, str]
 
 _lexer_rules: list[tuple[re.Pattern[str], SpecTokenKind]] = [
     # first rule is special to allow 2d-slice to be recognized as an ident

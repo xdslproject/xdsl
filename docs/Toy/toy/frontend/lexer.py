@@ -59,10 +59,10 @@ IDENTIFIER_CHARS = re.compile(r"[\w]|[\d]|_")
 SPECIAL_CHARS = set(",")
 
 
-ToyToken: TypeAlias = Token[ToyTokenKind]
+ToyToken: TypeAlias = Token[ToyTokenKind, str]
 
 
-class ToyLexer(Lexer[ToyTokenKind]):
+class ToyLexer(Lexer[ToyTokenKind, str]):
     def _get_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
         Read `[pos, pos + end_offset)` and advance to its end, even on failure.
