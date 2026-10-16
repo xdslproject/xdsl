@@ -59,6 +59,12 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   // CHECK: irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
   irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
 
+  // Check there are no extra properties (exactly 1 property expected)
+  // CHECK: %prop_count = irdl_interp.get_prop_count %op
+  %prop_count = irdl_interp.get_prop_count %op
+  // CHECK: irdl_interp.unify.int %prop_count : index and %one : index
+  irdl_interp.unify.int %prop_count : index and %one : index
+
   func.return
 }
 
@@ -83,5 +89,7 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 // CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%T) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> ()
 // CHECK-GENERIC-NEXT:   %overflow_flags = "irdl_interp.get_prop"(%op) <{prop_name = "overflowFlags"}> : (!irdl_interp.operation) -> !irdl_interp.attr
 // CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%overflow_flags) <{base = "IntegerOverflowAttr"}> : (!irdl_interp.attr) -> ()
+// CHECK-GENERIC-NEXT:   %prop_count = "irdl_interp.get_prop_count"(%op) : (!irdl_interp.operation) -> index
+// CHECK-GENERIC-NEXT:   "irdl_interp.unify.int"(%prop_count, %one) : (index, index) -> ()
 // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

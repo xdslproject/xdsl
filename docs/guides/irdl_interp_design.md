@@ -48,6 +48,9 @@ To work with operations in constraint solving, we need to access their structure
 # Extract property by name (returns attribute)
 %prop = irdl_interp.get_prop %op, "operandSegmentSizes"
 
+# Get property count (for verifying no extra properties)
+%count = irdl_interp.get_prop_count %op
+
 # Extract all operand types (gives length + individual access via tensor.extract)
 %operand_types = irdl_interp.get_operand_types %op
 
@@ -195,9 +198,13 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   // Verify %T has the correct base type (no-op if %T is unbound)
   irdl_interp.check_base %T : !irdl_interp.variable.attr, "IntegerType"
 
-  // Check overflowFlags property (defaults to "none" if not present)
+  // Check overflowFlags property
   %overflow_flags = irdl_interp.get_prop %op, "overflowFlags"
   irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
+
+  // Verify no extra properties (exactly 1 property expected)
+  %prop_count = irdl_interp.get_prop_count %op
+  irdl_interp.unify.int %prop_count : index and %one : index
 
   func.return
 }
@@ -206,6 +213,7 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 The unify operations check that:
 - Operand/result counts match expected values
 - All operand and result types are equal (via the shared %T variable)
+- Property count matches expected (combined with explicit property checks, ensures no extra properties)
 
 `check_base` verifies the base type of an attribute. If called on an unbound variable, it's a no-op (matching Python semantics where constraints on unbound variables are never checked).
 

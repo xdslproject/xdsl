@@ -242,6 +242,23 @@ class GetParamsOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class GetPropCountOp(IRDLOperation):
+    """Get the number of properties on an operation."""
+
+    name = "irdl_interp.get_prop_count"
+    op = operand_def(OperationType)
+    result = result_def(IndexType)
+
+    assembly_format = "$op attr-dict"
+
+    def __init__(self, op: SSAValue | Operation):
+        super().__init__(
+            operands=[op],
+            result_types=[IndexType()],
+        )
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -261,6 +278,7 @@ IRDLInterp = Dialect(
         GetOperandTypesOp,
         GetResultTypesOp,
         GetParamsOp,
+        GetPropCountOp,
     ],
     [
         VariableAttrType,

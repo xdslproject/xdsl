@@ -87,3 +87,7 @@ irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
 // CHECK: %params = irdl_interp.get_params %attr
 // CHECK-GENERIC: %params = "irdl_interp.get_params"(%attr) : (!irdl_interp.attr) -> tensor<?x!irdl_interp.attr>
 %params = irdl_interp.get_params %attr
+
+// CHECK: %prop_count = irdl_interp.get_prop_count %op
+// CHECK-GENERIC: %prop_count = "irdl_interp.get_prop_count"(%op) : (!irdl_interp.operation) -> index
+%prop_count = irdl_interp.get_prop_count %op
