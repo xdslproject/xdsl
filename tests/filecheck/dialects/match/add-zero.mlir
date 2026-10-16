@@ -1,7 +1,8 @@
 // RUN: XDSL_ROUNDTRIP
+// RUN: xdsl-opt %s -p convert-match-to-pdl-interp | filecheck %s --check-prefix=LOWER
 
 // A verified Match description of arith.addi(x, 0 : i32) -> x.
-// This fixture checks syntax and verification, not execution.
+// This fixture checks syntax, verification, and lowering, not execution.
 
 builtin.module @rewriters {
   // CHECK: pdl_interp.func @add_zero(%target: !pdl.operation, %replacement: !pdl.value) {
@@ -44,3 +45,31 @@ match.matcher @add_zero root(%root : !pdl.operation) {
   // CHECK-NEXT: match.success @rewriters::@add_zero benefit(1) (%root, %lhs : !pdl.operation, !pdl.value)
   match.success @rewriters::@add_zero benefit(1) (%root, %lhs : !pdl.operation, !pdl.value)
 }
+
+// LOWER: pdl_interp.func @matcher(%root: !pdl.operation) {
+// LOWER-NEXT: pdl_interp.check_operation_name of %root is "arith.addi" -> ^bb1, ^bb10
+// LOWER-NEXT: ^bb1:
+// LOWER-NEXT: pdl_interp.check_operand_count of %root is 2 -> ^bb2, ^bb10
+// LOWER-NEXT: ^bb2:
+// LOWER-NEXT: pdl_interp.check_result_count of %root is 1 -> ^bb3, ^bb10
+// LOWER-NEXT: ^bb3:
+// LOWER-NEXT: %maybe_lhs = pdl_interp.get_operand 0 of %root
+// LOWER-NEXT: pdl_interp.is_not_null %maybe_lhs : !pdl.value -> ^bb4, ^bb10
+// LOWER-NEXT: ^bb4:
+// LOWER-NEXT: %maybe_rhs = pdl_interp.get_operand 1 of %root
+// LOWER-NEXT: pdl_interp.is_not_null %maybe_rhs : !pdl.value -> ^bb5, ^bb10
+// LOWER-NEXT: ^bb5:
+// LOWER-NEXT: %maybe_constant = pdl_interp.get_defining_op of %maybe_rhs : !pdl.value
+// LOWER-NEXT: pdl_interp.is_not_null %maybe_constant : !pdl.operation -> ^bb6, ^bb10
+// LOWER-NEXT: ^bb6:
+// LOWER-NEXT: pdl_interp.check_operation_name of %maybe_constant is "arith.constant" -> ^bb7, ^bb10
+// LOWER-NEXT: ^bb7:
+// LOWER-NEXT: %maybe_value = pdl_interp.get_attribute "value" of %maybe_constant
+// LOWER-NEXT: pdl_interp.is_not_null %maybe_value : !pdl.attribute -> ^bb8, ^bb10
+// LOWER-NEXT: ^bb8:
+// LOWER-NEXT: pdl_interp.check_attribute %maybe_value is 0 : i32 -> ^bb9, ^bb10
+// LOWER-NEXT: ^bb9:
+// LOWER-NEXT: pdl_interp.record_match @rewriters::@add_zero(%root, %maybe_lhs : !pdl.operation, !pdl.value) : benefit(1), loc([%root, %maybe_constant]), root("arith.addi") -> ^bb10
+// LOWER-NEXT: ^bb10:
+// LOWER-NEXT: pdl_interp.finalize
+// LOWER-NEXT: }

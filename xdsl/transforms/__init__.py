@@ -128,6 +128,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
 
+    def get_convert_match_to_pdl_interp():
+        from xdsl.transforms.convert_match_to_pdl_interp import (
+            ConvertMatchToPDLInterpPass,
+        )
+
+        return ConvertMatchToPDLInterpPass
+
     def get_convert_pdl_interp_to_eqsat_pdl_interp():
         from xdsl.transforms import convert_pdl_interp_to_eqsat_pdl_interp
 
@@ -705,6 +712,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
+        "convert-match-to-pdl-interp": get_convert_match_to_pdl_interp,
         "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
         "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
