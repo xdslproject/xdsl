@@ -8,6 +8,7 @@ from xdsl.frontend.pyast.code_generation import (
     CodeGenerationVisitor,
     FunctionDefinitionConstructor,
     ReturnConstructor,
+    TupleConstructor,
     build_func,
     build_return,
 )
@@ -54,6 +55,9 @@ class PyASTBuilder:
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
 
+    tuple_constructor: TupleConstructor | None = None
+    """Construct tuple expressions when registered."""
+
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
         # Convert the Python AST into xDSL IR objects
@@ -70,6 +74,7 @@ class PyASTBuilder:
             self.file,
             self.function_definition_constructor,
             self.return_constructor,
+            self.tuple_constructor,
         ).visit(self.function_ast)
         module.verify()
 

@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import (
     FunctionDefinitionConstructor,
     ReturnConstructor,
+    TupleConstructor,
     build_func,
     build_return,
 )
@@ -81,6 +82,9 @@ class PyASTContext:
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
 
+    tuple_constructor: TupleConstructor | None = None
+    """Construct tuple expressions when registered."""
+
     def register_type(
         self,
         source_type: TypeForm[Any],
@@ -100,6 +104,10 @@ class PyASTContext:
     ) -> None:
         """Associate a Python literal type with an IR constructor."""
         self.literal_registry.insert(value_type, ir_constructor)
+
+    def register_tuple(self, ir_constructor: TupleConstructor) -> None:
+        """Set the constructor for a tuple of SSA values, producing one result."""
+        self.tuple_constructor = ir_constructor
 
     def register_function_definition(
         self, ir_constructor: FunctionDefinitionConstructor
@@ -172,5 +180,6 @@ class PyASTContext:
             post_transforms=self.pass_pipeline,
             function_definition_constructor=self.function_definition_constructor,
             return_constructor=self.return_constructor,
+            tuple_constructor=self.tuple_constructor,
         )
         return self._get_wrapped_program(func, builder)
