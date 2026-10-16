@@ -1,24 +1,29 @@
 """
-Scalar matching helpers for ordinary Python and the experimental Match frontend.
+Typed Python match/rewrite patterns and the experimental Match frontend.
 
-Navigation returns a real xDSL object or raises MatchFailure. Predicate helpers
-return None on success and raise MatchFailure on mismatch. Invalid indices and
-counts are programming errors, not mismatches. Matchers must not mutate payload IR.
+Use `@rewrite_for(matcher)` with a matcher returning a capture tuple or None.
+The rewrite takes the unpacked captures followed by a PatternRewriter.
+
+The older helper-based PyMatchContext uses the scalar helpers below: navigation
+returns an xDSL object or raises MatchFailure, and predicates raise on mismatch.
+Invalid indices/counts are programming errors. Matchers must not mutate payload IR.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cached_property
 from inspect import signature
 from typing import Generic, cast, get_type_hints
 
 from typing_extensions import TypeVar, TypeVarTuple, Unpack
 
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 
 
 class MatchFailure(Exception):
-    """An expected mismatch in the scalar Python matching helpers."""
+    """An expected mismatch in the legacy scalar Python matching helpers."""
 
 
 def has_name(op: Operation, name: str) -> None:
@@ -85,6 +90,9 @@ class PythonMatchRewritePattern(RewritePattern, Generic[RootT, Unpack[Captures]]
 
     Only None denotes mismatch; an empty tuple is a successful match. Neither
     matcher nor rewrite exceptions are suppressed. Matchers must not mutate IR.
+
+    `.module` lazily compiles the restricted Python subset documented in
+    `pymatch.compiler`, including the rewrite. Direct calls still execute Python.
     """
 
     matcher: Callable[[RootT], tuple[Unpack[Captures]] | None]
@@ -112,6 +120,12 @@ class PythonMatchRewritePattern(RewritePattern, Generic[RootT, Unpack[Captures]]
 
     def __call__(self, *args: Unpack[tuple[Unpack[Captures], PatternRewriter]]) -> None:
         self.rewrite(*args)
+
+    @cached_property
+    def module(self) -> ModuleOp:
+        from xdsl.frontend.pymatch.compiler import compile_pattern
+
+        return compile_pattern(self.matcher, self.rewrite)
 
 
 def rewrite_for(

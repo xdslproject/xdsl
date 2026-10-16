@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from xdsl.context import Context
 from xdsl.dialects import builtin, match, pdl, pdl_interp, test
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pymatch import (
@@ -19,9 +20,22 @@ from xdsl.frontend.pymatch import (
     rewrite_for,
 )
 from xdsl.frontend.pymatch.context import PyMatchContext
+from xdsl.interpreter import Interpreter
 from xdsl.interpreters.match import MatchResult, run_matcher
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.irdl import (
+    IRDLOperation,
+    attr_def,
+    irdl_op_definition,
+    operand_def,
+    opt_prop_def,
+    prop_def,
+    result_def,
+    var_operand_def,
+)
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.transforms.convert_match_to_pdl_interp import ConvertMatchToPDLInterpPass
 
 
 def test_scalar_helpers():
@@ -82,9 +96,11 @@ def test_python_rewrite_captures_and_failures():
     match_result.return_value = None
     pattern.match_and_rewrite(root, rewriter)
     rewrite.assert_not_called()
-    match_result.side_effect = ValueError("bad matcher")
-    with pytest.raises(ValueError, match="bad matcher"):
-        pattern.match_and_rewrite(root, rewriter)
+    for error in (ValueError("bad matcher"), MatchFailure()):
+        match_result.side_effect = error
+        with pytest.raises(type(error)) as exc:
+            pattern.match_and_rewrite(root, rewriter)
+        assert exc.value is error
 
     match_result.side_effect = None
     match_result.return_value = captures
@@ -229,3 +245,156 @@ def test_frontend_rejects_unsupported_forms():
     ):
         with pytest.raises(FrontendProgramException, match=message):
             program.module
+
+
+@irdl_op_definition
+class PairOp(IRDLOperation):
+    """Deliberately unlike add-zero: renamed fields and multiple results."""
+
+    name = "test.pymatch_pair"
+    first = operand_def()
+    second = operand_def()
+    tail = var_operand_def()
+    one = result_def()
+    two = result_def()
+    label = attr_def(builtin.StringAttr, attr_name="label-name")
+    marker = prop_def(builtin.StringAttr, prop_name="marker-name")
+    optional = opt_prop_def(
+        builtin.StringAttr, default_value=builtin.StringAttr("default")
+    )
+
+
+def test_typed_fields_captures_and_rewrite():
+    def matcher(op: Operation) -> tuple[Attribute, SSAValue, PairOp] | None:
+        if not isinstance(op, PairOp):
+            return None
+        if op.label != builtin.StringAttr("selected"):
+            return None
+        if builtin.StringAttr("replace") != op.marker:
+            return None
+        return op.label, op.two, op
+
+    @rewrite_for(matcher)
+    def rewrite(
+        label: Attribute, result: SSAValue, op: PairOp, rw: PatternRewriter
+    ) -> None:
+        rw.replace(op, new_ops=(), new_results=(op.second, op.first))
+
+    module = rewrite.module
+    assert rewrite.module is module
+    matcher_op = module.body.block.first_op
+    assert isinstance(matcher_op, match.MatcherOp)
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(PDLInterpFunctions())
+    block = Block(arg_types=[builtin.i32, builtin.i64])
+    root = PairOp.build(
+        operands=[block.args[0], block.args[1], []],
+        result_types=[builtin.i64, builtin.i32],
+        attributes={"label-name": builtin.StringAttr("selected")},
+        properties={"marker-name": builtin.StringAttr("replace")},
+    )
+    block.add_op(root)
+    root.verify()
+    expected = (builtin.StringAttr("selected"), root.two, root)
+    assert matcher(root) == expected
+    assert run_matcher(matcher_op, root) == MatchResult(
+        builtin.SymbolRefAttr("rewrite"), expected
+    )
+    rewriter = Mock(spec=PatternRewriter)
+    rewrite(*expected, rewriter)
+    rewriter.replace.assert_called_once_with(
+        root, new_ops=(), new_results=(block.args[1], block.args[0])
+    )
+    rewriter.reset_mock()
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    interpreter.call_op("rewrite", expected)
+    rewriter.replace.assert_called_once_with(
+        root, new_ops=[], new_results=[block.args[1], block.args[0]]
+    )
+    for label, marker in (("other", "replace"), ("selected", "other")):
+        root.label = builtin.StringAttr(label)
+        root.marker = builtin.StringAttr(marker)
+        assert matcher(root) is None
+        assert run_matcher(matcher_op, root) is None
+    assert matcher(test.TestOp()) is None
+    assert run_matcher(matcher_op, test.TestOp()) is None
+
+
+def test_unused_owner_and_empty_captures():
+    def matcher(op: PairOp) -> tuple[()] | None:
+        _owner = op.second.owner
+        return ()
+
+    @rewrite_for(matcher)
+    def rewrite(rw: PatternRewriter) -> None:
+        pass
+
+    block = Block(arg_types=[builtin.i32, builtin.i64])
+    root = PairOp.build(
+        operands=[block.args[0], block.args[1], []],
+        result_types=[builtin.i64, builtin.i32],
+        attributes={"label-name": builtin.StringAttr("selected")},
+        properties={"marker-name": builtin.StringAttr("replace")},
+    )
+    block.add_op(root)
+    root.verify()
+    assert matcher(root) == ()
+    module = rewrite.module
+    matcher_op = module.body.block.first_op
+    assert isinstance(matcher_op, match.MatcherOp)
+    assert run_matcher(matcher_op, root) == MatchResult(
+        builtin.SymbolRefAttr("rewrite"), ()
+    )
+    lowered = module.clone()
+    ConvertMatchToPDLInterpPass().apply(Context(), lowered)
+    lowered.verify()
+    interpreter = Interpreter(lowered)
+    interpreter.register_implementations(PDLInterpFunctions())
+    PDLInterpFunctions.set_rewriter(interpreter, PatternRewriter(root))
+    interpreter.call_op("matcher", (root,))
+    assert PDLInterpFunctions.get_pending_rewrites(interpreter) == [
+        (builtin.SymbolRefAttr("rewrite"), root, ())
+    ]
+
+
+def test_typed_frontend_rejects_unsupported_syntax():
+    def success_branch(op: PairOp) -> tuple[PairOp] | None:
+        if op.label != builtin.StringAttr("other"):
+            return (op,)
+        return None
+
+    def loop(op: PairOp) -> tuple[PairOp] | None:
+        for _ in op.operands:
+            pass
+        return (op,)
+
+    def variadic(op: PairOp) -> tuple[PairOp] | None:
+        _values = op.tail
+        return (op,)
+
+    def optional(op: PairOp) -> tuple[PairOp] | None:
+        _attribute = op.optional
+        return (op,)
+
+    def rewrite(op: PairOp, rw: PatternRewriter) -> None:
+        pass
+
+    for matcher, message in (
+        (success_branch, "failure guard"),
+        (loop, "unsupported statement: For"),
+        (variadic, "optional/variadic fields"),
+        (optional, "optional/defaulted attribute"),
+    ):
+        pattern = rewrite_for(matcher)(rewrite)
+        with pytest.raises(FrontendProgramException, match=message):
+            pattern.module
+
+    def identity(op: PairOp) -> tuple[PairOp] | None:
+        return (op,)
+
+    @rewrite_for(identity)
+    def unsupported_rewrite(op: PairOp, rw: PatternRewriter) -> None:
+        rw.replace(op, (), (op.first, op.second), safe_erase=False)
+
+    with pytest.raises(FrontendProgramException, match="replacement requires"):
+        unsupported_rewrite.module

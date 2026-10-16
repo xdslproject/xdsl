@@ -4,68 +4,41 @@ from pathlib import Path
 from unittest.mock import patch
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, func, match, pdl, pdl_interp
+from xdsl.dialects import arith, builtin, func, match
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, SymbolRefAttr, i32, i64
-from xdsl.frontend.pymatch import (
-    MatchFailure,
-    PythonMatchRewritePattern,
-    check_operand_count,
-    check_result_count,
-    get_attribute,
-    get_defining_op,
-    get_operand,
-    has_attr_value,
-    has_name,
-)
-from xdsl.frontend.pymatch.context import PyMatchContext
+from xdsl.frontend.pymatch import rewrite_for
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.match import MatchResult, run_matcher
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker
 from xdsl.transforms.apply_match import ApplyMatchPass
 from xdsl.transforms.apply_pdl_interp import ApplyPDLInterpPass
 from xdsl.transforms.convert_match_to_pdl_interp import ConvertMatchToPDLInterpPass
 
-Captures = tuple[Operation, SSAValue]
 
-rewriter = pdl_interp.FuncOp(
-    "rewrite_add_zero", ([pdl.OperationType(), pdl.ValueType()], [])
-)
-target, replacement = rewriter.body.block.args
-rewriter.body.block.add_ops(
-    [pdl_interp.ReplaceOp(target, [replacement]), pdl_interp.FinalizeOp()]
-)
-ctx = PyMatchContext(rewriter)
-
-
-@ctx.parse_program
-def add_zero(root: Operation) -> Captures:
+def match_add_zero(op: arith.AddiOp) -> tuple[arith.AddiOp, SSAValue] | None:
     """Match an i32 add whose right operand is zero; capture its left operand."""
-    name = "arith.addi"
-    has_name(name=name, op=root)
-    check_operand_count(root, 2)
-    check_result_count(root, 1)
-    lhs = get_operand(root, 0)
-    rhs = get_operand(root, index=1)
-    constant = get_defining_op(rhs)
-    has_name(constant, "arith.constant")
-    value = get_attribute(constant, "value")
-    has_attr_value(value, IntegerAttr(0, 32))
-    captures = (root, lhs)
-    return captures
+    constant = op.rhs.owner
+    if not isinstance(constant, arith.ConstantOp):
+        return None
+    if constant.value != IntegerAttr(0, 32):
+        return None
+    return op, op.lhs
 
 
-print(add_zero.module)
-assert rewriter.parent is None
-# CHECK:      match.matcher root(%root: !pdl.operation) {
-# CHECK-NEXT:   match.has_name %root, "arith.addi"
-# CHECK-NEXT:   match.check_operand_count %root is 2
-# CHECK-NEXT:   match.check_result_count %root is 1
-# CHECK-NEXT:   %[[MAYBE_LHS:.*]] = match.get_operand 0 of %root : !match.optional<!pdl.value>
-# CHECK-NEXT:   %[[LHS:.*]] = match.is_not_null %[[MAYBE_LHS]] : !pdl.value
-# CHECK-NEXT:   %[[MAYBE_RHS:.*]] = match.get_operand 1 of %root : !match.optional<!pdl.value>
+@rewrite_for(match_add_zero)
+def rewrite_add_zero(
+    op: arith.AddiOp, lhs: SSAValue, rewriter: PatternRewriter
+) -> None:
+    rewriter.replace(op, (), (lhs,))
+
+
+print(rewrite_add_zero.module)
+# CHECK:      match.matcher root(%op: !pdl.operation) {
+# CHECK-NEXT:   match.has_name %op, "arith.addi"
+# CHECK-NEXT:   %[[MAYBE_RHS:.*]] = match.get_operand 1 of %op : !match.optional<!pdl.value>
 # CHECK-NEXT:   %[[RHS:.*]] = match.is_not_null %[[MAYBE_RHS]] : !pdl.value
 # CHECK-NEXT:   %[[MAYBE_CONSTANT:.*]] = match.get_defining_op of %[[RHS]] : !pdl.value -> !match.optional<!pdl.operation>
 # CHECK-NEXT:   %[[CONSTANT:.*]] = match.is_not_null %[[MAYBE_CONSTANT]] : !pdl.operation
@@ -73,7 +46,9 @@ assert rewriter.parent is None
 # CHECK-NEXT:   %[[MAYBE_VALUE:.*]] = match.get_attribute "value" of %[[CONSTANT]] : !match.optional<!pdl.attribute>
 # CHECK-NEXT:   %[[VALUE:.*]] = match.is_not_null %[[MAYBE_VALUE]] : !pdl.attribute
 # CHECK-NEXT:   match.has_attr_value %[[VALUE]] is 0 : i32
-# CHECK-NEXT:   match.success @rewrite_add_zero benefit(1) (%root, %[[LHS]] : !pdl.operation, !pdl.value)
+# CHECK-NEXT:   %[[MAYBE_LHS:.*]] = match.get_operand 0 of %op : !match.optional<!pdl.value>
+# CHECK-NEXT:   %[[LHS:.*]] = match.is_not_null %[[MAYBE_LHS]] : !pdl.value
+# CHECK-NEXT:   match.success @rewrite_add_zero benefit(1) (%op, %[[LHS]] : !pdl.operation, !pdl.value)
 # CHECK-NEXT: }
 # CHECK-NEXT: pdl_interp.func @rewrite_add_zero(%{{.*}}: !pdl.operation, %{{.*}}: !pdl.value) {
 # CHECK-NEXT:   pdl_interp.replace %{{.*}} with (%{{.*}} : !pdl.value)
@@ -82,9 +57,9 @@ assert rewriter.parent is None
 
 
 # The same captures must reach the rewrite in all three execution paths.
-matcher = add_zero.module.body.block.first_op
+matcher = rewrite_add_zero.module.body.block.first_op
 assert isinstance(matcher, match.MatcherOp)
-lowered = add_zero.module.clone()
+lowered = rewrite_add_zero.module.clone()
 ConvertMatchToPDLInterpPass().apply(Context(), lowered)
 lowered.verify()
 lowered_interpreter = Interpreter(lowered)
@@ -111,11 +86,16 @@ payload = func.FuncOp("captures", ([i32, i64], []), Region(block))
 payload.verify()
 before = payload.clone()
 for root, expected in cases:
-    try:
-        python_captures = add_zero(root)
-    except MatchFailure:
-        python_captures = None
+    python_captures = match_add_zero(root) if isinstance(root, arith.AddiOp) else None
     assert python_captures == expected
+    with patch.object(rewrite_add_zero, "rewrite") as python_rewrite:
+        rewrite_add_zero.match_and_rewrite(
+            root, python_rewriter := PatternRewriter(root)
+        )
+        if expected is None:
+            python_rewrite.assert_not_called()
+        else:
+            python_rewrite.assert_called_once_with(*expected, python_rewriter)
     assert run_matcher(matcher, root) == (
         None
         if expected is None
@@ -132,17 +112,6 @@ for root, expected in cases:
 assert payload.is_structurally_equivalent(before)
 
 
-def try_add_zero(root: Operation) -> Captures | None:
-    try:
-        return add_zero(root)
-    except MatchFailure:
-        return None
-
-
-def rewrite_add_zero(root: Operation, lhs: SSAValue, rewriter: PatternRewriter) -> None:
-    rewriter.replace(root, [], [lhs])
-
-
 # Reuse the real payload fixture, including dependent rewrites and nonmatches.
 ir_ctx = Context()
 for dialect in (builtin.Builtin, arith.Arith, func.Func):
@@ -157,13 +126,11 @@ assert isinstance(source_func, func.FuncOp)
 
 python_result = source_func.clone()
 python_module = ModuleOp([python_result])
-PatternRewriteWalker(
-    PythonMatchRewritePattern(try_add_zero, rewrite_add_zero)
-).rewrite_module(python_module)
+PatternRewriteWalker(rewrite_add_zero).rewrite_module(python_module)
 python_module.verify()
 
 for via_pdl_interp in (False, True):
-    compiled_module = add_zero.module.clone()
+    compiled_module = rewrite_add_zero.module.clone()
     result = source_func.clone()
     compiled_module.body.block.add_op(result)
     compiled_module.verify()
