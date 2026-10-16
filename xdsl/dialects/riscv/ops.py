@@ -2097,12 +2097,11 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
 
 
 @irdl_op_definition
-class DirectiveOp(
-    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
-):
+class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
+    Directives without an argument use an empty string value.
     A more complete list of directives can be found here:
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
@@ -2110,12 +2109,14 @@ class DirectiveOp(
 
     name = "riscv.directive"
     directive = attr_def(StringAttr)
-    value = opt_attr_def(StringAttr)
+    value = attr_def(StringAttr)
+
+    assembly_format = "$directive $value attr-dict"
 
     def __init__(
         self,
         directive: str | StringAttr,
-        value: str | StringAttr | None,
+        value: str | StringAttr = "",
     ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
@@ -2130,7 +2131,7 @@ class DirectiveOp(
         )
 
     def assembly_line(self) -> str | None:
-        if self.value is not None and self.value.data:
+        if self.value.data:
             arg_str = assembly_arg_str(self.value.data)
         else:
             arg_str = ""
@@ -2138,33 +2139,6 @@ class DirectiveOp(
         return AssemblyPrinter.assembly_line(
             self.directive.data, arg_str, is_indented=False
         )
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["directive"] = StringAttr(
-            parser.parse_str_literal("Expected directive")
-        )
-        if (value := parser.parse_optional_str_literal()) is not None:
-            attributes["value"] = StringAttr(value)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.directive.data)
-        if self.value is not None:
-            printer.print_string(" ")
-            printer.print_string_literal(self.value.data)
-        return {"directive", "value"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 @irdl_op_definition
