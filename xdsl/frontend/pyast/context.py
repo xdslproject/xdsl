@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from inspect import getsource
 from typing import Any, NamedTuple
 
+from typing_extensions import TypeForm
+
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import (
@@ -81,7 +83,7 @@ class PyASTContext:
 
     def register_type(
         self,
-        source_type: type,
+        source_type: TypeForm[Any],
         ir_type: TypeAttribute,
     ) -> None:
         """Associate a type in the source code with its type in the IR."""
