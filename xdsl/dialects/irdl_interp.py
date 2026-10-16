@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from xdsl.dialects.builtin import DYNAMIC_INDEX, IndexType, StringAttr, TensorType
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    IndexType,
+    IntegerType,
+    StringAttr,
+    TensorType,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -163,16 +169,33 @@ class UnifyRangeOp(IRDLOperation):
 
 @irdl_op_definition
 class CheckBaseOp(IRDLOperation):
-    """Check that an attribute has a specific base type."""
+    """Check that an attribute has a specific base type. Returns i1."""
 
     name = "irdl_interp.check_base"
     attr = operand_def(AttrType | VariableAttrType)
     base = prop_def(StringAttr)
+    result = result_def(IntegerType(1))
 
     assembly_format = "$attr `:` type($attr) `,` $base attr-dict"
 
     def __init__(self, attr: SSAValue | Operation, base: StringAttr):
-        super().__init__(operands=[attr], properties={"base": base})
+        super().__init__(
+            operands=[attr], properties={"base": base}, result_types=[IntegerType(1)]
+        )
+
+
+@irdl_op_definition
+class AssertOp(IRDLOperation):
+    """Assert that a condition is true. Fails with message if false."""
+
+    name = "irdl_interp.assert"
+    condition = operand_def(IntegerType(1))
+    message = prop_def(StringAttr)
+
+    assembly_format = "$condition `,` $message attr-dict"
+
+    def __init__(self, condition: SSAValue | Operation, message: StringAttr):
+        super().__init__(operands=[condition], properties={"message": message})
 
 
 @irdl_op_definition
@@ -274,6 +297,7 @@ IRDLInterp = Dialect(
         UnifyIntOp,
         UnifyRangeOp,
         CheckBaseOp,
+        AssertOp,
         GetPropOp,
         GetOperandTypesOp,
         GetResultTypesOp,

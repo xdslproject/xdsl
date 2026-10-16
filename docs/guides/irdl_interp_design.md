@@ -59,6 +59,12 @@ To work with operations in constraint solving, we need to access their structure
 
 # Extract all parameters from a parametrized attribute
 %params = irdl_interp.get_params %attr
+
+# Check attribute base type (returns i1)
+%is_int = irdl_interp.check_base %attr, "IntegerType"
+
+# Assert condition with message
+irdl_interp.assert %is_int, "Expected IntegerType"
 ```
 
 **Assembly format**: All types elided (results are always the same types).
@@ -191,11 +197,14 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   %result_type = tensor.extract %result_types[0] : tensor<?x!irdl_interp.attr>
 
   // Check each type satisfies VarConstraint("T", BaseAttr(IntegerType))
-  // This demonstrates "check every time" semantics - each use checks the constraint.
+  // "Check every time" semantics - each use checks the constraint.
   // Optimization can eliminate redundant checks later.
-  irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
-  irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
-  irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+  %lhs_check = irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %lhs_check, "Expected IntegerType for lhs"
+  %rhs_check = irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %rhs_check, "Expected IntegerType for rhs"
+  %result_check = irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %result_check, "Expected IntegerType for result"
 
   // Unify all types to ensure they are equal (VarConstraint "T" semantics)
   irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
@@ -204,7 +213,8 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 
   // Check overflowFlags property
   %overflow_flags = irdl_interp.get_prop %op, "overflowFlags"
-  irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
+  %overflow_check = irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
+  irdl_interp.assert %overflow_check, "Expected IntegerOverflowAttr"
 
   // Verify no extra properties (exactly 1 property expected)
   %prop_count = irdl_interp.get_prop_count %op
@@ -221,12 +231,15 @@ The generated code demonstrates:
 - Property count matches expected (combined with explicit property checks, ensures no extra properties)
 
 **VarConstraint lowering**: A `VarConstraint("T", constraint)` is lowered to:
-1. Check the constraint on each concrete value that uses the variable
-2. Unify all values with the variable to ensure equality
+1. Check the constraint on each concrete value that uses the variable (returns `i1`)
+2. Assert the check passes (with error message)
+3. Unify all values with the variable to ensure equality
 
 This generates redundant checks, but optimization passes (CSE, canonicalization) can eliminate them. The redundancy makes the IR simpler to generate and easier to optimize.
 
-`check_base` verifies the base type of an attribute and returns a boolean. For unbound variables, the behavior is undefined (should bind variables before checking).
+**`check_base`** verifies the base type of an attribute and returns `i1` (1 if matches, 0 otherwise). This allows conditional logic and better AnyOf lowering.
+
+**`assert`** takes an `i1` condition and a message string. Fails verification if the condition is false.
 
 ## Next Steps
 

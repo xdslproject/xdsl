@@ -61,13 +61,17 @@ irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !i
 // CHECK-GENERIC: "irdl_interp.unify.range"(%range, %range2) : (tensor<2x!irdl_interp.attr>, tensor<2x!irdl_interp.attr>) -> ()
 irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
 
-// CHECK: irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
-// CHECK-GENERIC: "irdl_interp.check_base"(%attr) <{base = "IntegerType"}> : (!irdl_interp.attr) -> ()
-irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
+// CHECK: %check_attr = irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
+// CHECK-GENERIC: %check_attr = "irdl_interp.check_base"(%attr) <{base = "IntegerType"}> : (!irdl_interp.attr) -> i1
+%check_attr = irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
 
-// CHECK: irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
-// CHECK-GENERIC: "irdl_interp.check_base"(%var_attr) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> ()
-irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
+// CHECK: %check_var = irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
+// CHECK-GENERIC: %check_var = "irdl_interp.check_base"(%var_attr) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> i1
+%check_var = irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
+
+// CHECK: irdl_interp.assert %check_attr, "Expected IntegerType"
+// CHECK-GENERIC: "irdl_interp.assert"(%check_attr) <{message = "Expected IntegerType"}> : (i1) -> ()
+irdl_interp.assert %check_attr, "Expected IntegerType"
 
 // CHECK: %op = "test.op"() : () -> !irdl_interp.operation
 %op = "test.op"() : () -> !irdl_interp.operation
