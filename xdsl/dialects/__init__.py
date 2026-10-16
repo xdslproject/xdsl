@@ -188,6 +188,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return LTL
 
+    def get_match():
+        from xdsl.dialects.match import Match
+
+        return Match
+
     def get_math():
         from xdsl.dialects.math import Math
 
@@ -440,6 +445,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "irdl": get_irdl,
         "llvm": get_llvm,
         "ltl": get_ltl,
+        "match": get_match,
         "math": get_math,
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
