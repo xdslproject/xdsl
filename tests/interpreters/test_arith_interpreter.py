@@ -31,8 +31,8 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     ModuleOp,
-    Signedness,
     VectorType,
+    f64,
     i1,
     i8,
     i32,
@@ -43,11 +43,13 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
 
-interpreter = Interpreter(ModuleOp([]))
+interpreter = Interpreter(ModuleOp([]), index_bitwidth=64)
 interpreter.register_implementations(ArithFunctions())
 
 lhs_op = test.TestOp(result_types=[IndexType()])
 rhs_op = test.TestOp(result_types=[IndexType()])
+lhs_f64_op = test.TestOp(result_types=[f64])
+rhs_f64_op = test.TestOp(result_types=[f64])
 
 
 @pytest.mark.parametrize("value", [1, 0, -1, 127])
@@ -58,11 +60,11 @@ rhs_op = test.TestOp(result_types=[IndexType()])
         IntegerType(8),
         IntegerType(16),
         IntegerType(32),
-        IntegerType(32, Signedness.SIGNED),
     ],
 )
 def test_constant(value: int, value_type: int | IndexType | IntegerType):
     constant = ConstantOp.from_int_and_width(value, value_type)
+    constant.verify()
 
     ret = interpreter.run_op(constant, ())
 
@@ -149,10 +151,11 @@ def test_xori_i1(lhs_value: int, rhs_value: int):
     assert ret[0] == -(abs(lhs_value) ^ abs(rhs_value))
 
 
-@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
-@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_subf(lhs_value: int, rhs_value: int):
-    subf = SubfOp(lhs_op, rhs_op)
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_subf(lhs_value: float, rhs_value: float):
+    subf = SubfOp(lhs_f64_op, rhs_f64_op)
+    subf.verify()
 
     ret = interpreter.run_op(subf, (lhs_value, rhs_value))
 
@@ -160,10 +163,11 @@ def test_subf(lhs_value: int, rhs_value: int):
     assert ret[0] == lhs_value - rhs_value
 
 
-@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
-@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_addf(lhs_value: int, rhs_value: int):
-    addf = AddfOp(lhs_op, rhs_op)
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_addf(lhs_value: float, rhs_value: float):
+    addf = AddfOp(lhs_f64_op, rhs_f64_op)
+    addf.verify()
 
     ret = interpreter.run_op(addf, (lhs_value, rhs_value))
 
@@ -171,10 +175,11 @@ def test_addf(lhs_value: int, rhs_value: int):
     assert ret[0] == lhs_value + rhs_value
 
 
-@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
-@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_mulf(lhs_value: int, rhs_value: int):
-    mulf = MulfOp(lhs_op, rhs_op)
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_mulf(lhs_value: float, rhs_value: float):
+    mulf = MulfOp(lhs_f64_op, rhs_f64_op)
+    mulf.verify()
 
     ret = interpreter.run_op(mulf, (lhs_value, rhs_value))
 
@@ -182,10 +187,11 @@ def test_mulf(lhs_value: int, rhs_value: int):
     assert ret[0] == lhs_value * rhs_value
 
 
-@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
-@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
 def test_minf(lhs_value: float, rhs_value: float):
-    minf = arith.MinimumfOp(lhs_op, rhs_op)
+    minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
+    minf.verify()
 
     ret = interpreter.run_op(minf, (lhs_value, rhs_value))
 
@@ -193,10 +199,11 @@ def test_minf(lhs_value: float, rhs_value: float):
     assert ret[0] == min(lhs_value, rhs_value)
 
 
-@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
-@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_maximumf(lhs_value: int, rhs_value: int):
-    maxf = arith.MaximumfOp(lhs_op, rhs_op)
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_maximumf(lhs_value: float, rhs_value: float):
+    maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
+    maxf.verify()
 
     ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
 
@@ -205,7 +212,8 @@ def test_maximumf(lhs_value: int, rhs_value: int):
 
 
 def test_minmax_corner():
-    maxf = arith.MaximumfOp(lhs_op, rhs_op)
+    maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
+    maxf.verify()
 
     assert copysign(1.0, interpreter.run_op(maxf, (0.0, 0.0))[0]) == 1.0
     assert copysign(1.0, interpreter.run_op(maxf, (-0.0, 0.0))[0]) == 1.0
@@ -214,7 +222,8 @@ def test_minmax_corner():
     assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
     assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
 
-    minf = arith.MinimumfOp(lhs_op, rhs_op)
+    minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
+    minf.verify()
 
     assert copysign(1.0, interpreter.run_op(minf, (0.0, 0.0))[0]) == 1.0
     assert copysign(1.0, interpreter.run_op(minf, (-0.0, 0.0))[0]) == -1.0
@@ -327,7 +336,7 @@ def test_cmpi_high_bit(
         "true",
     ],
 )
-def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
+def test_cmpf(lhs_value: float, rhs_value: float, pred: str):
     x = lhs_value
     y = rhs_value
 
@@ -370,7 +379,8 @@ def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
         case _:
             expectation = None
 
-    cmpf = CmpfOp(lhs_op, rhs_op, pred)
+    cmpf = CmpfOp(lhs_f64_op, rhs_f64_op, pred)
+    cmpf.verify()
 
     ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
 
