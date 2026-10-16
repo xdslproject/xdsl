@@ -139,8 +139,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -406,7 +425,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Preserve effects, but do not leave discarded expression results on the stack.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
