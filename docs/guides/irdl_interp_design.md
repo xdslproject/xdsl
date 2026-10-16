@@ -282,6 +282,146 @@ This generates redundant checks, but optimization passes (CSE, canonicalization)
 
 **`assert`** takes an `i1` condition and a message string. Fails verification if the condition is false.
 
+---
+
+## OpDef to Verify Function Lowering
+
+### Overview
+
+An `OpDef` (IRDL operation definition) can be lowered to an irdl_interp verify function. This allows constraint verification to be expressed as optimizable MLIR rather than Python code.
+
+### Scope (Phase 1)
+
+**In scope:**
+- Operand/result/region/successor count verification
+- Operand and result type constraint verification
+- Property verification (existence, constraints, no extra properties)
+- Basic constraints: `BaseAttr`, `AnyAttr`, `VarConstraint`, `AnyOf`, `EqAttrConstraint`, `ParamAttrConstraint`, `RangeOf`, `RangeLengthConstraint`
+
+**Out of scope (future phases):**
+- Region shape verification (single-block, etc.)
+- Successor verification (signatures, terminators)
+- Trait verification (HasParent, HasCanonicalizer, etc.)
+- Attribute verification (deprecated path)
+- Optional properties
+
+### Verification Phases
+
+The generated verify function follows these phases in order:
+
+#### Phase 1: Verify Structural Counts
+
+Extract all structural components and verify counts match expected values.
+
+```mlir
+// Extract all components
+%operand_types = irdl_interp.get_operand_types %op
+%result_types = irdl_interp.get_result_types %op
+%regions = irdl_interp.get_regions %op
+%successors = irdl_interp.get_successors %op
+%prop_count = irdl_interp.get_prop_count %op
+
+%c0 = arith.constant 0 : index
+
+// Verify operand count
+%operand_count = tensor.dim %operand_types, %c0
+%expected_operands = arith.constant N : index
+irdl_interp.unify.int %operand_count : index and %expected_operands : index
+
+// Verify result count
+%result_count = tensor.dim %result_types, %c0
+%expected_results = arith.constant M : index
+irdl_interp.unify.int %result_count : index and %expected_results : index
+
+// Verify region count
+%region_count = tensor.dim %regions, %c0
+%expected_regions = arith.constant R : index
+irdl_interp.unify.int %region_count : index and %expected_regions : index
+
+// Verify successor count
+%succ_count = tensor.dim %successors, %c0
+%expected_successors = arith.constant S : index
+irdl_interp.unify.int %succ_count : index and %expected_successors : index
+```
+
+**Rationale:** Verifying counts first ensures the operation has the correct structure before checking types. All counts are verified in one phase for clarity.
+
+#### Phase 2: Setup Constraint Variables
+
+Create all `VarConstraint` variables upfront. Variables are not bound yet - they will be bound during operand/result verification.
+
+```mlir
+%T = irdl_interp.new_var.attr  // For type variables
+%N = irdl_interp.new_var.int   // For integer variables
+```
+
+**Rationale:** Creating variables upfront ensures they are available for both operand and result verification, enabling shared type variables across operands and results.
+
+#### Phase 3: Verify Operand Type Constraints
+
+Extract each operand type and verify it satisfies its constraint.
+
+```mlir
+%type = tensor.extract %operand_types[%c0] : tensor<?x!irdl_interp.attr>
+
+// BaseAttr example
+%check = irdl_interp.check_base %type, "IntegerType" : i1
+irdl_interp.assert %check, "Expected IntegerType"
+
+// VarConstraint example (binds the variable)
+irdl_interp.unify.attr %type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+```
+
+**"Check every time" semantics:** Each operand type is checked against its constraint individually, even if multiple operands share the same `VarConstraint`. This generates redundant checks, but optimization (CSE) can eliminate them.
+
+#### Phase 4: Verify Result Type Constraints
+
+Same pattern as Phase 3, but for results. Shared type variables (from Phase 2) are unified with result types, ensuring all operands and results with the same `VarConstraint` have equal types.
+
+```mlir
+%type = tensor.extract %result_types[%c0] : tensor<?x!irdl_interp.attr>
+%check = irdl_interp.check_base %type, "IntegerType" : i1
+irdl_interp.assert %check, "Expected IntegerType"
+irdl_interp.unify.attr %type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+```
+
+#### Phase 5: Verify Properties
+
+Verify each property exists and satisfies its constraint, then verify no extra properties exist.
+
+```mlir
+// Check required property
+%prop = irdl_interp.get_prop %op, "overflowFlags"
+%check = irdl_interp.check_base %prop, "IntegerOverflowAttr" : i1
+irdl_interp.assert %check, "Expected IntegerOverflowAttr"
+
+// Check no extra properties
+%expected_prop_count = arith.constant N : index
+irdl_interp.unify.int %prop_count : index and %expected_prop_count : index
+```
+
+### Constraint Lowering
+
+| Constraint | Generated IR |
+|------------|-------------|
+| `BaseAttr(T)` | `%check = irdl_interp.check_base %type, "T" : i1`<br>`irdl_interp.assert %check, "Expected T"` |
+| `AnyAttr()` | No check (accepts anything) |
+| `AnyOf([c1, c2])` | Check each constraint, OR results, assert |
+| `VarConstraint("T", c)` | Check `c` on value, unify with `%T` |
+| `EqAttrConstraint(a)` | `%concrete = irdl_interp.constant.attr a`<br>`irdl_interp.unify.attr %type, %concrete` |
+| `ParamAttrConstraint(T, [p1, p2])` | `%params = irdl_interp.get_params %type`<br>Check each parameter with its constraint |
+| `RangeOf(c)` | Extract each element, check with `c` |
+| `RangeLengthConstraint(r, n)` | Check length + `RangeOf` |
+
+### Future Phases
+
+**Not yet implemented:**
+- Region shape verification (single-block, etc.)
+- Successor verification (signatures, terminators)
+- Trait verification (HasParent, HasCanonicalizer, etc.)
+- Attribute verification (deprecated path)
+- Optional properties
+
 ## Next Steps
 
 - Iterate on this design document
