@@ -1,8 +1,38 @@
 import pytest
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Input, Position
+from xdsl.utils.lexer import ContentT, Input, Offset, Position
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
+
+
+@pytest.mark.parametrize(
+    "source,size,x_pos,first,prefix",
+    [
+        ("é😀x\r\ny", 6, 2, "é", "é😀"),
+        ("é😀x\r\ny".encode(), 10, 6, 0xC3, "é😀".encode()),
+    ],
+)
+def test_input_representation(
+    source: ContentT,
+    size: Offset,
+    x_pos: Position,
+    first: str | int,
+    prefix: ContentT,
+):
+    input = Input(source, "test")
+    assert input.content is source
+    assert len(input) == size
+    assert input.at(0) == first
+    assert input.at(size) is None
+    assert input.slice(0, x_pos) == prefix
+    assert input.slice(-1, size) is None
+    assert input.slice(0, size + 1) is None
+    assert input.get_start_of_line(x_pos) == 0
+    assert input.get_end_of_line(x_pos) == size - 2
+    assert input.get_start_of_line(size - 1) == size - 1
+    assert input.get_end_of_line(size - 1) == size
+    assert input.get_start_of_line(size) == size - 1
+    assert input.get_end_of_line(size) == size
 
 
 def get_token(input: str) -> MLIRToken:

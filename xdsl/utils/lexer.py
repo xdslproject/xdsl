@@ -4,9 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Generic, NamedTuple
+from typing import Generic, NamedTuple, overload
 
 from typing_extensions import TypeVar
+
+ContentT = TypeVar("ContentT", str, bytes, default=str)
 
 Position = int
 """
@@ -41,17 +43,22 @@ class Location(NamedTuple):
 
 
 @dataclass(frozen=True)
-class Input:
+class Input(Generic[ContentT]):
     """
-    Used to keep track of the input when parsing.
+    Source name and contents, preserved without encoding or decoding.
     """
 
-    content: str = field(repr=False)
+    content: ContentT = field(repr=False)
     name: str
     len: Offset = field(init=False, repr=False)
+    newline: ContentT = field(init=False, repr=False, compare=False)
+    """LF in the source representation."""
 
     def __post_init__(self):
         object.__setattr__(self, "len", len(self.content))
+        object.__setattr__(
+            self, "newline", "\n" if isinstance(self.content, str) else b"\n"
+        )
 
     def __len__(self) -> Offset:
         return self.len
@@ -62,7 +69,7 @@ class Input:
         previous newlines.
         """
         # Returns -1 if not found, meaning on first line
-        pos = self.content.rfind("\n", 0, pos)
+        pos = self.content.rfind(self.newline, 0, pos)
         # If the result is not the beginning of the input, go past the matching newline
         return pos + 1
 
@@ -71,17 +78,26 @@ class Input:
         Returns the position of the first newline after `pos`, or the length of the
         file if there are no more newlines.
         """
-        pos = self.content.find("\n", pos)
+        pos = self.content.find(self.newline, pos)
         # If the result is at the end of the input, return the length for correct slice
         # indexing
         return self.len if pos == -1 else pos
 
-    def at(self, i: Position) -> str | None:
+    @overload
+    def at(self: Input[str], i: Position) -> str | None: ...
+
+    @overload
+    def at(self: Input[bytes], i: Position) -> int | None: ...
+
+    @overload
+    def at(self, i: Position) -> str | int | None: ...
+
+    def at(self, i: Position) -> str | int | None:
         if i >= self.len:
             return None
         return self.content[i]
 
-    def slice(self, start: Position, end: Position) -> str | None:
+    def slice(self, start: Position, end: Position) -> ContentT | None:
         if end > self.len or start < 0:
             return None
         return self.content[start:end]
@@ -102,7 +118,7 @@ class Span:
     """
     Exclusive, zero-based end position within the input.
     """
-    input: Input
+    input: Input[str]
     """
     The input being operated on
     """
@@ -181,7 +197,7 @@ class Token(Generic[TokenKindT]):
 
 @dataclass
 class Lexer(ABC, Generic[TokenKindT]):
-    input: Input
+    input: Input[str]
     """Input that is currently being lexed."""
 
     pos: Position = field(init=False, default=0)
