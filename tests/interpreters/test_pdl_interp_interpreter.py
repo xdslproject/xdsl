@@ -636,6 +636,16 @@ def test_replace_with_range_invalid():
         interpreter.run_op(replace_op, (target_op, c0, (c1,), c3))
 
 
+def test_branch():
+    interpreter = Interpreter(ModuleOp([]))
+    destination = Block()
+    op = pdl_interp.BranchOp(destination)
+
+    assert PDLInterpFunctions().run_branch(interpreter, op, ()) == OpImplResult(
+        (), Successor(destination, ())
+    )
+
+
 def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
     testmodule = ModuleOp(Region([Block()]))
