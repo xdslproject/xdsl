@@ -94,7 +94,9 @@ def test_typed_capture_order_and_discarded_navigation():
     @ctx.parse_program
     def captures(root: Operation) -> tuple[Attribute, SSAValue, Operation]:
         get_operand(root, 1)
-        return get_attribute(root, "p"), get_result(root, 1), root
+        attribute = get_attribute(root, "p")
+        has_attr_value(attribute, builtin.IntegerAttr(7, 64))
+        return attribute, get_result(root, 1), root
 
     module = captures.module
     matcher = module.body.block.first_op
@@ -103,9 +105,9 @@ def test_typed_capture_order_and_discarded_navigation():
     root = test.TestOp(
         block.args,
         [builtin.i32, builtin.i64],
-        properties={"p": builtin.StringAttr("property")},
+        properties={"p": builtin.IntegerAttr(7, 64)},
     )
-    expected = (builtin.StringAttr("property"), root.results[1], root)
+    expected = (builtin.IntegerAttr(7, 64), root.results[1], root)
     assert captures(root) == expected
     assert run_matcher(matcher, root) == MatchResult(
         builtin.SymbolRefAttr("rewrite"), expected
@@ -114,6 +116,12 @@ def test_typed_capture_order_and_discarded_navigation():
     with pytest.raises(MatchFailure):
         captures(root)
     assert run_matcher(matcher, root) is None
+    root.operands = block.args
+    for wrong_attribute in (builtin.IntegerAttr(0, 64), builtin.IntegerAttr(7, 32)):
+        root.properties["p"] = wrong_attribute
+        with pytest.raises(MatchFailure):
+            captures(root)
+        assert run_matcher(matcher, root) is None
 
 
 def test_frontend_rejects_unsupported_forms():
