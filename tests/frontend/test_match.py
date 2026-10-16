@@ -16,6 +16,7 @@ from xdsl.frontend.pymatch import (
     get_result,
     has_attr_value,
     has_name,
+    rewrite_for,
 )
 from xdsl.frontend.pymatch.context import PyMatchContext
 from xdsl.interpreters.match import MatchResult, run_matcher
@@ -64,24 +65,74 @@ def test_python_rewrite_captures_and_failures():
     Block([root])
     rewriter = PatternRewriter(root)
     captures = (root, root.results[0])
-    matcher = Mock(return_value=captures)
+    match_result = Mock(return_value=captures)
+
+    def matcher(op: test.TestOp) -> tuple[test.TestOp, SSAValue] | None:
+        return match_result(op)
+
     rewrite = Mock()
-    pattern = PythonMatchRewritePattern(matcher, rewrite)
+    pattern = rewrite_for(matcher)(rewrite)
+    pattern.match_and_rewrite(builtin.ModuleOp([]), rewriter)
+    match_result.assert_not_called()
     pattern.match_and_rewrite(root, rewriter)
-    rewrite.assert_called_once_with(captures, rewriter)
+    match_result.assert_called_once_with(root)
+    rewrite.assert_called_once_with(*captures, rewriter)
     rewrite.reset_mock()
 
-    matcher.side_effect = MatchFailure()
+    match_result.return_value = None
     pattern.match_and_rewrite(root, rewriter)
     rewrite.assert_not_called()
-    matcher.side_effect = ValueError("bad matcher")
+    match_result.side_effect = ValueError("bad matcher")
     with pytest.raises(ValueError, match="bad matcher"):
         pattern.match_and_rewrite(root, rewriter)
 
-    matcher.side_effect = None
+    match_result.side_effect = None
+    match_result.return_value = captures
     rewrite.side_effect = MatchFailure()
     with pytest.raises(MatchFailure):
         pattern.match_and_rewrite(root, rewriter)
+
+
+def test_empty_captures_are_successful():
+    def matcher(op: Operation) -> tuple[()] | None:
+        return ()
+
+    rewrite = Mock()
+    pattern = PythonMatchRewritePattern(matcher, rewrite)
+    root = test.TestOp()
+    Block([root])
+    rewriter = PatternRewriter(root)
+    pattern.match_and_rewrite(root, rewriter)
+    rewrite.assert_called_once_with(rewriter)
+    rewrite.reset_mock()
+    pattern(rewriter)
+    rewrite.assert_called_once_with(rewriter)
+
+
+def test_rewrite_capture_typing():
+    """Pyright also checks these contracts, including the expected diagnostics."""
+
+    def matcher(op: test.TestOp) -> tuple[test.TestOp, SSAValue] | None:
+        return op, op.results[0]
+
+    def compatible(op: Operation, value: SSAValue, rewriter: PatternRewriter) -> None:
+        pass
+
+    def swapped(value: SSAValue, op: test.TestOp, rewriter: PatternRewriter) -> None:
+        pass
+
+    def missing(op: test.TestOp, rewriter: PatternRewriter) -> None:
+        pass
+
+    def wrong_type(
+        op: builtin.ModuleOp, value: SSAValue, rewriter: PatternRewriter
+    ) -> None:
+        pass
+
+    rewrite_for(matcher)(compatible)
+    rewrite_for(matcher)(swapped)  # pyright: ignore[reportArgumentType]
+    rewrite_for(matcher)(missing)  # pyright: ignore[reportArgumentType]
+    rewrite_for(matcher)(wrong_type)  # pyright: ignore[reportArgumentType]
 
 
 def test_typed_capture_order_and_discarded_navigation():

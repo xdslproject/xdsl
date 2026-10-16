@@ -132,8 +132,14 @@ for root, expected in cases:
 assert payload.is_structurally_equivalent(before)
 
 
-def rewrite_add_zero(captures: Captures, rewriter: PatternRewriter) -> None:
-    root, lhs = captures
+def try_add_zero(root: Operation) -> Captures | None:
+    try:
+        return add_zero(root)
+    except MatchFailure:
+        return None
+
+
+def rewrite_add_zero(root: Operation, lhs: SSAValue, rewriter: PatternRewriter) -> None:
     rewriter.replace(root, [], [lhs])
 
 
@@ -152,7 +158,7 @@ assert isinstance(source_func, func.FuncOp)
 python_result = source_func.clone()
 python_module = ModuleOp([python_result])
 PatternRewriteWalker(
-    PythonMatchRewritePattern(add_zero, rewrite_add_zero)
+    PythonMatchRewritePattern(try_add_zero, rewrite_add_zero)
 ).rewrite_module(python_module)
 python_module.verify()
 
