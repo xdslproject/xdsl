@@ -104,10 +104,14 @@ class Input(Generic[ContentT]):
 
 
 @dataclass(frozen=True)
-class Span:
+class Span(Generic[ContentT]):
     """
     Parts of the input are always passed around as spans, so we know where they
     originated.
+
+    Positions and lengths use the input's native units: Unicode code points for
+    strings and bytes for byte inputs. Converting the contents does not change
+    these coordinates.
     """
 
     start: Position
@@ -118,14 +122,14 @@ class Span:
     """
     Exclusive, zero-based end position within the input.
     """
-    input: Input[str]
+    input: Input[ContentT]
     """
     The input being operated on
     """
 
     line_offset: int = 0
     """
-    A line offset, to just add to ht file number in input when printed.
+    A line offset to add to the line number when reporting a location.
     """
 
     def __len__(self) -> Offset:
@@ -136,12 +140,27 @@ class Span:
         return self.end - self.start
 
     @property
-    def text(self):
+    def content(self) -> ContentT:
+        """The source slice, without encoding or decoding."""
         return self.input.content[self.start : self.end]
+
+    @property
+    def text(self) -> str:
+        """The source slice as text, decoding byte inputs with strict UTF-8."""
+        content = self.content
+        return content.decode("utf-8") if isinstance(content, bytes) else content
+
+    @property
+    def bytes(self) -> bytes:
+        """The source slice as bytes, encoding string inputs with strict UTF-8."""
+        content = self.content
+        return content.encode("utf-8") if isinstance(content, str) else content
 
     def get_location(self) -> Location:
         line_start = self.input.get_start_of_line(self.start)
-        line_index_in_source = self.input.content.count("\n", 0, line_start) + 1
+        line_index_in_source = (
+            self.input.content.count(self.input.newline, 0, line_start) + 1
+        )
         line_index = line_index_in_source + self.line_offset
         column_index = self.start - line_start + 1
         return Location(self.input.name, line_index, column_index)
@@ -151,14 +170,23 @@ class Span:
         Returns a string containing lines relevant to the span. The Span's contents
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
+
+        Byte inputs are decoded as UTF-8 with replacement for display only;
+        the reported location still uses byte columns.
         """
         context_start = self.input.get_start_of_line(self.start)
         # For empty spans, show the line containing the insertion point
         last_position = max(self.start, self.end - 1)
         context_end = self.input.get_end_of_line(last_position)
-        context = self.input.content[context_start:context_end]
+        context: str | bytes = self.input.content[context_start:context_end]
         start = self.start - context_start
         end = self.end - context_start
+
+        if isinstance(context, bytes):
+            # Approximate character positions, including partial or invalid UTF-8.
+            start = len(context[:start].decode("utf-8", "replace"))
+            end = len(context[:end].decode("utf-8", "replace"))
+            context = context.decode("utf-8", "replace")
 
         capture = StringIO()
         print(self.get_location(), file=capture)
@@ -180,7 +208,7 @@ class Span:
         return capture.getvalue()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}[{self.start}:{self.end}](text='{self.text}')"
+        return f"{self.__class__.__name__}[{self.start}:{self.end}]({self.content!r})"
 
 
 TokenKindT = TypeVar("TokenKindT", bound=Enum)
@@ -190,7 +218,7 @@ TokenKindT = TypeVar("TokenKindT", bound=Enum)
 class Token(Generic[TokenKindT]):
     kind: TokenKindT
 
-    span: Span
+    span: Span[str]
 
     @property
     def text(self):
