@@ -217,19 +217,20 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.ShLIOp)
     def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = args[1]
         assert rhs >= 0
-        return (lhs << rhs,)
+        return (to_signed(lhs << rhs, bitwidth),)
 
     @impl(arith.ShRSIOp)
     def run_shrsi(
         self, interpreter: Interpreter, op: arith.ShRSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = args[1]
         assert rhs >= 0
         return (lhs >> rhs,)
 
@@ -237,22 +238,24 @@ class ArithFunctions(InterpreterFunctions):
     def run_divsi(
         self, interpreter: Interpreter, op: arith.DivSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
             div = -div
-        return (div,)
+        return (to_signed(div, bitwidth),)
 
     @impl(arith.RemSIOp)
     def run_remsi(
         self, interpreter: Interpreter, op: arith.RemSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
@@ -263,11 +266,12 @@ class ArithFunctions(InterpreterFunctions):
     def run_floordivsi(
         self, interpreter: Interpreter, op: arith.FloorDivSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
-        return (lhs // rhs,)
+        return (to_signed(lhs // rhs, bitwidth),)
 
     @impl(arith.SelectOp)
     def run_select(
@@ -317,5 +321,7 @@ class ArithFunctions(InterpreterFunctions):
             result = _truncate(result, result_bitwidth)
         elif input_bitwidth < result_bitwidth:
             result = _sign_extend(result, input_bitwidth)
+        else:
+            result = to_signed(result, result_bitwidth)
 
         return (result,)

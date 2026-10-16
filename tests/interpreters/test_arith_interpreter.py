@@ -411,6 +411,35 @@ def test_shrsi(lhs_value: int, rhs_value: int):
 
 
 @pytest.mark.parametrize(
+    "value_type,index_bitwidth,sign_bit",
+    [
+        (i8, 32, 128),
+        (i32, 64, 1 << 31),
+        (IndexType(), 32, 1 << 31),
+        (IndexType(), 64, 1 << 63),
+    ],
+)
+def test_shifts_bitwidth(
+    value_type: IntegerType | IndexType,
+    index_bitwidth: Literal[32, 64],
+    sign_bit: int,
+):
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=index_bitwidth)
+    interpreter.register_implementations(ArithFunctions())
+    lhs = test.TestOp(result_types=[value_type])
+    rhs = test.TestOp(result_types=[value_type])
+    shl = ShLIOp(lhs, rhs)
+    shr = ShRSIOp(lhs, rhs)
+    shl.verify()
+    shr.verify()
+
+    assert interpreter.run_op(shl, (sign_bit // 2, 1)) == (-sign_bit,)
+    assert interpreter.run_op(shl, (-sign_bit, 1)) == (0,)
+    assert interpreter.run_op(shr, (sign_bit, 1)) == (-sign_bit // 2,)
+    assert interpreter.run_op(shr, (-sign_bit, 1)) == (-sign_bit // 2,)
+
+
+@pytest.mark.parametrize(
     "lhs_value,rhs_value,result", [(-3, -2, 1), (-3, 2, -1), (3, -2, -1), (3, 2, 1)]
 )
 def test_divsi(lhs_value: int, rhs_value: int, result: int):
@@ -444,6 +473,40 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
 
     assert len(ret) == 1
     assert ret[0] == result
+
+
+@pytest.mark.parametrize(
+    "value_type,index_bitwidth,modulus",
+    [
+        (i8, 32, 256),
+        (i32, 64, 1 << 32),
+        (IndexType(), 32, 1 << 32),
+        (IndexType(), 64, 1 << 64),
+    ],
+)
+@pytest.mark.parametrize(
+    "op_type,negative_lhs_result,negative_rhs_result",
+    [(DivSIOp, -1, -1), (RemSIOp, -2, 2), (FloorDivSIOp, -2, -2)],
+)
+def test_signed_division_bitwidth(
+    value_type: IntegerType | IndexType,
+    index_bitwidth: Literal[32, 64],
+    modulus: int,
+    op_type: type[DivSIOp | RemSIOp | FloorDivSIOp],
+    negative_lhs_result: int,
+    negative_rhs_result: int,
+):
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=index_bitwidth)
+    interpreter.register_implementations(ArithFunctions())
+    lhs = test.TestOp(result_types=[value_type])
+    rhs = test.TestOp(result_types=[value_type])
+    op = op_type(lhs, rhs)
+    op.verify()
+
+    assert interpreter.run_op(op, (modulus - 5, 3)) == (negative_lhs_result,)
+    assert interpreter.run_op(op, (-5, 3)) == (negative_lhs_result,)
+    assert interpreter.run_op(op, (5, modulus - 3)) == (negative_rhs_result,)
+    assert interpreter.run_op(op, (5, -3)) == (negative_rhs_result,)
 
 
 @pytest.mark.parametrize("cond_value", [1, 0])
@@ -551,3 +614,16 @@ def test_indexcast_from_i8(x: int, expected: int):
 
     assert len(ret) == 1
     assert ret[0] == expected
+
+
+@pytest.mark.parametrize("index_bitwidth", [32, 64])
+def test_indexcast_same_width(index_bitwidth: Literal[32, 64]):
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=index_bitwidth)
+    interpreter.register_implementations(ArithFunctions())
+    int_type = IntegerType(index_bitwidth)
+    index_type = IndexType()
+    for input_type, output_type in ((int_type, index_type), (index_type, int_type)):
+        op = IndexCastOp(test.TestOp(result_types=[input_type]), output_type)
+        op.verify()
+        assert interpreter.run_op(op, ((1 << index_bitwidth) - 1,)) == (-1,)
+        assert interpreter.run_op(op, (-1,)) == (-1,)
