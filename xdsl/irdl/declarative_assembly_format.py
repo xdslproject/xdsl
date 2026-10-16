@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -286,12 +286,34 @@ class Directive(ABC):
         """
         return False
 
+    @deprecated(
+        "Use can_parse_empty() for empty-input parsing or "
+        "can_start_optional_group() for optional-group eligibility."
+    )
     def is_optional_like(self) -> bool:
         """
-        Directives that successfully parse the empty string.
-        The first element in an optional group must be optional-like.
+        Deprecated alias for can_start_optional_group(), for direct callers only.
+        Overrides are no longer consulted: the old predicate cannot express both
+        new contracts. Override can_parse_empty() and/or can_start_optional_group().
+        """
+        return self.can_start_optional_group()
+
+    def can_parse_empty(self) -> bool:
+        """
+        Whether normal parsing accepts empty input, without an optional probe.
         """
         return self.is_variadic_like()
+
+    def can_start_optional_group(self) -> bool:
+        """
+        Whether this directive can determine the presence of an optional group
+        through `parse_optional`, consuming input only when present.
+
+        This does not require normal parsing to accept empty input: keywords,
+        punctuation, and required regions have a separate optional parser.
+        Conversely, directives that never consume input cannot start a group.
+        """
+        return self.can_parse_empty()
 
 
 class FormatDirective(Directive, ABC):
@@ -415,8 +437,11 @@ class TypeDirective(FormatDirective):
     def is_variadic_like(self) -> bool:
         return self.inner.is_variadic_like()
 
-    def is_optional_like(self) -> bool:
-        return self.inner.is_optional_like()
+    def can_parse_empty(self) -> bool:
+        return self.inner.can_parse_empty()
+
+    def can_start_optional_group(self) -> bool:
+        return self.inner.can_start_optional_group()
 
     def set_empty(self, state: ParsingState):
         self.set(state, ())
@@ -454,7 +479,7 @@ class OptionalVariable(VariableDirective, ABC):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return True
 
 
@@ -536,7 +561,7 @@ class AttrDictDirective(FormatDirective):
             state.last_was_punctuation = False
             state.should_emit_space = True
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return True
 
 
@@ -932,8 +957,8 @@ class FunctionalTypeDirective(FormatDirective):
         leave the parser and state unchanged. Once it is present, require the
         complete signature.
 
-        This supports direct Python API use. The directive is not yet optional-like
-        and cannot be the first element of a declarative optional group.
+        This supports direct Python API use. The directive cannot yet be the first
+        element of a declarative optional group.
         """
         if parser.parse_optional_punctuation("("):
             self._parse_suffix(parser, state)
@@ -999,7 +1024,7 @@ class RegionVariable(RegionDirective, VariableDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(self.get(op).blocks)
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1221,7 +1246,7 @@ class AttributeVariable(FormatDirective):
     def is_anchorable(self) -> bool:
         return self.is_optional or self.default_value is not None
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return self.is_optional
 
 
@@ -1340,7 +1365,7 @@ class OptionalUnitAttrVariable(AttributeVariable):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         return
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return False
 
 
@@ -1383,6 +1408,12 @@ class WhitespaceDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_whitespace(printer, state, self.whitespace)
 
+    def can_parse_empty(self) -> bool:
+        return True
+
+    def can_start_optional_group(self) -> bool:
+        return False
+
 
 @dataclass(frozen=True)
 class PunctuationDirective(FormatDirective):
@@ -1422,7 +1453,7 @@ class PunctuationDirective(FormatDirective):
         state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
         state.last_was_punctuation = True
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1447,7 +1478,7 @@ class KeywordDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_keyword(printer, state, self.keyword)
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1492,6 +1523,13 @@ class OptionalGroupDirective(FormatDirective):
             element.set_empty(state)
         for element in self.else_elements:
             element.set_empty(state)
+
+    def can_parse_empty(self) -> bool:
+        return all(element.can_parse_empty() for element in self.else_elements)
+
+    def can_start_optional_group(self) -> bool:
+        # An optional group cannot be the first element of another optional group.
+        return False
 
 
 # ===========================================================================
