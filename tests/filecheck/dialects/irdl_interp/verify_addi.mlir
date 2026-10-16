@@ -41,17 +41,21 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   // CHECK: %result_type = tensor.extract %result_types[%[[C0]]] : tensor<?x!irdl_interp.attr>
   %result_type = tensor.extract %result_types[%c0] : tensor<?x!irdl_interp.attr>
 
-  // Unify all types with the constraint variable
+  // Check each type satisfies the constraint
+  // CHECK: irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
+  // CHECK: irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
+  // CHECK: irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+
+  // Unify all types to ensure equality
   // CHECK: irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   // CHECK: irdl_interp.unify.attr %rhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   irdl_interp.unify.attr %rhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   // CHECK: irdl_interp.unify.attr %result_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   irdl_interp.unify.attr %result_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
-
-  // Verify %T has the correct base type
-  // CHECK: irdl_interp.check_base %T : !irdl_interp.variable.attr, "IntegerType"
-  irdl_interp.check_base %T : !irdl_interp.variable.attr, "IntegerType"
 
   // Check overflowFlags property
   // CHECK: %overflow_flags = irdl_interp.get_prop %op, "overflowFlags"
@@ -83,10 +87,12 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 // CHECK-GENERIC-NEXT:   %lhs_type = "tensor.extract"(%operand_types, %c0) : (tensor<?x!irdl_interp.attr>, index) -> !irdl_interp.attr
 // CHECK-GENERIC-NEXT:   %rhs_type = "tensor.extract"(%operand_types, %c0) : (tensor<?x!irdl_interp.attr>, index) -> !irdl_interp.attr
 // CHECK-GENERIC-NEXT:   %result_type = "tensor.extract"(%result_types, %c0) : (tensor<?x!irdl_interp.attr>, index) -> !irdl_interp.attr
+// CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%lhs_type) <{base = "IntegerType"}> : (!irdl_interp.attr) -> ()
+// CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%rhs_type) <{base = "IntegerType"}> : (!irdl_interp.attr) -> ()
+// CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%result_type) <{base = "IntegerType"}> : (!irdl_interp.attr) -> ()
 // CHECK-GENERIC-NEXT:   "irdl_interp.unify.attr"(%lhs_type, %T) : (!irdl_interp.attr, !irdl_interp.variable.attr) -> ()
 // CHECK-GENERIC-NEXT:   "irdl_interp.unify.attr"(%rhs_type, %T) : (!irdl_interp.attr, !irdl_interp.variable.attr) -> ()
 // CHECK-GENERIC-NEXT:   "irdl_interp.unify.attr"(%result_type, %T) : (!irdl_interp.attr, !irdl_interp.variable.attr) -> ()
-// CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%T) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> ()
 // CHECK-GENERIC-NEXT:   %overflow_flags = "irdl_interp.get_prop"(%op) <{prop_name = "overflowFlags"}> : (!irdl_interp.operation) -> !irdl_interp.attr
 // CHECK-GENERIC-NEXT:   "irdl_interp.check_base"(%overflow_flags) <{base = "IntegerOverflowAttr"}> : (!irdl_interp.attr) -> ()
 // CHECK-GENERIC-NEXT:   %prop_count = "irdl_interp.get_prop_count"(%op) : (!irdl_interp.operation) -> index

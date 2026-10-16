@@ -190,13 +190,17 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
   %rhs_type = tensor.extract %operand_types[1] : tensor<?x!irdl_interp.attr>
   %result_type = tensor.extract %result_types[0] : tensor<?x!irdl_interp.attr>
 
-  // Unify all types with the constraint variable
+  // Check each type satisfies VarConstraint("T", BaseAttr(IntegerType))
+  // This demonstrates "check every time" semantics - each use checks the constraint.
+  // Optimization can eliminate redundant checks later.
+  irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+
+  // Unify all types to ensure they are equal (VarConstraint "T" semantics)
   irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   irdl_interp.unify.attr %rhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
   irdl_interp.unify.attr %result_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
-
-  // Verify %T has the correct base type (no-op if %T is unbound)
-  irdl_interp.check_base %T : !irdl_interp.variable.attr, "IntegerType"
 
   // Check overflowFlags property
   %overflow_flags = irdl_interp.get_prop %op, "overflowFlags"
@@ -210,12 +214,19 @@ func.func @verify_addi(%op: !irdl_interp.operation) {
 }
 ```
 
-The unify operations check that:
+The generated code demonstrates:
 - Operand/result counts match expected values
-- All operand and result types are equal (via the shared %T variable)
+- **Check every time**: Each operand/result type is checked against the constraint individually
+- **Unify for equality**: All types are unified to ensure they are equal (VarConstraint "T" semantics)
 - Property count matches expected (combined with explicit property checks, ensures no extra properties)
 
-`check_base` verifies the base type of an attribute. If called on an unbound variable, it's a no-op (matching Python semantics where constraints on unbound variables are never checked).
+**VarConstraint lowering**: A `VarConstraint("T", constraint)` is lowered to:
+1. Check the constraint on each concrete value that uses the variable
+2. Unify all values with the variable to ensure equality
+
+This generates redundant checks, but optimization passes (CSE, canonicalization) can eliminate them. The redundancy makes the IR simpler to generate and easier to optimize.
+
+`check_base` verifies the base type of an attribute and returns a boolean. For unbound variables, the behavior is undefined (should bind variables before checking).
 
 ## Next Steps
 
