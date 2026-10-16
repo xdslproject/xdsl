@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import ContentT, Input, Offset, Position
+from xdsl.utils.lexer import ContentT, Input, Offset, Position, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
@@ -33,6 +33,120 @@ def test_input_representation(
     assert input.get_end_of_line(size - 1) == size
     assert input.get_start_of_line(size) == size - 1
     assert input.get_end_of_line(size) == size
+
+
+@pytest.mark.parametrize(
+    "span,msg,expected",
+    [
+        pytest.param(
+            Span(0, 0, Input("", "test")),
+            "error",
+            """\
+test:1:1
+
+^
+error
+""",
+            id="empty-input",
+        ),
+        pytest.param(
+            Span(4, 4, Input("abc\n", "test")),
+            "error",
+            """\
+test:2:1
+
+^
+error
+""",
+            id="eof-after-newline",
+        ),
+        pytest.param(
+            Span(0, 4, Input("abc\nxyz", "test")),
+            "error",
+            """\
+test:1:1
+abc
+^^^
+error
+""",
+            id="exclusive-end-at-next-line",
+        ),
+        pytest.param(
+            Span(1, 5, Input("abc\ndef\nghi", "test")),
+            "error",
+            """\
+test:1:2
+abc
+ ^^
+ error
+def
+^
+""",
+            id="multiline",
+        ),
+        pytest.param(
+            Span(1, 6, Input("abc\r\ndef", "test")),
+            "error",
+            """\
+test:1:2
+abc
+ ^^
+ error
+def
+^
+""",
+            id="crlf-counts-as-two-characters",
+        ),
+        pytest.param(
+            Span(0, 4, Input("a\n\nb", "test")),
+            "error",
+            """\
+test:1:1
+a
+^
+error
+
+^
+b
+^
+""",
+            id="empty-line-inside-span",
+        ),
+        pytest.param(
+            Span(0, 3, Input("a\u2028b", "test")),
+            None,
+            """\
+test:1:1
+a\u2028b
+^^^
+""",
+            id="only-lf-splits-source-lines",
+        ),
+        pytest.param(
+            Span(2, 3, Input("\néx", "test"), line_offset=3),
+            None,
+            """\
+test:5:2
+éx
+ ^
+""",
+            id="unicode-and-line-offset-without-message",
+        ),
+        pytest.param(
+            Span(3, 3, Input("abc", "test")),
+            "error",
+            """\
+test:1:4
+abc
+   ^
+   error
+""",
+            id="eof-without-newline",
+        ),
+    ],
+)
+def test_span_print_with_context(span: Span, msg: str | None, expected: str):
+    assert span.print_with_context(msg) == expected
 
 
 def get_token(input: str) -> MLIRToken:

@@ -148,32 +148,33 @@ class Span:
 
     def print_with_context(self, msg: str | None = None) -> str:
         """
-        returns a string containing lines relevant to the span. The Span's contents
+        Returns a string containing lines relevant to the span. The Span's contents
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
         """
-        loc = self.get_location()
-        # Offset relative to the first line:
-        offset = loc.col - 1
-        lines_start = self.start - offset
-        lines_end = self.input.get_end_of_line(self.end)
-        lines = self.input.content[lines_start:lines_end].splitlines()
-        remaining_len = max(self.len, 1)
+        lines_start = self.input.get_start_of_line(self.start)
+        lines_end = self.input.get_end_of_line(max(self.start, self.end - 1))
+        context = self.input.content[lines_start:lines_end]
+        start = self.start - lines_start
+        end = self.end - lines_start
+
         capture = StringIO()
-        print(loc, file=capture)
-        for line in lines:
-            print(line, file=capture)
-            if remaining_len < 0:
-                continue
-            caret_count = min(remaining_len, max(len(line) - offset, 1))
-            print(" " * offset + "^" * caret_count, file=capture)
+        print(self.get_location(), file=capture)
+
+        line_start = 0
+        for line in context.split("\n"):
+            display_line = line.removesuffix("\r")
+            start_column = min(max(start - line_start, 0), len(display_line))
+            end_column = min(max(end - line_start, 0), len(display_line))
+            print(display_line, file=capture)
+            print(
+                " " * start_column + "^" * max(end_column - start_column, 1),
+                file=capture,
+            )
             if msg is not None:
-                print(" " * offset + msg, file=capture)
+                print(" " * start_column + msg, file=capture)
                 msg = None
-            remaining_len -= caret_count
-            offset = 0
-        if msg is not None:
-            print(msg, file=capture)
+            line_start += len(line) + 1
         return capture.getvalue()
 
     def __repr__(self):
