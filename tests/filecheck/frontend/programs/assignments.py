@@ -18,7 +18,6 @@ ctx.register_function(add, arith.AddiOp)
 ctx.register_literal(int, lambda value: arith.ConstantOp.from_int_and_width(value, 32))
 
 
-@ctx.parse_program
 def assignments(x: int) -> int:
     y = add(x, 1)
     add(x, 2)
@@ -27,7 +26,8 @@ def assignments(x: int) -> int:
 
 
 assert assignments(5) == 14
-print(assignments.module)
+# Parsing an existing function must also work without decorator syntax.
+print(ctx.parse_program(assignments).module)
 # CHECK:      func.func @assignments(%x: i32) -> i32 {
 # CHECK-NEXT:   %0 = arith.constant 1 : i32
 # CHECK-NEXT:   %1 = arith.addi %x, %0 : i32

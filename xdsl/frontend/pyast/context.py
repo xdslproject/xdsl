@@ -133,8 +133,8 @@ class PyASTContext:
         return PassPipeline(tuple(self.post_transforms), self.post_callback)
 
     @classmethod
-    def _get_func_info(cls, func: Callable[P, R]) -> FuncInfo:
-        """Get information about the decorated function."""
+    def get_func_info(cls, func: Callable[P, R]) -> FuncInfo:
+        """Get source information for a function, stripping its optional decorator."""
         func_file = func.__code__.co_filename
         func_globals = func.__globals__
 
@@ -146,7 +146,7 @@ class PyASTContext:
         func_ast = ast.parse(source).body[0]
         assert isinstance(func_ast, ast.FunctionDef)
         assert func_ast.name == func.__name__
-        assert len(func_ast.decorator_list) == 1
+        assert len(func_ast.decorator_list) <= 1
         func_ast.decorator_list = []
 
         # Return the information about the function
@@ -168,7 +168,7 @@ class PyASTContext:
 
     def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
-        func_file, func_globals, func_ast = self._get_func_info(func)
+        func_file, func_globals, func_ast = self.get_func_info(func)
         builder = PyASTBuilder(
             type_registry=self.type_registry,
             function_registry=self.function_registry,

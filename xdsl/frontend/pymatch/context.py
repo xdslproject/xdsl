@@ -243,7 +243,7 @@ class PyMatchContext(PyASTContext):
         self.register_function(helper, build)
 
     def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
-        info = self._get_func_info(func)
+        info = self.get_func_info(func)
         args = info.ast.args
         if (
             len(args.args) != 1
