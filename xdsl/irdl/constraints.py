@@ -270,6 +270,14 @@ class AnyAttr(AttrConstraint):
     def __and__(self, value: AttrConstraint[AttributeCovT], /):
         return value
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+    ) -> None:
+        # AnyAttr accepts any attribute, so no IR needs to be generated
+        pass
+
 
 @dataclass(frozen=True)
 class VarConstraint(AttrConstraint[AttributeCovT]):
