@@ -69,7 +69,6 @@ irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
 // CHECK-GENERIC: "irdl_interp.check_base"(%var_attr) <{base = "IntegerType"}> : (!irdl_interp.variable.attr) -> ()
 irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
 
-// Test get_prop operation
 // CHECK: %op = "test.op"() : () -> !irdl_interp.operation
 %op = "test.op"() : () -> !irdl_interp.operation
 
@@ -77,12 +76,14 @@ irdl_interp.check_base %var_attr : !irdl_interp.variable.attr, "IntegerType"
 // CHECK-GENERIC: %prop = "irdl_interp.get_prop"(%op) <{prop_name = "test_prop"}> : (!irdl_interp.operation) -> !irdl_interp.attr
 %prop = irdl_interp.get_prop %op, "test_prop"
 
-// Test get_operand_types operation
 // CHECK: %operand_types = irdl_interp.get_operand_types %op
 // CHECK-GENERIC: %operand_types = "irdl_interp.get_operand_types"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.attr>
 %operand_types = irdl_interp.get_operand_types %op
 
-// Test get_result_types operation
 // CHECK: %result_types = irdl_interp.get_result_types %op
 // CHECK-GENERIC: %result_types = "irdl_interp.get_result_types"(%op) : (!irdl_interp.operation) -> tensor<?x!irdl_interp.attr>
 %result_types = irdl_interp.get_result_types %op
+
+// CHECK: %params = irdl_interp.get_params %attr
+// CHECK-GENERIC: %params = "irdl_interp.get_params"(%attr) : (!irdl_interp.attr) -> tensor<?x!irdl_interp.attr>
+%params = irdl_interp.get_params %attr

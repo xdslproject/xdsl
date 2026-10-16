@@ -226,6 +226,22 @@ class GetResultTypesOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class GetParamsOp(IRDLOperation):
+    """Extract all parameters from a parametrized attribute."""
+
+    name = "irdl_interp.get_params"
+    attr = operand_def(AttrType)
+    result = result_def(TensorType(AttrType(), (DYNAMIC_INDEX,)))
+
+    assembly_format = "$attr attr-dict"
+
+    def __init__(self, attr: SSAValue | Operation):
+        super().__init__(
+            operands=[attr], result_types=[TensorType(AttrType(), (DYNAMIC_INDEX,))]
+        )
+
+
 # ==============================================================================
 # Dialect Definition
 # ==============================================================================
@@ -244,6 +260,7 @@ IRDLInterp = Dialect(
         GetPropOp,
         GetOperandTypesOp,
         GetResultTypesOp,
+        GetParamsOp,
     ],
     [
         VariableAttrType,

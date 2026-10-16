@@ -53,6 +53,9 @@ To work with operations in constraint solving, we need to access their structure
 
 # Extract all result types
 %result_types = irdl_interp.get_result_types %op
+
+# Extract all parameters from a parametrized attribute
+%params = irdl_interp.get_params %attr
 ```
 
 **Assembly format**: All types elided (results are always the same types).
@@ -150,11 +153,11 @@ Constraint variables should be thought of as **non-backtracking Datalog logic va
 1. **Additional accessors**: Do we need access to:
    - Successors? Eventually yes
    - Regions? Eventually yes
-   - Attribute parameters (for ParamAttrConstraint)? Eventually yes
+   - Attribute parameters (for ParamAttrConstraint)? Implemented via `irdl_interp.get_params`
    - Operation attributes (vs properties)? No, these are being deprecated
 
 2. **Attribute operations**: Do we need primitives to:
-   - Extract parameters from parametrized attributes? Yes
+   - Extract parameters from parametrized attributes? Implemented via `irdl_interp.get_params`
    - Check attribute base type? Yes
    - Construct attributes from parameters? I don't think so.
 
