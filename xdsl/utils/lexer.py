@@ -152,20 +152,22 @@ class Span:
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
         """
-        lines_start = self.input.get_start_of_line(self.start)
-        lines_end = self.input.get_end_of_line(max(self.start, self.end - 1))
-        context = self.input.content[lines_start:lines_end]
-        start = self.start - lines_start
-        end = self.end - lines_start
+        context_start = self.input.get_start_of_line(self.start)
+        # For empty spans, show the line containing the insertion point
+        last_position = max(self.start, self.end - 1)
+        context_end = self.input.get_end_of_line(last_position)
+        context = self.input.content[context_start:context_end]
+        start = self.start - context_start
+        end = self.end - context_start
 
         capture = StringIO()
         print(self.get_location(), file=capture)
 
-        line_start = 0
+        line_start_in_context = 0
         for line in context.split("\n"):
             display_line = line.removesuffix("\r")
-            start_column = min(max(start - line_start, 0), len(display_line))
-            end_column = min(max(end - line_start, 0), len(display_line))
+            start_column = min(max(start - line_start_in_context, 0), len(display_line))
+            end_column = min(max(end - line_start_in_context, 0), len(display_line))
             print(display_line, file=capture)
             print(
                 " " * start_column + "^" * max(end_column - start_column, 1),
@@ -174,7 +176,7 @@ class Span:
             if msg is not None:
                 print(" " * start_column + msg, file=capture)
                 msg = None
-            line_start += len(line) + 1
+            line_start_in_context += len(line) + 1
         return capture.getvalue()
 
     def __repr__(self):
