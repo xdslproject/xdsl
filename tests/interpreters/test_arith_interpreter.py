@@ -1,6 +1,7 @@
 import operator
 from collections.abc import Callable
 from math import copysign, isnan
+from typing import Literal
 
 import pytest
 
@@ -248,8 +249,59 @@ def test_cmpi(
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 
+    if arg.startswith("u"):
+        mask = (1 << interpreter.index_bitwidth) - 1
+        lhs_value &= mask
+        rhs_value &= mask
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
+
+
+@pytest.mark.parametrize(
+    "value_type,index_bitwidth,value",
+    [
+        (i8, 32, 1 << 7),
+        (i32, 64, 1 << 31),
+        (IndexType(), 32, 1 << 31),
+        (IndexType(), 64, 1 << 63),
+    ],
+)
+@pytest.mark.parametrize(
+    "predicate,expected_value_minus_one,expected_value",
+    [
+        ("eq", False, True),
+        ("ne", True, False),
+        ("slt", True, False),
+        ("sle", True, True),
+        ("sgt", False, False),
+        ("sge", False, True),
+        ("ult", False, False),
+        ("ule", False, True),
+        ("ugt", True, False),
+        ("uge", True, True),
+    ],
+)
+def test_cmpi_high_bit(
+    value_type: IntegerType | IndexType,
+    index_bitwidth: Literal[32, 64],
+    value: int,
+    predicate: str,
+    expected_value_minus_one: bool,
+    expected_value: bool,
+):
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=index_bitwidth)
+    interpreter.register_implementations(ArithFunctions())
+    lhs = test.TestOp(result_types=[value_type])
+    rhs = test.TestOp(result_types=[value_type])
+    cmpi = CmpiOp(lhs, rhs, predicate)
+    cmpi.verify()
+
+    # The sign bit alone is the minimum signed value, above all positive signed
+    # values when interpreted as unsigned. Both encodings denote the same bits.
+    assert interpreter.run_op(cmpi, (value, value - 1)) == (expected_value_minus_one,)
+    assert interpreter.run_op(cmpi, (-value, value - 1)) == (expected_value_minus_one,)
+
+    assert interpreter.run_op(cmpi, (-value, value)) == (expected_value,)
 
 
 @pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
