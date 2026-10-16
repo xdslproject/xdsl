@@ -26,6 +26,8 @@ from xdsl.utils.runtime_final import is_runtime_final
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
+    from xdsl.builder import Builder
+    from xdsl.ir import SSAValue
     from xdsl.irdl import IRDLAttrConstraint
 
 
@@ -229,6 +231,23 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         """
         raise NotImplementedError(
             "Custom constraints must map type vars in nested constraints, if any."
+        )
+
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+    ) -> None:
+        """
+        Emit irdl_interp IR to verify this constraint on the given SSA value.
+
+        The value should be of type !irdl_interp.attr for attribute constraints.
+
+        Default implementation raises NotImplementedError. Subclasses should override
+        this method to emit the appropriate irdl_interp operations.
+        """
+        raise NotImplementedError(
+            f"emit_irdl_interp not implemented for constraint {type(self).__name__}"
         )
 
 
@@ -474,6 +493,15 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         return self
+
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_base_attr_irdl_interp
+
+        emit_base_attr_irdl_interp(self, value, builder)
 
 
 @dataclass(frozen=True, init=False)
@@ -914,6 +942,23 @@ class IntConstraint(ABC):
             "Custom constraints must map type vars in nested constraints, if any."
         )
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+    ) -> None:
+        """
+        Emit irdl_interp IR to verify this constraint on the given SSA value.
+
+        The value should be of type index for integer constraints.
+
+        Default implementation raises NotImplementedError. Subclasses should override
+        this method to emit the appropriate irdl_interp operations.
+        """
+        raise NotImplementedError(
+            f"emit_irdl_interp not implemented for integer constraint {type(self).__name__}"
+        )
+
 
 class AnyInt(IntConstraint):
     """
@@ -1231,6 +1276,23 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         """
         raise NotImplementedError(
             "Custom constraints must map type vars in nested constraints, if any."
+        )
+
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+    ) -> None:
+        """
+        Emit irdl_interp IR to verify this constraint on the given SSA value.
+
+        The value should be of type tensor<?x!irdl_interp.attr> for range constraints.
+
+        Default implementation raises NotImplementedError. Subclasses should override
+        this method to emit the appropriate irdl_interp operations.
+        """
+        raise NotImplementedError(
+            f"emit_irdl_interp not implemented for range constraint {type(self).__name__}"
         )
 
     def of_length(
