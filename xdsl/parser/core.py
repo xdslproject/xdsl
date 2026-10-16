@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import itertools
 import re
+import warnings
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Generic, Literal, cast, overload
+
+from typing_extensions import deprecated
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
@@ -359,10 +362,39 @@ class Parser(AttrParser):
 
         return affine_map, operands
 
-    def parse_optional_operand(self) -> SSAValue | None:
+    @overload
+    def parse_optional_operand(
+        self, type: AttributeInvT
+    ) -> SSAValue[AttributeInvT] | None: ...
+
+    @overload
+    @deprecated(
+        "Pass an operand type, or use parse_optional_unresolved_operand() and "
+        "resolve_operand() when the type is parsed later."
+    )
+    def parse_optional_operand(self, type: None = None) -> SSAValue | None: ...
+
+    def parse_optional_operand(self, type: Attribute | None = None) -> SSAValue | None:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        Resolve it with the given type, allowing forward references.
+        Omitting the type is deprecated and requires the value to be defined already.
         """
+        if type is None:
+            warnings.warn(
+                "Calling parse_optional_operand() without a type is deprecated. "
+                "Pass an operand type, or use parse_optional_unresolved_operand() "
+                "and resolve_operand() when the type is parsed later.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self._parse_optional_operand_without_type()
+
+        operand = self.parse_optional_unresolved_operand()
+        return None if operand is None else self.resolve_operand(operand, type)
+
+    def _parse_optional_operand_without_type(self) -> SSAValue | None:
+        """Parse an already-defined operand for the deprecated untyped API."""
         unresolved_operand = self.parse_optional_unresolved_operand()
         if unresolved_operand is None:
             return None
@@ -385,9 +417,41 @@ class Parser(AttrParser):
 
         return self.ssa_values[name][index]
 
-    def parse_operand(self, msg: str = "Expected an operand.") -> SSAValue:
-        """Parse an operand with format `%<value-id>`."""
-        return self.expect(self.parse_optional_operand, msg)
+    @overload
+    def parse_operand(
+        self, type: AttributeInvT, *, msg: str = "Expected an operand."
+    ) -> SSAValue[AttributeInvT]: ...
+
+    @overload
+    @deprecated(
+        "Pass an operand type, or use parse_unresolved_operand() and "
+        "resolve_operand() when the type is parsed later."
+    )
+    def parse_operand(
+        self, type: str | None = None, *, msg: str = "Expected an operand."
+    ) -> SSAValue: ...
+
+    def parse_operand(
+        self, type: Attribute | str | None = None, *, msg: str = "Expected an operand."
+    ) -> SSAValue:
+        """
+        Parse an operand with format `%<value-id>(#<int-literal>)?`.
+        Resolve it with the given type, allowing forward references.
+        Omitting the type is deprecated and requires the value to be defined already.
+        """
+        if isinstance(type, Attribute):
+            return self.resolve_operand(self.parse_unresolved_operand(msg), type)
+
+        warnings.warn(
+            "Calling parse_operand() without a type is deprecated. "
+            "Pass an operand type, or use parse_unresolved_operand() and "
+            "resolve_operand() when the type is parsed later.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(type, str):
+            msg = type
+        return self.expect(self._parse_optional_operand_without_type, msg)
 
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span

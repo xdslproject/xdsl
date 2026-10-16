@@ -311,7 +311,7 @@ class SetupOp(IRDLOperation):
 
         in_state: SSAValue | None = None
         if parser.parse_optional_keyword("from"):
-            in_state = parser.parse_operand()
+            in_state = parser.parse_operand(StateType(accelerator))
 
         parser.parse_keyword("to")
 

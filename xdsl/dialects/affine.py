@@ -97,12 +97,12 @@ class ApplyOp(IRDLOperation):
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
         dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+            parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
         )
         if dims is None:
             dims = []
         syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         if syms is None:
             syms = []
@@ -147,7 +147,7 @@ def _parse_affine_for_bound(
     """
     used_min_max = parser.parse_optional_keyword(keyword) is not None
 
-    if (operand := parser.parse_optional_operand()) is not None:
+    if (operand := parser.parse_optional_operand(IndexType())) is not None:
         # A bare SSA value is sugar for a single-symbol identity map.
         return (
             AffineMapAttr(AffineMap(0, 1, (AffineExpr.symbol(0),))),
@@ -164,10 +164,10 @@ def _parse_affine_for_bound(
     m = map_attr.data
 
     dims = parser.parse_comma_separated_list(
-        Parser.Delimiter.PAREN, parser.parse_operand
+        Parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
     )
     syms = parser.parse_optional_comma_separated_list(
-        Parser.Delimiter.SQUARE, parser.parse_operand
+        Parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
     )
     if syms is None:
         syms = []
@@ -756,12 +756,12 @@ class MinOp(IRDLOperation):
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
         dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+            parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
         )
         if dims is None:
             dims = []
         syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         if syms is None:
             syms = []

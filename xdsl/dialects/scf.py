@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     SignlessIntegerConstraint,
+    i1,
     i64,
 )
 from xdsl.dialects.utils import (
@@ -269,7 +270,7 @@ class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class IfOp(IRDLOperation):
     name = "scf.if"
     output = var_result_def()
-    cond = operand_def(IntegerType(1))
+    cond = operand_def(i1)
 
     true_region = region_def("single_block")
     # TODO this should be optional under certain conditions
@@ -317,7 +318,7 @@ class IfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        cond = parser.parse_operand()
+        cond = parser.parse_operand(i1)
         return_types = []
         if parser.parse_optional_punctuation("->"):
             return_types = parser.parse_comma_separated_list(
@@ -828,7 +829,7 @@ class IndexSwitchOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        arg = parser.parse_operand()
+        arg = parser.parse_operand(IndexType())
         attr_dict = parser.parse_optional_attr_dict()
         result_types: list[TypeAttribute] = []
         if parser.parse_optional_punctuation("->"):
