@@ -28,3 +28,31 @@ match.matcher @captures root(%op : !pdl.operation) {
   // CHECK: match.success @rewriters::@rewrite benefit(1) (%op, %attr, %type, %value, %range : !pdl.operation, !pdl.attribute, !pdl.type, !pdl.value, !pdl.range<value>)
   match.success @rewriters::@rewrite benefit(1) (%op, %attr, %type, %value, %range : !pdl.operation, !pdl.attribute, !pdl.type, !pdl.value, !pdl.range<value>)
 }
+
+// CHECK: match.matcher @navigation
+match.matcher @navigation root(%nav : !pdl.operation) {
+  // CHECK: %operand = match.get_operand 2 of %nav : !match.optional<!pdl.value>
+  // Also accept the elided operation names printed by MLIR inside a matcher.
+  %operand = get_operand 2 of %nav : !match.optional<!pdl.value>
+  // CHECK: %result = match.get_result 1 of %nav : !match.optional<!pdl.value>
+  %result = match.get_result 1 of %nav : !match.optional<!pdl.value>
+  // CHECK: %attribute = match.get_attribute "value" of %nav : !match.optional<!pdl.attribute>
+  %attribute = match.get_attribute "value" of %nav : !match.optional<!pdl.attribute>
+  // CHECK: %unwrapped = match.is_not_null %operand : !pdl.value
+  %unwrapped = match.is_not_null %operand : !pdl.value
+  // CHECK: %def = match.get_defining_op of %unwrapped : !pdl.value -> !match.optional<!pdl.operation>
+  %def = match.get_defining_op of %unwrapped : !pdl.value -> !match.optional<!pdl.operation>
+  %maybe_range = "test.op"() : () -> !match.optional<!pdl.range<value>>
+  // CHECK: %values = match.is_not_null %maybe_range : !pdl.range<value>
+  %values = match.is_not_null %maybe_range : !pdl.range<value>
+  // CHECK: %range_def = match.get_defining_op of %values : !pdl.range<value> -> !match.optional<!pdl.operation>
+  %range_def = match.get_defining_op of %values : !pdl.range<value> -> !match.optional<!pdl.operation>
+  match.success @rewriters::@rewrite benefit(1) (%unwrapped, %values : !pdl.value, !pdl.range<value>)
+}
+
+// CHECK: func.func private @optionals(!match.optional<!pdl.attribute>, !match.optional<!pdl.operation>, !match.optional<!pdl.type>, !match.optional<!pdl.value>, !match.optional<!pdl.range<attribute>>, !match.optional<!pdl.range<operation>>, !match.optional<!pdl.range<type>>, !match.optional<!pdl.range<value>>)
+func.func private @optionals(
+  !match.optional<!pdl.attribute>, !match.optional<!pdl.operation>,
+  !match.optional<!pdl.type>, !match.optional<!pdl.value>,
+  !match.optional<!pdl.range<attribute>>, !match.optional<!pdl.range<operation>>,
+  !match.optional<!pdl.range<type>>, !match.optional<!pdl.range<value>>)

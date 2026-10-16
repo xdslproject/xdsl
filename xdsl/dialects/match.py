@@ -10,25 +10,49 @@ of operations inside a matcher.
 """
 
 from collections.abc import Sequence
+from typing import ClassVar, Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
     i16,
+    i32,
 )
-from xdsl.dialects.pdl import AnyPDLType, AnyPDLTypeConstr, OperationType, RangeType
-from xdsl.ir import Block, Dialect, Operation, Region, SSAValue
+from xdsl.dialects.pdl import (
+    AnyPDLType,
+    AnyPDLTypeConstr,
+    AttributeType,
+    OperationType,
+    RangeType,
+    ValueType,
+)
+from xdsl.ir import (
+    Block,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AtLeast,
     IRDLOperation,
+    ParamAttrConstraint,
+    VarConstraint,
     base,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
 )
@@ -39,10 +63,26 @@ from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
     OptionalSymbolOpInterface,
+    Pure,
     SymbolTable,
     SymbolUserOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
+
+_OptionalT = TypeVar(
+    "_OptionalT",
+    bound=AnyPDLType | RangeType[AnyPDLType],
+    default=AnyPDLType | RangeType[AnyPDLType],
+    covariant=True,
+)
+
+
+@irdl_attr_definition
+class OptionalType(ParametrizedAttribute, TypeAttribute, Generic[_OptionalT]):
+    """A possibly-null PDL handle, unwrapped by `match.is_not_null`."""
+
+    name = "match.optional"
+    inner_type: _OptionalT
 
 
 @irdl_op_definition
@@ -181,4 +221,129 @@ class HasNameOp(IRDLOperation):
         super().__init__(operands=[input_op], properties={"name": name})
 
 
-Match = Dialect("match", [MatcherOp, SuccessOp, HasNameOp], [])
+@irdl_op_definition
+class GetOperandOp(IRDLOperation):
+    """Get an operand, or a null handle if the index is out of bounds."""
+
+    name = "match.get_operand"
+    input_op = operand_def(OperationType)
+    index = prop_def(IntegerAttr[I32])
+    # The reference constrains only the wrapper, not its inner type.
+    result = result_def(OptionalType)
+    traits = traits_def(Pure())
+
+    assembly_format = "$index `of` $input_op attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        index: int | IntegerAttr[I32],
+        input_op: SSAValue,
+        result_type: OptionalType = OptionalType(ValueType()),
+    ):
+        if isinstance(index, int):
+            index = IntegerAttr(index, i32)
+        super().__init__(
+            operands=[input_op], properties={"index": index}, result_types=[result_type]
+        )
+
+
+@irdl_op_definition
+class GetResultOp(IRDLOperation):
+    """Get a result, or a null handle if the index is out of bounds."""
+
+    name = "match.get_result"
+    input_op = operand_def(OperationType)
+    index = prop_def(IntegerAttr[I32])
+    result = result_def(OptionalType)
+    traits = traits_def(Pure())
+
+    assembly_format = "$index `of` $input_op attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        index: int | IntegerAttr[I32],
+        input_op: SSAValue,
+        result_type: OptionalType = OptionalType(ValueType()),
+    ):
+        if isinstance(index, int):
+            index = IntegerAttr(index, i32)
+        super().__init__(
+            operands=[input_op], properties={"index": index}, result_types=[result_type]
+        )
+
+
+@irdl_op_definition
+class GetAttributeOp(IRDLOperation):
+    """Get a named attribute, or a null handle if it is absent."""
+
+    name = "match.get_attribute"
+    input_op = operand_def(OperationType)
+    attribute_name = prop_def(StringAttr, prop_name="name")
+    result = result_def(OptionalType)
+    traits = traits_def(Pure())
+
+    assembly_format = "$name `of` $input_op attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        name: str | StringAttr,
+        input_op: SSAValue,
+        result_type: OptionalType = OptionalType(AttributeType()),
+    ):
+        if isinstance(name, str):
+            name = StringAttr(name)
+        super().__init__(
+            operands=[input_op], properties={"name": name}, result_types=[result_type]
+        )
+
+
+@irdl_op_definition
+class GetDefiningOpOp(IRDLOperation):
+    """Get the defining operation of a value (or the first value of a range)."""
+
+    name = "match.get_defining_op"
+    value = operand_def(ValueType | RangeType[ValueType])
+    result = result_def(OptionalType)
+    traits = traits_def(Pure())
+
+    assembly_format = "`of` $value `:` type($value) attr-dict `->` type($result)"
+
+    def __init__(
+        self,
+        value: SSAValue,
+        result_type: OptionalType = OptionalType(OperationType()),
+    ):
+        super().__init__(operands=[value], result_types=[result_type])
+
+
+@irdl_op_definition
+class IsNotNullOp(IRDLOperation):
+    """Unwrap a handle, failing the enclosing scope when it is null."""
+
+    name = "match.is_not_null"
+    T: ClassVar = VarConstraint("T", AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    optional_value = operand_def(ParamAttrConstraint(OptionalType, (T,)))
+    unwrapped = result_def(T)
+
+    assembly_format = "$optional_value `:` type($unwrapped) attr-dict"
+
+    def __init__(self, optional_value: SSAValue[OptionalType]):
+        super().__init__(
+            operands=[optional_value], result_types=[optional_value.type.inner_type]
+        )
+
+
+Match = Dialect(
+    "match",
+    [
+        MatcherOp,
+        SuccessOp,
+        HasNameOp,
+        GetOperandOp,
+        GetResultOp,
+        GetAttributeOp,
+        GetDefiningOpOp,
+        IsNotNullOp,
+    ],
+    [OptionalType],
+)

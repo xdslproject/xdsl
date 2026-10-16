@@ -1,8 +1,8 @@
 import pytest
 
 from xdsl.dialects import match, pdl, test
-from xdsl.dialects.builtin import ModuleOp, StringAttr, SymbolRefAttr, i32
-from xdsl.ir import Block, Region
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, SymbolRefAttr, i32
+from xdsl.ir import Attribute, Block, Region
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -89,3 +89,80 @@ def test_success_negative_benefit():
     module = ModuleOp([ModuleOp([], sym_name=StringAttr("rewrite")), matcher])
     with pytest.raises(VerifyException, match="expected integer >= 0"):
         module.verify()
+
+
+@pytest.mark.parametrize(
+    "inner_type",
+    [
+        pdl.AttributeType(),
+        pdl.OperationType(),
+        pdl.TypeType(),
+        pdl.ValueType(),
+        pdl.RangeType(pdl.AttributeType()),
+        pdl.RangeType(pdl.OperationType()),
+        pdl.RangeType(pdl.TypeType()),
+        pdl.RangeType(pdl.ValueType()),
+    ],
+)
+def test_optional_unwrap(inner_type: pdl.AnyPDLType | pdl.RangeType[pdl.AnyPDLType]):
+    optional = match.OptionalType(inner_type)
+    unwrap = match.IsNotNullOp(create_ssa_value(optional))
+    unwrap.verify()
+    assert unwrap.unwrapped.type == inner_type
+
+
+@pytest.mark.parametrize(
+    "inner_type", [i32, StringAttr("not a type"), match.OptionalType(pdl.ValueType())]
+)
+def test_invalid_optional_type(inner_type: Attribute):
+    with pytest.raises(VerifyException):
+        match.OptionalType.new([inner_type])
+
+
+def test_is_not_null_type_mismatch():
+    unwrap = match.IsNotNullOp.create(
+        operands=[create_ssa_value(match.OptionalType(pdl.ValueType()))],
+        result_types=[pdl.TypeType()],
+    )
+    with pytest.raises(VerifyException, match=r"attribute !pdl\.value expected"):
+        unwrap.verify()
+
+
+@pytest.mark.parametrize("op_type", [match.GetOperandOp, match.GetResultOp])
+def test_indexed_navigation(op_type: type[match.GetOperandOp | match.GetResultOp]):
+    root = create_ssa_value(pdl.OperationType())
+    op = op_type(3, root)
+    op.verify()
+    assert op.index == IntegerAttr(3, i32)
+    assert op.result.type == match.OptionalType(pdl.ValueType())
+    # The reference does not constrain indices to be nonnegative or fix the inner type.
+    op_type(-1, root, match.OptionalType(pdl.TypeType())).verify()
+    invalid = op_type.create(
+        operands=[root],
+        properties={"index": IntegerAttr(0, i32)},
+        result_types=[pdl.ValueType()],
+    )
+    with pytest.raises(VerifyException, match=r"match.optional"):
+        invalid.verify()
+
+
+def test_attribute_navigation():
+    root = create_ssa_value(pdl.OperationType())
+    op = match.GetAttributeOp("value", root)
+    op.verify()
+    assert op.attribute_name == StringAttr("value")
+    assert op.result.type == match.OptionalType(pdl.AttributeType())
+    match.GetAttributeOp("value", root, match.OptionalType(pdl.TypeType())).verify()
+
+
+@pytest.mark.parametrize(
+    "value_type", [pdl.ValueType(), pdl.RangeType(pdl.ValueType())]
+)
+def test_defining_op_navigation(
+    value_type: pdl.ValueType | pdl.RangeType[pdl.ValueType],
+):
+    value = create_ssa_value(value_type)
+    op = match.GetDefiningOpOp(value)
+    op.verify()
+    assert op.result.type == match.OptionalType(pdl.OperationType())
+    match.GetDefiningOpOp(value, match.OptionalType(pdl.TypeType())).verify()
