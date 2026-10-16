@@ -9,10 +9,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.arith import ConstantOp as ArithConstantOp
+from xdsl.dialects.arith import OrIOp
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp, UnifyAttrOp
 from xdsl.ir import SSAValue
-from xdsl.irdl import BaseAttr, EqAttrConstraint, VarConstraint
+from xdsl.irdl import AttrSetConstraint, BaseAttr, EqAttrConstraint, VarConstraint
 
 
 @dataclass(frozen=True)
@@ -137,8 +139,64 @@ def emit_eq_attr_constraint_irdl_interp(
     constant_op = ConstantOp(constraint.attr)
     builder.insert(constant_op)
 
-    # Unify the value with the constant and assert
+    # Unify the value with the constant
     unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
     assert_op = AssertOp(unify_op.result, StringAttr(f"Expected {constraint.attr}"))
+    builder.insert(assert_op)
+
+
+def emit_attr_set_constraint_irdl_interp(
+    constraint: AttrSetConstraint,
+    value: SSAValue,
+    builder: Builder,
+    context: EmitContext,
+) -> None:
+    """
+    Emit irdl_interp IR to verify an AttrSetConstraint.
+
+    Generates:
+      %false = arith.constant false
+      %c0 = irdl_interp.constant.attr <attr0>
+      %eq0 = irdl_interp.unify.attr %value, %c0
+      %or0 = arith.ori %false, %eq0
+      %c1 = irdl_interp.constant.attr <attr1>
+      %eq1 = irdl_interp.unify.attr %value, %c1
+      %or1 = arith.ori %or0, %eq1
+      irdl_interp.assert %or1, "Expected one of {attrs}"
+
+    Note: Always starts with false and ORs all unify results. The `or false x`
+    pattern will be canonicalized away by the compiler.
+
+    Args:
+        constraint: The AttrSetConstraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+        context: Immutable context containing all constraint variables
+    """
+    # Start with false constant - will be ORed with all unify results
+    false_const = ArithConstantOp(IntegerAttr.from_bool(False))
+    builder.insert(false_const)
+    accum_result = false_const.result
+
+    # Create constants for each attribute in the set and unify
+    for attr in constraint.values:
+        const_op = ConstantOp(attr)
+        builder.insert(const_op)
+
+        unify_op = UnifyAttrOp(value, const_op.result)
+        builder.insert(unify_op)
+
+        # OR the unify result with the accumulator
+        or_op = OrIOp(accum_result, unify_op.result)
+        builder.insert(or_op)
+        accum_result = or_op.result
+
+    # Assert the final result
+    if len(constraint.values) == 0:
+        message = StringAttr("Expected one of (empty set)")
+    else:
+        attrs_str = ", ".join(sorted(str(attr) for attr in constraint.values))
+        message = StringAttr(f"Expected one of {attrs_str}")
+    assert_op = AssertOp(accum_result, message)
     builder.insert(assert_op)
