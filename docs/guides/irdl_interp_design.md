@@ -201,14 +201,75 @@ Constraint variables should be thought of as **non-backtracking Datalog logic va
 
 ## Example: arith.addi verify function
 
-For a complete working example, see the test file:
-[`tests/filecheck/dialects/irdl_interp/verify_addi.mlir`](../../tests/filecheck/dialects/irdl_interp/verify_addi.mlir)
+The verify method for `arith.addi` (which has 2 operands and 1 result, all with the same type) would look like:
 
-This demonstrates:
-- Operand/result count verification
-- Type constraint checking with shared variables (VarConstraint)
-- Property verification (existence, type checking, no extra properties)
-- Region and successor count verification
+```mlir
+func.func @verify_addi(%op: !irdl_interp.operation) {
+  %operand_types = irdl_interp.get_operand_types %op
+  %result_types = irdl_interp.get_result_types %op
+
+  %c0 = arith.constant 0 : index
+  %operand_count = tensor.dim %operand_types, %c0 : tensor<?x!irdl_interp.attr>
+  %result_count = tensor.dim %result_types, %c0 : tensor<?x!irdl_interp.attr>
+
+  %two = arith.constant 2 : index
+  %one = arith.constant 1 : index
+  irdl_interp.unify.int %operand_count : index and %two : index
+  irdl_interp.unify.int %result_count : index and %one : index
+
+  // Create constraint variable for the shared type
+  %T = irdl_interp.new_var.attr
+
+  // Extract individual operand/result types
+  %lhs_type = tensor.extract %operand_types[0] : tensor<?x!irdl_interp.attr>
+  %rhs_type = tensor.extract %operand_types[1] : tensor<?x!irdl_interp.attr>
+  %result_type = tensor.extract %result_types[0] : tensor<?x!irdl_interp.attr>
+
+  // Check each type satisfies VarConstraint("T", BaseAttr(IntegerType))
+  // "Check every time" semantics - each use checks the constraint.
+  // Optimization can eliminate redundant checks later.
+  %lhs_check = irdl_interp.check_base %lhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %lhs_check, "Expected IntegerType for lhs"
+  %rhs_check = irdl_interp.check_base %rhs_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %rhs_check, "Expected IntegerType for rhs"
+  %result_check = irdl_interp.check_base %result_type : !irdl_interp.attr, "IntegerType"
+  irdl_interp.assert %result_check, "Expected IntegerType for result"
+
+  // Unify all types to ensure they are equal (VarConstraint "T" semantics)
+  irdl_interp.unify.attr %lhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+  irdl_interp.unify.attr %rhs_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+  irdl_interp.unify.attr %result_type : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+
+  // Check overflowFlags property
+  %overflow_flags = irdl_interp.get_prop %op, "overflowFlags"
+  %overflow_check = irdl_interp.check_base %overflow_flags : !irdl_interp.attr, "IntegerOverflowAttr"
+  irdl_interp.assert %overflow_check, "Expected IntegerOverflowAttr"
+
+  // Verify no extra properties (exactly 1 property expected)
+  %prop_count = irdl_interp.get_prop_count %op
+  irdl_interp.unify.int %prop_count : index and %one : index
+
+  // Verify no regions (arith.addi has no regions)
+  %regions = irdl_interp.get_regions %op
+  %region_count = tensor.dim %regions, %c0 : tensor<?x!irdl_interp.region>
+  %zero = arith.constant 0 : index
+  irdl_interp.unify.int %region_count : index and %zero : index
+
+  // Verify no successors (arith.addi has no successors)
+  %successors = irdl_interp.get_successors %op
+  %succ_count = tensor.dim %successors, %c0 : tensor<?x!irdl_interp.block>
+  irdl_interp.unify.int %succ_count : index and %zero : index
+
+  func.return
+}
+```
+
+The generated code demonstrates:
+- Operand/result counts match expected values
+- **Check every time**: Each operand/result type is checked against the constraint individually
+- **Unify for equality**: All types are unified to ensure they are equal (VarConstraint "T" semantics)
+- Property count matches expected (combined with explicit property checks, ensures no extra properties)
+- Region/successor counts match expected (ensures no unexpected regions or successors)
 
 **VarConstraint lowering**: A `VarConstraint("T", constraint)` is lowered to:
 1. Check the constraint on each concrete value that uses the variable (returns `i1`)
@@ -353,7 +414,7 @@ class EmitContext:
     _attr_variables: dict[str, SSAValue]
     _range_variables: dict[str, SSAValue]
     _int_variables: dict[str, SSAValue]
-    
+
     @property
     def attr_variables(self) -> Mapping[str, SSAValue]: ...
     @property
@@ -408,11 +469,10 @@ irdl_interp.assert %result, "Expected %expected"
 - Iterate on this design document
 - Break first prototype into easy to implement and check parts (maybe type by type/op by op)
 - Implement one operation at a time with filecheck tests
-- Implement `AttrSetConstraint` and `AnyOf` lowering (boolean logic for multiple constraints)
+- Write the arith.addi example as a filecheck test
 - Add region and block operations:
   - `irdl_interp.get_region_body %region` → iterate over operations
   - `irdl_interp.check_region_single_block %region` → verify single-block property
   - `irdl_interp.get_block_args %block` → get block arguments
   - `irdl_interp.get_block_terminator %block` → get terminator operation
   - `irdl_interp.check_block_signature %block, %expected` → verify signature
-- Improve error messages (include actual values in assertion failures)
