@@ -5,11 +5,43 @@ This module contains the logic for lowering constraint classes to irdl_interp op
 It is separate from constraints.py to avoid circular imports.
 """
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp
 from xdsl.ir import SSAValue
 from xdsl.irdl import BaseAttr
+
+
+@dataclass(frozen=True)
+class EmitContext:
+    """
+    Immutable context for emit_irdl_interp operations.
+
+    Created during variable setup phase, then used read-only during
+    constraint lowering.
+    """
+
+    _attr_variables: dict[str, SSAValue] = field(default_factory=dict, repr=False)
+    _range_variables: dict[str, SSAValue] = field(default_factory=dict, repr=False)
+    _int_variables: dict[str, SSAValue] = field(default_factory=dict, repr=False)
+
+    @property
+    def attr_variables(self) -> Mapping[str, SSAValue]:
+        """Read-only view of attribute variables."""
+        return self._attr_variables
+
+    @property
+    def range_variables(self) -> Mapping[str, SSAValue]:
+        """Read-only view of range variables."""
+        return self._range_variables
+
+    @property
+    def int_variables(self) -> Mapping[str, SSAValue]:
+        """Read-only view of integer variables."""
+        return self._int_variables
 
 
 def emit_base_attr_irdl_interp(

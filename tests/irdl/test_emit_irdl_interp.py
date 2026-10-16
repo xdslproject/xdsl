@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import IntegerAttr, ModuleOp
 from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp
 from xdsl.ir import Block
 from xdsl.irdl import AnyAttr, BaseAttr
+from xdsl.irdl.emit_irdl_interp import EmitContext
 from xdsl.rewriter import InsertPoint
 
 
@@ -23,9 +24,12 @@ def test_emit_base_attr_irdl_interp():
     constant_op = ConstantOp(IntegerAttr.from_index_int_value(42))
     builder.insert(constant_op)
 
+    # Create empty context
+    context = EmitContext()
+
     # Emit irdl_interp IR
     constraint = BaseAttr(IntegerAttr)
-    constraint.emit_irdl_interp(constant_op.result, builder)
+    constraint.emit_irdl_interp(constant_op.result, builder, context)
 
     # Verify the operations were created
     ops = list(block.ops)
@@ -56,12 +60,15 @@ def test_any_attr_emit_is_noop():
     constant_op = ConstantOp(IntegerAttr.from_index_int_value(42))
     builder.insert(constant_op)
 
+    # Create empty context
+    context = EmitContext()
+
     # Count ops before
     ops_before = len(list(block.ops))
 
     # Call emit_irdl_interp - should be a no-op
     any_attr = AnyAttr()
-    any_attr.emit_irdl_interp(constant_op.result, builder)
+    any_attr.emit_irdl_interp(constant_op.result, builder, context)
 
     # Count ops after - should be the same
     ops_after = len(list(block.ops))

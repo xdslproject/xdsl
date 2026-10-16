@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from xdsl.builder import Builder
     from xdsl.ir import SSAValue
     from xdsl.irdl import IRDLAttrConstraint
+    from xdsl.irdl.emit_irdl_interp import EmitContext
 
 
 @dataclass
@@ -237,11 +238,17 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         self,
         value: SSAValue,
         builder: Builder,
+        context: EmitContext,
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.
 
         The value should be of type !irdl_interp.attr for attribute constraints.
+
+        Args:
+            value: The SSA value to verify
+            builder: The builder to use for inserting operations
+            context: Immutable context containing all constraint variables
 
         Default implementation raises NotImplementedError. Subclasses should override
         this method to emit the appropriate irdl_interp operations.
@@ -274,6 +281,7 @@ class AnyAttr(AttrConstraint):
         self,
         value: SSAValue,
         builder: Builder,
+        context: EmitContext,
     ) -> None:
         # AnyAttr accepts any attribute, so no IR needs to be generated
         pass
@@ -506,6 +514,7 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         self,
         value: SSAValue,
         builder: Builder,
+        context: EmitContext,
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_base_attr_irdl_interp
 
@@ -954,11 +963,17 @@ class IntConstraint(ABC):
         self,
         value: SSAValue,
         builder: Builder,
+        context: EmitContext,
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.
 
         The value should be of type index for integer constraints.
+
+        Args:
+            value: The SSA value to verify
+            builder: The builder to use for inserting operations
+            context: Immutable context containing all constraint variables
 
         Default implementation raises NotImplementedError. Subclasses should override
         this method to emit the appropriate irdl_interp operations.
@@ -1290,11 +1305,17 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         self,
         value: SSAValue,
         builder: Builder,
+        context: EmitContext,
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.
 
         The value should be of type tensor<?x!irdl_interp.attr> for range constraints.
+
+        Args:
+            value: The SSA value to verify
+            builder: The builder to use for inserting operations
+            context: Immutable context containing all constraint variables
 
         Default implementation raises NotImplementedError. Subclasses should override
         this method to emit the appropriate irdl_interp operations.
