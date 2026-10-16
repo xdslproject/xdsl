@@ -61,6 +61,17 @@ error
             id="eof-after-newline",
         ),
         pytest.param(
+            Span(4, 4, Input("abc\nxyz", "test")),
+            "error",
+            """\
+test:2:1
+xyz
+^
+error
+""",
+            id="empty-span-at-start-of-nonempty-line",
+        ),
+        pytest.param(
             Span(0, 4, Input("abc\nxyz", "test")),
             "error",
             """\
