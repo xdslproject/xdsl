@@ -3,7 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from xdsl.dialects import builtin, test
+from xdsl.dialects import builtin, match, pdl, pdl_interp, test
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pymatch import (
     MatchFailure,
     PythonMatchRewritePattern,
@@ -16,7 +17,9 @@ from xdsl.frontend.pymatch import (
     has_attr_value,
     has_name,
 )
-from xdsl.ir import Block
+from xdsl.frontend.pymatch.context import PyMatchContext
+from xdsl.interpreters.match import MatchResult, run_matcher
+from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 
 
@@ -79,3 +82,91 @@ def test_python_rewrite_captures_and_failures():
     rewrite.side_effect = MatchFailure()
     with pytest.raises(MatchFailure):
         pattern.match_and_rewrite(root, rewriter)
+
+
+def test_typed_capture_order_and_discarded_navigation():
+    rewriter = pdl_interp.FuncOp(
+        "rewrite", ([pdl.AttributeType(), pdl.ValueType(), pdl.OperationType()], [])
+    )
+    rewriter.body.block.add_op(pdl_interp.FinalizeOp())
+    ctx = PyMatchContext(rewriter)
+
+    @ctx.parse_program
+    def captures(root: Operation) -> tuple[Attribute, SSAValue, Operation]:
+        get_operand(root, 1)
+        return get_attribute(root, "p"), get_result(root, 1), root
+
+    module = captures.module
+    matcher = module.body.block.first_op
+    assert isinstance(matcher, match.MatcherOp)
+    block = Block(arg_types=[builtin.i32, builtin.i64])
+    root = test.TestOp(
+        block.args,
+        [builtin.i32, builtin.i64],
+        properties={"p": builtin.StringAttr("property")},
+    )
+    expected = (builtin.StringAttr("property"), root.results[1], root)
+    assert captures(root) == expected
+    assert run_matcher(matcher, root) == MatchResult(
+        builtin.SymbolRefAttr("rewrite"), expected
+    )
+    root.operands = [block.args[0]]
+    with pytest.raises(MatchFailure):
+        captures(root)
+    assert run_matcher(matcher, root) is None
+
+
+def test_frontend_rejects_unsupported_forms():
+    rewriter = pdl_interp.FuncOp("rewrite", ([pdl.OperationType()], []))
+    rewriter.body.block.add_op(pdl_interp.FinalizeOp())
+    ctx = PyMatchContext(rewriter)
+
+    with pytest.raises(FrontendProgramException, match="straight-line"):
+
+        @ctx.parse_program
+        def _conditional(root: Operation) -> tuple[Operation]:
+            if root.name == "test.op":
+                return (root,)
+            return (root,)
+
+    # PyAST does not yet implement annotated assignments; do not silently omit checks.
+    with pytest.raises(FrontendProgramException, match="straight-line"):
+
+        @ctx.parse_program
+        def _annotated(root: Operation) -> tuple[Operation]:
+            _value: SSAValue = get_operand(root, 1)
+            return (root,)
+
+    with pytest.raises(FrontendProgramException, match="fixed, flat tuple"):
+
+        @ctx.parse_program
+        def _variadic(root: Operation) -> tuple[Operation, ...]:
+            return (root,)
+
+    @ctx.parse_program
+    def wrong_name_type(root: Operation) -> tuple[Operation]:
+        has_name(root, 7)  # pyright: ignore[reportArgumentType]
+        return (root,)
+
+    @ctx.parse_program
+    def wrong_attribute_type(root: Operation) -> tuple[Operation]:
+        has_attr_value(get_attribute(root, "p"), 0)  # pyright: ignore[reportArgumentType]
+        return (root,)
+
+    @ctx.parse_program
+    def dynamic_constant(root: Operation) -> tuple[Operation]:
+        has_attr_value(get_attribute(root, "p"), get_attribute(root, "q"))
+        return (root,)
+
+    @ctx.parse_program
+    def wrong_capture_type(root: Operation) -> tuple[SSAValue]:
+        return (get_result(root, 0),)
+
+    for program, message in (
+        (wrong_name_type, "constant Python string"),
+        (wrong_attribute_type, "constructed with IntegerAttr"),
+        (dynamic_constant, "compile-time constant"),
+        (wrong_capture_type, "capture types do not match"),
+    ):
+        with pytest.raises(FrontendProgramException, match=message):
+            program.module
