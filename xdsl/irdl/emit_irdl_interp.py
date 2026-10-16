@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp
+from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, UnifyAttrOp
 from xdsl.ir import SSAValue
-from xdsl.irdl import BaseAttr
+from xdsl.irdl import BaseAttr, VarConstraint
 
 
 @dataclass(frozen=True)
@@ -76,3 +76,36 @@ def emit_base_attr_irdl_interp(
     message = StringAttr(f"Expected {type_name}")
     assert_op = AssertOp(check_op.result, message)
     builder.insert(assert_op)
+
+
+def emit_var_constraint_irdl_interp(
+    constraint: VarConstraint,
+    value: SSAValue,
+    builder: Builder,
+    context: EmitContext,
+) -> None:
+    """
+    Emit irdl_interp IR to verify a VarConstraint.
+
+    Generates:
+      // First, check the inner constraint on the value
+      %check = irdl_interp.check_base %value, "TypeName" : i1
+      irdl_interp.assert %check, "Expected TypeName"
+      // Then, unify the value with the variable
+      irdl_interp.unify.attr %value : !irdl_interp.attr and %T : !irdl_interp.variable.attr
+
+    Args:
+        constraint: The VarConstraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+        context: Immutable context containing all constraint variables
+    """
+    # Get the variable SSA value from context
+    var_ssa = context.attr_variables[constraint.name]
+
+    # Check the inner constraint on the value
+    constraint.constraint.emit_irdl_interp(value, builder, context)
+
+    # Unify the value with the variable
+    unify_op = UnifyAttrOp(value, var_ssa)
+    builder.insert(unify_op)

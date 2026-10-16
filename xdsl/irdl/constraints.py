@@ -338,6 +338,16 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
             self.name, self.constraint.mapping_type_vars(type_var_mapping)
         )
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+        context: EmitContext,
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_var_constraint_irdl_interp
+
+        emit_var_constraint_irdl_interp(self, value, builder, context)
+
 
 @dataclass(frozen=True)
 class TypeVarConstraint(AttrConstraint):

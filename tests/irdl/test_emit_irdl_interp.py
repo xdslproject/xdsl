@@ -4,9 +4,15 @@ Tests for emit_irdl_interp functionality.
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp
-from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp
+from xdsl.dialects.irdl_interp import (
+    AssertOp,
+    CheckBaseOp,
+    ConstantOp,
+    NewVarAttrOp,
+    UnifyAttrOp,
+)
 from xdsl.ir import Block
-from xdsl.irdl import AnyAttr, BaseAttr
+from xdsl.irdl import AnyAttr, BaseAttr, VarConstraint
 from xdsl.irdl.emit_irdl_interp import EmitContext
 from xdsl.rewriter import InsertPoint
 
@@ -75,3 +81,85 @@ def test_any_attr_emit_is_noop():
     assert ops_before == ops_after, (
         "AnyAttr.emit_irdl_interp should not generate any IR"
     )
+
+
+def test_var_constraint_emit_with_any_attr():
+    """Test that VarConstraint.emit_irdl_interp with AnyAttr inner constraint generates only unify."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a variable first (simulating Phase 2 setup)
+    var_op = NewVarAttrOp()
+    builder.insert(var_op)
+
+    # Create a constant attribute value to test with
+    constant_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(constant_op)
+
+    # Create context with the variable
+    context = EmitContext(_attr_variables={"T": var_op.result})
+
+    # Create VarConstraint with AnyAttr inner constraint (no checks, just unify)
+    var_constraint = VarConstraint("T", AnyAttr())
+    var_constraint.emit_irdl_interp(constant_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: NewVarAttrOp, ConstantOp, UnifyAttrOp (no CheckBaseOp/AssertOp from AnyAttr)
+    assert len(ops) == 3
+
+    # Check that UnifyAttrOp was created
+    unify_op = ops[2]
+    assert isinstance(unify_op, UnifyAttrOp)
+    assert unify_op.lhs is constant_op.result
+    assert unify_op.rhs is var_op.result
+
+
+def test_var_constraint_emit_with_base_attr():
+    """Test that VarConstraint.emit_irdl_interp with BaseAttr inner constraint generates check + unify."""
+    module = ModuleOp([])
+    block = Block()
+    module.body.add_block(block)
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a variable first (simulating Phase 2 setup)
+    var_op = NewVarAttrOp()
+    builder.insert(var_op)
+
+    # Create a constant attribute value to test with
+    constant_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(constant_op)
+
+    # Create context with the variable
+    context = EmitContext(_attr_variables={"T": var_op.result})
+
+    # Create VarConstraint with BaseAttr inner constraint
+    var_constraint = VarConstraint("T", BaseAttr(IntegerAttr))
+    var_constraint.emit_irdl_interp(constant_op.result, builder, context)
+
+    # Verify the operations were created
+    ops = list(block.ops)
+
+    # Should have: NewVarAttrOp, ConstantOp, CheckBaseOp, AssertOp, UnifyAttrOp
+    assert len(ops) == 5
+
+    # Check that CheckBaseOp was created (from BaseAttr inner constraint)
+    check_op = ops[2]
+    assert isinstance(check_op, CheckBaseOp)
+    assert check_op.attr is constant_op.result
+    assert check_op.base.data == "integer"
+
+    # Check that AssertOp was created (from BaseAttr inner constraint)
+    assert_op = ops[3]
+    assert isinstance(assert_op, AssertOp)
+    assert assert_op.condition is check_op.result
+    assert "Expected integer" in assert_op.message.data
+
+    # Check that UnifyAttrOp was created
+    unify_op = ops[4]
+    assert isinstance(unify_op, UnifyAttrOp)
+    assert unify_op.lhs is constant_op.result
+    assert unify_op.rhs is var_op.result
