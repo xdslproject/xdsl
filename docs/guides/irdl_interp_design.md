@@ -348,14 +348,14 @@ irdl_interp.unify.int %succ_count : index and %expected_successors : index
 
 #### Phase 2: Setup Constraint Variables
 
-Create all `VarConstraint` variables upfront. Variables are not bound yet - they will be bound during operand/result verification.
+Collect all `VarConstraint` variable names from the operation's constraints, then create them upfront. Variables are stored in an `EmitContext` which is passed to all constraint lowering operations.
 
 ```mlir
 %T = irdl_interp.new_var.attr  // For type variables
 %N = irdl_interp.new_var.int   // For integer variables
 ```
 
-**Rationale:** Creating variables upfront ensures they are available for both operand and result verification, enabling shared type variables across operands and results.
+**Rationale:** Creating variables upfront ensures they are available for both operand and result verification, enabling shared type variables across operands and results. The immutable `EmitContext` ensures variables are not accidentally mutated during constraint lowering.
 
 #### Phase 3: Verify Operand Type Constraints
 
@@ -400,6 +400,31 @@ irdl_interp.assert %check, "Expected IntegerOverflowAttr"
 irdl_interp.unify.int %prop_count : index and %expected_prop_count : index
 ```
 
+### Constraint Lowering Infrastructure
+
+Constraints are lowered via the `emit_irdl_interp` method, which takes:
+- `value: SSAValue` - The value to verify
+- `builder: Builder` - For inserting operations
+- `context: EmitContext` - Immutable context with all constraint variables
+
+**`EmitContext`** is created in Phase 2 (Setup Constraint Variables) and provides:
+```python
+@dataclass(frozen=True)
+class EmitContext:
+    _attr_variables: dict[str, SSAValue]
+    _range_variables: dict[str, SSAValue]
+    _int_variables: dict[str, SSAValue]
+    
+    @property
+    def attr_variables(self) -> Mapping[str, SSAValue]: ...
+    @property
+    def range_variables(self) -> Mapping[str, SSAValue]: ...
+    @property
+    def int_variables(self) -> Mapping[str, SSAValue]: ...
+```
+
+Variables are accessed via dict syntax: `context.attr_variables["T"]`
+
 ### Constraint Lowering
 
 | Constraint | Generated IR |
@@ -407,7 +432,7 @@ irdl_interp.unify.int %prop_count : index and %expected_prop_count : index
 | `BaseAttr(T)` | `%check = irdl_interp.check_base %type, "T" : i1`<br>`irdl_interp.assert %check, "Expected T"` |
 | `AnyAttr()` | No check (accepts anything) |
 | `AnyOf([c1, c2])` | Check each constraint, OR results, assert |
-| `VarConstraint("T", c)` | Check `c` on value, unify with `%T` |
+| `VarConstraint("T", c)` | Get `%T` from context, check `c` on value, unify with `%T` |
 | `EqAttrConstraint(a)` | `%concrete = irdl_interp.constant.attr a`<br>`irdl_interp.unify.attr %type, %concrete` |
 | `ParamAttrConstraint(T, [p1, p2])` | `%params = irdl_interp.get_params %type`<br>Check each parameter with its constraint |
 | `RangeOf(c)` | Extract each element, check with `c` |
