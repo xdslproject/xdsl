@@ -249,7 +249,8 @@ def test_cmpi(
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
-    assert ret[0] == fn(lhs_value, rhs_value)
+    # cmpi returns -1 for true, 0 for false (not Python bool)
+    assert ret[0] == (-1 if fn(lhs_value, rhs_value) else 0)
 
 
 @pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
@@ -323,7 +324,8 @@ def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
     ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
 
     assert len(ret) == 1
-    assert ret[0] == expectation
+    # cmpf returns -1 for true, 0 for false (not Python bool)
+    assert ret[0] == (-1 if expectation else 0) if expectation is not None else None
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -489,3 +491,53 @@ def test_indexcast_from_i8(x: int, expected: int):
 
     assert len(ret) == 1
     assert ret[0] == expected
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,predicate,expected",
+    [
+        (42, 42, "eq", -1),  # true -> -1
+        (42, 43, "eq", 0),   # false -> 0
+        (42, 42, "ne", 0),   # false -> 0
+        (42, 43, "ne", -1),  # true -> -1
+        (1, 2, "slt", -1),   # true -> -1
+        (2, 1, "slt", 0),    # false -> 0
+        (1, 2, "ult", -1),   # true -> -1
+        (2, 1, "ult", 0),    # false -> 0
+    ],
+)
+def test_cmpi_returns_int_not_bool(
+    lhs_value: int, rhs_value: int, predicate: str, expected: int
+):
+    """cmpi should return -1/0 integers, not Python bool True/False."""
+    cmpi = CmpiOp(lhs_op, rhs_op, predicate)
+    ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
+    assert len(ret) == 1
+    assert ret[0] == expected
+    assert isinstance(ret[0], int)
+    assert not isinstance(ret[0], bool)
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,predicate,expected",
+    [
+        (1.0, 1.0, "oeq", -1),  # true -> -1
+        (1.0, 2.0, "oeq", 0),   # false -> 0
+        (1.0, 2.0, "ogt", 0),   # false -> 0
+        (2.0, 1.0, "ogt", -1),  # true -> -1
+        (float("nan"), 1.0, "ord", 0),  # false -> 0
+        (1.0, float("nan"), "ord", 0),  # false -> 0
+        (1.0, 2.0, "ult", -1),  # true -> -1
+        (2.0, 1.0, "ult", 0),   # false -> 0
+    ],
+)
+def test_cmpf_returns_int_not_bool(
+    lhs_value: float, rhs_value: float, predicate: str, expected: int
+):
+    """cmpf should return -1/0 integers, not Python bool True/False."""
+    cmpf = CmpfOp(lhs_op, rhs_op, predicate)
+    ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
+    assert len(ret) == 1
+    assert ret[0] == expected
+    assert isinstance(ret[0], int)
+    assert not isinstance(ret[0], bool)

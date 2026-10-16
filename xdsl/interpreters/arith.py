@@ -139,25 +139,25 @@ class ArithFunctions(InterpreterFunctions):
     def run_cmpi(self, interpreter: Interpreter, op: arith.CmpiOp, args: PythonValues):
         match op.predicate.value.data:
             case 0:  # "eq"
-                return (args[0] == args[1],)
+                return (-1 if args[0] == args[1] else 0,)
             case 1:  # "ne"
-                return (args[0] != args[1],)
+                return (-1 if args[0] != args[1] else 0,)
             case 2:  # "slt"
-                return (args[0] < args[1],)
+                return (-1 if args[0] < args[1] else 0,)
             case 3:  # "sle"
-                return (args[0] <= args[1],)
+                return (-1 if args[0] <= args[1] else 0,)
             case 4:  # "sgt"
-                return (args[0] > args[1],)
+                return (-1 if args[0] > args[1] else 0,)
             case 5:  # "sge"
-                return (args[0] >= args[1],)
+                return (-1 if args[0] >= args[1] else 0,)
             case 6:  # "ult"
-                return (args[0] < args[1],)
+                return (-1 if args[0] < args[1] else 0,)
             case 7:  # "ule"
-                return (args[0] <= args[1],)
+                return (-1 if args[0] <= args[1] else 0,)
             case 8:  # "ugt"
-                return (args[0] > args[1],)
+                return (-1 if args[0] > args[1] else 0,)
             case 9:  # "uge"
-                return (args[0] >= args[1],)
+                return (-1 if args[0] >= args[1] else 0,)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
@@ -173,37 +173,37 @@ class ArithFunctions(InterpreterFunctions):
 
         match op.predicate.value.data:
             case 0:
-                return (False,)
+                return (0,)
             case 1:
-                return ((x == y) and o,)
+                return (-1 if ((x == y) and o) else 0,)
             case 2:
-                return ((x > y) and o,)
+                return (-1 if ((x > y) and o) else 0,)
             case 3:
-                return ((x >= y) and o,)
+                return (-1 if ((x >= y) and o) else 0,)
             case 4:
-                return ((x < y) and o,)
+                return (-1 if ((x < y) and o) else 0,)
             case 5:
-                return ((x <= y) and o,)
+                return (-1 if ((x <= y) and o) else 0,)
             case 6:
-                return ((x != y) and o,)
+                return (-1 if ((x != y) and o) else 0,)
             case 7:
-                return (o,)
+                return (-1 if o else 0,)
             case 8:
-                return ((x == y) or u,)
+                return (-1 if ((x == y) or u) else 0,)
             case 9:
-                return ((x > y) or u,)
+                return (-1 if ((x > y) or u) else 0,)
             case 10:
-                return ((x >= y) or u,)
+                return (-1 if ((x >= y) or u) else 0,)
             case 11:
-                return ((x < y) or u,)
+                return (-1 if ((x < y) or u) else 0,)
             case 12:
-                return ((x <= y) or u,)
+                return (-1 if ((x <= y) or u) else 0,)
             case 13:
-                return ((x != y) or u,)
+                return (-1 if ((x != y) or u) else 0,)
             case 14:
-                return (u,)
+                return (-1 if u else 0,)
             case 15:
-                return (True,)
+                return (-1,)
             case _:
                 raise InterpretationError(
                     f"arith.cmpf predicate {op.predicate} mot implemented yet."
