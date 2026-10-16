@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
+    UnitAttr,
     i16,
     i32,
 )
@@ -32,6 +33,7 @@ from xdsl.dialects.pdl import (
     ValueType,
 )
 from xdsl.ir import (
+    Attribute,
     Block,
     Dialect,
     Operation,
@@ -333,6 +335,64 @@ class IsNotNullOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class CheckOperandCountOp(IRDLOperation):
+    """Fail unless the operation has exactly (or at least) the given operand count."""
+
+    name = "match.check_operand_count"
+    input_op = operand_def(OperationType)
+    count = prop_def(IntegerAttr.constr(i32, value=AtLeast(0)))
+    at_least = opt_prop_def(UnitAttr, prop_name="atLeast")
+
+    assembly_format = "$input_op `is` (`at_least` $atLeast^)? $count attr-dict"
+
+    def __init__(
+        self, input_op: SSAValue, count: int | IntegerAttr[I32], at_least: bool = False
+    ):
+        if isinstance(count, int):
+            count = IntegerAttr(count, i32)
+        super().__init__(
+            operands=[input_op],
+            properties={"count": count, "atLeast": UnitAttr() if at_least else None},
+        )
+
+
+@irdl_op_definition
+class CheckResultCountOp(IRDLOperation):
+    """Fail unless the operation has exactly (or at least) the given result count."""
+
+    name = "match.check_result_count"
+    input_op = operand_def(OperationType)
+    count = prop_def(IntegerAttr.constr(i32, value=AtLeast(0)))
+    at_least = opt_prop_def(UnitAttr, prop_name="atLeast")
+
+    assembly_format = "$input_op `is` (`at_least` $atLeast^)? $count attr-dict"
+
+    def __init__(
+        self, input_op: SSAValue, count: int | IntegerAttr[I32], at_least: bool = False
+    ):
+        if isinstance(count, int):
+            count = IntegerAttr(count, i32)
+        super().__init__(
+            operands=[input_op],
+            properties={"count": count, "atLeast": UnitAttr() if at_least else None},
+        )
+
+
+@irdl_op_definition
+class HasAttrValueOp(IRDLOperation):
+    """Fail unless the attribute equals the given constant."""
+
+    name = "match.has_attr_value"
+    attribute = operand_def(AttributeType)
+    value = prop_def()
+
+    assembly_format = "$attribute `is` $value attr-dict"
+
+    def __init__(self, attribute: SSAValue, value: Attribute):
+        super().__init__(operands=[attribute], properties={"value": value})
+
+
 Match = Dialect(
     "match",
     [
@@ -344,6 +404,9 @@ Match = Dialect(
         GetAttributeOp,
         GetDefiningOpOp,
         IsNotNullOp,
+        CheckOperandCountOp,
+        CheckResultCountOp,
+        HasAttrValueOp,
     ],
     [OptionalType],
 )

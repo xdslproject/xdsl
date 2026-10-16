@@ -1,7 +1,14 @@
 import pytest
 
 from xdsl.dialects import match, pdl, test
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    ModuleOp,
+    StringAttr,
+    SymbolRefAttr,
+    UnitAttr,
+    i32,
+)
 from xdsl.ir import Attribute, Block, Region
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -166,3 +173,28 @@ def test_defining_op_navigation(
     op.verify()
     assert op.result.type == match.OptionalType(pdl.OperationType())
     match.GetDefiningOpOp(value, match.OptionalType(pdl.TypeType())).verify()
+
+
+@pytest.mark.parametrize(
+    "op_type", [match.CheckOperandCountOp, match.CheckResultCountOp]
+)
+def test_count_checks(
+    op_type: type[match.CheckOperandCountOp | match.CheckResultCountOp],
+):
+    root = create_ssa_value(pdl.OperationType())
+    for count, at_least in ((0, False), (3, True)):
+        op = op_type(root, count, at_least)
+        op.verify()
+        assert op.count == IntegerAttr(count, i32)
+        assert op.at_least == (UnitAttr() if at_least else None)
+    with pytest.raises(VerifyException, match="expected integer >= 0"):
+        op_type(root, -1).verify()
+
+
+@pytest.mark.parametrize("value", [IntegerAttr(7, i32), StringAttr("literal")])
+def test_has_attr_value(value: Attribute):
+    attribute = create_ssa_value(pdl.AttributeType())
+    op = match.HasAttrValueOp(attribute, value)
+    op.verify()
+    assert op.attribute is attribute
+    assert op.value == value

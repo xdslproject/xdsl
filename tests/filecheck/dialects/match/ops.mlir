@@ -56,3 +56,19 @@ func.func private @optionals(
   !match.optional<!pdl.type>, !match.optional<!pdl.value>,
   !match.optional<!pdl.range<attribute>>, !match.optional<!pdl.range<operation>>,
   !match.optional<!pdl.range<type>>, !match.optional<!pdl.range<value>>)
+
+// CHECK: match.matcher @checks
+match.matcher @checks root(%checked : !pdl.operation) {
+  // CHECK: match.check_operand_count %checked is 0
+  match.check_operand_count %checked is 0
+  // CHECK: match.check_operand_count %checked is at_least 2
+  match.check_operand_count %checked is at_least 2
+  // CHECK: match.check_result_count %checked is 1
+  match.check_result_count %checked is 1
+  // CHECK: match.check_result_count %checked is at_least 3
+  match.check_result_count %checked is at_least 3
+  %a = "test.op"() : () -> !pdl.attribute
+  // CHECK: match.has_attr_value %a is "literal"
+  match.has_attr_value %a is "literal"
+  match.success @rewriters::@rewrite benefit(1)
+}
