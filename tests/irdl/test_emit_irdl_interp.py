@@ -84,7 +84,7 @@ def test_any_attr_emit_is_noop():
 
 
 def test_var_constraint_emit_with_any_attr():
-    """Test that VarConstraint.emit_irdl_interp with AnyAttr inner constraint generates only unify."""
+    """Test that VarConstraint.emit_irdl_interp with AnyAttr inner constraint generates unify + assert."""
     module = ModuleOp([])
     block = Block()
     module.body.add_block(block)
@@ -108,14 +108,20 @@ def test_var_constraint_emit_with_any_attr():
     # Verify the operations were created
     ops = list(block.ops)
 
-    # Should have: NewVarAttrOp, ConstantOp, UnifyAttrOp (no CheckBaseOp/AssertOp from AnyAttr)
-    assert len(ops) == 3
+    # Should have: NewVarAttrOp, ConstantOp, UnifyAttrOp, AssertOp
+    assert len(ops) == 4
 
     # Check that UnifyAttrOp was created
     unify_op = ops[2]
     assert isinstance(unify_op, UnifyAttrOp)
     assert unify_op.lhs is constant_op.result
     assert unify_op.rhs is var_op.result
+
+    # Check that AssertOp was created
+    assert_op = ops[3]
+    assert isinstance(assert_op, AssertOp)
+    assert assert_op.condition is unify_op.result
+    assert "Expected to unify with variable T" in assert_op.message.data
 
 
 def test_var_constraint_emit_with_base_attr():
@@ -143,8 +149,8 @@ def test_var_constraint_emit_with_base_attr():
     # Verify the operations were created
     ops = list(block.ops)
 
-    # Should have: NewVarAttrOp, ConstantOp, CheckBaseOp, AssertOp, UnifyAttrOp
-    assert len(ops) == 5
+    # Should have: NewVarAttrOp, ConstantOp, CheckBaseOp, AssertOp (base), UnifyAttrOp, AssertOp (unify)
+    assert len(ops) == 6
 
     # Check that CheckBaseOp was created (from BaseAttr inner constraint)
     check_op = ops[2]
@@ -164,9 +170,15 @@ def test_var_constraint_emit_with_base_attr():
     assert unify_op.lhs is constant_op.result
     assert unify_op.rhs is var_op.result
 
+    # Check that AssertOp was created (from unify)
+    unify_assert_op = ops[5]
+    assert isinstance(unify_assert_op, AssertOp)
+    assert unify_assert_op.condition is unify_op.result
+    assert "Expected to unify with variable T" in unify_assert_op.message.data
+
 
 def test_eq_attr_constraint_emit():
-    """Test that EqAttrConstraint.emit_irdl_interp generates constant + unify."""
+    """Test that EqAttrConstraint.emit_irdl_interp generates constant + unify + assert."""
     module = ModuleOp([])
     block = Block()
     module.body.add_block(block)
@@ -187,8 +199,8 @@ def test_eq_attr_constraint_emit():
     # Verify the operations were created
     ops = list(block.ops)
 
-    # Should have: value ConstantOp, constraint ConstantOp, UnifyAttrOp
-    assert len(ops) == 3
+    # Should have: value ConstantOp, constraint ConstantOp, UnifyAttrOp, AssertOp
+    assert len(ops) == 4
 
     # Check that ConstantOp was created for the constraint
     constraint_constant_op = ops[1]
@@ -200,3 +212,9 @@ def test_eq_attr_constraint_emit():
     assert isinstance(unify_op, UnifyAttrOp)
     assert unify_op.lhs is value_op.result
     assert unify_op.rhs is constraint_constant_op.result
+
+    # Check that AssertOp was created
+    assert_op = ops[3]
+    assert isinstance(assert_op, AssertOp)
+    assert assert_op.condition is unify_op.result
+    assert f"Expected {expected_attr}" in assert_op.message.data

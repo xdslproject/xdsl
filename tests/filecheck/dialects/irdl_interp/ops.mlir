@@ -21,45 +21,45 @@
 // CHECK-GENERIC: %attr2 = "irdl_interp.constant.attr"() <{value = true}> : () -> !irdl_interp.attr
 %attr2 = irdl_interp.constant.attr true
 
-// CHECK: irdl_interp.unify.attr %attr : !irdl_interp.attr and %var_attr : !irdl_interp.variable.attr
-// CHECK-GENERIC: "irdl_interp.unify.attr"(%attr, %var_attr) : (!irdl_interp.attr, !irdl_interp.variable.attr) -> ()
-irdl_interp.unify.attr %attr : !irdl_interp.attr and %var_attr : !irdl_interp.variable.attr
+// CHECK: %unify0 = irdl_interp.unify.attr %attr : !irdl_interp.attr and %var_attr : !irdl_interp.variable.attr
+// CHECK-GENERIC: %unify0 = "irdl_interp.unify.attr"(%attr, %var_attr) : (!irdl_interp.attr, !irdl_interp.variable.attr) -> i1
+%unify0 = irdl_interp.unify.attr %attr : !irdl_interp.attr and %var_attr : !irdl_interp.variable.attr
 
-// CHECK: irdl_interp.unify.attr %attr2 : !irdl_interp.attr and %attr : !irdl_interp.attr
-// CHECK-GENERIC: "irdl_interp.unify.attr"(%attr2, %attr) : (!irdl_interp.attr, !irdl_interp.attr) -> ()
-irdl_interp.unify.attr %attr2 : !irdl_interp.attr and %attr : !irdl_interp.attr
+// CHECK: %unify1 = irdl_interp.unify.attr %attr2 : !irdl_interp.attr and %attr : !irdl_interp.attr
+// CHECK-GENERIC: %unify1 = "irdl_interp.unify.attr"(%attr2, %attr) : (!irdl_interp.attr, !irdl_interp.attr) -> i1
+%unify1 = irdl_interp.unify.attr %attr2 : !irdl_interp.attr and %attr : !irdl_interp.attr
 
 // CHECK: %int_val = arith.constant 42 : index
 // CHECK-GENERIC: %int_val = "arith.constant"() <{value = 42 : index}> : () -> index
 %int_val = arith.constant 42 : index
 
-// CHECK: irdl_interp.unify.int %int_val : index and %var_int : !irdl_interp.variable.int
-// CHECK-GENERIC: "irdl_interp.unify.int"(%int_val, %var_int) : (index, !irdl_interp.variable.int) -> ()
-irdl_interp.unify.int %int_val : index and %var_int : !irdl_interp.variable.int
+// CHECK: %unify_int0 = irdl_interp.unify.int %int_val : index and %var_int : !irdl_interp.variable.int
+// CHECK-GENERIC: %unify_int0 = "irdl_interp.unify.int"(%int_val, %var_int) : (index, !irdl_interp.variable.int) -> i1
+%unify_int0 = irdl_interp.unify.int %int_val : index and %var_int : !irdl_interp.variable.int
 
 // CHECK: %int_val2 = arith.constant 42 : index
 // CHECK-GENERIC: %int_val2 = "arith.constant"() <{value = 42 : index}> : () -> index
 %int_val2 = arith.constant 42 : index
 
-// CHECK: irdl_interp.unify.int %int_val : index and %int_val2 : index
-// CHECK-GENERIC: "irdl_interp.unify.int"(%int_val, %int_val2) : (index, index) -> ()
-irdl_interp.unify.int %int_val : index and %int_val2 : index
+// CHECK: %unify_int1 = irdl_interp.unify.int %int_val : index and %int_val2 : index
+// CHECK-GENERIC: %unify_int1 = "irdl_interp.unify.int"(%int_val, %int_val2) : (index, index) -> i1
+%unify_int1 = irdl_interp.unify.int %int_val : index and %int_val2 : index
 
 // CHECK: %range = tensor.from_elements %attr, %attr2 : tensor<2x!irdl_interp.attr>
 // CHECK-GENERIC: %range = "tensor.from_elements"(%attr, %attr2) : (!irdl_interp.attr, !irdl_interp.attr) -> tensor<2x!irdl_interp.attr>
 %range = tensor.from_elements %attr, %attr2 : tensor<2x!irdl_interp.attr>
 
-// CHECK: irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
-// CHECK-GENERIC: "irdl_interp.unify.range"(%range, %var_range) : (tensor<2x!irdl_interp.attr>, !irdl_interp.variable.range) -> ()
-irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
+// CHECK: %unify_range0 = irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
+// CHECK-GENERIC: %unify_range0 = "irdl_interp.unify.range"(%range, %var_range) : (tensor<2x!irdl_interp.attr>, !irdl_interp.variable.range) -> i1
+%unify_range0 = irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
 
 // CHECK: %range2 = tensor.from_elements %attr, %attr2 : tensor<2x!irdl_interp.attr>
 // CHECK-GENERIC: %range2 = "tensor.from_elements"(%attr, %attr2) : (!irdl_interp.attr, !irdl_interp.attr) -> tensor<2x!irdl_interp.attr>
 %range2 = tensor.from_elements %attr, %attr2 : tensor<2x!irdl_interp.attr>
 
-// CHECK: irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
-// CHECK-GENERIC: "irdl_interp.unify.range"(%range, %range2) : (tensor<2x!irdl_interp.attr>, tensor<2x!irdl_interp.attr>) -> ()
-irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
+// CHECK: %unify_range1 = irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
+// CHECK-GENERIC: %unify_range1 = "irdl_interp.unify.range"(%range, %range2) : (tensor<2x!irdl_interp.attr>, tensor<2x!irdl_interp.attr>) -> i1
+%unify_range1 = irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
 
 // CHECK: %check_attr = irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
 // CHECK-GENERIC: %check_attr = "irdl_interp.check_base"(%attr) <{base = "IntegerType"}> : (!irdl_interp.attr) -> i1

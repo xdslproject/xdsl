@@ -141,44 +141,59 @@ class ConstantOp(IRDLOperation):
 
 @irdl_op_definition
 class UnifyAttrOp(IRDLOperation):
-    """Unify two attributes or attribute variables."""
+    """
+    Unify two attributes or attribute variables.
+
+    Returns i1: true on success (with binding), false on conflict.
+    """
 
     name = "irdl_interp.unify.attr"
     lhs = operand_def(AttrType)
     rhs = operand_def(AttrType | VariableAttrType)
+    result = result_def(IntegerType(1))
 
     assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
 
     def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
-        super().__init__(operands=[lhs, rhs])
+        super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
 
 @irdl_op_definition
 class UnifyIntOp(IRDLOperation):
-    """Unify two integers or integer variables."""
+    """
+    Unify two integers or integer variables.
+
+    Returns i1: true on success (with binding), false on conflict.
+    """
 
     name = "irdl_interp.unify.int"
     lhs = operand_def(IndexType)
     rhs = operand_def(IndexType | VariableIntType)
+    result = result_def(IntegerType(1))
 
     assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
 
     def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
-        super().__init__(operands=[lhs, rhs])
+        super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
 
 @irdl_op_definition
 class UnifyRangeOp(IRDLOperation):
-    """Unify two ranges or range variables."""
+    """
+    Unify two ranges or range variables.
+
+    Returns i1: true on success (with binding), false on conflict.
+    """
 
     name = "irdl_interp.unify.range"
     lhs = operand_def(TensorType[AttrType])
     rhs = operand_def(TensorType[AttrType] | VariableRangeType)
+    result = result_def(IntegerType(1))
 
     assembly_format = "$lhs `:` type($lhs) `and` $rhs `:` type($rhs) attr-dict"
 
     def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
-        super().__init__(operands=[lhs, rhs])
+        super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
 
 @irdl_op_definition

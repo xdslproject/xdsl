@@ -106,9 +106,14 @@ def emit_var_constraint_irdl_interp(
     # Check the inner constraint on the value
     constraint.constraint.emit_irdl_interp(value, builder, context)
 
-    # Unify the value with the variable
+    # Unify the value with the variable and assert
     unify_op = UnifyAttrOp(value, var_ssa)
     builder.insert(unify_op)
+    assert_op = AssertOp(
+        unify_op.result,
+        StringAttr(f"Expected to unify with variable {constraint.name}"),
+    )
+    builder.insert(assert_op)
 
 
 def emit_eq_attr_constraint_irdl_interp(
@@ -132,6 +137,8 @@ def emit_eq_attr_constraint_irdl_interp(
     constant_op = ConstantOp(constraint.attr)
     builder.insert(constant_op)
 
-    # Unify the value with the constant
+    # Unify the value with the constant and assert
     unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
+    assert_op = AssertOp(unify_op.result, StringAttr(f"Expected {constraint.attr}"))
+    builder.insert(assert_op)
