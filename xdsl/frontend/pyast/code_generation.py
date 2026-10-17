@@ -9,9 +9,7 @@ import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
-from xdsl.frontend.pyast.utils.exceptions import (
-    CodeGenerationException,
-)
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
@@ -24,6 +22,9 @@ FunctionDefinitionConstructor = Callable[
 
 ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
 """Construct a return operation, or return None when no terminator is needed."""
+
+TupleConstructor = Callable[[Sequence[SSAValue]], Operation]
+"""Construct an operation with one result representing a tuple of SSA values."""
 
 
 def build_func(
@@ -64,6 +65,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     return_constructor: ReturnConstructor
     """Construct return operations, optionally omitting the terminator."""
 
+    tuple_constructor: TupleConstructor | None
+    """Construct tuple expressions when registered."""
+
     def __init__(
         self,
         type_converter: TypeConverter,
@@ -71,11 +75,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         file: str | None,
         function_definition_constructor: FunctionDefinitionConstructor = build_func,
         return_constructor: ReturnConstructor = build_return,
+        tuple_constructor: TupleConstructor | None = None,
     ) -> None:
         self.type_converter = type_converter
         self.file = file
         self.function_definition_constructor = function_definition_constructor
         self.return_constructor = return_constructor
+        self.tuple_constructor = tuple_constructor
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
@@ -139,8 +145,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -390,6 +415,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value is None:
+            return
         if (
             literal_op := self.type_converter.literal_registry.resolve_operation(
                 node.value
@@ -405,8 +432,30 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
 
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        if self.tuple_constructor is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Tuple construction is not registered.",
+            )
+        elements = [self.visit_single_value(element) for element in node.elts]
+        op = self.tuple_constructor(elements)
+        if len(op.results) != 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected a tuple constructor with exactly one result.",
+            )
+        self.inserter.insert_op(op)
+
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
