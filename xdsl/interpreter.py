@@ -4,6 +4,7 @@ import platform
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from types import UnionType
 from typing import (
     IO,
     Any,
@@ -12,6 +13,7 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
+    get_args,
 )
 
 from typing_extensions import TypeVar
@@ -382,7 +384,7 @@ AttributeInvNoDefaultT = TypeVar("AttributeInvNoDefaultT", bound=Attribute)
 
 
 def impl_attr(
-    input_type: type[AttributeInvNoDefaultT],
+    input_type: type[AttributeInvNoDefaultT] | UnionType,
 ) -> Callable[
     [AttrImpl[_FT, AttributeInvNoDefaultT]],
     AttrImpl[_FT, AttributeInvNoDefaultT],
@@ -390,13 +392,17 @@ def impl_attr(
     """
     Marks the conversion from an attribute to a Python value. The
     `value_for_attribute` method on `Interpreter` will call into this implementation for
-    matching input and output types.
+    matching input and output types. A union registers the implementation for each
+    of its member types.
 
     See `InterpreterFunctions` for more documentation.
     """
 
     def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
-        setattr(func, _ATTR_IMPL_TYPES_KEY, input_type)
+        types = (
+            get_args(input_type) if isinstance(input_type, UnionType) else (input_type,)
+        )
+        setattr(func, _ATTR_IMPL_TYPES_KEY, types)
         return func
 
     return annot
@@ -478,9 +484,10 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
             elif _ATTR_IMPL_TYPES_KEY in val.__dir__():
                 # This is an attribute value implementation
                 types = getattr(val, _ATTR_IMPL_TYPES_KEY)
-                if types not in attr_impl_dict:
-                    # subclass overrides superclass definition
-                    attr_impl_dict[types] = val
+                for attr_type in types:
+                    if attr_type not in attr_impl_dict:
+                        # subclass overrides superclass definition
+                        attr_impl_dict[attr_type] = val
             elif _CALLABLE_OP_TYPE_KEY in val.__dir__():
                 op_type = getattr(val, _CALLABLE_OP_TYPE_KEY)
                 if op_type not in callable_impl_dict:

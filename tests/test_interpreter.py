@@ -243,6 +243,33 @@ def test_mixed_values():
     assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1
 
 
+def test_union_attribute_impl_override():
+    @register_impls
+    class BaseFunctions(InterpreterFunctions):
+        @impl_attr(IntegerType | IndexType)
+        def integer_value(
+            self,
+            interpreter: Interpreter,
+            attr: Attribute,
+            attr_type: IntegerType | IndexType,
+        ) -> int:
+            return 7
+
+    @register_impls
+    class DerivedFunctions(BaseFunctions):
+        @impl_attr(IndexType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
+        ) -> int:
+            return 13
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(DerivedFunctions())
+    assert interpreter.value_for_attribute(IntegerAttr(1, i32), i32) == 7
+    index = IndexType()
+    assert interpreter.value_for_attribute(IntegerAttr(1, index), index) == 13
+
+
 def test_combined_listener():
     @dataclass
     class DemoListener(Interpreter.Listener):
