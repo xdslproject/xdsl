@@ -444,6 +444,69 @@ def test_print_clashing_names():
     assert_print_op(module, expected)
 
 
+def test_print_blocks_name_clash_in_region():
+    """
+    Print a region that includes a block that uses a 'default' name hint of another block.
+
+    When printing a region where one block's name hint is the 'default name' for another
+    block the printer should not reuse that name when it should not.
+    """
+    block0 = Block(arg_types=[i32, i32])
+    block0.name_hint = "bb1"
+    block1 = Block(arg_types=[i32])
+    region = Region((block0, block1))
+
+    assert block0.name_hint == "bb1"
+
+    # Print block arguments inside the block
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    assert io.getvalue() == """{\n^bb1(%0: i32, %1: i32):\n^bb1_1(%2: i32):\n}"""
+
+
+def test_print_blocks_name_clash_reverse_order():
+    """
+    Test that a block with a name_hint that clashes with a default name gets a unique name.
+
+    When a block without a name_hint gets a default name like 'bb0', and then a block with
+    name_hint 'bb0' is printed, it should get a different name.
+    """
+    block0 = Block(arg_types=[i32])
+    block1 = Block(arg_types=[i32])
+    block1.name_hint = "bb0"
+    region = Region((block0, block1))
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    # block0 gets default name 'bb0', block1 with name_hint 'bb0' should get 'bb0_1'
+    assert io.getvalue() == """{\n^bb0(%0: i32):\n^bb0_1(%1: i32):\n}"""
+
+
+def test_print_blocks_multiple_clashes():
+    """Test multiple blocks with clashing names in a region."""
+    block0 = Block(arg_types=[i32])
+    block0.name_hint = "bb0"
+    block1 = Block(arg_types=[i32])
+    block1.name_hint = "bb1"
+    block2 = Block(arg_types=[i32])
+    # No name_hint, default name would be 'bb2'
+    block3 = Block(arg_types=[i32])
+    block3.name_hint = "bb0"  # clashes with block0
+    region = Region((block0, block1, block2, block3))
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    # block0: 'bb0' (from hint), block1: 'bb1' (from hint),
+    # block2: 'bb2' (default), block3: 'bb0_1' (hint 'bb0' but 'bb0' taken)
+    assert (
+        io.getvalue()
+        == """{\n^bb0(%0: i32):\n^bb1(%1: i32):\n^bb2(%2: i32):\n^bb0_1(%3: i32):\n}"""
+    )
+
+
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
     block.args[0].name_hint = "test"

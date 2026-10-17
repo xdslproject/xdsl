@@ -150,17 +150,43 @@ class Printer(BasePrinter):
         self.print_ssa_value(operand)
 
     def _populate_block_name(
-        self, block: Block, block_index: int | None = None
+        self,
+        block: Block,
+        block_index: int | None = None,
+        region_blocks: Sequence[Block] | None = None,
     ) -> None:
-        """Assign a name to a block. The block must not already have one."""
+        """
+        Assign a name to a block. The block must not already have one.
+
+        Args:
+            block: The block to assign a name to.
+            block_index: The index of the block within its region (for default naming).
+            region_blocks: The blocks in the same region as this block. Used to check
+                for name collisions only within the same region.
+        """
         assert block not in self._blocks
+        # Determine which blocks to check for name collisions against.
+        # Only check against blocks in the same region.
+        existing_names = {
+            name
+            for b in (() if region_blocks is None else region_blocks)
+            if (name := self._blocks.get(b)) is not None
+        }
+
         if block.name_hint:
             curr_ind = self.block_names.get(block.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{block.name_hint}{suffix}"
+            while name in existing_names:
+                curr_ind += 1
+                name = f"{block.name_hint}_{curr_ind}"
             self.block_names[block.name_hint] = curr_ind + 1
         elif block_index is not None:
             name = f"bb{block_index}"
+            suffix_ind = 0
+            while name in existing_names:
+                suffix_ind += 1
+                name = f"bb{block_index}_{suffix_ind}"
         else:
             name = f"bb{self._get_new_valid_block_id()}"
         self._blocks[block] = name
@@ -250,9 +276,10 @@ class Printer(BasePrinter):
         # printed.
         # A printer may be reused to print the same region more than once, in which
         # case the blocks already have names and must keep them.
-        for block_index, block in enumerate(region.blocks):
+        region_blocks = list(region.blocks)
+        for block_index, block in enumerate(region_blocks):
             if block not in self._blocks:
-                self._populate_block_name(block, block_index)
+                self._populate_block_name(block, block_index, region_blocks)
 
         # Empty region
         with self.in_braces():
