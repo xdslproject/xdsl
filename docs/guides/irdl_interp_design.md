@@ -10,9 +10,10 @@ Instead of using `VerificationContext`/`InferenceContext` (Python implementation
 
 1. **Variables as SSA values**: Constraint variables are first-class SSA values, not entries in a dictionary
 2. **Expressions over variables**: Constraint variables are leaf expressions; compound expressions (addition, scalar multiplication) enable algebraic reasoning
-3. **Unify as constraint solving**: `unify` solves equations of the form `expr = c` where `c` is a known constant
-4. **Bounds verification**: Inequalities (`>=`, `<=`) are verified on expressions, returning `i1` for explicit assertion
-5. **Minimal surface area**: Start with the smallest set of operations needed
+3. **Unify as constraint solving**: `unify` solves equations of the form `expr1 = expr2`, returning `i1` on satisfiability
+4. **Linear inequalities**: `le` checks `expr1 <= expr2`, enabling all bound constraints (`>=`, `<=`, `>`, `<`)
+5. **Theoretical foundation**: Based on Linear Integer Arithmetic (LIA) - NP-complete in general, but polynomial-time for fixed dimension (n < 10 in our use case)
+6. **Minimal surface area**: Start with the smallest set of operations needed
 
 ## Types
 
@@ -140,10 +141,7 @@ For ranges, use standard tensor operations to construct `tensor<?x!irdl_interp.a
 
 ### Integer Expression Operations
 
-Integer expressions enable algebraic reasoning about operand/result counts, supporting:
-- **Linear equalities**: Solve `expr = c` where `c` is known at runtime
-- **Inequality verification**: Check `expr >= c` or `expr <= c`
-- **Compound expressions**: Addition and scalar multiplication
+Integer expressions enable algebraic reasoning about operand/result counts using **Linear Integer Arithmetic (LIA)**. This theory is NP-complete in general, but **polynomial-time for fixed dimension** (n < 10 in our use case).
 
 ```mlir
 // Create integer variable
@@ -158,38 +156,47 @@ Integer expressions enable algebraic reasoning about operand/result counts, supp
 %two = arith.constant 2 : index
 %scaled = irdl_interp.scalar_mul.int %two, %N : !irdl_interp.expr.int  // 2*N
 
-// Solve equation: expr = c
-%result = irdl_interp.unify.int %expr, %c : !irdl_interp.expr.int, index -> i1
-// Returns true if solvable, false if no integer solution
+// Solve equation: expr1 = expr2
+%result = irdl_interp.unify.int %expr1, %expr2 : !irdl_interp.expr.int, !irdl_interp.expr.int -> i1
+// Returns true if integer solution exists, false otherwise
 
-// Verify inequalities
-%ge = irdl_interp.ge.int %expr, %c : !irdl_interp.expr.int, index -> i1  // expr >= c
-%le = irdl_interp.le.int %expr, %c : !irdl_interp.expr.int, index -> i1  // expr <= c
+// Verify inequality: expr1 <= expr2
+%le = irdl_interp.le.int %expr1, %expr2 : !irdl_interp.expr.int, !irdl_interp.expr.int -> i1
+// Returns true if satisfiable, false if contradiction
 
 // Assert verification result
-irdl_interp.assert %ge, "Expected expr >= c"
+irdl_interp.assert %le, "Expected expr1 <= expr2"
 ```
 
 **Design decisions**:
-- All operations return `i1` for explicit error handling via `irdl_interp.assert`
-- `unify.int` solves `expr = c`, not general `expr1 = expr2` (keeps solving tractable)
-- Scalar multiplication enables SameVariadicSize constraints: `n * var = total`
-- Inequalities verified on expressions, not just concrete values
-- Compound expressions enable canonicalization: `x + x + 5 = total` → `2*x = total - 5`
+- **Minimal API**: Only `unify.int` (equality) and `le.int` (inequality) needed
+- **General form**: Both ops accept `expr1, expr2` (not just `expr, c`) - no complexity increase
+- **Derived operations**: `expr >= c` becomes `c <= expr`, `expr > c` becomes `NOT(expr <= c)`
+- **All operations return `i1`** for explicit error handling via `irdl_interp.assert`
+- **Scalar multiplication** enables SameVariadicSize: `n * var = total`
+- **Compound expressions** enable canonicalization: `x + x + 5 = total` → `2*x = total - 5`
 
 **Solver semantics**:
 - Variables start unbound
-- `unify.int` attempts to solve the equation
-- Returns `true` if integer solution exists, `false` otherwise
-- Underdetermined systems: solver returns `true`, but `read.int` (future) will fail if value not uniquely determined
+- `unify.int(expr1, expr2)` solves `expr1 - expr2 = 0` for integer solutions
+- `le.int(expr1, expr2)` checks satisfiability of `expr1 <= expr2`
+- Returns `true` if satisfiable, `false` if explicit contradiction
+- Does **not** fail if variables remain undersolved - that's checked later by `read.int` (Phase 2)
+
+**Theoretical background**:
+- Based on **Linear Integer Arithmetic (LIA)** - well-studied decision problem
+- **Complexity**: NP-complete in general, but **polynomial for fixed dimension**
+- **Our case**: n < 10 variables (operand counts) → trivial in practice (microseconds)
+- **Algorithm**: Gaussian elimination for equalities, bound propagation for inequalities
+- **Reference**: Schrijver, "Theory of Linear and Integer Programming" (1986)
 
 ### Unify
 
-The core constraint solving operation. Takes an expression and a concrete value, attempts to solve `expr = c`:
+The core constraint solving operation for equality. Takes two expressions, attempts to solve `expr1 = expr2`:
 
 ```mlir
 // Integer unification (solves equation)
-%result = irdl_interp.unify.int %expr, %c : !irdl_interp.expr.int, index -> i1
+%result = irdl_interp.unify.int %expr1, %expr2 : !irdl_interp.expr.int, !irdl_interp.expr.int -> i1
 
 // Attribute unification (binding)
 irdl_interp.unify.attr %attr : !irdl_interp.attr and %var : !irdl_interp.expr.attr
@@ -201,16 +208,15 @@ irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !i
 **Assembly format**: Each operand's type is printed inline after the operand. This is required because expression types cannot be inferred from the operation context.
 
 **Semantics**:
-- **Integer unify**: Solves `expr = c` for integer solutions
-  - Returns `true` if solvable, `false` if no integer solution
-  - For `expr = var` (variable), binds the variable
-  - For `expr = compound`, solves linear equation
+- **Integer unify**: Solves `expr1 = expr2` by rewriting to `expr1 - expr2 = 0`
+  - Returns `true` if integer solution exists, `false` otherwise
+  - Handles `var = var`, `expr = c`, and `expr1 = expr2` uniformly
   - Example: `2*N = 5` returns `false` (no integer solution)
+  - Example: `count_x = count_y` (SameVariadicSize) binds both to same value
 - **Attribute/Range unify**: Binds variable to concrete value
   - First unify with a value: sets the variable
   - Subsequent unify with same value: succeeds (idempotent)
   - Subsequent unify with different value: returns `false`
-- Variable-variable unify is not supported; reuse the same SSA variable instead
 
 **Return value semantics**:
 - Returns `true` if the constraint is **satisfiable** (solution exists or binding succeeds)
@@ -235,6 +241,11 @@ irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !i
 %expr_five = irdl_interp.constant.int %five
 %solved = irdl_interp.unify.int %doubled, %expr_five : i1  // Returns false (2*N = 5 has no integer solution)
 
+// SameVariadicSize (variable = variable)
+%count_x = irdl_interp.new_var.int
+%count_y = irdl_interp.new_var.int
+%same = irdl_interp.unify.int %count_x, %count_y : i1  // Returns true, binds count_x = count_y
+
 // Undersolved but satisfiable
 %N = irdl_interp.new_var.int
 %M = irdl_interp.new_var.int
@@ -248,30 +259,39 @@ irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !i
 
 ### Integer Inequality Verification
 
-Verify inequality constraints on integer expressions. These operations can **solve for variable bounds** when possible:
+Verify inequality constraints using a single operation: `expr1 <= expr2`. All other comparisons derive from this:
 
 ```mlir
-// Greater-or-equal: expr >= c
-%ge = irdl_interp.ge.int %expr, %c : !irdl_interp.expr.int, index -> i1
+// Less-or-equal: expr1 <= expr2
+%le = irdl_interp.le.int %expr1, %expr2 : !irdl_interp.expr.int, !irdl_interp.expr.int -> i1
 
-// Less-or-equal: expr <= c
-%le = irdl_interp.le.int %expr, %c : !irdl_interp.expr.int, index -> i1
+// Derived operations:
+// expr >= c  becomes  c <= expr
+// expr < c   becomes  NOT(c <= expr)
+// expr > c   becomes  NOT(expr <= c)
 ```
 
 **Usage with assertion**:
 ```mlir
+// AtLeast(2): count >= 2  →  2 <= count
 %count = irdl_interp.new_var.int
 %two = arith.constant 2 : index
 %expr_two = irdl_interp.constant.int %two
-%ge = irdl_interp.ge.int %count, %expr_two : i1
+%ge = irdl_interp.le.int %expr_two, %count : i1  // 2 <= count
 irdl_interp.assert %ge, "Expected count >= 2"
+
+// AtMost(5): count <= 5
+%five = arith.constant 5 : index
+%expr_five = irdl_interp.constant.int %five
+%le = irdl_interp.le.int %count, %expr_five : i1  // count <= 5
+irdl_interp.assert %le, "Expected count <= 5"
 ```
 
 **Solver semantics for inequalities**:
-- Inequalities can **solve for variable bounds** when the expression is a single variable
-- Example: `ge.int %N, 2` where `%N` is unbound → solver infers `N >= 2`
-- Combined with `unify.int`: `unify.int %N, 5` and `ge.int %N, 2` → `N = 5` (satisfies both)
-- Compound expressions: `ge.int (%N + 3), 5` → solver infers `N >= 2`
+- Inequalities participate in **constraint solving**, not just verification
+- Example: `le.int(2, N)` where `N` is unbound → solver infers `N >= 2`
+- Combined with equalities: `unify(N, 5)` and `le(2, N)` → `N = 5` satisfies both
+- Compound expressions: `le(2, N + 3)` → solver infers `N >= -1`
 
 **Return value semantics**:
 - Returns `true` if the constraint is **satisfiable** (no conflict detected)
@@ -280,11 +300,11 @@ irdl_interp.assert %ge, "Expected count >= 2"
 
 **Examples**:
 ```mlir
-// Satisfiable inequality
+// Satisfiable inequality (AtLeast)
 %N = irdl_interp.new_var.int
 %two = arith.constant 2 : index
 %expr_two = irdl_interp.constant.int %two
-%ge = irdl_interp.ge.int %N, %expr_two : i1  // Returns true (N >= 2 is satisfiable)
+%ge = irdl_interp.le.int %expr_two, %N : i1  // 2 <= N, returns true
 
 // Contradiction
 %N = irdl_interp.new_var.int
@@ -293,17 +313,19 @@ irdl_interp.assert %ge, "Expected count >= 2"
 irdl_interp.unify.int %N, %expr_five  // Binds N = 5
 %three = arith.constant 3 : index
 %expr_three = irdl_interp.constant.int %three
-%le = irdl_interp.le.int %N, %expr_three : i1  // Returns false (5 <= 3 is false)
+%le = irdl_interp.le.int %N, %expr_three : i1  // 5 <= 3, returns false
 
 // Undersolved but satisfiable
 %N = irdl_interp.new_var.int
 %two = arith.constant 2 : index
 %expr_two = irdl_interp.constant.int %two
-%ge = irdl_interp.ge.int %N, %expr_two : i1  // Returns true, N is still undersolved
+%ge = irdl_interp.le.int %expr_two, %N : i1  // 2 <= N, returns true, N undersolved
 // This is OK - N will be solved by later constraints or fail at read.int
 ```
 
 **Design decisions**:
+- **Single operation** (`le.int`) covers all inequality cases
+- **General form**: `expr1 <= expr2` (not just `expr <= c`) - no complexity increase
 - Returns `i1` for explicit error handling via `irdl_interp.assert`
 - Works on expressions, not just concrete values
 - Enables `AtLeast`, `AtMost`, and `Optional` constraints
@@ -328,13 +350,14 @@ irdl_interp.check_base %var : !irdl_interp.expr.attr, "IntegerType"
 
 ## Design Philosophy
 
-Constraint expressions should be thought of as **symbolic computations with a solver**:
-- Expressions start as symbolic (variables or compounds)
-- `unify` solves equations of the form `expr = c`
-- `ge`/`le` verify inequalities and infer bounds
-- Once solved, variables are bound to concrete values
-- Using an undersolved variable fails at `read.int` (Phase 2)
-- Operations return `i1` on conflict (non-failing), use `irdl_interp.assert` to enforce
+Constraint expressions should be thought of as **Linear Integer Arithmetic (LIA) constraints**:
+- **Theoretical foundation**: LIA is NP-complete in general, but polynomial-time for fixed dimension
+- **Our use case**: n < 10 variables (operand/result counts) → trivial in practice (microseconds)
+- **Expressions**: Symbolic computations (variables, addition, scalar multiplication)
+- `unify.int` solves `expr1 = expr2` by rewriting to `expr1 - expr2 = 0`
+- `le.int` checks `expr1 <= expr2` and participates in constraint solving
+- **Non-failing operations**: Return `i1` on conflict, use `irdl_interp.assert` to enforce
+- **Undersolved variables**: Fail at `read.int` (Phase 2), not during solving
 
 ## Open Questions
 
@@ -364,11 +387,17 @@ Constraint expressions should be thought of as **symbolic computations with a so
    - Constant folding: `x + 2 + 3` → `x + 5`
    - Coefficient combination: `2*x + 3*x` → `5*x`
    - Expression normalization: `x + x` → `2*x`
+   - Inequality simplification: `x >= 2 AND x >= 3` → `x >= 3`
 
 6. **Undersolved variable handling**: When should undersolved variables be detected as errors?
    - Current design: `read.int` fails if variable not uniquely determined
    - Alternative: Detect during canonicalization (eager error detection)
    - Trade-off: Early errors vs. more optimization opportunities
+
+7. **Solver implementation strategy**:
+   - Pure Python in interpreter? (simplest, flexible)
+   - MLIR canonicalization patterns? (optimizable, visible in IR)
+   - Hybrid? (simple cases in MLIR, complex in Python)
 
 ## Example: arith.addi verify function
 
