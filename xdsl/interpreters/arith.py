@@ -52,7 +52,9 @@ class ArithFunctions(InterpreterFunctions):
             isinstance(op.value, IntegerAttr | FloatAttr),
             f"arith.constant not implemented for {type(op.value)}",
         )
-        value = cast(IntegerAttr, op.value)
+        value = cast(IntegerAttr | FloatAttr, op.value)
+        if isa(value, IntegerAttr[builtin.IndexType]):
+            return (to_signed(value.value.data, interpreter.index_bitwidth),)
         return (value.value.data,)
 
     @impl(arith.SubiOp)
