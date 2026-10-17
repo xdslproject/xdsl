@@ -155,7 +155,8 @@ class Printer(BasePrinter):
         block_index: int | None = None,
         region_blocks: Sequence[Block] | None = None,
     ) -> None:
-        """Assign a name to a block. The block must not already have one.
+        """
+        Assign a name to a block. The block must not already have one.
 
         Args:
             block: The block to assign a name to.
@@ -166,16 +167,16 @@ class Printer(BasePrinter):
         assert block not in self._blocks
         # Determine which blocks to check for name collisions against.
         # Only check against blocks in the same region.
-        if region_blocks is not None:
-            existing_names = {
-                self._blocks[b] for b in region_blocks if b in self._blocks
-            }
-        else:
-            existing_names = set()
+        existing_names = {
+            name
+            for b in (() if region_blocks is None else region_blocks)
+            if (name := self._blocks.get(b)) is not None
+        }
 
         if block.name_hint:
             curr_ind = self.block_names.get(block.name_hint, 0)
-            name = f"{block.name_hint}_{curr_ind}" if curr_ind != 0 else block.name_hint
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{block.name_hint}{suffix}"
             while name in existing_names:
                 curr_ind += 1
                 name = f"{block.name_hint}_{curr_ind}"

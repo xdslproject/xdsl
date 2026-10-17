@@ -445,7 +445,8 @@ def test_print_clashing_names():
 
 
 def test_print_blocks_name_clash_in_region():
-    """Print a region that includes a block that uses a 'default' name hint of another block.
+    """
+    Print a region that includes a block that uses a 'default' name hint of another block.
 
     When printing a region where one block's name hint is the 'default name' for another
     block the printer should not reuse that name when it should not.
@@ -465,7 +466,8 @@ def test_print_blocks_name_clash_in_region():
 
 
 def test_print_blocks_name_clash_reverse_order():
-    """Test that a block with a name_hint that clashes with a default name gets a unique name.
+    """
+    Test that a block with a name_hint that clashes with a default name gets a unique name.
 
     When a block without a name_hint gets a default name like 'bb0', and then a block with
     name_hint 'bb0' is printed, it should get a different name.
