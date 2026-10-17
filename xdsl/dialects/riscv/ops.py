@@ -2232,7 +2232,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
 
 @irdl_op_definition
-class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
+class CustomAssemblyInstructionOp(RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
     emission.
@@ -2255,6 +2255,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     outputs = var_result_def()
     instruction_name = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
 
     def __init__(
         self,
@@ -2286,9 +2288,11 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+class CommentOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
+
+    assembly_format = "attr-dict `:` `(` `)` `->` `(` `)`"
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):

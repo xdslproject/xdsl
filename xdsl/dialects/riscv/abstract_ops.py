@@ -272,9 +272,7 @@ class RISCVAsmTarget(Target):
 # region Base Operation classes
 
 
-class RdRsRsOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]
-):
+class RdRsRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -285,6 +283,8 @@ class RdRsRsOperation(
     rd: OpResult[RDInvT] = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
+
+    assembly_format = "$rs1 `,` $rs2 attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -435,7 +435,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
     """
     A base class for RV32F operations that take three
     floating-point input registers and a destination register,
@@ -446,6 +446,10 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
+
+    assembly_format = (
+        "$rs1 `,` $rs2 `,` $rs3 attr-dict `:` functional-type(operands, results)"
+    )
 
     def __init__(
         self,
@@ -960,9 +964,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"immediate", "rd"}
 
 
-class RdRsOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RSInvT]
-):
+class RdRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RSInvT]):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
@@ -970,6 +972,8 @@ class RdRsOperation(
 
     rd = result_def(RDInvT)
     rs = operand_def(RSInvT)
+
+    assembly_format = "$rs attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -1119,7 +1123,7 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RsRsIntegerOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source
     registers.
@@ -1127,6 +1131,8 @@ class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
+
+    assembly_format = "$rs1 `,` $rs2 attr-dict `:` `(` type(operands) `)` `->` `(` `)`"
 
     def __init__(
         self,
@@ -1147,10 +1153,12 @@ class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2
 
 
-class NullaryOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class NullaryOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
+
+    assembly_format = "attr-dict"
 
     def __init__(
         self,
@@ -1168,19 +1176,6 @@ class NullaryOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return ()
-
-    @classmethod
-    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
-        return []
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -1546,7 +1541,6 @@ IOffset = TypeVar("IOffset", bound=I12 | SI12)
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation,
     RISCVAsmOperation,
     RISCVRegallocOperation,
     ABC,
@@ -1577,6 +1571,8 @@ class GetAnyRegisterOperation(
 
     traits = traits_def(Pure())
 
+    assembly_format = "attr-dict `:` type($res)"
+
     def __init__(
         self,
         register_type: RDInvT,
@@ -1586,18 +1582,6 @@ class GetAnyRegisterOperation(
     def assembly_line(self) -> str | None:
         # Don't print assembly for creating a SSA value representing register
         return None
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.res.type)
 
 
 # endregion
