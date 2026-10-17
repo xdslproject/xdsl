@@ -26,7 +26,7 @@ arm.label "testlabel" {comment = "this is a label"}
 arm.cmp %x2, %x1 {comment = "compare values in x2 and x1"} : (!arm.reg<x2>, !arm.reg<x1>)
 
 // CHECK-GENERIC: %x1 = "arm.get_register"() : () -> !arm.reg<x1>
-// CHECK-GENERIC: %ds_mov = "arm.ds.mov"(%x1) {comment = "move contents of s to d"} : (!arm.reg<x1>) -> !arm.reg<x2>
-// CHECK-GENERIC: %dss_mul = "arm.dss.mul"(%x1, %x2) {comment = "multiply s1 by s2"} : (!arm.reg<x1>, !arm.reg<x2>) -> !arm.reg<x3>
-// CHECK-GENERIC: "arm.label"() <{label = "testlabel"}> {comment = "this is a label"} : () -> ()
-// CHECK-GENERIC: "arm.cmp"(%x2, %x1) {comment = "compare values in x2 and x1"} : (!arm.reg<x2>, !arm.reg<x1>) -> ()
+// CHECK-GENERIC: %ds_mov = "arm.ds.mov"(%x1) <{comment = "move contents of s to d"}> : (!arm.reg<x1>) -> !arm.reg<x2>
+// CHECK-GENERIC: %dss_mul = "arm.dss.mul"(%x1, %x2) <{comment = "multiply s1 by s2"}> : (!arm.reg<x1>, !arm.reg<x2>) -> !arm.reg<x3>
+// CHECK-GENERIC: "arm.label"() <{label = "testlabel", comment = "this is a label"}> : () -> ()
+// CHECK-GENERIC: "arm.cmp"(%x2, %x1) <{comment = "compare values in x2 and x1"}> : (!arm.reg<x2>, !arm.reg<x1>) -> ()

@@ -36,7 +36,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
-    attr_def,
     base,
     irdl_op_definition,
     operand_def,
@@ -1083,7 +1082,7 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    memoized_indexing_maps = attr_def(
+    memoized_indexing_maps = prop_def(
         ArrayAttr[AffineMapAttr],
         default_value=ArrayAttr(
             [
@@ -1094,7 +1093,7 @@ class QuantizedMatmulOp(NamedOperation):
                 AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
             ]
         ),
-        attr_name="linalg.memoized_indexing_maps",
+        prop_name="linalg.memoized_indexing_maps",
     )
 
     def __init__(

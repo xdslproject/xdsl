@@ -56,6 +56,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -906,10 +907,10 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
 
     body = region_def("single_block")
 
@@ -930,7 +931,7 @@ class HWModuleOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
@@ -939,10 +940,10 @@ class HWModuleOp(IRDLOperation):
         if visibility:
             if isinstance(visibility, str):
                 visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
+            properties["sym_visibility"] = visibility
 
         return super().__init__(
-            attributes=attributes,
+            properties=properties,
             regions=[body],
         )
 
