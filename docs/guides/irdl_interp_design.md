@@ -9,18 +9,24 @@ Instead of using `VerificationContext`/`InferenceContext` (Python implementation
 ## Core Design Principles
 
 1. **Variables as SSA values**: Constraint variables are first-class SSA values, not entries in a dictionary
-2. **Unify as the core operation**: A single `unify` operation handles making variables/values equal, resolving or erroring on conflict
-3. **Minimal surface area**: Start with the smallest set of operations needed
+2. **Expressions over variables**: Constraint variables are leaf expressions; compound expressions (addition, scalar multiplication) enable algebraic reasoning
+3. **Unify as constraint solving**: `unify` solves equations of the form `expr = c` where `c` is a known constant
+4. **Bounds verification**: Inequalities (`>=`, `<=`) are verified on expressions, returning `i1` for explicit assertion
+5. **Minimal surface area**: Start with the smallest set of operations needed
 
 ## Types
 
-### Constraint Variables
+### Constraint Expressions
+
+Constraint expressions represent symbolic computations that can be solved or verified:
 
 ```
-!irdl_interp.variable.attr   - attribute constraint variable (uninitialized or holds an Attribute)
-!irdl_interp.variable.range  - range constraint variable (uninitialized or holds tensor<?x!irdl_interp.attr>)
-!irdl_interp.variable.int    - integer constraint variable (uninitialized or holds an index)
+!irdl_interp.expr.attr   - attribute constraint expression (variable or concrete attribute)
+!irdl_interp.expr.range  - range constraint expression (variable or concrete range)
+!irdl_interp.expr.int    - integer constraint expression (variable, constant, or compound expression)
 ```
+
+**Design rationale**: All constraint types use the `.expr` suffix to indicate they support symbolic reasoning. Currently, only integer expressions support compound operations (addition, scalar multiplication), but the naming is consistent across all types for future extensibility.
 
 ### Concrete Values
 
@@ -98,61 +104,211 @@ irdl_interp.assert %is_int, "Expected IntegerType"
 
 ### Variable Creation
 
-Create an uninitialized constraint variable:
+Create an uninitialized constraint expression variable:
 
 ```mlir
-%x = irdl_interp.new_var.attr
-%y = irdl_interp.new_var.range
-%z = irdl_interp.new_var.int
+%x = irdl_interp.new_var.attr : !irdl_interp.expr.attr
+%y = irdl_interp.new_var.range : !irdl_interp.expr.range
+%z = irdl_interp.new_var.int : !irdl_interp.expr.int
 ```
 
 **Assembly format**: Type is elided (encoded in operation name).
 
-Variables start uninitialized and can be unified exactly once (subsequent unifies with the same value are idempotent, with different values throw an error).
+Variables are leaf expressions and can be used in compound expressions (for integers) or unified with concrete values.
 
 ### Constant Creation
 
-Create concrete attribute values:
+Create concrete attribute or integer values lifted to expressions:
 
 ```mlir
-%attr = irdl_interp.constant.attr i32
+%attr = irdl_interp.constant.attr i32  // Attribute expression
+%c = arith.constant 2 : index
+%expr_c = irdl_interp.constant.int %c : !irdl_interp.expr.int  // Integer expression
 ```
 
-**Assembly format**: Type is elided. Attribute is passed as an attribute operand.
+**Assembly format**: Attribute/constant is passed as an attribute operand.
 
-For integers, use `arith.constant` to create `index` values:
+For integers, use `arith.constant` to create `index` values, then lift to expressions:
 
 ```mlir
 %two = arith.constant 2 : index
-irdl_interp.unify.int %operand_count, %two : index, index
+%expr_two = irdl_interp.constant.int %two : !irdl_interp.expr.int
+irdl_interp.unify.int %operand_count, %expr_two : !irdl_interp.expr.int, index
 ```
 
 For ranges, use standard tensor operations to construct `tensor<?x!irdl_interp.attr>` values.
 
-### Unify
+### Integer Expression Operations
 
-The core operation. Takes two operands of the same category (attr/range/int). The first operand is always concrete, the second can be a variable or concrete:
+Integer expressions enable algebraic reasoning about operand/result counts, supporting:
+- **Linear equalities**: Solve `expr = c` where `c` is known at runtime
+- **Inequality verification**: Check `expr >= c` or `expr <= c`
+- **Compound expressions**: Addition and scalar multiplication
 
 ```mlir
-# Variable with concrete value
-irdl_interp.unify.attr %attr : !irdl_interp.attr and %var : !irdl_interp.variable.attr
-%int_val = arith.constant 42 : index
-irdl_interp.unify.int %int_val : index and %var : !irdl_interp.variable.int
-irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.variable.range
+// Create integer variable
+%N = irdl_interp.new_var.int : !irdl_interp.expr.int
 
-# Concrete with concrete (verification)
-irdl_interp.unify.attr %attr1 : !irdl_interp.attr and %attr2 : !irdl_interp.attr
-irdl_interp.unify.int %count1 : index and %count2 : index
-irdl_interp.unify.range %range1 : tensor<2x!irdl_interp.attr> and %range2 : tensor<2x!irdl_interp.attr>
+// Lift concrete value to expression
+%c = arith.constant 2 : index
+%expr_c = irdl_interp.constant.int %c : !irdl_interp.expr.int
+
+// Build compound expressions
+%sum = irdl_interp.add.int %N, %expr_c : !irdl_interp.expr.int  // N + 2
+%two = arith.constant 2 : index
+%scaled = irdl_interp.scalar_mul.int %two, %N : !irdl_interp.expr.int  // 2*N
+
+// Solve equation: expr = c
+%result = irdl_interp.unify.int %expr, %c : !irdl_interp.expr.int, index -> i1
+// Returns true if solvable, false if no integer solution
+
+// Verify inequalities
+%ge = irdl_interp.ge.int %expr, %c : !irdl_interp.expr.int, index -> i1  // expr >= c
+%le = irdl_interp.le.int %expr, %c : !irdl_interp.expr.int, index -> i1  // expr <= c
+
+// Assert verification result
+irdl_interp.assert %ge, "Expected expr >= c"
 ```
 
-**Assembly format**: Each operand's type is printed inline after the operand. This is required because concrete range types (tensors) cannot be inferred from the operation context. Operands separated by `and` keyword.
+**Design decisions**:
+- All operations return `i1` for explicit error handling via `irdl_interp.assert`
+- `unify.int` solves `expr = c`, not general `expr1 = expr2` (keeps solving tractable)
+- Scalar multiplication enables SameVariadicSize constraints: `n * var = total`
+- Inequalities verified on expressions, not just concrete values
+- Compound expressions enable canonicalization: `x + x + 5 = total` → `2*x = total - 5`
+
+**Solver semantics**:
+- Variables start unbound
+- `unify.int` attempts to solve the equation
+- Returns `true` if integer solution exists, `false` otherwise
+- Underdetermined systems: solver returns `true`, but `read.int` (future) will fail if value not uniquely determined
+
+### Unify
+
+The core constraint solving operation. Takes an expression and a concrete value, attempts to solve `expr = c`:
+
+```mlir
+// Integer unification (solves equation)
+%result = irdl_interp.unify.int %expr, %c : !irdl_interp.expr.int, index -> i1
+
+// Attribute unification (binding)
+irdl_interp.unify.attr %attr : !irdl_interp.attr and %var : !irdl_interp.expr.attr
+
+// Range unification (binding)
+irdl_interp.unify.range %range : tensor<2x!irdl_interp.attr> and %var_range : !irdl_interp.expr.range
+```
+
+**Assembly format**: Each operand's type is printed inline after the operand. This is required because expression types cannot be inferred from the operation context.
 
 **Semantics**:
-- First unify with a value: sets the variable
-- Subsequent unify with same value: succeeds (idempotent)
-- Subsequent unify with different value: throws error at runtime
+- **Integer unify**: Solves `expr = c` for integer solutions
+  - Returns `true` if solvable, `false` if no integer solution
+  - For `expr = var` (variable), binds the variable
+  - For `expr = compound`, solves linear equation
+  - Example: `2*N = 5` returns `false` (no integer solution)
+- **Attribute/Range unify**: Binds variable to concrete value
+  - First unify with a value: sets the variable
+  - Subsequent unify with same value: succeeds (idempotent)
+  - Subsequent unify with different value: returns `false`
 - Variable-variable unify is not supported; reuse the same SSA variable instead
+
+**Return value semantics**:
+- Returns `true` if the constraint is **satisfiable** (solution exists or binding succeeds)
+- Returns `false` if there is an **explicit contradiction** (no solution possible)
+- Does **not** fail if variables remain undersolved - that's checked later by `read.int` (Phase 2)
+- **Non-failing**: The operation itself never raises an exception; use `irdl_interp.assert` to enforce constraints
+
+**Examples**:
+```mlir
+// Successful binding
+%N = irdl_interp.new_var.int
+%five = arith.constant 5 : index
+%expr_five = irdl_interp.constant.int %five
+%solved = irdl_interp.unify.int %N, %expr_five : i1  // Returns true, N = 5
+
+// No integer solution
+%N = irdl_interp.new_var.int
+%two = arith.constant 2 : index
+%expr_two = irdl_interp.constant.int %two
+%doubled = irdl_interp.scalar_mul.int %expr_two, %N
+%five = arith.constant 5 : index
+%expr_five = irdl_interp.constant.int %five
+%solved = irdl_interp.unify.int %doubled, %expr_five : i1  // Returns false (2*N = 5 has no integer solution)
+
+// Undersolved but satisfiable
+%N = irdl_interp.new_var.int
+%M = irdl_interp.new_var.int
+%sum = irdl_interp.add.int %N, %M
+%five = arith.constant 5 : index
+%expr_five = irdl_interp.constant.int %five
+%solved = irdl_interp.unify.int %sum, %expr_five : i1  // Returns true, but N and M undersolved
+// Many solutions exist: (N=0,M=5), (N=1,M=4), etc.
+// This is OK - additional constraints will narrow it down, or read.int will fail
+```
+
+### Integer Inequality Verification
+
+Verify inequality constraints on integer expressions. These operations can **solve for variable bounds** when possible:
+
+```mlir
+// Greater-or-equal: expr >= c
+%ge = irdl_interp.ge.int %expr, %c : !irdl_interp.expr.int, index -> i1
+
+// Less-or-equal: expr <= c
+%le = irdl_interp.le.int %expr, %c : !irdl_interp.expr.int, index -> i1
+```
+
+**Usage with assertion**:
+```mlir
+%count = irdl_interp.new_var.int
+%two = arith.constant 2 : index
+%expr_two = irdl_interp.constant.int %two
+%ge = irdl_interp.ge.int %count, %expr_two : i1
+irdl_interp.assert %ge, "Expected count >= 2"
+```
+
+**Solver semantics for inequalities**:
+- Inequalities can **solve for variable bounds** when the expression is a single variable
+- Example: `ge.int %N, 2` where `%N` is unbound → solver infers `N >= 2`
+- Combined with `unify.int`: `unify.int %N, 5` and `ge.int %N, 2` → `N = 5` (satisfies both)
+- Compound expressions: `ge.int (%N + 3), 5` → solver infers `N >= 2`
+
+**Return value semantics**:
+- Returns `true` if the constraint is **satisfiable** (no conflict detected)
+- Returns `false` if there is an **explicit contradiction**
+- Does **not** fail if variables remain undersolved - that's checked later by `read.int` (Phase 2)
+
+**Examples**:
+```mlir
+// Satisfiable inequality
+%N = irdl_interp.new_var.int
+%two = arith.constant 2 : index
+%expr_two = irdl_interp.constant.int %two
+%ge = irdl_interp.ge.int %N, %expr_two : i1  // Returns true (N >= 2 is satisfiable)
+
+// Contradiction
+%N = irdl_interp.new_var.int
+%five = arith.constant 5 : index
+%expr_five = irdl_interp.constant.int %five
+irdl_interp.unify.int %N, %expr_five  // Binds N = 5
+%three = arith.constant 3 : index
+%expr_three = irdl_interp.constant.int %three
+%le = irdl_interp.le.int %N, %expr_three : i1  // Returns false (5 <= 3 is false)
+
+// Undersolved but satisfiable
+%N = irdl_interp.new_var.int
+%two = arith.constant 2 : index
+%expr_two = irdl_interp.constant.int %two
+%ge = irdl_interp.ge.int %N, %expr_two : i1  // Returns true, N is still undersolved
+// This is OK - N will be solved by later constraints or fail at read.int
+```
+
+**Design decisions**:
+- Returns `i1` for explicit error handling via `irdl_interp.assert`
+- Works on expressions, not just concrete values
+- Enables `AtLeast`, `AtMost`, and `Optional` constraints
+- **Participates in solving** - can infer variable bounds
+- **Non-failing**: Returns `false` on conflict, doesn't raise exception
 
 ### Check Base
 
@@ -160,7 +316,7 @@ Verify an attribute has a specific base type:
 
 ```mlir
 irdl_interp.check_base %attr : !irdl_interp.attr, "IntegerType"
-irdl_interp.check_base %var : !irdl_interp.variable.attr, "IntegerType"
+irdl_interp.check_base %var : !irdl_interp.expr.attr, "IntegerType"
 ```
 
 **Assembly format**: Operand type is printed (distinguishes concrete vs variable). Base type name as a bare string attribute. `attr-dict` at end for consistency.
@@ -172,25 +328,26 @@ irdl_interp.check_base %var : !irdl_interp.variable.attr, "IntegerType"
 
 ## Design Philosophy
 
-Constraint variables should be thought of as **non-backtracking Datalog logic variables**:
-- Variables start unbound
-- `unify` binds variables or checks equality
-- Once bound, variables cannot be rebound to a different value
-- Using an unbound variable is undefined behavior
-- Unify throws on conflict (unlike Datalog, we don't backtrack - failure is an error)
+Constraint expressions should be thought of as **symbolic computations with a solver**:
+- Expressions start as symbolic (variables or compounds)
+- `unify` solves equations of the form `expr = c`
+- `ge`/`le` verify inequalities and infer bounds
+- Once solved, variables are bound to concrete values
+- Using an undersolved variable fails at `read.int` (Phase 2)
+- Operations return `i1` on conflict (non-failing), use `irdl_interp.assert` to enforce
 
 ## Open Questions
 
-1. **Additional accessors**: Do we need access to:
+1. **Additional accessors**: 
    - Successors? Implemented via `irdl_interp.get_successors` (opaque handles)
    - Regions? Implemented via `irdl_interp.get_regions` (opaque handles)
    - Attribute parameters (for ParamAttrConstraint)? Implemented via `irdl_interp.get_params`
    - Operation attributes (vs properties)? No, these are being deprecated
 
-2. **Attribute operations**: Do we need primitives to:
+2. **Attribute operations**: 
    - Extract parameters from parametrized attributes? Implemented via `irdl_interp.get_params`
    - Check attribute base type? Implemented via `irdl_interp.check_base`
-   - Construct attributes from parameters? I don't think so.
+   - Construct attributes from parameters? Not needed.
 
 3. **Region and block operations**: Future work needed:
    - Get region body (iterate over operations in a region)
@@ -198,6 +355,20 @@ Constraint variables should be thought of as **non-backtracking Datalog logic va
    - Get block arguments and terminators
    - Iterate over successor blocks
    - Verify block signatures
+
+4. **Integer expression extraction**: How to extract solved values for tensor operations?
+   - Need `irdl_interp.read.int` operation (deferred to Phase 2)
+   - Alternative: interpreter handles extraction implicitly
+
+5. **Canonicalization**: What algebraic simplifications should be supported?
+   - Constant folding: `x + 2 + 3` → `x + 5`
+   - Coefficient combination: `2*x + 3*x` → `5*x`
+   - Expression normalization: `x + x` → `2*x`
+
+6. **Undersolved variable handling**: When should undersolved variables be detected as errors?
+   - Current design: `read.int` fails if variable not uniquely determined
+   - Alternative: Detect during canonicalization (eager error detection)
+   - Trade-off: Early errors vs. more optimization opportunities
 
 ## Example: arith.addi verify function
 
