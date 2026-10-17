@@ -20,6 +20,7 @@ from xdsl.interpreter import (
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute
+from xdsl.utils.comparisons import to_signed
 from xdsl.utils.hints import isa
 
 
@@ -72,10 +73,18 @@ class BuiltinFunctions(InterpreterFunctions):
     @impl_attr(IntegerType)
     def integer_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
-    ) -> float:
+    ) -> int:
         interpreter.interpreter_assert(isa(attr, IntegerAttr))
         attr = cast(IntegerAttr, attr)
         return attr.value.data
+
+    @impl_attr(builtin.IndexType)
+    def index_attr_value(
+        self, interpreter: Interpreter, attr: Attribute, attr_type: builtin.IndexType
+    ) -> int:
+        interpreter.interpreter_assert(isa(attr, IntegerAttr))
+        attr = cast(IntegerAttr, attr)
+        return to_signed(attr.value.data, interpreter.index_bitwidth)
 
     @impl_attr(builtin.MemRefType)
     def dense_int_or_fp_elements_value(
