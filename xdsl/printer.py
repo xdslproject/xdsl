@@ -167,24 +167,25 @@ class Printer(BasePrinter):
         # Determine which blocks to check for name collisions against.
         # Only check against blocks in the same region.
         if region_blocks is not None:
-            existing_names = {self._blocks[b] for b in region_blocks if b in self._blocks}
+            existing_names = {
+                self._blocks[b] for b in region_blocks if b in self._blocks
+            }
         else:
             existing_names = set()
 
         if block.name_hint:
-            name = block.name_hint
-            suffix_ind = 0
+            curr_ind = self.block_names.get(block.name_hint, 0)
+            name = f"{block.name_hint}_{curr_ind}" if curr_ind != 0 else block.name_hint
             while name in existing_names:
-                suffix_ind += 1
-                name = f"{block.name_hint}_{suffix_ind}"
-            self.block_names[block.name_hint] = suffix_ind + 1
+                curr_ind += 1
+                name = f"{block.name_hint}_{curr_ind}"
+            self.block_names[block.name_hint] = curr_ind + 1
         elif block_index is not None:
             name = f"bb{block_index}"
             suffix_ind = 0
             while name in existing_names:
                 suffix_ind += 1
                 name = f"bb{block_index}_{suffix_ind}"
-            self.block_names[name] = 1
         else:
             name = f"bb{self._get_new_valid_block_id()}"
         self._blocks[block] = name

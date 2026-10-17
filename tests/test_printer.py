@@ -461,10 +461,7 @@ def test_print_blocks_name_clash_in_region():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region)
-    assert (
-        io.getvalue()
-        == """{\n^bb1(%0: i32, %1: i32):\n^bb1_1(%2: i32):\n}"""
-    )
+    assert io.getvalue() == """{\n^bb1(%0: i32, %1: i32):\n^bb1_1(%2: i32):\n}"""
 
 
 def test_print_blocks_name_clash_reverse_order():
@@ -482,10 +479,7 @@ def test_print_blocks_name_clash_reverse_order():
     p = Printer(stream=io)
     p.print_region(region)
     # block0 gets default name 'bb0', block1 with name_hint 'bb0' should get 'bb0_1'
-    assert (
-        io.getvalue()
-        == """{\n^bb0(%0: i32):\n^bb0_1(%1: i32):\n}"""
-    )
+    assert io.getvalue() == """{\n^bb0(%0: i32):\n^bb0_1(%1: i32):\n}"""
 
 
 def test_print_blocks_multiple_clashes():
