@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     Signedness,
     StringAttr,
     SymbolNameConstraint,
@@ -477,31 +478,52 @@ class DeclareTargetAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     name = "omp.declaretarget"
 
-    device_type: DeclareTargetDeviceTypeAttr
-    capture_clause: DeclareTargetCaptureClauseAttr
+    device_type: DeclareTargetDeviceTypeAttr | NoneAttr
+    capture_clause: DeclareTargetCaptureClauseAttr | NoneAttr
+    automap: BoolAttr | NoneAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        with parser.in_angle_brackets():
-            parser.parse_keyword("device_type")
+        fields = ("device_type", "capture_clause", "automap")
+
+        def parse_field() -> tuple[str, Attribute]:
+            key = parser.parse_keyword_in(fields)
             parser.parse_punctuation("=")
-            device_type = DeclareTargetDeviceTypeAttr(
-                DeclareTargetDeviceTypeAttr.parse_parameter(parser)
-            )
-            parser.parse_punctuation(",")
-            parser.parse_keyword("capture_clause")
-            parser.parse_punctuation("=")
-            capture = DeclareTargetCaptureClauseAttr(
-                DeclareTargetCaptureClauseAttr.parse_parameter(parser)
-            )
-            return [device_type, capture]
+            match key:
+                case "device_type":
+                    return key, DeclareTargetDeviceTypeAttr(
+                        DeclareTargetDeviceTypeAttr.parse_parameter(parser)
+                    )
+                case "capture_clause":
+                    return key, DeclareTargetCaptureClauseAttr(
+                        DeclareTargetCaptureClauseAttr.parse_parameter(parser)
+                    )
+                case _:
+                    return key, IntegerAttr.from_bool(parser.parse_boolean())
+
+        seen: dict[str, Attribute] = {}
+        for key, value in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = value
+        return [seen.get(name, NoneAttr()) for name in fields]
 
     def print_parameters(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print_string("device_type = ")
-            self.device_type.print_parameter(printer)
-            printer.print_string(", capture_clause = ")
-            self.capture_clause.print_parameter(printer)
+            separator = ""
+            if not isinstance(self.device_type, NoneAttr):
+                printer.print_string("device_type = ")
+                self.device_type.print_parameter(printer)
+                separator = ", "
+            if not isinstance(self.capture_clause, NoneAttr):
+                printer.print_string(f"{separator}capture_clause = ")
+                self.capture_clause.print_parameter(printer)
+                separator = ", "
+            if not isinstance(self.automap, NoneAttr):
+                printer.print_string(f"{separator}automap = ")
+                printer.print_string("true" if self.automap.value.data else "false")
 
 
 @irdl_attr_definition

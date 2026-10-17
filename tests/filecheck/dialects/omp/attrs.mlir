@@ -77,8 +77,22 @@
                 #omp.version<version = 11>,
                 // CHECK-SAME: #omp<version <version = 11>>
 
-                #omp.declaretarget <device_type = (any), capture_clause = (link)>,
+                #omp<declaretarget<device_type = (any), capture_clause = (link)>>,
                 // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (link)>>
+                #omp<declaretarget<device_type = (any), capture_clause = (to), automap = false>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (to), automap = false>>
+                #omp<declaretarget<device_type = (host), capture_clause = (enter), automap = true>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (host), capture_clause = (enter), automap = true>>
+                #omp<declaretarget<automap = true>>,
+                // CHECK-SAME: #omp<declaretarget <automap = true>>
+                #omp<declaretarget<device_type = (nohost), automap = false>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (nohost), automap = false>>
+                #omp<declaretarget<capture_clause = (link)>>,
+                // CHECK-SAME: #omp<declaretarget <capture_clause = (link)>>
+                #omp<declaretarget<automap = true, capture_clause = (link), device_type = (any)>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (link), automap = true>>
+                #omp<declaretarget<>>,
+                // CHECK-SAME: #omp<declaretarget <>>
 
                 #omp.data_sharing_type {type = private},
                 // CHECK-SAME: #omp<data_sharing_type {type = private}>
