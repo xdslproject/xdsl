@@ -9,10 +9,11 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf, tensor
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp, StringAttr
 from xdsl.dialects.irdl_interp import ConstantOp, IRDLInterp, NewVarAttrOp
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
+    AllOf,
     AnyAttr,
     AnyOf,
     AttrConstraint,
@@ -662,6 +663,60 @@ def test_param_attr_constraint_nested(message: str):
       %19 = tensor.extract %2[%18] : tensor<?x!irdl_interp.attr>
       %20 = irdl_interp.check_base %19 : !irdl_interp.attr, "integer"
       irdl_interp.assert %20, "{message}Expected integer"
+    """
+    expected_module = _parse_module(expected_ir)
+
+    assert module.is_structurally_equivalent(expected_module)
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["", "Custom allof error: "],
+)
+def test_allof_constraint_emit(message: str):
+    """Test that AllOf constraint with multiple constraints generates correct IR."""
+    module = ModuleOp([])
+    block = module.body.block
+    builder = Builder(InsertPoint.at_end(block))
+
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    context = EmitContext()
+
+    # AllOf with two BaseAttr constraints
+    allof_constr = AllOf.get(BaseAttr(IntegerAttr), BaseAttr(IndexType))
+    allof_constr.emit_irdl_interp(value_op.result, builder, context, message)
+
+    expected_ir = f"""
+      %0 = irdl_interp.constant.attr 42 : index
+      %1 = irdl_interp.check_base %0 : !irdl_interp.attr, "integer"
+      irdl_interp.assert %1, "{message}Expected integer"
+      %2 = irdl_interp.check_base %0 : !irdl_interp.attr, "index"
+      irdl_interp.assert %2, "{message}Expected index"
+    """
+    expected_module = _parse_module(expected_ir)
+
+    assert module.is_structurally_equivalent(expected_module)
+
+
+def test_allof_constraint_empty():
+    """Test that empty AllOf constraint (AnyAttr) generates no checks."""
+    module = ModuleOp([])
+    block = module.body.block
+    builder = Builder(InsertPoint.at_end(block))
+
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    context = EmitContext()
+
+    allof_constr = AllOf(())
+    allof_constr.emit_irdl_interp(value_op.result, builder, context)
+
+    # Expected IR - just the constant, no checks since AnyAttr accepts everything
+    expected_ir = r"""
+      %0 = irdl_interp.constant.attr 42 : index
     """
     expected_module = _parse_module(expected_ir)
 

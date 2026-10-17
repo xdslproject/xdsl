@@ -768,12 +768,36 @@ class AllOf(AttrConstraint[AttributeCovT]):
     def __and__(self, value: AttrConstraint, /) -> AllOf[AttributeCovT]:
         return AllOf((*self.attr_constrs, value))  # pyright: ignore[reportReturnType]
 
+    @staticmethod
+    def get(
+        *attr_constrs: IRDLAttrConstraint[AttributeInvT],
+    ) -> AttrConstraint[AttributeInvT]:
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
+        if len(constrs) == 0:
+            return cast(AttrConstraint[AttributeInvT], AnyAttr())
+        if len(constrs) == 1:
+            return constrs[0]
+        return AllOf(constrs)
+
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AllOf[AttributeCovT]:
         return AllOf(
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
+
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+        context: EmitContext,
+        message: str = "",
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_allof_constraint_irdl_interp
+
+        emit_allof_constraint_irdl_interp(self, value, builder, context, message)
 
 
 ParametrizedAttributeT = TypeVar("ParametrizedAttributeT", bound=ParametrizedAttribute)

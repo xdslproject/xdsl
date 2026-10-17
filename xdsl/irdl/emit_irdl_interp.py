@@ -27,6 +27,7 @@ from xdsl.dialects.scf import IfOp, YieldOp
 from xdsl.dialects.tensor import DimOp, ExtractOp
 from xdsl.ir import Block, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
+    AllOf,
     AnyOf,
     AttrSetConstraint,
     BaseAttr,
@@ -317,6 +318,40 @@ def emit_any_of_constraint_irdl_interp(
 _ParametrizedAttributeInvT = TypeVar(
     "_ParametrizedAttributeInvT", bound=ParametrizedAttribute
 )
+
+
+def emit_allof_constraint_irdl_interp(
+    constraint: AllOf,
+    value: SSAValue,
+    builder: Builder,
+    context: EmitContext,
+    message: str = "",
+) -> None:
+    """
+    Emit irdl_interp IR to verify an AllOf constraint.
+
+    Generates sequential checks for all constraints:
+
+      // Check first constraint
+      irdl_interp.check_base %value, "Type1"
+      irdl_interp.assert ...
+      // Check second constraint
+      irdl_interp.check_base %value, "Type2"
+      irdl_interp.assert ...
+      ...
+
+    All constraints must pass for the AllOf to succeed.
+
+    Args:
+        constraint: The AllOf constraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+        context: Immutable context containing all constraint variables
+        message: Optional message prefix to prepend to default messages
+    """
+    # Emit all constraints sequentially
+    for attr_constr in constraint.attr_constrs:
+        attr_constr.emit_irdl_interp(value, builder, context, message)
 
 
 def emit_param_attr_constraint_irdl_interp(
