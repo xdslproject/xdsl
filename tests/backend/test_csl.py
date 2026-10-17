@@ -12,8 +12,10 @@ from xdsl.ir import Attribute, Block, Operation, Region
 def layout():
     return csl.CslModuleOp(
         regions=[Region(Block([]))],
-        properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
-        attributes={"sym_name": bi.StringAttr("layout")},
+        properties={
+            "kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT),
+            "sym_name": bi.StringAttr("layout"),
+        },
     )
 
 
@@ -21,8 +23,10 @@ def layout():
 def program():
     return csl.CslModuleOp(
         regions=[Region(Block([]))],
-        properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
-        attributes={"sym_name": bi.StringAttr("program")},
+        properties={
+            "kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM),
+            "sym_name": bi.StringAttr("program"),
+        },
     )
 
 

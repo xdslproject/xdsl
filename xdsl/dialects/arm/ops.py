@@ -5,9 +5,10 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     result_def,
 )
@@ -28,7 +29,9 @@ class ARMInstruction(ARMAsmOperation, ABC):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
-    comment = opt_attr_def(StringAttr)
+    irdl_options = (ParsePropInAttrDict(),)
+
+    comment = opt_prop_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -81,7 +84,7 @@ class DSMovOp(ARMInstruction):
 
         super().__init__(
             operands=(s,),
-            attributes={
+            properties={
                 "comment": comment,
             },
             result_types=(d,),
@@ -139,7 +142,7 @@ class DSSMulOp(ARMInstruction):
 
         super().__init__(
             operands=(s1, s2),
-            attributes={
+            properties={
                 "comment": comment,
             },
             result_types=(d,),
@@ -158,9 +161,11 @@ class LabelOp(ARMAsmOperation):
     See external [documentation](https://developer.arm.com/documentation/dui0801/l/Symbols--Literals--Expressions--and-Operators/Labels).
     """
 
+    irdl_options = (ParsePropInAttrDict(),)
+
     name = "arm.label"
     label = prop_def(StringAttr)
-    comment = opt_attr_def(StringAttr)
+    comment = opt_prop_def(StringAttr)
 
     assembly_format = "$label attr-dict"
 
@@ -176,7 +181,7 @@ class LabelOp(ARMAsmOperation):
             comment = StringAttr(comment)
 
         super().__init__(
-            attributes={
+            properties={
                 "label": label,
                 "comment": comment,
             },
@@ -213,7 +218,7 @@ class CmpRegOp(ARMInstruction):
 
         super().__init__(
             operands=(s1, s2),
-            attributes={
+            properties={
                 "comment": comment,
             },
         )

@@ -178,8 +178,10 @@ class ExtractCslModules(RewritePattern):
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],
-            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
-            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_layout")},
+            properties={
+                "kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT),
+                "sym_name": builtin.StringAttr(f"{prog_name}_layout"),
+            },
         )
         return layout_mod
 
@@ -234,8 +236,10 @@ class ExtractCslModules(RewritePattern):
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],
-            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
-            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_program")},
+            properties={
+                "kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM),
+                "sym_name": builtin.StringAttr(f"{prog_name}_program"),
+            },
         )
         return program_module
 

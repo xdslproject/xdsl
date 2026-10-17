@@ -344,7 +344,7 @@ csl.func @builtins() {
 
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>, sym_name = "program"}> ({
 // CHECK-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-NEXT:     csl.func @func_with_args(%arg1: i32, %arg2: i16) -> i32 {
 // CHECK-NEXT:       csl.return %arg1 : i32
@@ -577,8 +577,8 @@ csl.func @builtins() {
 // CHECK-NEXT:     "csl.export"(%global_ptr) <{var_name = "some_name", type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     %rpc_col = "test.op"() : () -> !csl.color
 // CHECK-NEXT:     "csl.rpc"(%rpc_col) : (!csl.color) -> ()
-// CHECK-NEXT:   }) {sym_name = "program"} : () -> ()
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "layout"}> ({
 // CHECK-NEXT:     %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
 // CHECK-NEXT:     %init = arith.constant 3.140620e+00 : f16
 // CHECK-NEXT:     %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
@@ -588,11 +588,11 @@ csl.func @builtins() {
 // CHECK-NEXT:       %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
 // CHECK-NEXT:       "csl.set_tile_code"(%x_coord, %y_coord, %params) <{file = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 // CHECK-NEXT:     }
-// CHECK-NEXT:   }) {sym_name = "layout"} : () -> ()
+// CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>, sym_name = "program"}> ({
 // CHECK-GENERIC-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "func_with_args", function_type = (i32, i16) -> i32}> ({
 // CHECK-GENERIC-NEXT:     ^bb0(%arg1: i32, %arg2: i16):
@@ -828,8 +828,8 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:     "csl.export"(%global_ptr) <{var_name = "some_name", type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-GENERIC-NEXT:     %rpc_col = "test.op"() : () -> !csl.color
 // CHECK-GENERIC-NEXT:     "csl.rpc"(%rpc_col) : (!csl.color) -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "program"} : () -> ()
-// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "layout"}> ({
 // CHECK-GENERIC-NEXT:     %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
 // CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{value = 3.140620e+00 : f16}> : () -> f16
 // CHECK-GENERIC-NEXT:     %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
@@ -839,5 +839,5 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
 // CHECK-GENERIC-NEXT:       "csl.set_tile_code"(%x_coord, %y_coord, %params) <{file = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "layout"} : () -> ()
+// CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

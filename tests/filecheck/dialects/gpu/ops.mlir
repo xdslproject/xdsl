@@ -151,10 +151,10 @@ builtin.module attributes {"gpu.container_module"} {
 
 // CHECK-NEXT:             func.return
 // CHECK-NEXT:         }
-// CHECK-NEXT:         "gpu.func"() <{function_type = (index) -> (), kernel}> ({
+// CHECK-NEXT:         "gpu.func"() <{sym_name = "foo", function_type = (index) -> (), kernel, gpu.known_block_size = array<i32: 128, 1, 1>, gpu.known_grid_size = array<i32: 128, 1, 1>}> ({
 // CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:             "gpu.return"() : () -> ()
-// CHECK-NEXT:         }) {sym_name = "foo", gpu.known_block_size = array<i32: 128, 1, 1>, gpu.known_grid_size = array<i32: 128, 1, 1>} : () -> ()
+// CHECK-NEXT:         }) : () -> ()
 // CHECK-NEXT:     }) : () -> ()
 
 // CHECK-NEXT: }
