@@ -8,18 +8,30 @@ It is separate from constraints.py to avoid circular imports.
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from typing_extensions import TypeVar
+
 from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.arith import ConstantOp as ArithConstantOp
 from xdsl.dialects.arith import OrIOp
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
-from xdsl.dialects.irdl_interp import AssertOp, CheckBaseOp, ConstantOp, UnifyAttrOp
+from xdsl.dialects.irdl_interp import (
+    AssertOp,
+    AttrType,
+    CheckBaseOp,
+    ConstantOp,
+    GetParamsOp,
+    UnifyAttrOp,
+    UnifyIntOp,
+)
 from xdsl.dialects.scf import IfOp, YieldOp
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.dialects.tensor import DimOp, ExtractOp
+from xdsl.ir import Block, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AnyOf,
     AttrSetConstraint,
     BaseAttr,
     EqAttrConstraint,
+    ParamAttrConstraint,
     VarConstraint,
 )
 
@@ -321,3 +333,80 @@ def emit_any_of_constraint_irdl_interp(
         else:
             full_message = default_message
         current_builder.insert(AssertOp(false_const.result, full_message))
+
+
+_ParametrizedAttributeInvT = TypeVar(
+    "_ParametrizedAttributeInvT", bound=ParametrizedAttribute
+)
+
+
+def emit_param_attr_constraint_irdl_interp(
+    constraint: ParamAttrConstraint[_ParametrizedAttributeInvT],
+    value: SSAValue,
+    builder: Builder,
+    context: EmitContext,
+    message: str | None = None,
+) -> None:
+    """
+    Emit irdl_interp IR to verify a ParamAttrConstraint.
+
+    Generates:
+      %check = irdl_interp.check_base %value, "TypeName" : i1
+      irdl_interp.assert %check, "Expected TypeName"
+      %params = irdl_interp.get_params %value
+      %param_count = tensor.dim %params, %c0
+      irdl_interp.unify.int %param_count : index and %expected_count : index
+      %p0 = tensor.extract %params[0] : tensor<?x!irdl_interp.attr>
+      // Check p0 with its constraint
+      %p1 = tensor.extract %params[1] : tensor<?x!irdl_interp.attr>
+      // Check p1 with its constraint
+      ...
+
+    Args:
+        constraint: The ParamAttrConstraint to lower
+        value: The SSA value to verify (should be !irdl_interp.attr type)
+        builder: The builder to use for inserting operations
+        context: Immutable context containing all constraint variables
+        message: Optional message prefix to prepend to default messages
+    """
+    message = message or ""
+
+    # Get the base type name for the constraint
+    type_name = constraint.base_attr.name
+
+    # Check base type
+    check_op = CheckBaseOp(value, StringAttr(type_name))
+    builder.insert(check_op)
+    type_message = f"{message}Expected {type_name}"
+    assert_op = AssertOp(check_op.result, type_message)
+    builder.insert(assert_op)
+
+    # Get all parameters
+    params_op = GetParamsOp(value)
+    builder.insert(params_op)
+
+    # Check parameter count
+    c0 = ArithConstantOp(IntegerAttr.from_index_int_value(0))
+    builder.insert(c0)
+    param_count_op = DimOp(params_op.result, c0.result)
+    builder.insert(param_count_op)
+    expected_count = ArithConstantOp(
+        IntegerAttr.from_index_int_value(len(constraint.param_constrs))
+    )
+    builder.insert(expected_count)
+    unify_op = UnifyIntOp(param_count_op.result, expected_count.result)
+    builder.insert(unify_op)
+    count_message = f"{message}Expected {len(constraint.param_constrs)} parameters"
+    assert_op = AssertOp(unify_op.result, count_message)
+    builder.insert(assert_op)
+
+    # Extract and check each parameter
+    for idx, param_constr in enumerate(constraint.param_constrs):
+        # Extract parameter at index idx
+        idx_op = ArithConstantOp(IntegerAttr.from_index_int_value(idx))
+        builder.insert(idx_op)
+        extract_op = ExtractOp(params_op.result, [idx_op.result], AttrType())
+        builder.insert(extract_op)
+
+        # Check parameter with its constraint
+        param_constr.emit_irdl_interp(extract_op.result, builder, context, message)

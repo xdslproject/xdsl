@@ -877,6 +877,17 @@ class ParamAttrConstraint(
             *(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
 
+    def emit_irdl_interp(
+        self,
+        value: SSAValue,
+        builder: Builder,
+        context: EmitContext,
+        message: str | None = None,
+    ) -> None:
+        from xdsl.irdl.emit_irdl_interp import emit_param_attr_constraint_irdl_interp
+
+        emit_param_attr_constraint_irdl_interp(self, value, builder, context, message)
+
     def relax_constraint(
         self, other: AttrConstraint[ParametrizedAttributeCovT]
     ) -> AttrConstraint[ParametrizedAttributeCovT] | None:
@@ -964,7 +975,7 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
         if message is None:
             message = ""
         message = f"{message}{self.message}: "
-        print(message)
+
         self.constr.emit_irdl_interp(value, builder, context, message)
 
 

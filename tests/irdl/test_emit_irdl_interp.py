@@ -8,10 +8,10 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, scf
+from xdsl.dialects import arith, builtin, scf, tensor
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr
 from xdsl.dialects.irdl_interp import ConstantOp, IRDLInterp, NewVarAttrOp
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -20,7 +20,9 @@ from xdsl.irdl import (
     BaseAttr,
     EqAttrConstraint,
     MessageConstraint,
+    ParamAttrConstraint,
     VarConstraint,
+    irdl_attr_definition,
 )
 from xdsl.irdl.emit_irdl_interp import EmitContext
 from xdsl.parser import Parser
@@ -34,6 +36,7 @@ def _parse_module(ir: str) -> ModuleOp:
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(IRDLInterp)
     ctx.load_dialect(scf.Scf)
+    ctx.load_dialect(tensor.Tensor)
     parser = Parser(ctx, ir)
     return parser.parse_module()
 
@@ -535,6 +538,132 @@ def test_message_constraint_nested():
       %0 = irdl_interp.constant.attr 42 : index
       %1 = irdl_interp.check_base %0 : !irdl_interp.attr, "integer"
       irdl_interp.assert %1, "Outer message: Inner message: Expected integer"
+    """
+    expected_module = _parse_module(expected_ir)
+
+    assert module.is_structurally_equivalent(expected_module)
+
+
+@irdl_attr_definition
+class TestParamAttr(ParametrizedAttribute):
+    """Test parametrized attribute for ParamAttrConstraint testing."""
+
+    name = "test.param"
+
+    inner1: Attribute
+    inner2: Attribute
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        None,
+        "Custom param error: ",
+    ],
+)
+def test_param_attr_constraint_emit_with_message(message: str | None):
+    """Test that ParamAttrConstraint.emit_irdl_interp uses custom message."""
+    module = ModuleOp([])
+    block = module.body.block
+    builder = Builder(InsertPoint.at_end(block))
+
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    context = EmitContext()
+
+    param_constr = ParamAttrConstraint.get(
+        TestParamAttr, BaseAttr(IntegerAttr), BaseAttr(IntegerAttr)
+    )
+    param_constr.emit_irdl_interp(value_op.result, builder, context, message)
+
+    msg = message or ""
+    expected_ir = f"""
+      %0 = irdl_interp.constant.attr 42 : index
+      %1 = irdl_interp.check_base %0 : !irdl_interp.attr, "test.param"
+      irdl_interp.assert %1, "{msg}Expected test.param"
+      %2 = irdl_interp.get_params %0
+      %3 = arith.constant 0 : index
+      %4 = tensor.dim %2, %3 : tensor<?x!irdl_interp.attr>
+      %5 = arith.constant 2 : index
+      %6 = irdl_interp.unify.int %4 : index and %5 : index
+      irdl_interp.assert %6, "{msg}Expected 2 parameters"
+      %7 = arith.constant 0 : index
+      %8 = tensor.extract %2[%7] : tensor<?x!irdl_interp.attr>
+      %9 = irdl_interp.check_base %8 : !irdl_interp.attr, "integer"
+      irdl_interp.assert %9, "{msg}Expected integer"
+      %10 = arith.constant 1 : index
+      %11 = tensor.extract %2[%10] : tensor<?x!irdl_interp.attr>
+      %12 = irdl_interp.check_base %11 : !irdl_interp.attr, "integer"
+      irdl_interp.assert %12, "{msg}Expected integer"
+    """
+    expected_module = _parse_module(expected_ir)
+
+    assert module.is_structurally_equivalent(expected_module)
+
+
+@irdl_attr_definition
+class TestNestedParamAttr(ParametrizedAttribute):
+    """Test nested parametrized attribute for ParamAttrConstraint testing."""
+
+    name = "test.nested_param"
+
+    inner: Attribute
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        None,
+        "Custom nested param error: ",
+    ],
+)
+def test_param_attr_constraint_nested_with_message(message: str | None):
+    """Test that nested ParamAttrConstraint with custom message generates correct IR."""
+    module = ModuleOp([])
+    block = module.body.block
+    builder = Builder(InsertPoint.at_end(block))
+
+    value_op = ConstantOp(IntegerAttr.from_index_int_value(42))
+    builder.insert(value_op)
+
+    context = EmitContext()
+
+    inner_constr = ParamAttrConstraint.get(TestNestedParamAttr, BaseAttr(IntegerAttr))
+    outer_constr = ParamAttrConstraint.get(
+        TestParamAttr, inner_constr, BaseAttr(IntegerAttr)
+    )
+    outer_constr.emit_irdl_interp(value_op.result, builder, context, message)
+
+    msg = message or ""
+    expected_ir = f"""
+      %0 = irdl_interp.constant.attr 42 : index
+      %1 = irdl_interp.check_base %0 : !irdl_interp.attr, "test.param"
+      irdl_interp.assert %1, "{msg}Expected test.param"
+      %2 = irdl_interp.get_params %0
+      %3 = arith.constant 0 : index
+      %4 = tensor.dim %2, %3 : tensor<?x!irdl_interp.attr>
+      %5 = arith.constant 2 : index
+      %6 = irdl_interp.unify.int %4 : index and %5 : index
+      irdl_interp.assert %6, "{msg}Expected 2 parameters"
+      %7 = arith.constant 0 : index
+      %8 = tensor.extract %2[%7] : tensor<?x!irdl_interp.attr>
+      %9 = irdl_interp.check_base %8 : !irdl_interp.attr, "test.nested_param"
+      irdl_interp.assert %9, "{msg}Expected test.nested_param"
+      %10 = irdl_interp.get_params %8
+      %11 = arith.constant 0 : index
+      %12 = tensor.dim %10, %11 : tensor<?x!irdl_interp.attr>
+      %13 = arith.constant 1 : index
+      %14 = irdl_interp.unify.int %12 : index and %13 : index
+      irdl_interp.assert %14, "{msg}Expected 1 parameters"
+      %15 = arith.constant 0 : index
+      %16 = tensor.extract %10[%15] : tensor<?x!irdl_interp.attr>
+      %17 = irdl_interp.check_base %16 : !irdl_interp.attr, "integer"
+      irdl_interp.assert %17, "{msg}Expected integer"
+      %18 = arith.constant 1 : index
+      %19 = tensor.extract %2[%18] : tensor<?x!irdl_interp.attr>
+      %20 = irdl_interp.check_base %19 : !irdl_interp.attr, "integer"
+      irdl_interp.assert %20, "{msg}Expected integer"
     """
     expected_module = _parse_module(expected_ir)
 
