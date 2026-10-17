@@ -239,7 +239,7 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.
@@ -284,7 +284,7 @@ class AnyAttr(AttrConstraint):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         # AnyAttr accepts any attribute, so no IR needs to be generated
         pass
@@ -346,7 +346,7 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_var_constraint_irdl_interp
 
@@ -428,7 +428,7 @@ class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_eq_attr_constraint_irdl_interp
 
@@ -483,7 +483,7 @@ class AttrSetConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_attr_set_constraint_irdl_interp
 
@@ -551,7 +551,7 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_base_attr_irdl_interp
 
@@ -702,7 +702,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_any_of_constraint_irdl_interp
 
@@ -882,7 +882,7 @@ class ParamAttrConstraint(
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         from xdsl.irdl.emit_irdl_interp import emit_param_attr_constraint_irdl_interp
 
@@ -970,10 +970,8 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
-        if message is None:
-            message = ""
         message = f"{message}{self.message}: "
 
         self.constr.emit_irdl_interp(value, builder, context, message)
@@ -1036,7 +1034,7 @@ class IntConstraint(ABC):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.
@@ -1380,7 +1378,7 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         value: SSAValue,
         builder: Builder,
         context: EmitContext,
-        message: str | None = None,
+        message: str = "",
     ) -> None:
         """
         Emit irdl_interp IR to verify this constraint on the given SSA value.

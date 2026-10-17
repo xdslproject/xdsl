@@ -69,7 +69,7 @@ def emit_base_attr_irdl_interp(
     constraint: BaseAttr,
     value: SSAValue,
     builder: Builder,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify a BaseAttr constraint.
@@ -92,11 +92,7 @@ def emit_base_attr_irdl_interp(
     builder.insert(check_op)
 
     # Create the assert operation with default message, prepended by message prefix if provided
-    default_message = f"Expected {type_name}"
-    if message is not None:
-        full_message = f"{message}{default_message}"
-    else:
-        full_message = default_message
+    full_message = f"{message}Expected {type_name}"
     assert_op = AssertOp(check_op.result, full_message)
     builder.insert(assert_op)
 
@@ -106,7 +102,7 @@ def emit_var_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify a VarConstraint.
@@ -134,11 +130,7 @@ def emit_var_constraint_irdl_interp(
     # Unify the value with the variable and assert
     unify_op = UnifyAttrOp(value, var_ssa)
     builder.insert(unify_op)
-    default_message = f"Expected to unify with variable {constraint.name}"
-    if message is not None:
-        full_message = f"{message}{default_message}"
-    else:
-        full_message = default_message
+    full_message = f"{message}Expected to unify with variable {constraint.name}"
     assert_op = AssertOp(unify_op.result, full_message)
     builder.insert(assert_op)
 
@@ -147,7 +139,7 @@ def emit_eq_attr_constraint_irdl_interp(
     constraint: EqAttrConstraint,
     value: SSAValue,
     builder: Builder,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify an EqAttrConstraint.
@@ -169,11 +161,7 @@ def emit_eq_attr_constraint_irdl_interp(
     # Unify the value with the constant
     unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
-    default_message = f"Expected {constraint.attr}"
-    if message is not None:
-        full_message = f"{message}{default_message}"
-    else:
-        full_message = default_message
+    full_message = f"{message}Expected {constraint.attr}"
     assert_op = AssertOp(unify_op.result, full_message)
     builder.insert(assert_op)
 
@@ -183,7 +171,7 @@ def emit_attr_set_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify an AttrSetConstraint.
@@ -231,15 +219,10 @@ def emit_attr_set_constraint_irdl_interp(
 
     # Assert the final result with default message, prepended by message prefix if provided
     if len(constraint.values) == 0:
-        default_message = "Expected one of (empty set)"
+        full_message = f"{message}Expected one of (empty set)"
     else:
         attrs_str = ", ".join(s for _, s in sorted_values)
-        default_message = f"Expected one of {attrs_str}"
-
-    if message is not None:
-        full_message = f"{message}{default_message}"
-    else:
-        full_message = default_message
+        full_message = f"{message}Expected one of {attrs_str}"
     assert_op = AssertOp(accum_result, full_message)
     builder.insert(assert_op)
 
@@ -249,7 +232,7 @@ def emit_any_of_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify an AnyOf constraint using scf.if dispatch.
@@ -327,11 +310,7 @@ def emit_any_of_constraint_irdl_interp(
         # No abstract constraint - always fail
         false_const = ArithConstantOp(IntegerAttr.from_bool(False))
         current_builder.insert(false_const)
-        default_message = "Unexpected attribute"
-        if message is not None:
-            full_message = f"{message}{default_message}"
-        else:
-            full_message = default_message
+        full_message = f"{message}Unexpected attribute"
         current_builder.insert(AssertOp(false_const.result, full_message))
 
 
@@ -345,7 +324,7 @@ def emit_param_attr_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
-    message: str | None = None,
+    message: str = "",
 ) -> None:
     """
     Emit irdl_interp IR to verify a ParamAttrConstraint.
@@ -369,7 +348,7 @@ def emit_param_attr_constraint_irdl_interp(
         context: Immutable context containing all constraint variables
         message: Optional message prefix to prepend to default messages
     """
-    message = message or ""
+    # message already defaults to ""
 
     # Get the base type name for the constraint
     type_name = constraint.base_attr.name
