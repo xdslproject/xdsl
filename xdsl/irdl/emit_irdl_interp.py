@@ -57,6 +57,7 @@ def emit_base_attr_irdl_interp(
     constraint: BaseAttr,
     value: SSAValue,
     builder: Builder,
+    message: str | None = None,
 ) -> None:
     """
     Emit irdl_interp IR to verify a BaseAttr constraint.
@@ -69,6 +70,7 @@ def emit_base_attr_irdl_interp(
         constraint: The BaseAttr constraint to lower
         value: The SSA value to verify (should be !irdl_interp.attr type)
         builder: The builder to use for inserting operations
+        message: Optional message prefix to prepend to the default message
     """
     # Get the type name for the constraint
     type_name = constraint.attr.name
@@ -77,9 +79,13 @@ def emit_base_attr_irdl_interp(
     check_op = CheckBaseOp(value, StringAttr(type_name))
     builder.insert(check_op)
 
-    # Create the assert operation
-    message = f"Expected {type_name}"
-    assert_op = AssertOp(check_op.result, message)
+    # Create the assert operation with default message, prepended by message prefix if provided
+    default_message = f"Expected {type_name}"
+    if message is not None:
+        full_message = f"{message}{default_message}"
+    else:
+        full_message = default_message
+    assert_op = AssertOp(check_op.result, full_message)
     builder.insert(assert_op)
 
 
@@ -88,6 +94,7 @@ def emit_var_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
+    message: str | None = None,
 ) -> None:
     """
     Emit irdl_interp IR to verify a VarConstraint.
@@ -104,20 +111,23 @@ def emit_var_constraint_irdl_interp(
         value: The SSA value to verify (should be !irdl_interp.attr type)
         builder: The builder to use for inserting operations
         context: Immutable context containing all constraint variables
+        message: Optional message prefix to prepend to default messages
     """
     # Get the variable SSA value from context
     var_ssa = context.attr_variables[constraint.name]
 
-    # Check the inner constraint on the value
-    constraint.constraint.emit_irdl_interp(value, builder, context)
+    # Check the inner constraint on the value with the message prefix
+    constraint.constraint.emit_irdl_interp(value, builder, context, message)
 
     # Unify the value with the variable and assert
     unify_op = UnifyAttrOp(value, var_ssa)
     builder.insert(unify_op)
-    assert_op = AssertOp(
-        unify_op.result,
-        f"Expected to unify with variable {constraint.name}",
-    )
+    default_message = f"Expected to unify with variable {constraint.name}"
+    if message is not None:
+        full_message = f"{message}{default_message}"
+    else:
+        full_message = default_message
+    assert_op = AssertOp(unify_op.result, full_message)
     builder.insert(assert_op)
 
 
@@ -125,6 +135,7 @@ def emit_eq_attr_constraint_irdl_interp(
     constraint: EqAttrConstraint,
     value: SSAValue,
     builder: Builder,
+    message: str | None = None,
 ) -> None:
     """
     Emit irdl_interp IR to verify an EqAttrConstraint.
@@ -137,6 +148,7 @@ def emit_eq_attr_constraint_irdl_interp(
         constraint: The EqAttrConstraint to lower
         value: The SSA value to verify (should be !irdl_interp.attr type)
         builder: The builder to use for inserting operations
+        message: Optional message prefix to prepend to the default message
     """
     # Create a constant operation with the attribute value
     constant_op = ConstantOp(constraint.attr)
@@ -145,7 +157,12 @@ def emit_eq_attr_constraint_irdl_interp(
     # Unify the value with the constant
     unify_op = UnifyAttrOp(value, constant_op.result)
     builder.insert(unify_op)
-    assert_op = AssertOp(unify_op.result, f"Expected {constraint.attr}")
+    default_message = f"Expected {constraint.attr}"
+    if message is not None:
+        full_message = f"{message}{default_message}"
+    else:
+        full_message = default_message
+    assert_op = AssertOp(unify_op.result, full_message)
     builder.insert(assert_op)
 
 
@@ -154,6 +171,7 @@ def emit_attr_set_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
+    message: str | None = None,
 ) -> None:
     """
     Emit irdl_interp IR to verify an AttrSetConstraint.
@@ -176,6 +194,7 @@ def emit_attr_set_constraint_irdl_interp(
         value: The SSA value to verify (should be !irdl_interp.attr type)
         builder: The builder to use for inserting operations
         context: Immutable context containing all constraint variables
+        message: Optional message prefix to prepend to the default message
     """
     # Start with false constant - will be ORed with all unify results
     false_const = ArithConstantOp(IntegerAttr.from_bool(False))
@@ -198,13 +217,18 @@ def emit_attr_set_constraint_irdl_interp(
         builder.insert(or_op)
         accum_result = or_op.result
 
-    # Assert the final result
+    # Assert the final result with default message, prepended by message prefix if provided
     if len(constraint.values) == 0:
-        message = "Expected one of (empty set)"
+        default_message = "Expected one of (empty set)"
     else:
         attrs_str = ", ".join(s for _, s in sorted_values)
-        message = f"Expected one of {attrs_str}"
-    assert_op = AssertOp(accum_result, message)
+        default_message = f"Expected one of {attrs_str}"
+
+    if message is not None:
+        full_message = f"{message}{default_message}"
+    else:
+        full_message = default_message
+    assert_op = AssertOp(accum_result, full_message)
     builder.insert(assert_op)
 
 
@@ -213,6 +237,7 @@ def emit_any_of_constraint_irdl_interp(
     value: SSAValue,
     builder: Builder,
     context: EmitContext,
+    message: str | None = None,
 ) -> None:
     """
     Emit irdl_interp IR to verify an AnyOf constraint using scf.if dispatch.
@@ -253,7 +278,7 @@ def emit_any_of_constraint_irdl_interp(
         true_block = Block()
         true_builder = Builder(InsertPoint.at_end(true_block))
         true_builder.extend_from_listener(current_builder)
-        attr_constr.emit_irdl_interp(value, true_builder, context)
+        attr_constr.emit_irdl_interp(value, true_builder, context, message)
         true_builder.insert(YieldOp())
 
         true_region = Region([true_block])
@@ -285,9 +310,14 @@ def emit_any_of_constraint_irdl_interp(
 
     # Deal with the abstract constraint
     if abstr_constr is not None:
-        abstr_constr.emit_irdl_interp(value, current_builder, context)
+        abstr_constr.emit_irdl_interp(value, current_builder, context, message)
     else:
         # No abstract constraint - always fail
         false_const = ArithConstantOp(IntegerAttr.from_bool(False))
         current_builder.insert(false_const)
-        current_builder.insert(AssertOp(false_const.result, "Unexpected attribute"))
+        default_message = "Unexpected attribute"
+        if message is not None:
+            full_message = f"{message}{default_message}"
+        else:
+            full_message = default_message
+        current_builder.insert(AssertOp(false_const.result, full_message))

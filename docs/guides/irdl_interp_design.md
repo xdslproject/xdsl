@@ -406,6 +406,7 @@ Constraints are lowered via the `emit_irdl_interp` method, which takes:
 - `value: SSAValue` - The value to verify
 - `builder: Builder` - For inserting operations
 - `context: EmitContext` - Immutable context with all constraint variables
+- `message: str | None = None` - Optional message prefix to prepend to default assert messages
 
 **`EmitContext`** is created in Phase 2 (Setup Constraint Variables) and provides:
 ```python
@@ -424,6 +425,13 @@ class EmitContext:
 ```
 
 Variables are accessed via dict syntax: `context.attr_variables["T"]`
+
+**Message parameter**: When provided, the message is prepended to default assert messages with simple concatenation:
+```
+{message}{default_message}
+```
+
+This allows outer constraints (like `MessageConstraint`) to add context to error messages. The message propagates through nested constraints, creating a chain of context. Messages typically end with `: ` or similar separator for readability (e.g., `"Custom error: Expected integer"`).
 
 ### Unify Operations
 
@@ -454,6 +462,14 @@ irdl_interp.assert %result, "Expected %expected"
 | `ParamAttrConstraint(T, [p1, p2])` | `%params = irdl_interp.get_params %type`<br>Check each parameter with its constraint |
 | `RangeOf(c)` | Extract each element, check with `c` |
 | `RangeLengthConstraint(r, n)` | Check length + `RangeOf` |
+| `MessageConstraint(c, msg)` | Delegates to `c.emit_irdl_interp()` with `msg` as message prefix |
+
+**MessageConstraint behavior**: Wraps another constraint to add a custom message prefix. When the inner constraint fails, the error message is:
+```
+msg{inner_constraint_message}
+```
+
+Messages typically include a separator like `: ` for readability. This matches Python's `MessageConstraint.verify()` behavior of wrapping exceptions with additional context, but uses simple concatenation instead of newline-based wrapping for simplicity.
 
 ### Future Phases
 
