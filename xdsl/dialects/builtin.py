@@ -89,6 +89,7 @@ from xdsl.traits import (
     OpTrait,
     SymbolTable,
 )
+from xdsl.utils.bitwise_casts import convert_f64_to_u64
 from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
@@ -1827,19 +1828,13 @@ class FloatData(Data[float]):
             printer.print_string(f"{self.data}")
 
     def __eq__(self, other: object) -> bool:
+        """Compare stored bits, distinguishing signed zeros and NaN encodings."""
         if not isinstance(other, FloatData):
             return False
-        if math.isnan(self.data) and math.isnan(other.data):
-            # Treat all NaNs as equal
-            return True
-        if math.copysign(1.0, self.data) != math.copysign(1.0, other.data):
-            # Avoid dropping sign on -0.0
-            return False
-        # If the floats are not NaNs or +-0.0, use float equality
-        return self.data == other.data
+        return convert_f64_to_u64(self.data) == convert_f64_to_u64(other.data)
 
     def __hash__(self):
-        return hash(self.data)
+        return hash(convert_f64_to_u64(self.data))
 
 
 _FloatAttrTypeCovT = TypeVar(

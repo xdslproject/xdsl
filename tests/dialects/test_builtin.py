@@ -107,8 +107,26 @@ def test_float_data_equality(lhs: float, rhs: float, equal: bool):
         assert hash(FloatData(lhs)) == hash(FloatData(rhs))
 
 
-def test_float_data_nan_equality():
-    assert FloatData(float("nan")) == FloatData(float("nan"))
+@pytest.mark.parametrize(
+    "lhs_bits,rhs_bits,equal",
+    [
+        (0x7FF8000000000000, 0x7FF8000000000000, True),
+        (0x7FF8000000000001, 0x7FF8000000000001, True),
+        (0x7FF0000000000001, 0x7FF0000000000001, True),
+        (0x7FF8000000000001, 0x7FF8000000000002, False),  # Different payloads.
+        (0x7FF8000000000001, 0xFFF8000000000001, False),  # Different signs.
+        (0x7FF8000000000001, 0x7FF0000000000001, False),  # Quiet vs signaling.
+    ],
+)
+def test_float_data_nan_equality(lhs_bits: int, rhs_bits: int, equal: bool):
+    lhs = FloatData(struct.unpack("<d", lhs_bits.to_bytes(8, "little"))[0])
+    rhs = FloatData(struct.unpack("<d", rhs_bits.to_bytes(8, "little"))[0])
+    for left, right in ((lhs, rhs), (FloatAttr(lhs, f64), FloatAttr(rhs, f64))):
+        assert (left == right) is equal
+        if equal:
+            assert hash(left) == hash(right)
+        values = {left: 0, right: 1}
+        assert values[left] == (1 if equal else 0)
 
 
 @pytest.mark.parametrize(

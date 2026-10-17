@@ -38,6 +38,23 @@ func.func @signed_zero_constants() -> (f64, f64, f64, f64) {
 // CHECK-NEXT:       func.return %0, %0, %1, %1 : f64, f64, f64, f64
 // CHECK-NEXT:     }
 
+func.func @nan_constants() -> (f64, f64, f64, f64, f64) {
+    %0 = arith.constant 0x7ff8000000000001 : f64
+    %1 = arith.constant 0x7ff8000000000001 : f64
+    %2 = arith.constant 0x7ff8000000000002 : f64
+    %3 = arith.constant 0xfff8000000000001 : f64
+    %4 = arith.constant 0x7ff0000000000001 : f64
+    func.return %0, %1, %2, %3, %4 : f64, f64, f64, f64, f64
+}
+
+// CHECK-LABEL:    func.func @nan_constants() -> (f64, f64, f64, f64, f64) {
+// CHECK-NEXT:       %0 = arith.constant 0x7ff8000000000001 : f64
+// CHECK-NEXT:       %1 = arith.constant 0x7ff8000000000002 : f64
+// CHECK-NEXT:       %2 = arith.constant 0xfff8000000000001 : f64
+// CHECK-NEXT:       %3 = arith.constant 0x7ff0000000000001 : f64
+// CHECK-NEXT:       func.return %0, %0, %1, %2, %3 : f64, f64, f64, f64, f64
+// CHECK-NEXT:     }
+
 // CHECK-LABEL: @basic
   func.func @basic() -> (index, index) {
     %2 = arith.constant 0 : index
