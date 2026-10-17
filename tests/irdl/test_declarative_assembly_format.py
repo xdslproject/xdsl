@@ -3175,6 +3175,42 @@ def test_optional_else_group(
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize("index", [None, 0, 7, -1])
+def test_optional_group_typed_attribute_anchor(index: int | None):
+    @irdl_op_definition
+    class OptionalTypedAttrGroupOp(IRDLOperation):
+        name = "test.optional_typed_attr_group"
+        index = opt_prop_def(IntegerAttr[I32])
+        input_op = operand_def(i32)
+        assembly_format = "($index^)? `of` $input_op attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalTypedAttrGroupOp)
+    ctx.load_dialect(Test)
+    prefix = '%0 = "test.op"() : () -> i32\n'
+    value = "" if index is None else f"{index} "
+    properties = "" if index is None else f" <{{index = {index} : i32}}>"
+    program = prefix + f"test.optional_typed_attr_group {value}of %0"
+    generic_program = prefix + (
+        f'"test.optional_typed_attr_group"(%0){properties} : (i32) -> ()'
+    )
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+def test_optional_group_malformed_typed_attribute():
+    @irdl_op_definition
+    class OptionalTypedAttrGroupOp(IRDLOperation):
+        name = "test.optional_typed_attr_group"
+        index = opt_prop_def(IntegerAttr[I32])
+        assembly_format = "($index^)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalTypedAttrGroupOp)
+    with pytest.raises(ParseError, match="Expected integer literal"):
+        Parser(ctx, "test.optional_typed_attr_group -").parse_operation()
+
+
 def test_impossible_optional_else_group():
     error = "property 'val' is already bound"
     with pytest.raises(

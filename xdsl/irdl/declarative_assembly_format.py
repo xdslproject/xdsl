@@ -47,7 +47,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLError, VerifyException
+from xdsl.utils.exceptions import ParseError, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
@@ -1194,6 +1194,17 @@ class AttributeVariable(FormatDirective):
         attr = self.parse_attr(parser)
         if attr is not None:
             self.set(state, attr)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        # Type-elided attribute parsers can require a token even when the
+        # attribute starts an optional group. Absence is only valid before
+        # consuming any input; errors within a present attribute must propagate.
+        start_pos = parser.pos
+        try:
+            self.parse(parser, state)
+        except ParseError:
+            if parser.pos != start_pos:
+                raise
 
     def get(self, op: IRDLOperation) -> Attribute | None:
         if self.is_property:
