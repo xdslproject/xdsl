@@ -192,10 +192,6 @@ class RiscvFunctions(InterpreterFunctions):
                                 "Interpreter assumes that data section is comprised of "
                                 "labels followed by directives"
                             )
-                        if data_op.value is None:
-                            raise InterpretationError(
-                                "Unexpected None value in data section directive"
-                            )
 
                         match data_op.directive.data:
                             case ".word":

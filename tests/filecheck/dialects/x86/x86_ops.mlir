@@ -148,10 +148,14 @@ x86.m.dec [%1 + 8] : (!x86.reg64) -> ()
 %m_imul_rdx, %m_imul_rax = x86.m.imul [%1 + 8], %rax : (!x86.reg64, !x86.reg64<rax>) -> (!x86.reg64<rdx>, !x86.reg64<rax>)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.imul [%{{.*}} + 8], %{{.*}} : (!x86.reg64, !x86.reg64<rax>) -> (!x86.reg64<rdx>, !x86.reg64<rax>)
 
-x86.directive ".text"
-// CHECK-NEXT: x86.directive ".text"
+x86.directive ".text" ""
+// CHECK-NEXT: x86.directive ".text" ""
 x86.directive ".align" "2"
 // CHECK-NEXT: x86.directive ".align" "2"
+x86.directive ".text" "" {tag = "keep"}
+// CHECK-NEXT: x86.directive ".text" "" {tag = "keep"}
+x86.directive ".align" "2" {tag = "keep"}
+// CHECK-NEXT: x86.directive ".align" "2" {tag = "keep"}
 x86.label "label"
 // CHECK-NEXT: x86.label "label"
 
