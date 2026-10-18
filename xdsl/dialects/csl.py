@@ -60,7 +60,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParametrizedAttribute,
     VarConstraint,
-    attr_def,
     base,
     eq,
     irdl_attr_definition,
@@ -602,7 +601,7 @@ class CslModuleOp(IRDLOperation):
     name = "csl.module"
     body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),

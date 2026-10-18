@@ -119,7 +119,7 @@ builtin.module {
 
 // CHECK:       func.func @dmp_swap(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:    %1 = "dmp.swap"(%0) {strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:    %1 = "dmp.swap"(%0) <{strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:    "test.op"(%1) : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> ()
 // CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
@@ -159,7 +159,7 @@ builtin.module {
 // CHECK-NEXT:    %step = arith.constant 1 : index
 // CHECK-NEXT:    %fnp1, %fn = scf.for %time = %time_m to %time_M step %step iter_args(%fi = %a, %fip1 = %b) -> (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:      %0 = stencil.load %fi : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:      %1 = "dmp.swap"(%0) {strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:      %1 = "dmp.swap"(%0) <{strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:      %2 = stencil.apply(%3 = %1 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
 // CHECK-NEXT:        %4 = arith.constant dense<1.666600e-01> : tensor<510xf32>
 // CHECK-NEXT:        %5 = stencil.access %3[1, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
