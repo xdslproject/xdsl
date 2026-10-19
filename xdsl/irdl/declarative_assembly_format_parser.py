@@ -198,9 +198,9 @@ class FormatParser(BaseParser):
             if not a.is_optional_like():
                 continue
             match a, b:
-                case _, PunctuationDirective(",") if a.is_variadic_like():
+                case _, PunctuationDirective(",") if a.is_comma_separated_list():
                     self.raise_error(
-                        "A variadic directive cannot be followed by a comma literal."
+                        "A comma-separated list directive cannot be followed by a comma literal."
                     )
                 case TypeDirective(), TypeDirective():
                     self.raise_error(

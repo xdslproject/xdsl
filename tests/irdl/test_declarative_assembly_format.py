@@ -3042,7 +3042,9 @@ def test_variadic_comma_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match=re.escape("A variadic directive cannot be followed by a comma literal."),
+        match=re.escape(
+            "A comma-separated list directive cannot be followed by a comma literal."
+        ),
     ):
 
         @irdl_op_definition
@@ -3892,6 +3894,39 @@ def test_qualified_attr():
 ################################################################################
 #                             Custom directives                                #
 ################################################################################
+
+
+def test_legacy_is_variadic_like_override():
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_variadic_like(), which has been renamed. "
+            "Override is_comma_separated_list() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(CustomDirective):
+            def is_variadic_like(self) -> bool:
+                return True
+
+
+def test_inherited_legacy_is_variadic_like_override():
+    class LegacyMixin:
+        def is_variadic_like(self) -> bool:
+            return True
+
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_variadic_like(), which has been renamed. "
+            "Override is_comma_separated_list() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(LegacyMixin, CustomDirective):
+            pass
 
 
 @irdl_custom_directive

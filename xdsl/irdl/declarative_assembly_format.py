@@ -267,6 +267,15 @@ class FormatProgram:
 class Directive(ABC):
     """An assembly format directive"""
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Reject legacy overrides, including inherited ones, rather than ignoring them.
+        if hasattr(cls, "is_variadic_like"):
+            raise TypeError(
+                f"{cls.__name__} overrides is_variadic_like(), which has been renamed. "
+                "Override is_comma_separated_list() instead."
+            )
+
     def is_present(self, op: IRDLOperation) -> bool:
         """
         Check if the directive is present in the input.
@@ -279,7 +288,7 @@ class Directive(ABC):
         """
         return False
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         """
         Whether the syntax is a possibly empty, undelimited comma-separated list.
         This describes syntax, before operation-specific cardinality checks.
@@ -293,7 +302,7 @@ class Directive(ABC):
         Directives that successfully parse the empty string.
         The first element in an optional group must be optional-like.
         """
-        return self.is_variadic_like()
+        return self.is_comma_separated_list()
 
 
 class FormatDirective(Directive, ABC):
@@ -414,8 +423,8 @@ class TypeDirective(FormatDirective):
     def is_anchorable(self) -> bool:
         return self.inner.is_anchorable()
 
-    def is_variadic_like(self) -> bool:
-        return self.inner.is_variadic_like()
+    def is_comma_separated_list(self) -> bool:
+        return self.inner.is_comma_separated_list()
 
     def is_optional_like(self) -> bool:
         return self.inner.is_optional_like()
@@ -445,7 +454,7 @@ class VariadicVariable(VariableDirective, ABC):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         return True
 
 
@@ -689,7 +698,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
     Base class for the 'operands' and 'results' directives.
     """
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         return True
 
     def is_anchorable(self) -> bool:
@@ -1042,7 +1051,7 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
     def set_empty(self, state: ParsingState):
         self.set(state, ())
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         # Regions are juxtaposed, not comma-separated.
         return False
 
