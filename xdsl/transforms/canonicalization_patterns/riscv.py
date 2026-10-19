@@ -607,6 +607,31 @@ class BitwiseAndBySelf(RewritePattern):
             rewriter.replace(op, riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
+class BitwiseAndByComplement(RewritePattern):
+    """
+    x & ~x = 0
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+        for rs1, rs2 in ((op.rs1, op.rs2), (op.rs2, op.rs1)):
+            if (
+                isinstance(rs2, OpResult)
+                and isinstance(rs2.op, riscv.XoriOp)
+                and isinstance(rs2.op.immediate, IntegerAttr)
+                and rs2.op.immediate.value.data == -1
+                and rs2.op.rs1 == rs1
+            ):
+                rewriter.replace(
+                    op,
+                    (
+                        zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                        riscv.MVOp(zero.res, rd=op.rd.type, comment=op.comment),
+                    ),
+                )
+                return
+
+
 class BitwiseOrByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):

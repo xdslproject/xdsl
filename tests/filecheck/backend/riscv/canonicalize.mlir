@@ -152,6 +152,17 @@ builtin.module {
 
   %and_bitwise_self = riscv.and %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_self) : (!riscv.reg<a0>) -> ()
+
+  %not_i2 = riscv.xori %i2, -1 : (!riscv.reg) -> !riscv.reg
+
+  %and_not_self_l = riscv.and %i2, %not_i2 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%and_not_self_l) : (!riscv.reg<a0>) -> ()
+
+  %and_not_self_r = riscv.and %not_i2, %i2 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%and_not_self_r) : (!riscv.reg<a0>) -> ()
+
+  %and_not_other = riscv.and %i1, %not_i2 : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%and_not_other) : (!riscv.reg<a0>) -> ()
   
   %or_bitwise_zero_l0 = riscv.or %c1, %c0 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%or_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
@@ -360,6 +371,19 @@ builtin.module {
 
 // CHECK-NEXT:   %and_bitwise_self = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_self) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %not_i2 = riscv.xori %i2, -1 : (!riscv.reg) -> !riscv.reg
+
+// CHECK-NEXT:   %and_not_self_l = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %and_not_self_l_1 = riscv.mv %and_not_self_l : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_not_self_l_1) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %and_not_self_r = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %and_not_self_r_1 = riscv.mv %and_not_self_r : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_not_self_r_1) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %and_not_other = riscv.and %i1, %not_i2 : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_not_other) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %or_bitwise_zero_l0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%or_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
