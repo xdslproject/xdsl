@@ -50,6 +50,7 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
+    OptRegion,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
@@ -59,6 +60,7 @@ from xdsl.irdl import (
     VarConstraint,
     VarOperand,
     VarOpResult,
+    VarRegion,
     attr_def,
     eq,
     irdl_attr_definition,
@@ -2374,6 +2376,21 @@ def test_regions(format: str, program: str, generic_program: str):
             'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
         ),
+        (
+            "$region `,` attr-dict",
+            "test.variadic_region,",
+            '"test.variadic_region"() : () -> ()',
+        ),
+        (
+            "$region `,` attr-dict",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n},',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {}) : () -> ()',
+        ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            "test.variadic_region",
+            '"test.variadic_region"() : () -> ()',
+        ),
     ],
 )
 def test_variadic_region(format: str, program: str, generic_program: str):
@@ -2427,8 +2444,11 @@ def test_optional_region(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
-def test_multiple_optional_regions():
-    """Test that a variadic region variable cannot directly follow another variadic region variable."""
+@pytest.mark.parametrize("test_region_def", [opt_region_def, var_region_def])
+def test_multiple_optional_regions(
+    test_region_def: Callable[[], OptRegion | VarRegion],
+):
+    """An optional or variadic region must not consume the following region."""
     with pytest.raises(
         PyRDLOpDefinitionError,
         match=re.escape(
@@ -2440,7 +2460,7 @@ def test_multiple_optional_regions():
         class OptionalRegionsOp(IRDLOperation):
             name = "test.optional_regions"
             irdl_options = (AttrSizedRegionSegments(),)
-            region1 = opt_region_def()
+            region1 = test_region_def()
             region2 = opt_region_def()
 
             assembly_format = "attr-dict-with-keyword $region1 $region2"

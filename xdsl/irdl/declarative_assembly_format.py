@@ -281,8 +281,10 @@ class Directive(ABC):
 
     def is_variadic_like(self) -> bool:
         """
-        Variadic-like format directives parse a comma separated list, and cannot be
-        followed by `,` directive.
+        Whether the syntax is a possibly empty, undelimited comma-separated list.
+        This describes syntax, before operation-specific cardinality checks.
+        A following comma literal is ambiguous because the list parser would
+        consume it as an element separator.
         """
         return False
 
@@ -1039,6 +1041,13 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
 
     def set_empty(self, state: ParsingState):
         self.set(state, ())
+
+    def is_variadic_like(self) -> bool:
+        # Regions are juxtaposed, not comma-separated.
+        return False
+
+    def is_optional_like(self) -> bool:
+        return True
 
 
 class OptionalRegionVariable(RegionDirective, OptionalVariable):
