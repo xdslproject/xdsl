@@ -290,10 +290,8 @@ class Directive(ABC):
 
     def is_comma_separated_list(self) -> bool:
         """
-        Whether the syntax is a possibly empty, undelimited comma-separated list.
-        This describes syntax, before operation-specific cardinality checks.
-        A following comma literal is ambiguous because the list parser would
-        consume it as an element separator.
+        Variadic-like format directives parse a comma separated list, and cannot be
+        followed by `,` directive.
         """
         return False
 
