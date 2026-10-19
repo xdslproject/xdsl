@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    AttrSizedSuccessorSegments,
     BaseAttr,
     EqAttrConstraint,
     IntVarConstraint,
@@ -3113,6 +3114,27 @@ def test_chained_variadic_operands_safeguard(
             irdl_options = (AttrSizedOperandSegments(),)
 
 
+@pytest.mark.parametrize("separator", ["", "` `"])
+def test_chained_variadic_successors_safeguard(separator: str):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=re.escape(
+            "A variadic successor variable cannot be followed by another "
+            "variadic successor variable."
+        ),
+    ):
+
+        @irdl_op_definition
+        class VarSuccessorGuardOp(IRDLOperation):
+            name = "test.variadic_successor_safeguard"
+
+            variadic_one = var_successor_def()
+            variadic_two = var_successor_def()
+            assembly_format = f"$variadic_one {separator} $variadic_two attr-dict"
+
+            irdl_options = (AttrSizedSuccessorSegments(),)
+
+
 @pytest.mark.parametrize(
     "program, generic_program",
     [
@@ -3429,6 +3451,10 @@ def test_optional_operands_with_required_separator(
         ),
         (
             "($optional_unit_arg^)?",
+            "First element of an optional group must be optionally parsable.",
+        ),
+        (
+            "((`keyword` $optional_unit_arg^)? $args^)?",
             "First element of an optional group must be optionally parsable.",
         ),
     ],
