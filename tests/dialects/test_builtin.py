@@ -293,20 +293,52 @@ def test_bf16_pack_bit_patterns(value: float, expected_raw: bytes):
     assert struct.pack(">f", decoded) == struct.pack(">f", value)
 
 
-def test_bf16_pack_nan_stays_quiet():
-    raw = bf16.pack((float("nan"),))
-    bits = int.from_bytes(raw, "little")
-    assert (bits & 0x7F80) == 0x7F80  # exponent all-ones
-    assert (bits & 0x007F) != 0  # mantissa non-zero
-    assert bits & 0x0040  # quiet bit set
+@pytest.mark.parametrize(
+    "source_bits,expected_bits",
+    [
+        (0x7FF8000000000000, 0x7FC0),
+        (0x7FF0000000000001, 0x7FC0),  # Discarded payload must not become infinity.
+        (0x7FFA000000000000, 0x7FD0),
+        (0xFFFA000000000000, 0xFFD0),
+    ],
+)
+def test_bf16_pack_nan_stays_quiet(source_bits: int, expected_bits: int):
+    value = struct.unpack("<d", struct.pack("<Q", source_bits))[0]
+    assert bf16.pack((value,)) == expected_bits.to_bytes(2, "little")
 
 
-def test_bf16_pack_rounds_to_nearest_even():
-    # Halfway between two bf16 values; ties go to even (mantissa LSB 0).
-    halfway = 1.0 + 2.0**-8
-    assert bf16.pack((halfway,)) == (0x3F80).to_bytes(2, "little")
-    just_above = 1.0 + 2.0**-8 + 2.0**-20
-    assert bf16.pack((just_above,)) == (0x3F81).to_bytes(2, "little")
+@pytest.mark.parametrize("negative", [False, True])
+@pytest.mark.parametrize(
+    "midpoint,below,tie,above",
+    [
+        (1.0 + 2**-8, 0x3F80, 0x3F80, 0x3F81),
+        (1.0 + 3 * 2**-8, 0x3F81, 0x3F82, 0x3F82),
+        (2.0 - 2**-8, 0x3FFF, 0x4000, 0x4000),
+        (2**-134, 0x0000, 0x0000, 0x0001),
+        (3 * 2**-134, 0x0001, 0x0002, 0x0002),
+        (2**-126 - 2**-134, 0x007F, 0x0080, 0x0080),
+        # Largest finite is 2**128 - 2**120; the overflow midpoint is half an ULP above.
+        (2.0**128 - 2.0**119, 0x7F7F, 0x7F80, 0x7F80),
+    ],
+)
+def test_bf16_pack_rounds_to_nearest_even(
+    negative: bool, midpoint: float, below: int, tie: int, above: int
+):
+    # Adjacent binary64 inputs distinguish direct rounding from rounding via f32.
+    for value, bits in (
+        (math.nextafter(midpoint, 0.0), below),
+        (midpoint, tie),
+        (math.nextafter(midpoint, math.inf), above),
+    ):
+        if negative:
+            value = -value
+            bits |= 0x8000
+        assert bf16.pack((value,)) == bits.to_bytes(2, "little")
+
+
+@pytest.mark.parametrize("value,expected_bits", [(1e40, 0x7F80), (-1e40, 0xFF80)])
+def test_bf16_pack_overflow(value: float, expected_bits: int):
+    assert bf16.pack((value,)) == expected_bits.to_bytes(2, "little")
 
 
 @pytest.mark.parametrize(
