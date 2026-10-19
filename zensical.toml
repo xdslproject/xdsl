@@ -13,7 +13,6 @@ nav = [
     "index.md",
     { "Getting Started" = "guides/getting-started.md" },
     { "MLIR Interoperation" = "guides/mlir_interoperation.md" },
-    { "LLVM IR Export" = "guides/llvm.md" },
     { "Constraint System" = "guides/constraints.md" },
   ] },
   { "API Reference" = "reference/index.md" },
