@@ -290,8 +290,8 @@ class Directive(ABC):
 
     def is_comma_separated_list(self) -> bool:
         """
-        Variadic-like format directives parse a comma separated list, and cannot be
-        followed by `,` directive.
+        Whether this format directive parses a comma-separated list.
+        A comma-separated list followed by a `,` directive is ambiguous.
         """
         return False
 
