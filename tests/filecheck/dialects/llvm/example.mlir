@@ -99,6 +99,10 @@ builtin.module {
 
 // CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
 
+  %fval4 = llvm.fptrunc %fval3 : f64 to f32
+
+// CHECK-NEXT: %fval4 = llvm.fptrunc %fval3 : f64 to f32
+
   %vec1 = "test.op"() : () -> vector<4xf32>
   %vec2 = "test.op"() : () -> vector<4xf32>
   %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>

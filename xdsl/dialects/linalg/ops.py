@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, math
@@ -18,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    ShapedType,
     StringAttr,
     TensorType,
     i64,
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
-    attr_def,
     base,
     irdl_op_definition,
     operand_def,
@@ -362,7 +360,7 @@ class AddOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class ExpOp(NamedOperation):
+class ExpOp(ElementwiseOperation, NamedOperation):
     """
     Applies exp(x) elementwise.
 
@@ -406,7 +404,7 @@ class ExpOp(NamedOperation):
 
 
 @irdl_op_definition
-class LogOp(NamedOperation):
+class LogOp(ElementwiseOperation, NamedOperation):
     """
     Applies log(x) elementwise.
 
@@ -497,7 +495,7 @@ class SubOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class SqrtOp(NamedOperation):
+class SqrtOp(ElementwiseOperation, NamedOperation):
     """
     Applies sqrt(x) elementwise.
 
@@ -541,7 +539,7 @@ class SqrtOp(NamedOperation):
 
 
 @irdl_op_definition
-class SelectOp(NamedOperation):
+class SelectOp(ElementwiseOperation):
     """
     Chooses one value based on a binary condition supplied as its first operand.
 
@@ -642,10 +640,18 @@ class FillOp(NamedOperation):
         return hidden_region
 
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
+        output_type = self.outputs[0].type
+        assert isinstance(output_type, ShapedType)
+        rank = len(output_type.get_shape())
+
+        return (
+            *(AffineMap(rank, 0, ()) for _ in self.inputs),
+            *(AffineMap.identity(rank) for _ in self.outputs),
+        )
 
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
-        raise NotImplementedError
+        num_loops = self.get_num_loops()
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
 
 
 @irdl_op_definition
@@ -909,8 +915,10 @@ class TransposeOp(LinalgStructuredOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.inputs[0].type, TensorType | MemRefType)
-        assert isinstance(init_type := self.outputs[0].type, TensorType | MemRefType)
+        input_type = self.inputs[0].type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.outputs[0].type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -957,15 +965,15 @@ class TransposeOp(LinalgStructuredOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
@@ -1074,7 +1082,7 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    memoized_indexing_maps = attr_def(
+    memoized_indexing_maps = prop_def(
         ArrayAttr[AffineMapAttr],
         default_value=ArrayAttr(
             [
@@ -1085,7 +1093,7 @@ class QuantizedMatmulOp(NamedOperation):
                 AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
             ]
         ),
-        attr_name="linalg.memoized_indexing_maps",
+        prop_name="linalg.memoized_indexing_maps",
     )
 
     def __init__(
@@ -1172,6 +1180,26 @@ class PoolingNchwMaxOp(PoolingOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, c, oh, ow, kh, kw = (AffineDimExpr(dim) for dim in range(6))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                6,
+                0,
+                (
+                    n,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(6, 0, (kh, kw)),
+            AffineMap(6, 0, (n, c, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNchwFchwOp(ConvOperation):
@@ -1183,30 +1211,153 @@ class Conv2DNchwFchwOp(ConvOperation):
 
     name = "linalg.conv_2d_nchw_fchw"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(7, 0, (f, c, kh, kw)),
+            AffineMap(7, 0, (n, f, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNgchwFgchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_fgchw"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, g, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    g,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(8, 0, (f, g, c, kh, kw)),
+            AffineMap(8, 0, (n, g, f, oh, ow)),
+        )
 
 
 @irdl_op_definition
 class Conv2DNgchwGfchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_gfchw"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, g, f, oh, ow, c, kh, kw = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    g,
+                    c,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                ),
+            ),
+            AffineMap(8, 0, (g, f, c, kh, kw)),
+            AffineMap(8, 0, (n, g, f, oh, ow)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNhwc_FhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_fhwc"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    c,
+                ),
+            ),
+            AffineMap(7, 0, (f, kh, kw, c)),
+            AffineMap(7, 0, (n, oh, ow, f)),
+        )
 
 
 @irdl_op_definition
 class Conv2DNhwc_HwcfOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_hwcf"
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(7))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                7,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    c,
+                ),
+            ),
+            AffineMap(7, 0, (kh, kw, c, f)),
+            AffineMap(7, 0, (n, oh, ow, f)),
+        )
+
 
 @irdl_op_definition
 class Conv2DNhwgcGfhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwgc_gfhwc"
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        n, oh, ow, g, f, kh, kw, c = (AffineDimExpr(dim) for dim in range(8))
+        stride_h, stride_w = self.strides.get_values()
+        dilation_h, dilation_w = self.dilations.get_values()
+
+        return (
+            AffineMap(
+                8,
+                0,
+                (
+                    n,
+                    oh * stride_h + kh * dilation_h,
+                    ow * stride_w + kw * dilation_w,
+                    g,
+                    c,
+                ),
+            ),
+            AffineMap(8, 0, (g, f, kh, kw, c)),
+            AffineMap(8, 0, (n, oh, ow, g, f)),
+        )
 
 
 @irdl_op_definition
@@ -1258,8 +1409,10 @@ class BroadcastOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        input_type = self.input.type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.init.type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         dimensions_shape = self.dimensions.get_values()
 
@@ -1311,15 +1464,15 @@ class BroadcastOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
@@ -1368,8 +1521,10 @@ class ReduceOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        input_type = self.input.type
+        assert isinstance(input_type, TensorType | MemRefType)
+        init_type = self.init.type
+        assert isinstance(init_type, TensorType | MemRefType)
 
         if input_type.get_element_type() != init_type.get_element_type():
             raise VerifyException(
@@ -1419,15 +1574,15 @@ class ReduceOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")

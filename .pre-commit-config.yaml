@@ -1,5 +1,6 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+# See https://docs.renovatebot.com/modules/manager/pre-commit/ for Renovate updates to frozen rev pins
 repos:
   - repo: local
     hooks:
@@ -10,13 +11,13 @@ repos:
         pass_filenames: false
         always_run: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: mixed-line-ending
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.13
+    rev: 38bfb07c0c64c304f47eb52090f8288150c77730 # frozen: v0.17.1
     hooks:
       - id: ruff-check
         types_or: [python, pyi, jupyter]
@@ -24,7 +25,15 @@ repos:
       - id: ruff-format
         types_or: [python, pyi, jupyter]
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 515f543f5718ebfd6ce22e16708bb32c68ff96e1
+    rev: 4923370d55631aa5b66f612f52d67b2e0ca2a38c # frozen: v3.9.1
     hooks:
       - id: prettier
-        types_or: [yaml]
+        types_or: [yaml, toml]
+        exclude: pyproject.toml|uv.lock # pyproject file formatted by pyproject.fmt
+        additional_dependencies:
+          - prettier@3.9.1
+          - prettier-plugin-toml@3.0.2
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: 67cd950188cc8e2611e9ac21d1b032fdd446c601 # frozen: v2.28.0
+    hooks:
+      - id: pyproject-fmt

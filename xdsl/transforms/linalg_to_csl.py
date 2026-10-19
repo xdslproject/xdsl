@@ -64,17 +64,17 @@ def transform_op(
     # binary functions translated here support mixing scalar and collection operands
     # may need revisiting if more functions are translated
     if scalar_const := get_scalar_const(lhs):
-        rewriter.insert_op(
+        rewriter.insert(
             const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
         )
         lhs = const_op.result
     elif scalar_const := get_scalar_const(rhs):
-        rewriter.insert_op(
+        rewriter.insert(
             const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
         )
         rhs = const_op.result
 
-    rewriter.replace_op(op, builtin(operands=[[op.outputs[0], lhs, rhs]]))
+    rewriter.replace(op, builtin(operands=[[op.outputs[0], lhs, rhs]]))
 
 
 class ConvertLinalgGenericFMAPass(RewritePattern):
@@ -87,14 +87,10 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
 
         # one of the factors must be a scalar const, which the csl function signatures require
         if scalar_const := get_scalar_const(op.inputs[0]):
-            rewriter.insert_op(
-                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
+            rewriter.insert(a := arith.ConstantOp(scalar_const), InsertPoint.before(op))
             x = op.inputs[1]
         elif scalar_const := get_scalar_const(op.inputs[1]):
-            rewriter.insert_op(
-                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
+            rewriter.insert(a := arith.ConstantOp(scalar_const), InsertPoint.before(op))
             x = op.inputs[0]
         else:
             # if neither factor is a scalar, return
@@ -109,7 +105,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         y = op.inputs[2]
 
         # builds `r = a * x + y`
-        rewriter.replace_op(op, csl_op(operands=[[r, y, x, a]]))
+        rewriter.replace(op, csl_op(operands=[[r, y, x, a]]))
 
     @staticmethod
     def is_fma(op: linalg.ops.GenericOp) -> bool:
@@ -156,8 +152,8 @@ class ConvertLinalgMinPass(RewritePattern):
         before_ops = [neg_op(operands=[(o, o)]) for o in negate_before]
         after_ops = [neg_op(operands=[(o, o)]) for o in negate_after]
 
-        rewriter.insert_op(before_ops, InsertPoint.before(op))
-        rewriter.insert_op(after_ops, InsertPoint.after(op))
+        rewriter.insert(before_ops, InsertPoint.before(op))
+        rewriter.insert(after_ops, InsertPoint.after(op))
         transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
 
 

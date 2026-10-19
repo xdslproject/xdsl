@@ -31,7 +31,7 @@ print(test_if_expr.module)
 # CHECK:      scf.if %{{.*}} {
 # CHECK-NEXT: }
 @ctx.parse_program
-def test_if_I(cond: bool):
+def test_if_I(cond: bool) -> None:
     if cond:
         pass
     else:
@@ -54,7 +54,7 @@ print(test_if_I.module)
 # CHECK-NEXT:   }
 # CHECK-NEXT: }
 @ctx.parse_program
-def test_if_II(a: bool, b: bool, c: bool):
+def test_if_II(a: bool, b: bool, c: bool) -> None:
     if a:
         pass
     elif b:
@@ -71,7 +71,7 @@ print(test_if_II.module)
 # CHECK-NEXT: scf.if %{{.*}} {
 # CHECK-NEXT: }
 @ctx.parse_program
-def test_if_III(cond: bool):
+def test_if_III(cond: bool) -> None:
     if cond:
         pass
     return

@@ -21,10 +21,10 @@ from xdsl.dialects.builtin import (
     TensorType,
     i1,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -44,6 +44,13 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
     var_result_def,
+)
+from xdsl.irdl.declarative_assembly_format import (
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    irdl_custom_directive,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -250,12 +257,10 @@ class RescaleOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser):
         # parse operands
-        operands: list[SSAValue] = []
-
-        def parse_arg():
-            operands.append(parser.parse_operand())
-
-        parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_arg)
+        operands_pos = parser.pos
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
 
         # parse attr-dict
         properties: Mapping[str, Attribute | None] = {}
@@ -276,19 +281,16 @@ class RescaleOp(IRDLOperation):
         )
 
         # parse results
-        operand_types: list[Attribute] = []
-
-        def parse_operand_type():
-            operand_types.append(parser.parse_attribute())
-
         parser.parse_punctuation(":")
-        parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_operand_type)
+        operand_types = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_attribute
+        )
         parser.parse_punctuation("->")
 
         result_type = parser.parse_attribute()
 
         return cls(
-            operands=operands,
+            operands=parser.resolve_operands(operands, operand_types, operands_pos),
             result_types=[result_type],
             regions=[],
             properties=properties,
@@ -609,6 +611,27 @@ class YieldOp(IRDLOperation):
     assembly_format = "$inputs attr-dict `:` type($inputs)"
 
 
+@irdl_custom_directive
+class Outputs(CustomDirective):
+    results: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        if parser.parse_optional_punctuation("("):
+            self.results.inner.parse_types(parser, state)
+            parser.parse_punctuation(")")
+        else:
+            self.results.inner.parse_single_type(parser, state)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        types = self.results.inner.get_types(op)
+        if len(types) == 1:
+            printer.print_attribute(types[0])
+        else:
+            with printer.in_parens():
+                printer.print_list(types, printer.print_attribute)
+
+
 @irdl_op_definition
 class IfOp(IRDLOperation):
     """
@@ -631,7 +654,9 @@ class IfOp(IRDLOperation):
         SingleBlockImplicitTerminator(YieldOp),
     )
 
-    assembly_format = "$cond `:` type($cond) `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
+    custom_directives = (Outputs,)
+
+    assembly_format = "$cond `:` type($cond) `->` custom<Outputs>(type($output)) $true_region `else` $false_region attr-dict"
 
 
 ################################################################################

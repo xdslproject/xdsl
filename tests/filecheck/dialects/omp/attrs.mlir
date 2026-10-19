@@ -77,8 +77,22 @@
                 #omp.version<version = 11>,
                 // CHECK-SAME: #omp<version <version = 11>>
 
-                #omp.declaretarget <device_type = (any), capture_clause = (link)>,
+                #omp<declaretarget<device_type = (any), capture_clause = (link)>>,
                 // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (link)>>
+                #omp<declaretarget<device_type = (any), capture_clause = (to), automap = false>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (to), automap = false>>
+                #omp<declaretarget<device_type = (host), capture_clause = (enter), automap = true>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (host), capture_clause = (enter), automap = true>>
+                #omp<declaretarget<automap = true>>,
+                // CHECK-SAME: #omp<declaretarget <automap = true>>
+                #omp<declaretarget<device_type = (nohost), automap = false>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (nohost), automap = false>>
+                #omp<declaretarget<capture_clause = (link)>>,
+                // CHECK-SAME: #omp<declaretarget <capture_clause = (link)>>
+                #omp<declaretarget<automap = true, capture_clause = (link), device_type = (any)>>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (link), automap = true>>
+                #omp<declaretarget<>>,
+                // CHECK-SAME: #omp<declaretarget <>>
 
                 #omp.data_sharing_type {type = private},
                 // CHECK-SAME: #omp<data_sharing_type {type = private}>
@@ -94,8 +108,22 @@
                 // CHECK-SAME: #omp<reduction_modifier (defaultmod)>
                 #omp<reduction_modifier (inscan)>,
                 // CHECK-SAME: #omp<reduction_modifier (inscan)>
-                #omp<reduction_modifier (task)>
+                #omp<reduction_modifier (task)>,
                 // CHECK-SAME: #omp<reduction_modifier (task)>
+
+                #omp<grainsizetype strict>,
+                // CHECK-SAME: #omp<grainsizetype strict>
+                #omp<numtaskstype strict>,
+                // CHECK-SAME: #omp<numtaskstype strict>
+
+                #omp<cancellationconstructtype parallel>,
+                // CHECK-SAME: #omp<cancellationconstructtype parallel>
+                #omp<cancellationconstructtype loop>,
+                // CHECK-SAME: #omp<cancellationconstructtype loop>
+                #omp<cancellationconstructtype sections>,
+                // CHECK-SAME: #omp<cancellationconstructtype sections>
+                #omp<cancellationconstructtype taskgroup>
+                // CHECK-SAME: #omp<cancellationconstructtype taskgroup>
 
 
             ]}: () -> !omp.map_bounds_ty

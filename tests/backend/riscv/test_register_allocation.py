@@ -1,7 +1,7 @@
 import re
+from typing import Self
 
 import pytest
-from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.register_allocation import (
@@ -97,6 +97,9 @@ def test_allocate_with_inout_constraints():
             return RegisterConstraints(
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
+
+        def assembly_line(self) -> str | None:
+            raise NotImplementedError
 
     available_registers = RiscvRegisterStack(allow_infinite=True)
     register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)

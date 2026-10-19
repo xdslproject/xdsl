@@ -29,7 +29,7 @@ class GeneralizeNamedOpPattern(RewritePattern):
             op.get_iterator_types(),
             op.results.types,
         )
-        rewriter.replace_op(op, generic)
+        rewriter.replace(op, generic)
 
 
 @dataclass(frozen=True)

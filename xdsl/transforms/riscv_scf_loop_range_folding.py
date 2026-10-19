@@ -41,11 +41,11 @@ class HoistIndexTimesConstantOp(RewritePattern):
             match user:
                 case riscv.AddOp():
                     # All the uses are additions with a constant, we can fold
-                    rewriter.insert_op(
+                    rewriter.insert(
                         [
                             shift := rv32.LiOp(constant),
-                            new_lb := riscv.AddOp(op.lb, shift),
-                            new_ub := riscv.AddOp(op.ub, shift),
+                            new_lb := riscv.AddOp(op.start, shift),
+                            new_ub := riscv.AddOp(op.stop, shift),
                         ]
                     )
                 case riscv.MulOp():
@@ -62,23 +62,23 @@ class HoistIndexTimesConstantOp(RewritePattern):
                             # Can't fit into existing bounds, return
                             return
 
-                    rewriter.insert_op(
+                    rewriter.insert(
                         [
                             factor := rv32.LiOp(constant),
-                            new_lb := riscv.MulOp(op.lb, factor),
-                            new_ub := riscv.MulOp(op.ub, factor),
+                            new_lb := riscv.MulOp(op.start, factor),
+                            new_ub := riscv.MulOp(op.stop, factor),
                         ]
                     )
                     if step_attr is not None:
                         op.step_attr = step_attr
                     else:
                         assert op.step_val is not None
-                        rewriter.insert_op(new_step := riscv.MulOp(op.step_val, factor))
+                        rewriter.insert(new_step := riscv.MulOp(op.step_val, factor))
                         op.operands[2] = new_step.rd
 
             op.operands[0] = new_lb.rd
             op.operands[1] = new_ub.rd
-            rewriter.replace_op(user, [], [index])
+            rewriter.replace(user, [], [index])
 
 
 class RiscvScfLoopRangeFoldingPass(ModulePass):

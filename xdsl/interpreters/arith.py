@@ -1,5 +1,5 @@
 from math import copysign, isnan
-from typing import cast
+from typing import Any, cast
 
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import FloatAttr, IntegerAttr
@@ -10,7 +10,9 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.utils.comparisons import to_signed
+from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
+from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -50,7 +52,9 @@ class ArithFunctions(InterpreterFunctions):
             isinstance(op.value, IntegerAttr | FloatAttr),
             f"arith.constant not implemented for {type(op.value)}",
         )
-        value = cast(IntegerAttr, op.value)
+        value = cast(IntegerAttr | FloatAttr, op.value)
+        if isa(value, IntegerAttr[builtin.IndexType]):
+            return (to_signed(value.value.data, interpreter.index_bitwidth),)
         return (value.value.data,)
 
     @impl(arith.SubiOp)
@@ -135,27 +139,33 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.CmpiOp)
     def run_cmpi(self, interpreter: Interpreter, op: arith.CmpiOp, args: PythonValues):
-        match op.predicate.value.data:
+        assert isa(op.lhs.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.lhs.type)
+        predicate = op.predicate.value.data
+        interpret = to_unsigned if predicate >= 6 else to_signed
+        lhs = interpret(args[0], bitwidth)
+        rhs = interpret(args[1], bitwidth)
+        match predicate:
             case 0:  # "eq"
-                return (args[0] == args[1],)
+                return (lhs == rhs,)
             case 1:  # "ne"
-                return (args[0] != args[1],)
+                return (lhs != rhs,)
             case 2:  # "slt"
-                return (args[0] < args[1],)
+                return (lhs < rhs,)
             case 3:  # "sle"
-                return (args[0] <= args[1],)
+                return (lhs <= rhs,)
             case 4:  # "sgt"
-                return (args[0] > args[1],)
+                return (lhs > rhs,)
             case 5:  # "sge"
-                return (args[0] >= args[1],)
+                return (lhs >= rhs,)
             case 6:  # "ult"
-                return (args[0] < args[1],)
+                return (lhs < rhs,)
             case 7:  # "ule"
-                return (args[0] <= args[1],)
+                return (lhs <= rhs,)
             case 8:  # "ugt"
-                return (args[0] > args[1],)
+                return (lhs > rhs,)
             case 9:  # "uge"
-                return (args[0] >= args[1],)
+                return (lhs >= rhs,)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
@@ -209,19 +219,20 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.ShLIOp)
     def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = args[1]
         assert rhs >= 0
-        return (lhs << rhs,)
+        return (to_signed(lhs << rhs, bitwidth),)
 
     @impl(arith.ShRSIOp)
     def run_shrsi(
         self, interpreter: Interpreter, op: arith.ShRSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = args[1]
         assert rhs >= 0
         return (lhs >> rhs,)
 
@@ -229,22 +240,24 @@ class ArithFunctions(InterpreterFunctions):
     def run_divsi(
         self, interpreter: Interpreter, op: arith.DivSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
             div = -div
-        return (div,)
+        return (to_signed(div, bitwidth),)
 
     @impl(arith.RemSIOp)
     def run_remsi(
         self, interpreter: Interpreter, op: arith.RemSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
@@ -255,11 +268,44 @@ class ArithFunctions(InterpreterFunctions):
     def run_floordivsi(
         self, interpreter: Interpreter, op: arith.FloorDivSIOp, args: PythonValues
     ):
-        lhs: int
-        rhs: int
-        (lhs, rhs) = args
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0], bitwidth)
+        rhs = to_signed(args[1], bitwidth)
         assert rhs != 0
-        return (lhs // rhs,)
+        return (to_signed(lhs // rhs, bitwidth),)
+
+    @impl(arith.SelectOp)
+    def run_select(
+        self, interpreter: Interpreter, op: arith.SelectOp, args: PythonValues
+    ):
+        cond, lhs, rhs = args
+
+        if not isinstance(cond, ShapedArray):
+            # A scalar condition selects the whole value, shaped or not.
+            return (lhs if cond else rhs,)
+
+        # A shaped condition selects elementwise, all shapes must be identical.
+        shaped_cond = cast(ShapedArray[int], cond)
+        shaped_lhs = cast(ShapedArray[Any], lhs)
+        shaped_rhs = cast(ShapedArray[Any], rhs)
+        interpreter.interpreter_assert(
+            shaped_cond.shape == shaped_lhs.shape == shaped_rhs.shape,
+            f"arith.select shape mismatch: {shaped_cond.shape}, "
+            f"{shaped_lhs.shape}, {shaped_rhs.shape}",
+        )
+        data = [
+            l if c else r
+            for c, l, r in zip(
+                shaped_cond.data, shaped_lhs.data, shaped_rhs.data, strict=True
+            )
+        ]
+        return (
+            ShapedArray(
+                TypedPtr[Any].new(data, xtype=shaped_lhs.element_type),
+                list(shaped_lhs.shape),
+            ),
+        )
 
     @impl(arith.IndexCastOp)
     def run_indexcast(
@@ -277,5 +323,7 @@ class ArithFunctions(InterpreterFunctions):
             result = _truncate(result, result_bitwidth)
         elif input_bitwidth < result_bitwidth:
             result = _sign_extend(result, input_bitwidth)
+        else:
+            result = to_signed(result, result_bitwidth)
 
         return (result,)

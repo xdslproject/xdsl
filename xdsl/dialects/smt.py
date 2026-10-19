@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias, overload
-
-from typing_extensions import Self
+from typing import ClassVar, Self, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
 from xdsl.interfaces import HasFolderInterface
@@ -550,8 +548,10 @@ class QuantifierOp(IRDLOperation, ABC):
         This function will asserts if the region is not correctly terminated by
         an `smt.yield` operation with a single boolean operand.
         """
-        assert isinstance(yield_op := self.body.block.last_op, YieldOp)
-        assert isa(ret_value := yield_op.values[0], SSAValue[BoolType])
+        yield_op = self.body.block.last_op
+        assert isinstance(yield_op, YieldOp)
+        ret_value = yield_op.values[0]
+        assert isa(ret_value, SSAValue[BoolType])
         return ret_value
 
 

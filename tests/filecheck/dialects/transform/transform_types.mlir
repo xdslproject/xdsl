@@ -56,13 +56,13 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:  transform.named_sequence @__transform_main(%arg0: !transform.any_op, %arg1: !transform.op<"linalg.quantized_matmul">, %arg2: !transform.op<"linalg.elemwise_binary">) {
 //CHECK-NEXT:    %6 = "transform.cast"(%arg1) : (!transform.op<"linalg.quantized_matmul">) -> !transform.any_op
 //CHECK-NEXT:    %7, %8 = "transform.structured.tile_using_forall"(%arg1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0, 0>, static_tile_sizes = array<i64: 4, 32>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
-//CHECK-NEXT:    %9, %10, %11 = "transform.structured.tile_using_for"(%arg1) <{scalable_sizes = array<i1: false, false>, static_sizes = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:    %9, %10, %11 = transform.structured.tile_using_for %arg1 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:    transform.yield
 //CHECK-NEXT:  }
 //CHECK-NEXT:  "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
 //CHECK-NEXT:  ^bb0(%arg0: !transform.any_op):
 //CHECK-NEXT:    %arg1 = "transform.select"(%arg0) <{op_name = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:    %6, %7, %8 = "transform.structured.tile_using_for"(%arg1) <{scalable_sizes = array<i1: false, false>, static_sizes = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:    %6, %7, %8 = transform.structured.tile_using_for %arg1 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:    transform.yield
 //CHECK-NEXT:  }) : () -> ()
 //CHECK-NEXT:  %6 = "test.op"() : () -> !transform.any_op
@@ -81,5 +81,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:  %16 = "test.op"() : () -> !transform.any_param
 //CHECK-NEXT:  "transform.match.param.cmpi"(%15, %16) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
 //CHECK-NEXT:  %17, %18 = "transform.split_handle"(%14) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
-//CHECK-NEXT:  %19 = "transform.structured.match"(%14) <{op_attrs = {qmatmul_0}}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %19 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:}

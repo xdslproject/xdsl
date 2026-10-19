@@ -6,6 +6,7 @@ for more details.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import cast
 
 from typing_extensions import TypeVar
@@ -22,8 +23,8 @@ from xdsl.ir import Attribute
 from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
-    ConstraintContext,
     IntConstraint,
+    VerificationContext,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -50,7 +51,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
     An empty inner array is considered contiguous.
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(
             attr, constraint_context=constraint_context
         )
@@ -59,7 +60,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
         # Flatten all integer values from all inner arrays
         flat_values = [e.value.data for inner in attr.data for e in inner.data]
         # Check that the flattened list is contiguous
-        for prev, curr in zip(flat_values, flat_values[1:]):
+        for prev, curr in pairwise(flat_values):
             if curr != prev + 1:
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 

@@ -29,6 +29,21 @@ def memory_access_str(register: SSAValue, offset: IntegerAttr) -> str:
     return mem_acc_str
 
 
+def broadcast_memory_access_str(
+    register: SSAValue,
+    offset: IntegerAttr,
+    broadcast: str,
+) -> str:
+    """
+    e.g. ``[rsi+512]{1to8}``
+
+    The lane count depends on both the element width and the width of the
+    register bank the instruction is allocated to, so it is computed by the
+    operation rather than drawn from a fixed set.
+    """
+    return f"{memory_access_str(register, offset)}{{{broadcast}}}"
+
+
 def print_type_pair(printer: Printer, value: SSAValue) -> None:
     printer.print_ssa_value(value)
     printer.print_string(" : ")

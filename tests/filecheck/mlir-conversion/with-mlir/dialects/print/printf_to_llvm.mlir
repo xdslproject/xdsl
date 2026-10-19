@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p printf-to-llvm | mlir-opt --convert-to-llvm  | filecheck %s
+// RUN: xdsl-opt %s -p printf-to-llvm | $XDSL_MLIR_OPT --convert-to-llvm  | filecheck %s
 // this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {
@@ -7,6 +7,7 @@ builtin.module {
         %12 = arith.constant 12 : i32
 
         printf.print_format "Hello: {} {}\n", %pi : f32, %12 : i32
+        printf.print_format "No args\n"
 
         func.return
     }
@@ -14,6 +15,7 @@ builtin.module {
 
 
 // CHECK: llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}) vararg(!llvm.func<void (ptr, ...)>) : (!llvm.ptr, f64, i32) -> ()
+// CHECK: llvm.call @printf(%{{\d+}}) vararg(!llvm.func<void (ptr, ...)>) : (!llvm.ptr) -> ()
 
 // CHECK: llvm.func @printf(!llvm.ptr, ...)
 

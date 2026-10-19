@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
@@ -216,26 +218,15 @@ def test_immediate_jalr_inst():
     riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
 
 
-def test_immediate_shift_inst():
-    # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
-
-    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
-
-
 def test_float_register():
     with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
+        VerifyException,
+        match=re.escape("Invalid register name ft9 for register type riscv.reg."),
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register type riscv.freg."
+        VerifyException,
+        match=re.escape("Invalid register name a0 for register type riscv.freg."),
     ):
         riscv.FloatRegisterType.from_name("a0")
 
@@ -375,7 +366,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 153
+    assert len(effects_ops) == 150
     assert unknown_effects_ops == {
         riscv.ops.CommentOp,
         riscv.ops.AssemblySectionOp,
@@ -406,7 +397,7 @@ def test_effect_traits():
 
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 152
+    assert len(register_effects_ops) == 149
     assert read_effects_ops == {
         riscv.CsrrciOp,
         riscv.CsrrcOp,

@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from typing import ClassVar
-
-from typing_extensions import Self
+from typing import ClassVar, Self
 
 from xdsl.dialects.builtin import (
     BFloat16Type,
-    ContainerOf,
     DenseIntElementsAttr,
     Float16Type,
     Float32Type,
@@ -16,11 +13,11 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     VectorType,
+    container_of,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -35,17 +32,15 @@ from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.hints import isa
 
-integerOrFloatLike = ContainerOf(
-    AnyOf.get(
-        IntegerType,
-        IndexType,
-        BFloat16Type,
-        Float16Type,
-        Float32Type,
-        Float64Type,
-        Float80Type,
-        Float128Type,
-    )
+integerOrFloatLike = container_of(
+    IntegerType
+    | IndexType
+    | BFloat16Type
+    | Float16Type
+    | Float32Type
+    | Float64Type
+    | Float80Type
+    | Float128Type
 )
 
 

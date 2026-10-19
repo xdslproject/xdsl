@@ -49,7 +49,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
             0, builtin.IndexType()
         )
         dim_zero_const = arith.ConstantOp(int_attr, builtin.IndexType())
-        dim_zero_size_op = memref.DimOp.from_source_and_index(op.field, dim_zero_const)
+        dim_zero_size_op = memref.DimOp(op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
         dim_zero_i64_op = arith.IndexCastOp(dim_zero_size_op, builtin.i64)
 
@@ -217,7 +217,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        rewriter.insert_op(mpi_operations, InsertPoint.after(op))
+        rewriter.insert(mpi_operations, InsertPoint.after(op))
 
 
 def Apply1DMpi(ctx: Context, module: builtin.ModuleOp):

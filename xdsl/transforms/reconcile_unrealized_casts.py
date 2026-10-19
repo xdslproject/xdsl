@@ -86,11 +86,11 @@ def _try_remove_cast_chain(
 
     for cast in filter(lambda c: c.parent is not None, finalized_casts):
         # replace the uses of this cast by the inputs of the root cast
-        rewriter.replace_op(cast, [], op.inputs)
+        rewriter.replace(cast, [], op.inputs)
 
     for cast in filter(lambda c: c.parent is not None, pending_casts):
         # remove other casts in the chain in the right order
-        rewriter.erase_op(cast)
+        rewriter.erase(cast)
 
 
 @dataclass

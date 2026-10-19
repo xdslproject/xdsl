@@ -26,6 +26,6 @@
 "builtin.module" () {"test" = dense_resource<some_key>: i8} ({
 })
 
-//     CHECK: "builtin.module" () {"test" = dense_resource<some_key>: i8} ({
+//      CHECK:"builtin.module" () {"test" = dense_resource<some_key>: i8} ({
 // CHECK-NEXT:                                                          ^
 // CHECK-NEXT:                                                          dense resource should have a shaped type, got: i8

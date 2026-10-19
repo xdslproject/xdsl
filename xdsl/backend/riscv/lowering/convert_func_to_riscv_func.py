@@ -52,7 +52,7 @@ class LowerFuncOp(RewritePattern):
             p2align=p2align,
         )
 
-        rewriter.replace_op(op, new_func)
+        rewriter.replace(op, new_func)
 
 
 class LowerFuncCallOp(RewritePattern):
@@ -82,7 +82,7 @@ class LowerFuncCallOp(RewritePattern):
             UnrealizedConversionCastOp.get((moved_result,), (old_result.type,))
             for moved_result, old_result in zip(moved_results, op.results)
         ]
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             [
                 op
@@ -107,9 +107,9 @@ class LowerReturnOp(RewritePattern):
         register_values = cast_to_regs(op.arguments, register_type_for_type, rewriter)
         move_ops, moved_values = move_to_a_regs(register_values, op.arguments.types)
 
-        rewriter.insert_op(move_ops)
+        rewriter.insert(move_ops)
 
-        rewriter.replace_op(op, riscv_func.ReturnOp(*moved_values))
+        rewriter.replace(op, riscv_func.ReturnOp(*moved_values))
 
 
 class ConvertFuncToRiscvFuncPass(ModulePass):

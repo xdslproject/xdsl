@@ -15,9 +15,9 @@ from xdsl.irdl import (
     OptOperandDef,
     OptResultDef,
     ParamAttrDef,
+    RangeLengthConstraint,
     RangeOf,
     ResultDef,
-    SingleOf,
     VarOperandDef,
     VarResultDef,
 )
@@ -47,11 +47,12 @@ def get_str_from_operand_or_result(
     Get a constraint from the RangeConstraint wrapper.
     Build the correct definition function based on the wrapper's type.
     """
-    match operand_or_result.constr:
-        case SingleOf():
-            inner_constr = operand_or_result.constr.constr
+    constr = operand_or_result.constr
+    if isinstance(constr, RangeLengthConstraint):
+        constr = constr.constraint
+    match constr:
         case RangeOf():
-            inner_constr = operand_or_result.constr.constr
+            inner_constr = constr.constr
         case _:
             raise NotImplementedError(
                 f"Constraint type {operand_or_result.constr} not yet implemented"

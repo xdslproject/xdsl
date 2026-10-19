@@ -11,7 +11,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 
 from abc import ABC
 from collections.abc import Hashable, Iterable, Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import TypeVar
 
@@ -32,17 +32,19 @@ from xdsl.dialects.builtin import (
     i1,
     i32,
 )
-from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    BitEnumAttribute,
+    EnumAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -90,6 +92,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 
 class DeviceType(StrEnum):
@@ -108,7 +111,8 @@ class ClauseDefaultValue(StrEnum):
 
 
 class DataClause(StrEnum):
-    """OpenACC data clause names (decomposed form).
+    """
+    OpenACC data clause names (decomposed form).
 
     The original OpenACC `copy`/`copyout`/`copyin(readonly)`/etc. clauses
     are decomposed into individual `acc` ops. This enum keeps track of
@@ -144,7 +148,8 @@ class DataClause(StrEnum):
 
 
 class DataClauseModifier(StrEnum):
-    """Bit flags carried by a data clause op (zero / readonly / always*).
+    """
+    Bit flags carried by a data clause op (zero / readonly / always*).
 
     See upstream `mlir::acc::DataClauseModifier`. Modeled as a bit-enum;
     the empty set is rendered as `none`.
@@ -158,7 +163,8 @@ class DataClauseModifier(StrEnum):
 
 
 class VariableTypeCategory(StrEnum):
-    """Bit flags describing the OpenACC type category of a variable.
+    """
+    Bit flags describing the OpenACC type category of a variable.
 
     See upstream `mlir::acc::VariableTypeCategory`. Used by the
     `MappableTypeInterface`/`PointerLikeTypeInterface` machinery; the
@@ -172,7 +178,8 @@ class VariableTypeCategory(StrEnum):
 
 
 class ReductionOpKind(StrEnum):
-    """Built-in reduction operators supported by OpenACC.
+    """
+    Built-in reduction operators supported by OpenACC.
 
     See upstream `mlir::acc::ReductionOperator` (renamed in xDSL to avoid
     clashing with the `Operator` / `Operation` naming used elsewhere).
@@ -195,7 +202,8 @@ class ReductionOpKind(StrEnum):
 
 
 class LoopParMode(StrEnum):
-    """Loop parallelism determination mode for `acc.loop` builders.
+    """
+    Loop parallelism determination mode for `acc.loop` builders.
 
     See upstream `mlir::acc::LoopParMode`. Used by Python builders to pick
     between the `seq` / `independent` / `auto` attributes; the enum itself
@@ -208,7 +216,8 @@ class LoopParMode(StrEnum):
 
 
 class GangArgType(StrEnum):
-    """Differentiates `num=` / `dim=` / `static=` values inside an
+    """
+    Differentiates `num=` / `dim=` / `static=` values inside an
     `acc.loop` `gang(...)` clause.
 
     See upstream `mlir::acc::GangArgType`. The string spellings match
@@ -222,7 +231,8 @@ class GangArgType(StrEnum):
 
 
 class CombinedConstructsType(StrEnum):
-    """Identifies which combined construct an `acc.loop` was decomposed
+    """
+    Identifies which combined construct an `acc.loop` was decomposed
     from (`kernels loop`, `parallel loop`, `serial loop`).
 
     See upstream `mlir::acc::CombinedConstructsType`. Compute constructs
@@ -238,7 +248,8 @@ class CombinedConstructsType(StrEnum):
 
 
 class ParLevel(StrEnum):
-    """Parallelism level used by `acc.specialized_routine` to mark a
+    """
+    Parallelism level used by `acc.specialized_routine` to mark a
     function variant for a specific OpenACC level.
 
     See upstream `mlir::acc::ParLevel`. `gang_dim1` is the default gang
@@ -627,7 +638,8 @@ class DeclareAttr(ParametrizedAttribute):
 def _coerce_optional_symref(
     value: SymbolRefAttr | str | None,
 ) -> SymbolRefAttr | NoneAttr:
-    """`param_def` converter for `DeclareActionAttr`'s four slots.
+    """
+    `param_def` converter for `DeclareActionAttr`'s four slots.
     Absent (None) → `NoneAttr`; bare name → `SymbolRefAttr`; an
     already-built `SymbolRefAttr` passes through unchanged. Only fires
     on the Python-construction path; the parser bypasses converters
@@ -783,7 +795,8 @@ def _print_typed_operand(printer: Printer, operand: SSAValue) -> None:
 
 
 def _emit_clause_keyword(printer: Printer, state: PrintingState, keyword: str) -> None:
-    """Print whitespace + a clause keyword and update print state so the
+    """
+    Print whitespace + a clause keyword and update print state so the
     body's first character (typically ``(``) lands adjacent (e.g.
     ``async(``). Used by the three clauses of `KernelEnvironmentClauses`."""
     state.print_whitespace(printer)
@@ -891,7 +904,8 @@ def _print_groups(
 
 @irdl_custom_directive
 class DeviceTypeOperands(CustomDirective):
-    """Port of upstream `custom<DeviceTypeOperands>`.
+    """
+    Port of upstream `custom<DeviceTypeOperands>`.
 
     Syntax inside the enclosing `(`...`)`:
       `%op : type ( `[` #acc.device_type<...> `]` )?` (`,` ...)*
@@ -911,7 +925,7 @@ class DeviceTypeOperands(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         triples = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
         )
@@ -919,7 +933,6 @@ class DeviceTypeOperands(CustomDirective):
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -946,7 +959,8 @@ def _parse_dt_kw_only_body(
     ArrayAttr[DeviceTypeAttr] | None,
     ArrayAttr[DeviceTypeAttr] | None,
 ]:
-    """Parse the post-keyword body of an `async`-style clause.
+    """
+    Parse the post-keyword body of an `async`-style clause.
 
     Returns ``(operands, types, device_types, keyword_only)``. Either or
     both attributes may be ``None`` when no list / no operands are present.
@@ -984,7 +998,8 @@ def _print_dt_kw_only_body(
     keyword_only: Attribute | None,
     device_types: Attribute | None,
 ) -> None:
-    """Print the post-keyword body of an `async`-style clause.
+    """
+    Print the post-keyword body of an `async`-style clause.
 
     Mirror of `_parse_dt_kw_only_body`. Emits nothing when both
     ``operands`` is empty and ``keyword_only`` is the all-`#none` sentinel
@@ -1017,7 +1032,8 @@ def _print_dt_kw_only_body(
 
 @irdl_custom_directive
 class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
-    """Port of upstream `custom<DeviceTypeOperandsWithKeywordOnly>`.
+    """
+    Port of upstream `custom<DeviceTypeOperandsWithKeywordOnly>`.
 
     Follows a bare keyword (e.g. `async`) in the format. The directive owns
     the optional surrounding parentheses. Syntax options after the keyword:
@@ -1046,7 +1062,7 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         operands, types, device_types, keyword_only = _parse_dt_kw_only_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1054,7 +1070,6 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
             self.device_types.set(state, device_types)
         if keyword_only is not None:
             self.keyword_only.set(state, keyword_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_dt_kw_only_body(
@@ -1068,7 +1083,8 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
 
 @irdl_custom_directive
 class NumGangs(CustomDirective):
-    """Port of upstream `custom<NumGangs>`.
+    """
+    Port of upstream `custom<NumGangs>`.
 
     Groups of operands with a per-group device type and a segments array.
     Syntax inside the enclosing `(`...`)`:
@@ -1090,7 +1106,7 @@ class NumGangs(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1099,7 +1115,6 @@ class NumGangs(CustomDirective):
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -1130,7 +1145,8 @@ def _parse_wait_body(
     ArrayAttr[BoolAttr] | None,
     ArrayAttr[DeviceTypeAttr] | None,
 ]:
-    """Parse the post-keyword body of a `wait` clause.
+    """
+    Parse the post-keyword body of a `wait` clause.
 
     Returns ``(operands, types, device_types, segments, has_devnum,
     keyword_only)``. The bare-keyword form (no parens) yields
@@ -1191,7 +1207,8 @@ def _print_wait_body(
     segments: Attribute | None,
     has_devnum: Attribute | None,
 ) -> None:
-    """Print the post-keyword body of a `wait` clause.
+    """
+    Print the post-keyword body of a `wait` clause.
 
     Mirror of :func:`_parse_wait_body`. Emits nothing when both ``operands``
     is empty and ``keyword_only`` is the all-`#none` sentinel — matching
@@ -1233,7 +1250,8 @@ def _print_wait_body(
 
 @irdl_custom_directive
 class WaitClause(CustomDirective):
-    """Port of upstream `custom<WaitClause>`.
+    """
+    Port of upstream `custom<WaitClause>`.
 
     Follows a bare `wait` keyword in the format. The directive owns the
     optional surrounding parentheses. Syntax options after the keyword:
@@ -1268,7 +1286,7 @@ class WaitClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         operands, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -1280,7 +1298,6 @@ class WaitClause(CustomDirective):
             self.has_devnum.set(state, devnum)
         if kw_only is not None:
             self.keyword_only.set(state, kw_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_wait_body(
@@ -1296,7 +1313,8 @@ class WaitClause(CustomDirective):
 
 @irdl_custom_directive
 class KernelEnvironmentClauses(CustomDirective):
-    """Port of upstream `acc.kernel_environment`'s `oilist(...)`.
+    """
+    Port of upstream `acc.kernel_environment`'s `oilist(...)`.
 
     Accepts the three optional clauses `dataOperands` / `async` / `wait` in
     any order on parse; emits them in upstream's td-definition order on
@@ -1330,7 +1348,7 @@ class KernelEnvironmentClauses(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait")
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1367,7 +1385,6 @@ class KernelEnvironmentClauses(CustomDirective):
                     self.wait_has_devnum.set(state, devnum)
                 if kw_only is not None:
                     self.wait_only.set(state, kw_only)
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if data_operands := self.data_clause_operands.get(op):
@@ -1405,7 +1422,8 @@ class KernelEnvironmentClauses(CustomDirective):
 
 @irdl_custom_directive
 class OperandWithKeywordOnly(CustomDirective):
-    """Port of upstream `custom<OperandWithKeywordOnly>`.
+    """
+    Port of upstream `custom<OperandWithKeywordOnly>`.
 
     Follows a bare keyword (e.g. `async`) in the format. After the keyword:
       bare                       → keyword-only UnitAttr set
@@ -1426,17 +1444,16 @@ class OperandWithKeywordOnly(CustomDirective):
         self.operand.set(state, None)
         self.operand_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operand.set(state, None)
             self.operand_type.set(state, ())
-            return True
-        operand, ty = _parse_typed_operand(parser)
-        parser.parse_punctuation(")")
-        self.operand.set(state, operand)
-        self.operand_type.set(state, (ty,))
-        return True
+        else:
+            operand, ty = _parse_typed_operand(parser)
+            parser.parse_punctuation(")")
+            self.operand.set(state, operand)
+            self.operand_type.set(state, (ty,))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # Mirror upstream's `if (attr) return;`: when the bare-keyword
@@ -1455,7 +1472,8 @@ class OperandWithKeywordOnly(CustomDirective):
 
 @irdl_custom_directive
 class OperandsWithKeywordOnly(CustomDirective):
-    """Port of upstream `custom<OperandsWithKeywordOnly>`.
+    """
+    Port of upstream `custom<OperandsWithKeywordOnly>`.
 
     Follows a bare keyword (e.g. `wait`) in the format. After the keyword:
       bare                                         → keyword-only UnitAttr
@@ -1476,23 +1494,22 @@ class OperandsWithKeywordOnly(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.attr.set(state, UnitAttr())
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
-        )
-        parser.parse_punctuation(":")
-        types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
-        )
-        parser.parse_punctuation(")")
-        self.operands.set(state, operands)
-        self.operand_types.set(state, types)
-        return True
+        else:
+            operands = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            self.operands.set(state, operands)
+            self.operand_types.set(state, types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.attr.get(op) is not None:
@@ -1512,7 +1529,8 @@ class OperandsWithKeywordOnly(CustomDirective):
 
 @irdl_custom_directive
 class AtomicIfClause(CustomDirective):
-    """Port of the `acc.atomic.*` family's `oilist( \\`if\\` \\`(\\` $ifCond \\`)\\` )`.
+    """
+    Port of the `acc.atomic.*` family's `oilist( \\`if\\` \\`(\\` $ifCond \\`)\\` )`.
 
     Single-clause oilist shared by `acc.atomic.read` / `acc.atomic.write` /
     `acc.atomic.update` / `acc.atomic.capture`. When absent on parse, no
@@ -1527,16 +1545,13 @@ class AtomicIfClause(CustomDirective):
         self.if_cond.set(state, None)
         self.if_cond_type.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
-        if parser.parse_optional_keyword("if") is None:
-            return True
-        parser.parse_punctuation("(")
-        operand = parser.parse_unresolved_operand()
-        parser.parse_punctuation(")")
-        self.if_cond.set(state, operand)
-        self.if_cond_type.set(state, (i1,))
-        return True
+        if parser.parse_optional_keyword("if"):
+            with parser.in_parens():
+                operand = parser.parse_unresolved_operand()
+            self.if_cond.set(state, operand)
+            self.if_cond_type.set(state, (i1,))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if_cond = self.if_cond.get(op)
@@ -1551,7 +1566,8 @@ class AtomicIfClause(CustomDirective):
 
 
 def _default_var_type(var_type: Attribute) -> Attribute:
-    """Default `varType` value for a `var` operand.
+    """
+    Default `varType` value for a `var` operand.
 
     Mirrors upstream's `parseVarPtrType`/`printVarPtrType` heuristic: when
     `var` has a pointer-like type, the implied `varType` is the pointee
@@ -1564,7 +1580,8 @@ def _default_var_type(var_type: Attribute) -> Attribute:
 
 @irdl_custom_directive
 class AccVar(CustomDirective):
-    """Port of upstream `custom<AccVar>($accVar, type($accVar))`.
+    """
+    Port of upstream `custom<AccVar>($accVar, type($accVar))`.
 
     Renders `accPtr(%v : type)`. Accepts both `accPtr` and `accVar`
     keywords on parse; always emits `accPtr` (xDSL doesn't distinguish
@@ -1575,7 +1592,7 @@ class AccVar(CustomDirective):
     acc_var: OperandVariable
     acc_var_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("accPtr") is None:
             parser.parse_keyword("accVar")
         with parser.in_parens():
@@ -1584,7 +1601,6 @@ class AccVar(CustomDirective):
             ty = parser.parse_type()
         self.acc_var.set(state, operand)
         self.acc_var_type.set(state, (ty,))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -1600,7 +1616,8 @@ class AccVar(CustomDirective):
 
 @irdl_custom_directive
 class Var(CustomDirective):
-    """Port of upstream `custom<Var>($var) `:` custom<VarPtrType>(type($var), $varType)`.
+    """
+    Port of upstream `custom<Var>($var) `:` custom<VarPtrType>(type($var), $varType)`.
 
     Renders `varPtr(%v : type) (varType(t))?`. Accepts both `varPtr` and `var`
     keywords on parse; always emits `varPtr` (xDSL doesn't distinguish
@@ -1613,7 +1630,7 @@ class Var(CustomDirective):
     var_type: TypeDirective
     var_type_attr: AttributeVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("varPtr") is None:
             parser.parse_keyword("var")
         with parser.in_parens():
@@ -1628,7 +1645,6 @@ class Var(CustomDirective):
                 self.var_type_attr.set(state, parser.parse_type())
         else:
             self.var_type_attr.set(state, _default_var_type(ty))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -1649,7 +1665,8 @@ class Var(CustomDirective):
 
 @irdl_custom_directive
 class DataEntryOilist(CustomDirective):
-    """Port of upstream's `oilist(...)` for the data-entry op family.
+    """
+    Port of upstream's `oilist(...)` for the data-entry op family.
 
     Accepts the four optional clauses `varPtrPtr` / `bounds` / `async` /
     `recipe` in any order on parse; emits them in the canonical
@@ -1678,7 +1695,7 @@ class DataEntryOilist(CustomDirective):
 
     _CLAUSE_KEYWORDS = ("varPtrPtr", "bounds", "async", "recipe")
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         self.set_empty(state)
         seen: set[str] = set()
         while (
@@ -1711,7 +1728,6 @@ class DataEntryOilist(CustomDirective):
             else:  # recipe
                 with parser.in_parens():
                     self.recipe.set(state, parser.parse_attribute())
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         var_ptr_ptr = self.var_ptr_ptr.get(op)
@@ -1770,7 +1786,8 @@ class DataEntryOilist(CustomDirective):
 
 @irdl_custom_directive
 class CombinedConstructsLoop(CustomDirective):
-    """Port of upstream `custom<CombinedConstructsLoop>($combined)`.
+    """
+    Port of upstream `custom<CombinedConstructsLoop>($combined)`.
 
     Sits inside `acc.loop`'s `combined ( ... )` group: parses one of the
     bare keywords `kernels` / `parallel` / `serial` and produces a
@@ -1780,12 +1797,12 @@ class CombinedConstructsLoop(CustomDirective):
     combined: AttributeVariable
 
     _KEYWORDS = ("kernels", "parallel", "serial")
-    _BY_KEYWORD = {
+    _BY_KEYWORD: ClassVar = {
         "kernels": CombinedConstructsType.KERNELS_LOOP,
         "parallel": CombinedConstructsType.PARALLEL_LOOP,
         "serial": CombinedConstructsType.SERIAL_LOOP,
     }
-    _BY_VALUE = {v: k for k, v in _BY_KEYWORD.items()}
+    _BY_VALUE: ClassVar = {v: k for k, v in _BY_KEYWORD.items()}
 
     def is_anchorable(self) -> bool:
         return True
@@ -1793,13 +1810,13 @@ class CombinedConstructsLoop(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.combined.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         for kw in self._KEYWORDS:
             if parser.parse_optional_keyword(kw) is not None:
                 self.combined.set(
                     state, CombinedConstructsTypeAttr(self._BY_KEYWORD[kw])
                 )
-                return True
+                return
         parser.raise_error("expected compute construct name")
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -1810,7 +1827,8 @@ class CombinedConstructsLoop(CustomDirective):
 
 @irdl_custom_directive
 class DeviceTypeOperandsWithSegment(CustomDirective):
-    """Port of upstream `custom<DeviceTypeOperandsWithSegment>`.
+    """
+    Port of upstream `custom<DeviceTypeOperandsWithSegment>`.
 
     Used by `acc.loop` for the `tile(...)` clause. Groups operands inside
     `{...}`, with an optional per-group `[#acc.device_type<...>]` suffix
@@ -1834,7 +1852,7 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         groups = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
         )
@@ -1843,7 +1861,6 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # `is_present = bool(self.operands.get(op))` — when this `print` is
@@ -1883,7 +1900,8 @@ def _parse_gang_value_group(
     tuple[GangArgTypeAttr, ...],
     DeviceTypeAttr,
 ]:
-    """Parse `{ kw=%v:T (`,` kw=%v:T)* }` plus an optional `[#dt]` suffix.
+    """
+    Parse `{ kw=%v:T (`,` kw=%v:T)* }` plus an optional `[#dt]` suffix.
 
     Returns `(operands, types, gang_arg_types, device_type)`. Mirrors the
     inner loop of upstream's `parseGangClause`, which retries each
@@ -1923,7 +1941,8 @@ def _parse_gang_value_group(
 
 @irdl_custom_directive
 class GangClause(CustomDirective):
-    """Port of upstream `custom<GangClause>`.
+    """
+    Port of upstream `custom<GangClause>`.
 
     Follows a bare `gang` keyword in `acc.loop`'s format. The directive
     owns the optional surrounding parentheses. Syntax options after the
@@ -1957,12 +1976,12 @@ class GangClause(CustomDirective):
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.gang_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
+            return
 
         kw_only = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -1973,7 +1992,7 @@ class GangClause(CustomDirective):
         if parser.parse_optional_punctuation(")"):
             self.operands.set(state, ())
             self.operand_types.set(state, ())
-            return True
+            return
 
         if kw_only is not None:
             parser.parse_punctuation(",")
@@ -2000,7 +2019,6 @@ class GangClause(CustomDirective):
         self.gang_arg_types.set(state, ArrayAttr(arg_types))
         self.device_types.set(state, ArrayAttr(dts))
         self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
@@ -2068,7 +2086,8 @@ class GangClause(CustomDirective):
 
 @irdl_custom_directive
 class LoopControl(CustomDirective):
-    """Port of upstream `custom<LoopControl>`.
+    """
+    Port of upstream `custom<LoopControl>`.
 
     Owns `acc.loop`'s region and the optional `control(...) = (...) to (...)
     step (...)` header. Syntax:
@@ -2093,7 +2112,7 @@ class LoopControl(CustomDirective):
     step: VariadicOperandVariable
     step_types: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if parser.parse_optional_keyword("control") is None:
             self.lowerbound.set(state, ())
             self.lowerbound_types.set(state, ())
@@ -2102,7 +2121,7 @@ class LoopControl(CustomDirective):
             self.step.set(state, ())
             self.step_types.set(state, ())
             self.region.set(state, parser.parse_region())
-            return True
+            return
 
         with parser.in_parens():
             args = parser.parse_comma_separated_list(
@@ -2122,7 +2141,6 @@ class LoopControl(CustomDirective):
         self.step.set(state, st_ops)
         self.step_types.set(state, st_types)
         self.region.set(state, parser.parse_region(args))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         region = self.region.get(op)
@@ -2181,7 +2199,8 @@ def _print_loop_bound_group(printer: Printer, operands: Sequence[SSAValue]) -> N
 
 @irdl_custom_directive
 class BindName(CustomDirective):
-    """Port of upstream `custom<BindName>($bindIdName, $bindStrName,
+    """
+    Port of upstream `custom<BindName>($bindIdName, $bindStrName,
     $bindIdNameDeviceType, $bindStrNameDeviceType)`.
 
     Body of `acc.routine`'s `bind(...)` clause. Each entry is either a
@@ -2206,7 +2225,7 @@ class BindName(CustomDirective):
             or self.bind_str_name.get(op) is not None
         )
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         id_names: list[SymbolRefAttr] = []
         str_names: list[StringAttr] = []
         id_dts: list[DeviceTypeAttr] = []
@@ -2234,7 +2253,6 @@ class BindName(CustomDirective):
         if str_names:
             self.bind_str_name.set(state, ArrayAttr(str_names))
             self.bind_str_name_device_type.set(state, ArrayAttr(str_dts))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # Concatenate the (id-name, dt) and (str-name, dt) sequences in that
@@ -2264,7 +2282,8 @@ class BindName(CustomDirective):
 
 @irdl_custom_directive
 class RoutineGangClause(CustomDirective):
-    """Port of upstream `custom<RoutineGangClause>($gang, $gangDim,
+    """
+    Port of upstream `custom<RoutineGangClause>($gang, $gangDim,
     $gangDimDeviceType)`.
 
     Follows a bare `gang` keyword in `acc.routine`'s format. The directive
@@ -2287,10 +2306,10 @@ class RoutineGangClause(CustomDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return self.gang.get(op) is not None or self.gang_dim.get(op) is not None
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.gang.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            return True
+            return
 
         kw_only = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -2298,7 +2317,7 @@ class RoutineGangClause(CustomDirective):
         if kw_only is not None:
             self.gang.set(state, ArrayAttr(kw_only))
             if parser.parse_optional_punctuation(")"):
-                return True
+                return
             parser.parse_punctuation(",")
 
         gang_dim_attrs: list[Attribute] = []
@@ -2317,7 +2336,6 @@ class RoutineGangClause(CustomDirective):
         # one element, so `gang_dim_attrs` is always non-empty here.
         self.gang_dim.set(state, ArrayAttr(gang_dim_attrs))
         self.gang_dim_device_type.set(state, ArrayAttr(gang_dim_dt_attrs))
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         gang = self.gang.get(op)
@@ -2359,7 +2377,8 @@ class RoutineGangClause(CustomDirective):
 
 @irdl_custom_directive
 class DeviceTypeArrayClause(CustomDirective):
-    """Port of upstream `custom<DeviceTypeArrayAttr>($deviceTypes)`.
+    """
+    Port of upstream `custom<DeviceTypeArrayAttr>($deviceTypes)`.
 
     Follows a bare keyword (e.g. `worker`) in `acc.routine`'s format. The
     directive owns the optional surrounding parentheses. Syntax options
@@ -2382,10 +2401,10 @@ class DeviceTypeArrayClause(CustomDirective):
         # `hasDeviceTypeValues`-gated emission.
         return isa(attr := self.device_types.get(op), ArrayAttr) and bool(attr.data)
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         if not parser.parse_optional_punctuation("("):
             self.device_types.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            return True
+            return
 
         attrs = parser.parse_optional_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
@@ -2394,7 +2413,6 @@ class DeviceTypeArrayClause(CustomDirective):
         self.device_types.set(
             state, ArrayAttr(attrs) if attrs is not None else ArrayAttr(())
         )
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         # `is_present` guarantees a non-empty ArrayAttr.
@@ -3629,7 +3647,8 @@ class HostDataOp(IRDLOperation):
 
 
 class _DataEntryOperation(IRDLOperation, ABC):
-    """Shared shape for the OpenACC entry data-clause ops.
+    """
+    Shared shape for the OpenACC entry data-clause ops.
 
     Mirrors upstream's `OpenACC_DataEntryOperation` td class. Concrete leaves
     override `name` and supply their own `dataClause` default. Everything else
@@ -3879,7 +3898,8 @@ class DeclareLinkOp(_DataEntryOperation):
 
 @irdl_op_definition
 class GetDevicePtrOp(_DataEntryOperation):
-    """Implementation of upstream acc.getdeviceptr.
+    """
+    Implementation of upstream acc.getdeviceptr.
 
     Used to get the `accVar` for a host variable when a structured data-entry
     op is not available; the natural pair for the unstructured exit ops below.
@@ -3947,7 +3967,8 @@ class FirstprivateOp(_DataEntryOperation):
 
 @irdl_op_definition
 class FirstprivateMapOp(_DataEntryOperation):
-    """Implementation of upstream acc.firstprivate_map.
+    """
+    Implementation of upstream acc.firstprivate_map.
 
     Used to decompose firstprivate semantics — represents the mapping of the
     initial value used to initialize the privatized copies. Shares the
@@ -3964,7 +3985,8 @@ class FirstprivateMapOp(_DataEntryOperation):
 
 @irdl_op_definition
 class ReductionOp(_DataEntryOperation):
-    """Implementation of upstream acc.reduction.
+    """
+    Implementation of upstream acc.reduction.
 
     The reduction operator (`add`, `mul`, `max`, ...) is carried on the
     `acc.reduction.recipe` referenced via the inherited `recipe`
@@ -3994,7 +4016,8 @@ class ReductionOp(_DataEntryOperation):
 
 
 class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
-    """Shared shape for `acc.copyout` / `acc.update_host`.
+    """
+    Shared shape for `acc.copyout` / `acc.update_host`.
 
     Mirrors upstream's `OpenACC_DataExitOpWithVarPtr` td class: an `accVar`
     operand (the device pointer, sourced from a matching data-entry op) plus
@@ -4128,7 +4151,8 @@ class UpdateHostOp(_DataExitOperationWithVarPtr):
 
 
 class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
-    """Shared shape for `acc.delete` / `acc.detach`.
+    """
+    Shared shape for `acc.delete` / `acc.detach`.
 
     Mirrors upstream's `OpenACC_DataExitOpNoVarPtr` td class: just the
     `accVar` operand (device pointer) plus the shared bounds / async /
@@ -4857,7 +4881,8 @@ class AtomicCaptureOp(IRDLOperation):
 def _verify_declare_operands(
     operands: Sequence[SSAValue], *, require_at_least_one: bool = True
 ) -> None:
-    """Mirror of upstream's `checkDeclareOperands` template helper.
+    """
+    Mirror of upstream's `checkDeclareOperands` template helper.
 
     `acc.declare_exit` passes ``require_at_least_one=False`` when a `token`
     is present (the token already pins the implicit data region — operands
@@ -5150,7 +5175,8 @@ def _verify_init_like_region(
     *,
     optional: bool = False,
 ) -> None:
-    """Port of upstream `verifyInitLikeSingleArgRegion`.
+    """
+    Port of upstream `verifyInitLikeSingleArgRegion`.
 
     The init / destroy region must be non-empty (unless `optional`) and the
     first argument of its first block must be of the recipe's type.
@@ -5167,7 +5193,8 @@ def _verify_init_like_region(
 
 
 class _RecipeOperation(IRDLOperation, ABC):
-    """Shared `sym_name` + `type` shape for the recipe ops.
+    """
+    Shared `sym_name` + `type` shape for the recipe ops.
 
     Mirrors upstream's near-identical `OpenACC_*RecipeOp` td classes.
     Concrete leaves declare their own regions, traits, assembly format, and
@@ -5430,7 +5457,8 @@ def _verify_not_in_compute_op(op: IRDLOperation) -> None:
 
 
 class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
-    """Base class for `acc.init` / `acc.shutdown`.
+    """
+    Base class for `acc.init` / `acc.shutdown`.
 
     Concrete leaves inherit every IRDL field, the assembly format, the
     `__init__`, and `verify_` — they only override `name`.
@@ -5741,7 +5769,8 @@ class RoutineOp(IRDLOperation):
 
 
 class _GlobalCtorDtorOperation(IRDLOperation, ABC):
-    """Shared shape for `acc.global_ctor` / `acc.global_dtor`.
+    """
+    Shared shape for `acc.global_ctor` / `acc.global_dtor`.
 
     Mirrors upstream's `OpenACC_GlobalConstructorOp` / `OpenACC_GlobalDestructorOp`
     — both are module-level `IsolatedFromAbove` + `Symbol` ops carrying just a

@@ -41,10 +41,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
-    ConstraintContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
+    VerificationContext,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -237,7 +237,7 @@ class EmitCTypeConstraint(AttrConstraint):
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isa(attr, TensorType):
             # EmitC only supports tensors with static shapes
             if not attr.has_static_shape():
@@ -440,7 +440,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     callee = prop_def(StringAttr)
     args = opt_prop_def(ArrayAttr)
     template_args = opt_prop_def(ArrayAttr)
-    # The SSA‐value operands of the call
+    # The SSA-value operands of the call
     call_args = var_operand_def()
     res = var_result_def()
 

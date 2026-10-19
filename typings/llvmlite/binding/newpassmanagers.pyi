@@ -6,13 +6,16 @@ from ctypes import Structure
 from enum import IntFlag
 
 from llvmlite.binding import ffi
+from llvmlite.binding.module import ModuleRef
+from llvmlite.binding.targets import TargetMachine
 
 def create_new_module_pass_manager():  # -> ModulePassManager:
     ...
 def create_new_function_pass_manager():  # -> FunctionPassManager:
     ...
-def create_pass_builder(tm, pto):  # -> PassBuilder:
-    ...
+def create_pass_builder(
+    tm: TargetMachine, pto: PipelineTuningOptions
+) -> PassBuilder: ...
 def create_pipeline_tuning_options(
     speed_level=..., size_level=...
 ):  # -> PipelineTuningOptions:
@@ -31,14 +34,16 @@ class _c_PruneStats(Structure):
     _fields_ = ...
 
 def dump_refprune_stats(printout=...):  # -> PruneStats:
-    """Returns a namedtuple containing the current values for the refop pruning
+    """
+    Returns a namedtuple containing the current values for the refop pruning
     statistics. If kwarg `printout` is True the stats are printed to stderr,
     default is False.
     """
     ...
 
 def set_time_passes(enable):  # -> None:
-    """Enable or disable the pass timers.
+    """
+    Enable or disable the pass timers.
 
     Parameters
     ----------
@@ -49,7 +54,8 @@ def set_time_passes(enable):  # -> None:
     ...
 
 def report_and_reset_timings():  # -> str:
-    """Returns the pass timings report and resets the LLVM internal timers.
+    """
+    Returns the pass timings report and resets the LLVM internal timers.
 
     Pass timers are enabled by ``set_time_passes()``. If the timers are not
     enabled, this function will return an empty string.
@@ -155,6 +161,7 @@ class NewPassManager:
 
 class ModulePassManager(ffi.ObjectRef, NewPassManager):
     def __init__(self, ptr=...) -> None: ...
+    def run(self, IR: ModuleRef, pb: PassBuilder) -> None: ...
     def add_verifier(self):  # -> None:
         ...
     def add_constant_merge_pass(self):  # -> None:
@@ -198,7 +205,8 @@ class ModulePassManager(ffi.ObjectRef, NewPassManager):
     def add_post_order_function_attributes_pass(self):  # -> None:
         ...
     def add_refprune_pass(self, subpasses_flags=..., subgraph_limit=...):  # -> None:
-        """Add Numba specific Reference count pruning pass.
+        """
+        Add Numba specific Reference count pruning pass.
 
         Parameters
         ----------
@@ -215,7 +223,8 @@ class ModulePassManager(ffi.ObjectRef, NewPassManager):
 class FunctionPassManager(ffi.ObjectRef, NewPassManager):
     def __init__(self, ptr=...) -> None: ...
     def add_refprune_pass(self, subpasses_flags=..., subgraph_limit=...):  # -> None:
-        """Add Numba specific Reference count pruning pass.
+        """
+        Add Numba specific Reference count pruning pass.
 
         Parameters
         ----------
@@ -273,13 +282,13 @@ class TimePassesHandler(ffi.ObjectRef):
     def __init__(self) -> None: ...
 
 class PassBuilder(ffi.ObjectRef):
-    def __init__(self, tm, pto) -> None: ...
-    def getModulePassManager(self):  # -> ModulePassManager:
-        ...
+    def __init__(self, tm: TargetMachine, pto: PipelineTuningOptions) -> None: ...
+    def getModulePassManager(self) -> ModulePassManager: ...
     def getFunctionPassManager(self):  # -> FunctionPassManager:
         ...
     def start_pass_timing(self):  # -> None:
-        """Enable the pass timers.
+        """
+        Enable the pass timers.
 
         Raises
         ------
@@ -289,7 +298,8 @@ class PassBuilder(ffi.ObjectRef):
         ...
 
     def finish_pass_timing(self):  # -> str:
-        """Returns the pass timings report and disables the LLVM internal
+        """
+        Returns the pass timings report and disables the LLVM internal
         timers. Pass timers are enabled by ``start_pass_timing()``. If the
         timers are not enabled, this function will return an empty string.
 

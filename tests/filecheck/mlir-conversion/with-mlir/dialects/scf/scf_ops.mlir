@@ -41,11 +41,11 @@ builtin.module {
   // CHECK-NEXT:      func.func @execute_region_multiple_blocks() {
   // CHECK-NEXT:   %0 = scf.execute_region -> (i32) {
   // CHECK-NEXT:     %1 = "test.op"() : () -> i1
-  // CHECK-NEXT:     cf.cond_br %1, ^bb0, ^bb1
-  // CHECK-NEXT:   ^bb0:
+  // CHECK-NEXT:     cf.cond_br %1, ^bb1, ^bb2
+  // CHECK-NEXT:   ^bb1:
   // CHECK-NEXT:     %2 = "test.op"() : () -> i32
   // CHECK-NEXT:     scf.yield %2 : i32
-  // CHECK-NEXT:   ^bb1:
+  // CHECK-NEXT:   ^bb2:
   // CHECK-NEXT:     %3 = "test.op"() : () -> i32
   // CHECK-NEXT:     scf.yield %3 : i32
   // CHECK-NEXT:   }

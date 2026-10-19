@@ -191,3 +191,27 @@ func.func @call_intrinsic_bad_name() {
 }
 
 // CHECK: intrinsic name must start with 'llvm.'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<void (index)>
+}
+
+// CHECK: LLVM function argument #0 has incompatible type 'index'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<index ()>
+}
+
+// CHECK: LLVM function result has incompatible type 'index'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<void (!llvm.void)>
+}
+
+// CHECK: LLVM function argument #0 has incompatible type '!llvm.void'

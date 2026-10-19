@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects import arith, equivalence, test
@@ -18,6 +20,8 @@ def test_const_class_construction():
     non_constant_op = test.TestOp(result_types=(i32,))
     with pytest.raises(
         DiagnosticException,
-        match="The argument of a ConstantClass must be a `ConstantLike` operation implementing `HasFolderInterface`.",
+        match=re.escape(
+            "The argument of a ConstantClass must be a `ConstantLike` operation implementing `HasFolderInterface`."
+        ),
     ):
         equivalence.ConstantClassOp(non_constant_op.results[0])

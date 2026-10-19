@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 
 import pytest
@@ -283,6 +284,40 @@ def test_addressof_op():
     assert address_of.result.type == ptr_type
 
 
+def test_is_compatible_type():
+    assert llvm.is_compatible_type(builtin.IntegerType(32))
+    assert llvm.is_compatible_type(builtin.IntegerType(1))
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.SIGNED)
+    )
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.UNSIGNED)
+    )
+
+    assert llvm.is_compatible_type(builtin.BFloat16Type())
+    assert llvm.is_compatible_type(builtin.Float16Type())
+    assert llvm.is_compatible_type(builtin.Float32Type())
+    assert llvm.is_compatible_type(builtin.Float64Type())
+    assert llvm.is_compatible_type(builtin.Float80Type())
+    assert llvm.is_compatible_type(builtin.Float128Type())
+
+    assert llvm.is_compatible_type(llvm.LLVMStructType.from_type_list([]))
+    assert llvm.is_compatible_type(llvm.LLVMPointerType())
+    assert llvm.is_compatible_type(llvm.LLVMArrayType(4, builtin.i32))
+    assert llvm.is_compatible_type(llvm.LLVMFunctionType([builtin.i32], builtin.i32))
+
+    assert llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4]))
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4, 4]))
+    scalable_dims = builtin.ArrayAttr([builtin.BoolAttr.from_bool(True)])
+    assert not llvm.is_compatible_type(
+        builtin.VectorType(builtin.i32, [4], scalable_dims=scalable_dims)
+    )
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.IndexType(), [4]))
+
+    assert not llvm.is_compatible_type(builtin.IndexType())
+    assert not llvm.is_compatible_type(llvm.LLVMVoidType())
+
+
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
@@ -406,7 +441,9 @@ def test_overflow_attr_int_conversion():
     assert attr_both.to_int() == 3
 
     # verify out of bounds raises
-    with pytest.raises(ValueError, match="OverflowAttr given out of bounds integer."):
+    with pytest.raises(
+        ValueError, match=re.escape("OverflowAttr given out of bounds integer.")
+    ):
         llvm.OverflowAttr.from_int(4)
 
 
@@ -466,6 +503,13 @@ def test_fpext_op():
     op = llvm.FPExtOp(val, builtin.f64)
     assert op.arg == val
     assert op.result.type == builtin.f64  # wider type
+
+
+def test_fptrunc_op():
+    val = create_ssa_value(builtin.f64)
+    op = llvm.FPTruncOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
 
 
 def test_trunc_op_handles_missing_overflow_property():
@@ -558,6 +602,14 @@ def test_call_op_variadic():
     op = llvm.CallOp("printf", arg, variadic_args=1, return_type=builtin.i32)
     assert op.var_callee_type is not None
     assert op.var_callee_type.is_variadic
+
+
+def test_call_op_explicit_var_callee_type():
+    # verify an explicit var_callee_type is kept, even with no variadic args
+    arg = create_ssa_value(llvm.LLVMPointerType())
+    callee_type = llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True)
+    op = llvm.CallOp("printf", arg, var_callee_type=callee_type)
+    assert op.var_callee_type == callee_type
 
 
 def test_call_intrinsic_op_converts_str_to_stringattr():
@@ -726,6 +778,38 @@ def test_fpow_op():
     assert op.lhs == lhs
     assert op.rhs == rhs
     assert op.res.type == builtin.f32
+
+
+def test_vector_reduce_fadd_op():
+    start = create_ssa_value(builtin.f32)
+    vec = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    op = llvm.VectorReduceFAddOp(start, vec)
+    assert op.start_value == start
+    assert op.vector == vec
+    assert op.res.type == builtin.f32
+
+
+def test_vector_reduce_fmul_op():
+    start = create_ssa_value(builtin.f32)
+    vec = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    op = llvm.VectorReduceFMulOp(start, vec)
+    assert op.start_value == start
+    assert op.vector == vec
+    assert op.res.type == builtin.f32
+
+
+def test_stacksave_op():
+    op = llvm.StackSaveOp()
+    assert not op.operands
+    assert isinstance(op.res.type, llvm.LLVMPointerType)
+    assert isinstance(op.res.type.addr_space, builtin.NoneAttr)
+
+
+def test_stackrestore_op():
+    ptr = create_ssa_value(llvm.LLVMPointerType())
+    op = llvm.StackRestoreOp(ptr)
+    assert op.ptr is ptr
+    assert not op.results
 
 
 def test_cond_br_op():

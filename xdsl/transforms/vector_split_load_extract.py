@@ -45,7 +45,7 @@ class VectorSplitLoadExtract(RewritePattern):
             indices = user.static_position.get_values()
             assert len(indices) == 1
             (element_index,) = indices
-            rewriter.insert_op(
+            rewriter.insert(
                 (
                     constant_op := arith.ConstantOp(
                         IntegerAttr(element_size * element_index, IndexType())
@@ -55,12 +55,12 @@ class VectorSplitLoadExtract(RewritePattern):
                 )
             )
             rewriter.replace_all_uses_with(user.result, load_op.res)
-            rewriter.erase_op(user)
+            rewriter.erase(user)
             constant_op.result.name_hint = name_hint
             add_op.result.name_hint = name_hint
             load_op.res.name_hint = name_hint
 
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass(frozen=True)

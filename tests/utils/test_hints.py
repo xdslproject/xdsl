@@ -4,11 +4,12 @@ from typing import Generic
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.utils.hints import get_type_var_mapping
+from xdsl.utils.hints import get_type_var_mapping, get_type_var_mapping_with_defaults
 
 T0 = TypeVar("T0")
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
+T3 = TypeVar("T3", default=int)
 
 
 class A(Generic[T1, T2]): ...
@@ -70,3 +71,37 @@ def test_get_type_var_mapping():
         ),
     ):
         assert get_type_var_mapping(F) == ()
+
+
+class G(Generic[T3]): ...
+
+
+class H(G): ...
+
+
+class J(G[str]): ...
+
+
+def test_get_type_var_mapping_with_defaults():
+    assert get_type_var_mapping_with_defaults(A) == {}
+    assert get_type_var_mapping_with_defaults(B) == {T2: int}
+    assert get_type_var_mapping_with_defaults(C) == {T1: str, T2: int}
+    assert get_type_var_mapping_with_defaults(D) == {T1: T0, T2: T0}
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Invalid definition D2, generic classes must subclass `Generic`."
+        ),
+    ):
+        assert get_type_var_mapping_with_defaults(D2) == {T1: T0, T2: T0}
+    assert get_type_var_mapping_with_defaults(E) == {}
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Error extracting assignments of TypeVars of F, inconsistent assignments to ~T2 in superclasses: str, int."
+        ),
+    ):
+        assert get_type_var_mapping_with_defaults(F) == ()
+
+    assert get_type_var_mapping_with_defaults(H) == {T3: int}
+    assert get_type_var_mapping_with_defaults(J) == {T3: str}

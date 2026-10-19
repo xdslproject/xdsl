@@ -16,10 +16,11 @@ from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
     lazy_traits_def,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -44,11 +45,14 @@ Key used to store the cost of computing the result of an operation.
 
 @irdl_op_definition
 class ConstantClassOp(IRDLOperation, HasFolderInterface):
-    """An e-class representing a known constant value.
+    """
+    An e-class representing a known constant value.
     For non-constant e-classes, use [ClassOp][xdsl.dialects.equivalence.ClassOp].
     """
 
     T: ClassVar = VarConstraint("T", AnyAttr())
+
+    irdl_options = (ParsePropInAttrDict(),)
 
     name = "equivalence.const_class"
 
@@ -60,7 +64,7 @@ class ConstantClassOp(IRDLOperation, HasFolderInterface):
     arguments = var_operand_def(T)
     result = result_def(T)
     value = prop_def()
-    min_cost_index = opt_attr_def(IntAttr)
+    min_cost_index = opt_prop_def(IntAttr)
 
     def fold(self) -> tuple[Attribute]:
         return (self.value,)
@@ -80,17 +84,20 @@ class ConstantClassOp(IRDLOperation, HasFolderInterface):
 
 @irdl_op_definition
 class ClassOp(IRDLOperation):
-    """An e-class representing a set of equivalent values.
+    """
+    An e-class representing a set of equivalent values.
     E-classes that represent a constant value can instead
     be represented by [ConstantClassOp][xdsl.dialects.equivalence.ConstantClassOp].
     """
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
+    irdl_options = (ParsePropInAttrDict(),)
+
     name = "equivalence.class"
     arguments = var_operand_def(T)
     result = result_def(T)
-    min_cost_index = opt_attr_def(IntAttr)
+    min_cost_index = opt_prop_def(IntAttr)
     traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
@@ -109,7 +116,7 @@ class ClassOp(IRDLOperation):
         super().__init__(
             operands=[arguments],
             result_types=[res_type],
-            attributes={"min_cost_index": min_cost_index},
+            properties={"min_cost_index": min_cost_index},
         )
 
     def verify_(self) -> None:

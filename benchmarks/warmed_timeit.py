@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""A precision timer for the implementations of methods on objects.
+"""
+A precision timer for the implementations of methods on objects.
 
 Derived from the timeit module, this timer aims to accurately time method
 implementations which may modify mutable state, even when these implementations

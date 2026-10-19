@@ -29,7 +29,7 @@ builtin.module {
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK:      "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK:      "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "params_as_consts_func_layout"}> ({
 // CHECK-NEXT:   %0 = arith.constant 0 : i16
 // CHECK-NEXT:   %1 = arith.constant 1 : i16
 // CHECK-NEXT:   %2 = arith.constant 256 : i16
@@ -49,8 +49,8 @@ builtin.module {
 // CHECK-NEXT:       }
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
-// CHECK-NEXT: }) {sym_name = "params_as_consts_func_layout"} : () -> ()
-// CHECK-NEXT: "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-NEXT: }) : () -> ()
+// CHECK-NEXT: "csl.module"() <{kind = #csl<module_kind program>, sym_name = "params_as_consts_func_program"}> ({
 // CHECK-NEXT:   %memcpy_params = "csl.param"() <{param_name = "memcpy_params"}> : () -> !csl.comptime_struct
 // CHECK-NEXT:   %0 = "csl.const_struct"() <{ssa_fields = []}> : () -> !csl.comptime_struct
 // CHECK-NEXT:   %1 = "csl.concat_structs"(%0, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
@@ -67,9 +67,9 @@ builtin.module {
 // CHECK-NEXT:     "test.op"() : () -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
-// CHECK-NEXT: }) {sym_name = "params_as_consts_func_program"} : () -> ()
+// CHECK-NEXT: }) : () -> ()
 
-// CONST:      "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CONST:      "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "params_as_consts_func_layout"}> ({
 // CONST-NEXT:   %0 = arith.constant 0 : i16
 // CONST-NEXT:   %1 = arith.constant 1 : i16
 // CONST-NEXT:   %width = arith.constant 256 : i16
@@ -86,8 +86,8 @@ builtin.module {
 // CONST-NEXT:       }
 // CONST-NEXT:     }
 // CONST-NEXT:   }
-// CONST-NEXT: }) {sym_name = "params_as_consts_func_layout"} : () -> ()
-// CONST-NEXT: "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CONST-NEXT: }) : () -> ()
+// CONST-NEXT: "csl.module"() <{kind = #csl<module_kind program>, sym_name = "params_as_consts_func_program"}> ({
 // CONST-NEXT:   %memcpy_params = "csl.param"() <{param_name = "memcpy_params"}> : () -> !csl.comptime_struct
 // CONST-NEXT:   %0 = "csl.const_struct"() <{ssa_fields = []}> : () -> !csl.comptime_struct
 // CONST-NEXT:   %1 = "csl.concat_structs"(%0, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
@@ -101,7 +101,7 @@ builtin.module {
 // CONST-NEXT:     "test.op"() : () -> ()
 // CONST-NEXT:     csl.return
 // CONST-NEXT:   }
-// CONST-NEXT: }) {sym_name = "params_as_consts_func_program"} : () -> ()
+// CONST-NEXT: }) : () -> ()
 
 
   "csl_wrapper.module"() <{
@@ -173,7 +173,7 @@ builtin.module {
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "gauss_seidel_func_layout"}> ({
 // CHECK-NEXT:     %0 = arith.constant 2 : i16
 // CHECK-NEXT:     %pattern = "csl.param"(%0) <{param_name = "pattern"}> : (i16) -> i16
 // CHECK-NEXT:     %1 = arith.constant 1022 : i16
@@ -216,8 +216,8 @@ builtin.module {
 // CHECK-NEXT:         }
 // CHECK-NEXT:       }
 // CHECK-NEXT:     }
-// CHECK-NEXT:   }) {sym_name = "gauss_seidel_func_layout"} : () -> ()
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>, sym_name = "gauss_seidel_func_program"}> ({
 // CHECK-NEXT:     %0 = arith.constant 2 : i16
 // CHECK-NEXT:     %pattern = "csl.param"(%0) <{param_name = "pattern"}> : (i16) -> i16
 // CHECK-NEXT:     %1 = arith.constant 255 : i16
@@ -262,7 +262,7 @@ builtin.module {
 // CHECK-NEXT:         "csl.fadds"(%15, %15, %11) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:         csl_stencil.yield %arg4 : memref<510xf32>
 // CHECK-NEXT:       }, {
-// CHECK-NEXT:       ^bb1(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
+// CHECK-NEXT:       ^bb0(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
 // CHECK-NEXT:         %16 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
 // CHECK-NEXT:         %17 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
 // CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %17) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
@@ -273,7 +273,7 @@ builtin.module {
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:   }) {sym_name = "gauss_seidel_func_program"} : () -> ()
+// CHECK-NEXT:   }) : () -> ()
 
 }
 // CHECK-NEXT: }

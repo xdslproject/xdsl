@@ -35,7 +35,7 @@ class InlineFunctions(RewritePattern):
         inputs = [toy.CastOp(operand) for operand in op.operands]
 
         # Insert casts before matched op
-        rewriter.insert_op(inputs)
+        rewriter.insert(inputs)
 
         # Replace block args with operand casts
         for i, arg in zip(inputs, impl_block.args):
@@ -53,8 +53,8 @@ class InlineFunctions(RewritePattern):
         return_op = op.prev_op
         assert return_op is not None
 
-        rewriter.replace_op(op, [], return_op.operands)
-        rewriter.erase_op(return_op)
+        rewriter.replace(op, [], return_op.operands)
+        rewriter.erase(return_op)
 
 
 class RemoveUnusedPrivateFunctions(RewritePattern):
@@ -80,7 +80,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
         if self.should_remove_op(op):
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 class InlineToyPass(ModulePass):

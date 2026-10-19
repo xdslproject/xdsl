@@ -57,11 +57,13 @@ class AddArguments(Screen[ModulePass | None]):
         concatenated_arg_val = self.argument_text_area.text
 
         try:
-            parsed_spec = list(
-                parse_pipeline(
-                    f"{self.selected_pass_type.name}{{{concatenated_arg_val}}}"
+            parsed_spec = next(
+                iter(
+                    parse_pipeline(
+                        f"{self.selected_pass_type.name}{{{concatenated_arg_val}}}"
+                    )
                 )
-            )[0]
+            )
         except ArgSpecParseError:
             self.selected_pass_value = None
             return

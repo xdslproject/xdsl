@@ -263,7 +263,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         ndims = len(field_type.get_shape())
         if inout is IN and ndims == 3:
-            rewriter.insert_op(
+            rewriter.insert(
                 [
                     data_stream,
                     stencil_stream,
@@ -291,7 +291,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             out_data_stream = HLSStreamOp.get(f64)
             out_data_stream.attributes["inout"] = op.attributes["inout"]
             out_data_stream.attributes["data"] = op.attributes["inout"]
-            rewriter.insert_op(
+            rewriter.insert(
                 [
                     out_data_stream,
                 ]
@@ -348,7 +348,7 @@ def add_read_write_ops(
         stream_to_write: BlockArgument = op.region.block.args[arg_index_write]
         write_op = HLSStreamWriteOp(stencil_return_vals[stencil_idx], stream_to_write)
 
-        rewriter.insert_op(write_op, InsertPoint.at_end(op.region.block))
+        rewriter.insert(write_op, InsertPoint.at_end(op.region.block))
 
     for arg_index_read in indices_stream_to_read:
         stream_to_read = op.region.block.args[arg_index_read]
@@ -356,7 +356,7 @@ def add_read_write_ops(
         read_op = HLSStreamReadOp(stream_to_read)
         read_op.attributes["write_data"] = IntAttr(1)
 
-        rewriter.insert_op(read_op, InsertPoint.at_start(op.region.block))
+        rewriter.insert(read_op, InsertPoint.at_start(op.region.block))
 
 
 def transform_apply_into_loop(
@@ -471,9 +471,11 @@ def transform_apply_into_loop(
     p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
 
     old_operands_lst = [old_operand for old_operand in y_for_op.operands]
-    y_for_op.operands = (
-        [old_operands_lst[0]] + [chunk_size_y_1.results[0]] + old_operands_lst[2:]
-    )
+    y_for_op.operands = [
+        old_operands_lst[0],
+        chunk_size_y_1.results[0],
+        *old_operands_lst[2:],
+    ]
 
     p.attributes["compute_loop"] = IntAttr(1)
 
@@ -550,8 +552,9 @@ class ApplyOpToHLS(RewritePattern):
                 else:
                     new_operands_lst.append(operand)
 
-            apply_clone.operands = new_operands_lst + [
-                self.out_data_streams[k].results[0]
+            apply_clone.operands = [
+                *new_operands_lst,
+                self.out_data_streams[k].results[0],
             ]
 
         indices_stream_to_read: list[int] = []
@@ -658,9 +661,9 @@ class ApplyOpToHLS(RewritePattern):
 
         ndims: int = op.res[0].type.get_num_dims()
 
-        rewriter.erase_op(return_op)
+        rewriter.erase(return_op)
         for new_return_component in new_return_component_lst:
-            rewriter.erase_op(new_return_component)
+            rewriter.erase(new_return_component)
 
         p_dataflow_lst: list[PragmaDataflowOp] = []
         component_idx = 0
@@ -675,9 +678,9 @@ class ApplyOpToHLS(RewritePattern):
         for i in range(n_components):
             operations_to_insert += boilerplate[i] + [p_dataflow_lst[i]]
 
-        rewriter.insert_op(operations_to_insert)
+        rewriter.insert(operations_to_insert)
 
-        rewriter.replace_op(op, new_apply_lst[-1])
+        rewriter.replace(op, new_apply_lst[-1])
 
 
 def collectComponentOperations(
@@ -791,7 +794,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
 
             write_data_dataflow = PragmaDataflowOp(write_data_df_region)
 
-            rewriter.insert_op(
+            rewriter.insert(
                 [shape_x, shape_y, shape_z, write_data_dataflow], InsertPoint.after(op)
             )
 
@@ -821,14 +824,14 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
             for idx in op.offset.array.data:
                 access_idx.append(idx.data + 1)
 
-            access_idx_array = DenseArrayBase.from_list(i64, [0] + access_idx)
+            access_idx_array = DenseArrayBase.from_list(i64, [0, *access_idx])
 
             assert isinstance(result_hls_read, OpResult)
             stencil_value = HLSExtractStencilValueOp(
                 access_idx_array, result_hls_read, f64
             )
 
-            rewriter.replace_op(op, stencil_value)
+            rewriter.replace(op, stencil_value)
 
 
 # Copied from convert_stencil_to_ll_mlir
@@ -858,25 +861,25 @@ class StencilStoreToSubview(RewritePattern):
                 name = subview.source.name_hint + "_storeview"
             subview.result.name_hint = name
             if isinstance(field.owner, Operation):
-                rewriter.insert_op(subview, InsertPoint.after(field.owner))
+                rewriter.insert(subview, InsertPoint.after(field.owner))
             else:
-                rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
+                rewriter.insert(subview, InsertPoint.at_start(field.owner))
 
-            rewriter.erase_op(store)
+            rewriter.erase(store)
 
 
 @dataclass
 class TrivialStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass
 class TrivialApplyOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 @dataclass
@@ -959,7 +962,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 )  # [operand for operand in op.operands[2:]]
             else:
                 parent_dataflow = typing.cast(PragmaDataflowOp, op.parent_op())
-                rewriter.erase_op(op)
+                rewriter.erase(op)
                 parent_dataflow.detach()
                 parent_dataflow.erase()
 
@@ -994,13 +997,11 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                     PragmaDataflowOp, self.first_load.parent_op()
                 )
 
-                rewriter.replace_op(self.first_load, call_load_all_data)
+                rewriter.replace(self.first_load, call_load_all_data)
 
                 for data_stream in self.data_streams:
                     data_stream.op.detach()
-                    rewriter.insert_op(
-                        data_stream.op, InsertPoint.before(parent_dataflow)
-                    )
+                    rewriter.insert(data_stream.op, InsertPoint.before(parent_dataflow))
 
 
 @dataclass
@@ -1098,7 +1099,7 @@ class PackDataInStencilField(RewritePattern):
 
             new_container_op = UndefOp(struct_new_type)
 
-            rewriter.replace_op(op, new_container_op)
+            rewriter.replace(op, new_container_op)
 
 
 # We create copies for all the coefficients. We create more than one copy where necesssary
@@ -1126,14 +1127,14 @@ class GetRepeatedCoefficients(RewritePattern):
                         return_type=f64, shape=cast_dest_type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
-                    rewriter.insert_op(memref_copy)
+                    rewriter.insert(memref_copy)
 
                     self.original_memref_lst.append(cast)
                     self.clone_memref_lst.append(memref_copy)
                 elif isinstance(use.operation, stencil.ApplyOp):
                     op.results[0].remove_use(use)
 
-            rewriter.erase_op(op)
+            rewriter.erase(op)
 
 
 @dataclass
@@ -1176,7 +1177,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
                 builder.insert(yield_op)
 
             for_local_copies = scf.ForOp(lb, ub, step, [], for_body)
-            rewriter.insert_op([lb, ub, step, ii, for_local_copies])
+            rewriter.insert([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True
 
@@ -1207,7 +1208,7 @@ class QualifyInterfacesPass(RewritePattern):
                 call_interface_func = llvm.CallOp(
                     self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                 )
-                rewriter.insert_op(
+                rewriter.insert(
                     call_interface_func, InsertPoint.at_start(op.body.blocks[0])
                 )
                 self.called_coeff_func = True

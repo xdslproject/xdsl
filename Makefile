@@ -14,6 +14,10 @@ export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 VENV_EXTRAS ?= --all-extras
 VENV_GROUPS ?= --all-groups
 
+# load .env for lit when present
+UV_ENV_FILE := $(if $(wildcard .env),.env,)
+UV_RUN = uv run $(if $(UV_ENV_FILE),--env-file $(UV_ENV_FILE),)
+
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -53,9 +57,6 @@ uv-installed:
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS} ${VENV_GROUPS}
-	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
-		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
-	fi
 
 .PHONY: venv
 venv: ${VENV_DIR}/ ## make sure `make venv` also works correctly
@@ -71,7 +72,7 @@ clean: clean-caches ## remove all caches and the venv
 
 .PHONY: filecheck
 filecheck: uv-installed ## run filecheck tests
-	uv run lit $(LIT_OPTIONS) tests/filecheck
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck
 
 .PHONY: pytest
 pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in pyproject.toml)
@@ -79,18 +80,10 @@ pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in
 
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed ## run tests for Toy tutorial
-	uv run lit $(LIT_OPTIONS) docs/Toy/examples
-
-.PHONY: pytest-toy-nb
-pytest-toy-nb:
-	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
-		uv run pytest -W error --nbval $(PYTEST_OPTIONS) docs/Toy --nbval-current-env; \
-	else \
-		echo "riscemu is not installed, skipping tests."; \
-	fi
+	$(UV_RUN) lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: tests-toy
-tests-toy: filecheck-toy pytest-toy-nb
+tests-toy: filecheck-toy
 
 
 .PHONY: tests-marimo
@@ -98,8 +91,8 @@ tests-marimo: uv-installed
 	@bash -c '\
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
-		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
-		for file in docs/marimo/*.py; do \
+		files_requiring_mlir_opt=("docs/notebooks/mlir_interoperation.py"); \
+		for file in docs/notebooks/*.py docs/notebooks/Toy/*.py; do \
 			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
 					echo "Skipping $$file (mlir-opt is not available)"; \
@@ -131,17 +124,9 @@ tests-quiet: uv-installed ## run functional tests with minimal output
 	$(MAKE) tests-functional LIT_OPTIONS="$(LIT_OPTIONS_QUIET)" PYTEST_OPTIONS="$(PYTEST_OPTIONS_QUIET)"
 
 .PHONY: tests
-tests: tests-functional pyright ## run all tests
+tests: tests-functional typecheck ## run all tests
 	@echo All tests done.
 
-
-.PHONY: rerun-notebooks
-rerun-notebooks: uv-installed ## re-generate the output from all jupyter notebooks in the docs directory
-	uv run jupyter nbconvert \
-		--ClearMetadataPreprocessor.enabled=True \
-		--inplace \
-		--to notebook \
-		--execute docs/*.ipynb docs/Toy/*.ipynb
 
 .PHONY: precommit-install
 precommit-install: uv-installed ## set up all precommit hooks
@@ -151,10 +136,10 @@ precommit-install: uv-installed ## set up all precommit hooks
 precommit: uv-installed ## run all precommit hooks and apply them
 	uv run prek run --all-files
 
-.PHONY: pyright
-pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright
+.PHONY: typecheck
+typecheck: uv-installed ## generate typing stubs and type check staged Python files, or the project when none are staged
 	uv run xdsl-stubgen
-	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
+	uv run basedpyright $(shell git diff --staged --name-only  -- '*.py')
 
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files
@@ -166,7 +151,7 @@ coverage-tests: uv-installed ## use different coverage data file per coverage ru
 
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed ## run coverage over filecheck tests
-	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 .PHONY: coverage-report-html
 coverage-report-html: uv-installed ## generate html coverage report
@@ -203,15 +188,28 @@ SKIP_GEN_PAGES ?= 0
 # Set to 1 to skip the building of xDSL wheel
 SKIP_BUILD_WHEEL ?= 0
 
+.PHONY: docs-wheels
+docs-wheels: uv-installed
+	if [ "$(SKIP_BUILD_WHEEL)" = "1" ]; then echo "Skipping docs wheel builds (SKIP_BUILD_WHEEL=1)"; else SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --package xdsl --no-build-logs --no-verify-hashes -o $(CURDIR)/docs; SETUPTOOLS_SCM_PRETEND_VERSION='0.0.0' uv build --directory docs/Toy --no-build-logs --no-verify-hashes -o $(CURDIR)/docs; fi
+
+.PHONY: docs-notebooks
+docs-notebooks: uv-installed
+	uv run python scripts/gen_notebooks.py
+
+.PHONY: docs-reference
+docs-reference: uv-installed
+	SKIP_GEN_PAGES=$(SKIP_GEN_PAGES) uv run python scripts/gen_ref_pages.py
+
 
 .PHONY: docs-serve
-docs-serve: uv-installed
-	uv run mkdocs serve
+docs-serve: docs-wheels docs-notebooks docs-reference
+	uv run zensical serve
 
 .PHONY: docs-serve-fast
-docs-serve-fast: uv-installed
-	SKIP_GEN_PAGES=1 uv run mkdocs serve
+docs-serve-fast: SKIP_GEN_PAGES=1
+docs-serve-fast: docs-wheels docs-notebooks docs-reference
+	uv run zensical serve
 
 .PHONY: docs-build
-docs-build: uv-installed
-	uv run mkdocs build
+docs-build: docs-wheels docs-notebooks docs-reference
+	uv run zensical build --strict

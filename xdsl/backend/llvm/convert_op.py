@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
 )
 from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.utils.exceptions import LLVMTranslationException
 from xdsl.utils.type import get_element_type_or_self
 
 _BINARY_OP_MAP: dict[
@@ -105,6 +106,7 @@ _CAST_OP_NAMES: dict[type[Operation], str] = {
     llvm.IntToPtrOp: "inttoptr",
     llvm.BitcastOp: "bitcast",
     llvm.FPExtOp: "fpext",
+    llvm.FPTruncOp: "fptrunc",
     llvm.SIToFPOp: "sitofp",
 }
 
@@ -125,9 +127,7 @@ class CastInstrWithFlags(instructions.CastInstr):
         )
 
     def descr(self, buf: list[str]) -> None:
-        opname = (
-            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
-        )
+        opname = " ".join((self.opname, *self.flags))
         op = self.operands[0]
         buf.append(
             f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
@@ -220,12 +220,16 @@ def _convert_fneg(
     op: llvm.FNegOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     operand = val_map[op.arg]
-    val_map[op.res] = builder.fneg(operand)
+    val_map[op.res] = builder.fneg(
+        operand, flags=[f.value for f in op.fastmathFlags.data]
+    )
 
 
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
+    if op.op_bundle_operands or op.op_bundle_sizes:
+        raise NotImplementedError("Operand bundles not supported")
     args = [val_map[arg] for arg in op.args]
     if op.callee is None:
         raise NotImplementedError("Indirect calls not yet implemented")
@@ -373,6 +377,52 @@ def _convert_masked_store(
     builder.call(intrinsic, [value, ptr, alignment, mask])
 
 
+_FLOAT_TYPES = (ir.HalfType, ir.FloatType, ir.DoubleType)
+
+
+def intrinsic_suffix(t: ir.Type) -> str:
+    """Return the LLVM intrinsic name suffix for a type, e.g. 'f32' or 'v4f32'."""
+    if isinstance(t, ir.VectorType):
+        assert isinstance(t.element, _FLOAT_TYPES)
+        return f"v{t.count}{t.element.intrinsic_name}"
+    assert isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType, ir.IntType))
+    return t.intrinsic_name
+
+
+def declare_intrinsic(
+    module: ir.Module,
+    name: str,
+    ty: ir.Type,
+    fnty: ir.FunctionType,
+) -> ir.Function:
+    """Declare an LLVM intrinsic with a type-mangled name, reusing an existing declaration if present."""
+    full_name = f"{name}.{intrinsic_suffix(ty)}"
+    if full_name in module.globals:
+        return cast(ir.Function, module.globals[full_name])
+    return ir.Function(module, fnty, name=full_name)
+
+
+_VECTOR_REDUCE_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.VectorReduceFAddOp: "llvm.vector.reduce.fadd",
+    llvm.VectorReduceFMulOp: "llvm.vector.reduce.fmul",
+}
+
+
+def _convert_vector_reduce(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    start = val_map[op.operands[0]]
+    vector = val_map[op.operands[1]]
+    vec_type = vector.type
+    assert isinstance(vec_type, ir.VectorType)
+    elt_type = vec_type.element
+    fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
+    intrinsic = declare_intrinsic(
+        builder.module, _VECTOR_REDUCE_INTRINSIC_MAP[type(op)], vec_type, fn_type
+    )
+    val_map[op.results[0]] = builder.call(intrinsic, [start, vector])
+
+
 def _convert_fma(
     op: llvm.FMAOp,
     builder: ir.IRBuilder,
@@ -384,18 +434,8 @@ def _convert_fma(
     b = val_map[op.b]
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
-    _float_types = (ir.HalfType, ir.FloatType, ir.DoubleType)
-    if isinstance(res_type, ir.VectorType):
-        assert isinstance(res_type.element, _float_types)
-        name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
-    else:
-        assert isinstance(res_type, _float_types)
-        name = f"llvm.fma.{res_type.intrinsic_name}"
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    try:
-        intrinsic = builder.module.get_global(name)
-    except KeyError:
-        intrinsic = ir.Function(builder.module, fn_type, name=name)
+    intrinsic = declare_intrinsic(builder.module, "llvm.fma", res_type, fn_type)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
@@ -419,7 +459,7 @@ def _convert_call_intrinsic(
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
 ):
-    if op.op_bundle_operands:
+    if op.op_bundle_operands or op.op_bundle_sizes:
         raise NotImplementedError("Operand bundles not supported")
     if any(op.fastmathFlags.data):
         raise NotImplementedError("Fast-math flags not supported")
@@ -451,25 +491,20 @@ def _convert_shuffle_vector(
 
 
 _CONSTANT_VALUE_MAP: dict[type[Attribute], Callable[[Attribute], object]] = {
-    DenseIntOrFPElementsAttr: lambda v: list(
-        cast(DenseIntOrFPElementsAttr, v).iter_values()
-    ),
+    DenseIntOrFPElementsAttr: lambda v: cast(DenseIntOrFPElementsAttr, v).get_values(),
     IntegerAttr: lambda v: cast(IntegerAttr, v).value.data,
     FloatAttr: lambda v: cast(FloatAttr, v).value.data,
 }
 
 
-def _convert_constant(
-    op: llvm.ConstantOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
-    value = op.value
+def create_constant(result_type: Attribute, value: Attribute) -> ir.Constant:
     try:
         handler = _CONSTANT_VALUE_MAP[type(value)]
     except KeyError:
-        raise NotImplementedError(
+        raise LLVMTranslationException(
             f"Unsupported constant attribute type: {type(value)}"
         ) from None
-    val_map[op.result] = ir.Constant(convert_type(op.result.type), handler(value))
+    return ir.Constant(convert_type(result_type), handler(value))
 
 
 def convert_op(
@@ -507,6 +542,8 @@ def convert_op(
             _convert_unary_intrinsic(op, builder, val_map)
         case op if type(op) in _BINARY_INTRINSIC_MAP:
             _convert_binary_intrinsic(op, builder, val_map)
+        case op if type(op) in _VECTOR_REDUCE_INTRINSIC_MAP:
+            _convert_vector_reduce(op, builder, val_map)
         case llvm.FNegOp():
             _convert_fneg(op, builder, val_map)
         case llvm.CallOp():
@@ -562,6 +599,6 @@ def convert_op(
         case llvm.FMAOp():
             _convert_fma(op, builder, val_map)
         case llvm.ConstantOp():
-            _convert_constant(op, builder, val_map)
+            val_map[op.result] = create_constant(op.result.type, op.value)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

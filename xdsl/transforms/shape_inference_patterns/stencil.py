@@ -201,7 +201,8 @@ class ApplyOpShapeInference(RewritePattern):
             if isa(arg.type, TempType[Attribute]) and isinstance(
                 arg.type.bounds, StencilBoundsAttr
             ):
-                assert isa(ot := op.operands[i].type, TempType[Attribute])
+                ot = op.operands[i].type
+                assert isa(ot, TempType[Attribute])
                 new_bounds = arg.type.bounds | ot.bounds
                 if new_bounds != ot.bounds:
                     update_result_size(op.operands[i], new_bounds, rewriter)

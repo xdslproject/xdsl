@@ -42,12 +42,20 @@ Please take a look at the [Makefile](./Makefile)
 for the available commands such as running specific tests,
 running the documentation website locally, and others.
 
-To make a custom mlir-opt available in the virtual environment, set the
-`XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+MLIR/LLVM compatibility tests under `tests/filecheck/mlir-conversion/with-mlir/`
+are opt-in and require explicit paths to upstream tools:
 
-``` bash
-XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
-```
+- `XDSL_MLIR_OPT` — path to `mlir-opt`
+- `XDSL_MLIR_TRANSLATE` — path to `mlir-translate`
+- `XDSL_LLVM_DIFF` — path to `llvm-diff`
+- `XDSL_LLI` - path to `lli`
+
+If you use **Nix**, `nix develop` sets these automatically via the flake
+`shellHook` — no extra configuration is needed.
+
+If you do **not** use Nix, copy `.env.example` to `.env`, set the paths to your
+LLVM/MLIR build, and run `make filecheck` (the Makefile passes `.env` to `uv run`
+via `--env-file` when the file exists).
 
 ### Alternative installations
 
@@ -61,7 +69,7 @@ about missing dependencies, so run `make tests-functional` instead of
 
 The xDSL project uses pytest unit tests, LLVM-style filecheck tests and performance
 benchmarks. They can be executed from the root directory with `make tests` (which runs
-everything except benchmarks and also runs pyright for type checking).
+everything except benchmarks and also runs the type checker).
 
 ### Unit Tests
 
@@ -158,17 +166,17 @@ Configuration for linting and formatting is found in `pyproject.toml`.
 [Ruff](https://github.com/astral-sh/ruff) is used for linting and formatting.
 Configured in `[tool.ruff]`.
 
-[Pyright](https://github.com/microsoft/pyright) is used for static type checking.
-Configured in `[tool.pyright]`.
+[Basedpyright](https://github.com/DetachHead/basedpyright) is used for static type checking.
+Configured in `[tool.basedpyright]`.
 
 ```bash
 # Format code
 uv run ruff format
 
 # Type check code
-uv run pyright
+uv run basedpyright
 # or via makefile
-make pyright
+make typecheck
 ```
 
 > [!IMPORTANT]

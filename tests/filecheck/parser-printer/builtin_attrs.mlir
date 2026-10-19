@@ -40,6 +40,13 @@
 
   // CHECK: (bf16, f16, f32, f64, f80, f128)
 
+  "func.func"() ({
+    ^bb0(%arg0: tf32, %arg1: f8E5M2, %arg2: f8E4M3, %arg3: f8E4M3FN, %arg4: f8E5M2FNUZ, %arg5: f8E4M3FNUZ, %arg6: f8E4M3B11FNUZ, %arg7: f8E3M4, %arg8: f8E8M0FNU, %arg9: f6E2M3FN, %arg10: f6E3M2FN, %arg11: f4E2M1FN):
+    "func.return"() : () -> ()
+  }) {function_type = (tf32, f8E5M2, f8E4M3, f8E4M3FN, f8E5M2FNUZ, f8E4M3FNUZ, f8E4M3B11FNUZ, f8E3M4, f8E8M0FNU, f6E2M3FN, f6E3M2FN, f4E2M1FN) -> (), sym_name = "reduced_precision_float_type"} : () -> ()
+
+  // CHECK: (tf32, f8E5M2, f8E4M3, f8E4M3FN, f8E5M2FNUZ, f8E4M3FNUZ, f8E4M3B11FNUZ, f8E3M4, f8E8M0FNU, f6E2M3FN, f6E3M2FN, f4E2M1FN)
+
 
   "func.func"() ({}) {function_type = () -> (), value = 42.0 : f32, sym_name = "float_attr"} : () -> ()
 

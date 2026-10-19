@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | $XDSL_MLIR_OPT --allow-unregistered-dialect | filecheck %s
 
 builtin.module attributes  {"transform.with_named_sequence"} {
   transform.named_sequence @foo(%arg0: !transform.any_op {transform.readonly}) {

@@ -1,7 +1,7 @@
 // RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s
 
 %source, %index, %padding = "test.op"() : () -> (vector<4x3xf32>, index, f32)
-"vector.transfer_read"(%source, %index, %index, %padding) <{in_bounds=[true], operandSegmentSizes = array<i32: 1, 3, 1, 0>, permutation_map = affine_map<() -> (0)>}> : (vector<4x3xf32>, index, index, f32) -> vector<1x1x2x3xf32>
+"vector.transfer_read"(%source, %index, %index, %padding) <{in_bounds=[true], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<() -> (0)>}> : (vector<4x3xf32>, index, index, f32) -> vector<1x1x2x3xf32>
 // CHECK: operand 'source' at position 0 does not verify:
 // CHECK: Unexpected attribute vector<4x3xf32>
 

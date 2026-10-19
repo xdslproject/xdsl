@@ -10,11 +10,11 @@
 // CHECK-NEXT:   %lhs = "test.op"() : () -> vector<8xf32>
 // CHECK-NEXT:   %rhs = "test.op"() : () -> vector<8xf32>
 // CHECK-NEXT:   %acc = "test.op"() : () -> vector<8xf32>
-// CHECK-NEXT:   %lhs_1 = builtin.unrealized_conversion_cast %lhs : vector<8xf32> to !x86.avx2reg
-// CHECK-NEXT:   %rhs_1 = builtin.unrealized_conversion_cast %rhs : vector<8xf32> to !x86.avx2reg
-// CHECK-NEXT:   %acc_1 = builtin.unrealized_conversion_cast %acc : vector<8xf32> to !x86.avx2reg
+// CHECK-NEXT:   %lhs_1 = asm.to_reg %lhs : vector<8xf32> -> !x86.avx2reg
+// CHECK-NEXT:   %rhs_1 = asm.to_reg %rhs : vector<8xf32> -> !x86.avx2reg
+// CHECK-NEXT:   %acc_1 = asm.to_reg %acc : vector<8xf32> -> !x86.avx2reg
 // CHECK-NEXT:   %fma = x86.rss.vfmadd231ps %acc_1, %lhs_1, %rhs_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
-// CHECK-NEXT:   %fma_1 = builtin.unrealized_conversion_cast %fma : !x86.avx2reg to vector<8xf32>
+// CHECK-NEXT:   %fma_1 = asm.from_reg %fma : !x86.avx2reg -> vector<8xf32>
 // CHECK-NEXT:   "test.op"(%fma_1) : (vector<8xf32>) -> ()
 // CHECK-NEXT: }
 
@@ -30,11 +30,11 @@
 // CHECK-NEXT:   %lhs = "test.op"() : () -> vector<4xf64>
 // CHECK-NEXT:   %rhs = "test.op"() : () -> vector<4xf64>
 // CHECK-NEXT:   %acc = "test.op"() : () -> vector<4xf64>
-// CHECK-NEXT:   %lhs_1 = builtin.unrealized_conversion_cast %lhs : vector<4xf64> to !x86.avx2reg
-// CHECK-NEXT:   %rhs_1 = builtin.unrealized_conversion_cast %rhs : vector<4xf64> to !x86.avx2reg
-// CHECK-NEXT:   %acc_1 = builtin.unrealized_conversion_cast %acc : vector<4xf64> to !x86.avx2reg
+// CHECK-NEXT:   %lhs_1 = asm.to_reg %lhs : vector<4xf64> -> !x86.avx2reg
+// CHECK-NEXT:   %rhs_1 = asm.to_reg %rhs : vector<4xf64> -> !x86.avx2reg
+// CHECK-NEXT:   %acc_1 = asm.to_reg %acc : vector<4xf64> -> !x86.avx2reg
 // CHECK-NEXT:   %fma = x86.rss.vfmadd231pd %acc_1, %lhs_1, %rhs_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
-// CHECK-NEXT:   %fma_1 = builtin.unrealized_conversion_cast %fma : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT:   %fma_1 = asm.from_reg %fma : !x86.avx2reg -> vector<4xf64>
 // CHECK-NEXT:   "test.op"(%fma_1) : (vector<4xf64>) -> ()
 // CHECK-NEXT: }
 
@@ -63,9 +63,9 @@
 "test.op"(%broadcast) : (vector<4xf64>) -> ()
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %s = "test.op"() : () -> f64
-// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f64 to !x86.reg64
+// CHECK-NEXT:   %s_1 = asm.to_reg %s : f64 -> !x86.reg64
 // CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastq %s_1 : (!x86.reg64) -> !x86.avx2reg
-// CHECK-NEXT:   %broadcast_1 = builtin.unrealized_conversion_cast %broadcast : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT:   %broadcast_1 = asm.from_reg %broadcast : !x86.avx2reg -> vector<4xf64>
 // CHECK-NEXT:   "test.op"(%broadcast_1) : (vector<4xf64>) -> ()
 // CHECK-NEXT: }
 
@@ -76,9 +76,9 @@
 "test.op"(%broadcast) : (vector<8xf32>) -> ()
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %s = "test.op"() : () -> f32
-// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f32 to !x86.reg32
+// CHECK-NEXT:   %s_1 = asm.to_reg %s : f32 -> !x86.reg32
 // CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastd %s_1 : (!x86.reg32) -> !x86.avx2reg
-// CHECK-NEXT:   %broadcast_1 = builtin.unrealized_conversion_cast %broadcast : !x86.avx2reg to vector<8xf32>
+// CHECK-NEXT:   %broadcast_1 = asm.from_reg %broadcast : !x86.avx2reg -> vector<8xf32>
 // CHECK-NEXT:   "test.op"(%broadcast_1) : (vector<8xf32>) -> ()
 // CHECK-NEXT: }
 

@@ -58,7 +58,7 @@ class StencilStoreResultForwardPattern(RewritePattern):
     def match_and_rewrite(self, op: StoreResultOp, rewriter: PatternRewriter, /):
         if op.arg is None:
             return
-        rewriter.replace_op(op, [], [op.arg])
+        rewriter.replace(op, [], [op.arg])
 
 
 class StencilIfResultForwardPattern(RewritePattern):
@@ -74,7 +74,7 @@ class StencilIfResultForwardPattern(RewritePattern):
         ]
         if new_result_types == result_types:
             return
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             scf.IfOp(
                 op.cond,
@@ -191,9 +191,9 @@ class StencilReroutingPattern(RewritePattern):
         zero_offset = [0] * new_consumer.get_rank()
         for arg in new_consumer.region.block.args[-len(producer.res) :]:
             access = AccessOp(arg, zero_offset)
-            rewriter.insert_op(access, InsertPoint.before(return_op))
+            rewriter.insert(access, InsertPoint.before(return_op))
             return_operands.append(access.res)
-        rewriter.replace_op(return_op, ReturnOp(return_operands))
+        rewriter.replace(return_op, ReturnOp(return_operands))
 
         # Replace the producer's results by the rerouted consumer results
         rerouted_results = new_consumer.res[-len(producer.res) :]
@@ -203,9 +203,7 @@ class StencilReroutingPattern(RewritePattern):
                     continue
                 use.operation.operands[use.index] = rres
 
-        rewriter.replace_op(
-            consumer, new_consumer, new_consumer.res[: len(consumer.res)]
-        )
+        rewriter.replace(consumer, new_consumer, new_consumer.res[: len(consumer.res)])
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
@@ -319,11 +317,11 @@ class StencilInliningPattern(RewritePattern):
             accessed = return_op.arg[producer_index]
 
             # Remove the return, inline the computation, replace the access.
-            rewriter.erase_op(return_op)
+            rewriter.erase(return_op)
             rewriter.inline_block(
                 offsetted_block, InsertPoint.before(access), merged_producer_arguments
             )
-            rewriter.replace_op(access, [], [accessed])
+            rewriter.replace(access, [], [accessed])
 
         new_operands = operands
         for arg in reversed(list(merged_block.args)):
@@ -335,8 +333,8 @@ class StencilInliningPattern(RewritePattern):
             merged_block,
             [cast(TempType[Attribute], r.type) for r in consumer.results],
         )
-        rewriter.replace_op(consumer, new_apply)
-        rewriter.erase_op(producer)
+        rewriter.replace(consumer, new_apply)
+        rewriter.erase(producer)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):

@@ -32,8 +32,50 @@
 
 %lb, %ub = "test.op"() : () -> (!riscv.reg, !riscv.reg)
 
-riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : f32 {
+riscv_scf.for %i_static : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : f32 {
     yield
 }
 
 // CHECK: Expected IntegerAttr
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
+
+%result = riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+    riscv_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The riscv_scf.for must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
+%wrong = "test.op"() : () -> !riscv.reg<t1>
+
+%result = riscv_scf.for %i : !riscv.reg = %lb : !riscv.reg to %ub : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+    riscv_scf.yield %wrong : !riscv.reg<t1>
+}
+
+// CHECK: Expected !riscv.reg<t0>, got !riscv.reg<t1>. The riscv_scf.for's riscv_scf.yield must match carried variables types.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
+
+%result = riscv_scf.rof %i : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+    riscv_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The riscv_scf.rof must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg<t0>)
+%wrong = "test.op"() : () -> !riscv.reg<t1>
+
+%result = riscv_scf.rof %i : !riscv.reg = %ub : !riscv.reg down to %lb : !riscv.reg step 1 : si12 iter_args(%acc = %init) -> (!riscv.reg<t0>) {
+    riscv_scf.yield %wrong : !riscv.reg<t1>
+}
+
+// CHECK: Expected !riscv.reg<t0>, got !riscv.reg<t1>. The riscv_scf.rof's riscv_scf.yield must match carried variables types.

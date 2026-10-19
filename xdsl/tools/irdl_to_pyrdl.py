@@ -22,8 +22,8 @@ def main():
     args = arg_parser.parse_args()
 
     ctx = Context()
-    for dialect_factory in get_all_dialects().values():
-        ctx.load_dialect(dialect_factory())
+    for dialect_name, dialect_factory in get_all_dialects().items():
+        ctx.register_dialect(dialect_name, dialect_factory)
 
     # Parse the input file
     f = open(args.input_file)

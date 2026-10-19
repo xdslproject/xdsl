@@ -15,7 +15,7 @@ def convert_f16_to_u16(value: float) -> int:
     return struct.unpack("<H", struct.pack("<e", value))[0]
 
 
-def convert_u16_to_f16(value: int) -> int:
+def convert_u16_to_f16(value: int) -> float:
     """
     Convert an IEEE 754 float to a raw unsigned integer representation.
     """

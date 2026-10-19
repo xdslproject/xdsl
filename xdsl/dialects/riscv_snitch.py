@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, Literal, TypeAlias, cast
+from typing import ClassVar, Literal, Self, TypeAlias, cast
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
@@ -194,7 +194,8 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
-            assert isinstance(stream_type := stream_val.type, snitch.ReadableStreamType)
+            stream_type = stream_val.type
+            assert isinstance(stream_type, snitch.ReadableStreamType)
             stream_type = cast(snitch.ReadableStreamType[Attribute], stream_type)
             result_type = stream_type.element_type
         super().__init__(operands=[stream_val], result_types=[result_type])
@@ -363,7 +364,9 @@ class FRepOperation(RISCVInstruction):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        max_rep = parser.parse_operand()
+        max_rep_operand = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        max_rep = parser.resolve_operand(max_rep_operand, parser.parse_type())
         if parser.parse_optional_punctuation(","):
             stagger_mask = parser.parse_integer(False, False)
             parser.parse_punctuation(",")
@@ -419,6 +422,8 @@ class FRepOperation(RISCVInstruction):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_ssa_value(self.max_rep)
+        printer.print_string(" : ")
+        printer.print_attribute(self.max_rep.type)
         if self.stagger_count.value.data and self.stagger_mask.value.data:
             printer.print_string(", ")
             printer.print_int(self.stagger_count.value.data)

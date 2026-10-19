@@ -122,7 +122,7 @@ class RiscvToLLVMPattern(RewritePattern):
             op_results = output_op.results
 
         # map results back using result_map
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             ops_to_insert,
             [op_results[i] if isinstance(i, int) else i for i in result_map],

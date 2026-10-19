@@ -31,12 +31,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -70,13 +70,13 @@ class MachineOp(IRDLOperation):
 
     body = region_def()
 
-    sym_name = attr_def(SymbolNameConstraint())
-    initialState = attr_def(StringAttr)
-    function_type = attr_def(FunctionType)
-    arg_attrs = opt_attr_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_attr_def(ArrayAttr[DictionaryAttr])
-    arg_names = opt_attr_def(ArrayAttr[StringAttr])
-    res_names = opt_attr_def(ArrayAttr[StringAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    initialState = prop_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    arg_names = opt_prop_def(ArrayAttr[StringAttr])
+    res_names = opt_prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(NoTerminator(), SymbolTable(), SymbolOpInterface())
 
@@ -95,7 +95,7 @@ class MachineOp(IRDLOperation):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
 
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr(sym_name),
             "initialState": StringAttr(initial_state),
             "function_type": function_type,
@@ -107,7 +107,7 @@ class MachineOp(IRDLOperation):
         if not isinstance(body, Region):
             body = Region(Block())
 
-        super().__init__(attributes=attributes, regions=[body])
+        super().__init__(properties=properties, regions=[body])
 
     def verify_(self):
         if not SymbolTable.lookup_symbol(self, self.initialState):
@@ -143,7 +143,7 @@ class StateOp(IRDLOperation):
 
     transitions = region_def()
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), HasParent(MachineOp))
 
@@ -153,7 +153,7 @@ class StateOp(IRDLOperation):
         output: Region | type[Region.DEFAULT] = Region.DEFAULT,
         transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": StringAttr(sym_name),
         }
         if not isinstance(output, Region):
@@ -161,7 +161,7 @@ class StateOp(IRDLOperation):
         if not isinstance(transitions, Region):
             transitions = Region(Block())
         super().__init__(
-            attributes=attributes,
+            properties=properties,
             regions=[output, transitions],
         )
 
@@ -231,7 +231,7 @@ class TransitionOp(IRDLOperation):
 
     action = region_def()
 
-    nextState = attr_def(FlatSymbolRefAttrConstr)
+    nextState = prop_def(FlatSymbolRefAttrConstr)
 
     traits = traits_def(NoTerminator(), HasParent(StateOp))
 
@@ -243,7 +243,7 @@ class TransitionOp(IRDLOperation):
     ):
         if isinstance(nextState, str):
             nextState = SymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "nextState": nextState,
         }
         if not isinstance(action, Region):
@@ -251,7 +251,7 @@ class TransitionOp(IRDLOperation):
         if not isinstance(guard, Region):
             guard = Region(Block())
         super().__init__(
-            attributes=attributes,
+            properties=properties,
             regions=[guard, action],
         )
 
@@ -323,8 +323,8 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    initValue = attr_def()
-    name_var = opt_attr_def(StringAttr)
+    initValue = prop_def()
+    name_var = opt_prop_def(StringAttr)
 
     result = var_result_def(Attribute)
 
@@ -334,14 +334,14 @@ class VariableOp(IRDLOperation):
         name_var: str | None,
         result: Sequence[Attribute],
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "initValue": initValue,
         }
         if name_var is not None:
-            attributes["name_var"] = StringAttr(name_var)
+            properties["name_var"] = StringAttr(name_var)
         super().__init__(
             result_types=[result],
-            attributes=attributes,
+            properties=properties,
         )
 
 
@@ -376,9 +376,9 @@ class InstanceOp(IRDLOperation):
 
     name = "fsm.instance"
 
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
 
-    machine = attr_def(FlatSymbolRefAttrConstr)
+    machine = prop_def(FlatSymbolRefAttrConstr)
 
     res = result_def(InstanceType)
 
@@ -387,11 +387,11 @@ class InstanceOp(IRDLOperation):
     ):
         if isinstance(machine, str):
             machine = SymbolRefAttr(machine)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": StringAttr(sym_name),
             "machine": machine,
         }
-        super().__init__(result_types=[instance], attributes=attributes)
+        super().__init__(result_types=[instance], properties=properties)
 
     def verify_(self):
         if not isinstance(SymbolTable.lookup_symbol(self, self.machine), MachineOp):
@@ -465,8 +465,8 @@ class HWInstanceOp(IRDLOperation):
 
     name = "fsm.hw_instance"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    machine = attr_def(FlatSymbolRefAttrConstr)
+    sym_name = prop_def(SymbolNameConstraint())
+    machine = prop_def(FlatSymbolRefAttrConstr)
     inputs = var_operand_def()
     clock = operand_def(signlessIntegerLike)
     reset = operand_def(signlessIntegerLike)
@@ -488,14 +488,14 @@ class HWInstanceOp(IRDLOperation):
         reset = SSAValue.get(reset)
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": sym_name,
             "machine": machine,
         }
         super().__init__(
             operands=[inputs, clock, reset],
             result_types=[outputs],
-            attributes=attributes,
+            properties=properties,
         )
 
     def verify_(self):

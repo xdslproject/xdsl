@@ -1,9 +1,17 @@
 // RUN: xdsl-opt -t llvm %s | filecheck %s
 
-builtin.module {
+builtin.module attributes {llvm.target_triple = "test-test-test"} {
+  //      CHECK:  ; ModuleID = ""
+  // CHECK-NEXT:  target triple = "test-test-test"
+  // CHECK-NEXT:  datalayout = ""
+
   llvm.func @declaration()
 
   // CHECK: declare void @"declaration"()
+
+  llvm.func @printf(!llvm.ptr, ...) -> i32
+
+  // CHECK: declare i32 @"printf"(ptr {{.*}}, ...)
 
   llvm.func @noalias_all(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr {llvm.noalias}) {
     llvm.return
@@ -35,7 +43,7 @@ builtin.module {
   }
 
   // llvm.readonly is dropped. llvmlite prints in alphabetical order.
-  // CHECK: define i32 @"arg_attr_flags"(ptr nocapture nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
+  // CHECK: define i32 @"arg_attr_flags"(ptr captures(none) nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret i32 %".3"
@@ -495,7 +503,7 @@ builtin.module {
   // CHECK-NEXT:   unreachable
   // CHECK-NEXT: }
 
-  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) {
+  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) -> f32 {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
@@ -504,10 +512,11 @@ builtin.module {
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
     %7 = llvm.sitofp %arg0 : i32 to f32
-    llvm.return
+    %8 = llvm.fptrunc %6 : f64 to f32
+    llvm.return %8 : f32
   }
 
-  // CHECK: define void @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
+  // CHECK: define float @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
@@ -516,9 +525,10 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = ptrtoint ptr %".3" to i64
   // CHECK-NEXT:   {{%.+}} = inttoptr i64 %".2" to ptr
   // CHECK-NEXT:   {{%.+}} = bitcast i64 %".2" to double
-  // CHECK-NEXT:   {{%.+}} = fpext float %".4" to double
+  // CHECK-NEXT:   [[EXT:%.+]] = fpext float %".4" to double
   // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
-  // CHECK-NEXT:   ret void
+  // CHECK-NEXT:   [[TRUNC:%.+]] = fptrunc double [[EXT]] to float
+  // CHECK-NEXT:   ret float [[TRUNC]]
   // CHECK-NEXT: }
 
   llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {
@@ -593,7 +603,7 @@ builtin.module {
 
   // void gep_inbounds(int* ptr, int idx) {
   //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
-  //   int* result = &ptr[idx]; 
+  //   int* result = &ptr[idx];
   // }
   llvm.func @gep_inbounds(%arg0: !llvm.ptr, %arg1: i32) {
     %0 = llvm.getelementptr inbounds %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
@@ -879,14 +889,16 @@ builtin.module {
 
   llvm.func @fneg_op(%arg0: f32) -> f32 {
     %0 = llvm.fneg %arg0 : f32
-    llvm.return %0 : f32
+    %1 = llvm.fneg %0 {fastmathFlags = #llvm.fastmath<nnan, ninf>} : f32
+    llvm.return %1 : f32
   }
 
   // CHECK: define float @"fneg_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = fneg float %".1"
-  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT:   %"[[FLAGGED:.\d+]]" = fneg {{(nnan ninf|ninf nnan)}} float %"[[RES]]"
+  // CHECK-NEXT:   ret float %"[[FLAGGED]]"
   // CHECK-NEXT: }
 
   // forward_ref_caller calls forward_ref_callee which is defined AFTER it
@@ -1114,5 +1126,53 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fadd_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fadd.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fadd_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fadd.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fmul_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fmul.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fmul_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fmul.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
   // CHECK-NEXT: }
 }

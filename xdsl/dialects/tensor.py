@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
-    AnySignlessIntegerOrIndexType,
+    AnySignlessIntegerType,
     ArrayAttr,
     ArrayOfConstraint,
     DenseArrayBase,
@@ -27,6 +25,8 @@ from xdsl.dialects.utils import (
     DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
+    split_dynamic_index_list,
+    verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
@@ -171,7 +171,8 @@ class ConcatOp(IRDLOperation):
 
     @staticmethod
     def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
-        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
+        """
+        Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
         expected length of the non-concatenated dimension.
         """
         dim = DYNAMIC_INDEX
@@ -185,7 +186,8 @@ class ConcatOp(IRDLOperation):
         return dim
 
     def _verify_result_shape(self, inferred_shape: tuple[int, ...]) -> None:
-        """Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
+        """
+        Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
 
         Raises a VerifyException is any dimension that is not ``DYNAMIC_INDEX`` in either ``inferred_shape`` or the result type
         shape is unequal between the inferred size and the result type shape's dimension size.
@@ -364,7 +366,7 @@ class ReshapeOp(IRDLOperation):
     name = "tensor.reshape"
 
     source = operand_def(TensorType[Attribute])
-    shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
+    shape = operand_def(TensorType[AnySignlessIntegerType | IndexType])
     result = result_def(TensorType[Attribute])
     assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
@@ -426,10 +428,6 @@ class ExpandShapeOp(IRDLOperation):
 
     https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop
     """
-
-    # Constant value used to denote dynamic indices in offsets, sizes, and strides.
-    # Same constant as in MLIR.
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
 
     name = "tensor.expand_shape"
 
@@ -493,7 +491,7 @@ class ExpandShapeOp(IRDLOperation):
 
         # Parse shape: mixture of ints and SSA values
         dyn_shape, static_shape = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=cls.DYNAMIC_INDEX
+            parser, dynamic_index=DYNAMIC_INDEX
         )
 
         dyn_shape = parser.resolve_operands(
@@ -523,7 +521,7 @@ class ExpandShapeOp(IRDLOperation):
         printer.print_string(" output_shape ")
         print_dynamic_index_list(
             printer,
-            self.DYNAMIC_INDEX,
+            DYNAMIC_INDEX,
             self.dynamic_output_shape,
             self.static_output_shape.get_values(),
         )
@@ -561,6 +559,88 @@ class ExtractSliceOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(Pure())
+
+    assembly_format = (
+        "$source ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def verify_(self) -> None:
+        verify_dynamic_index_list(
+            self.static_offsets.get_values(),
+            self.offsets,
+            DYNAMIC_INDEX,
+            " in the offset arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_sizes.get_values(),
+            self.sizes,
+            DYNAMIC_INDEX,
+            " in the size arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_strides.get_values(),
+            self.strides,
+            DYNAMIC_INDEX,
+            " in the stride arguments",
+        )
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ):
+        """
+        Build a tensor.extract_slice from offsets, sizes, and strides that may each
+        be a static integer or a dynamic SSA value.
+        """
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
+
+        super().__init__(
+            operands=[source, dyn_offsets, dyn_sizes, dyn_strides],
+            result_types=[result_type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, static_offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, static_sizes),
+                "static_strides": DenseArrayBase.from_list(i64, static_strides),
+            },
+        )
+
+    @staticmethod
+    def infer_result_type(
+        source_type: TensorType[Attribute],
+        sizes: Sequence[SSAValue | int],
+    ) -> TensorType[Attribute]:
+        """
+        Infer the result type of a tensor.extract_slice from its source type and
+        sizes. Offsets and strides do not affect the result shape.
+
+        Raises:
+            ValueError: If sizes do not match the source rank.
+        """
+        rank = source_type.get_num_dims()
+        if len(sizes) != rank:
+            raise ValueError("expected sizes to match source rank")
+
+        result_shape = tuple(
+            size if isinstance(size, int) else DYNAMIC_INDEX for size in sizes
+        )
+
+        return TensorType(
+            source_type.get_element_type(),
+            result_shape,
+            source_type.encoding,
+        )
 
     @staticmethod
     def from_static_parameters(
@@ -607,19 +687,53 @@ class InsertSliceOp(IRDLOperation):
 
     name = "tensor.insert_slice"
 
+    # An insert_slice returns a copy of its destination, so the two share a type.
+    # The syntax leaves the result type off, and takes it from the destination.
+    DEST_TYPE: ClassVar = VarConstraint("DEST_TYPE", base(TensorType))
+
     source = operand_def(TensorType)
-    dest = operand_def(TensorType)
+    dest = operand_def(DEST_TYPE)
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
     static_offsets = prop_def(DenseArrayBase.constr(i64))
     static_sizes = prop_def(DenseArrayBase.constr(i64))
     static_strides = prop_def(DenseArrayBase.constr(i64))
-    result = result_def(TensorType)
+    result = result_def(DEST_TYPE)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(Pure())
+
+    assembly_format = (
+        "$source `into` $dest ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `into` type($dest)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def verify_(self) -> None:
+        verify_dynamic_index_list(
+            self.static_offsets.get_values(),
+            self.offsets,
+            DYNAMIC_INDEX,
+            " in the offset arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_sizes.get_values(),
+            self.sizes,
+            DYNAMIC_INDEX,
+            " in the size arguments",
+        )
+        verify_dynamic_index_list(
+            self.static_strides.get_values(),
+            self.strides,
+            DYNAMIC_INDEX,
+            " in the stride arguments",
+        )
 
     @staticmethod
     def get(
@@ -710,10 +824,12 @@ class ExtractOp(IRDLOperation):
 
     name = "tensor.extract"
 
-    tensor = operand_def(TensorType)
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+
+    tensor = operand_def(TensorType.constr(ELEMENT))
     indices = var_operand_def(IndexType)
-    result = result_def(Attribute)
-    # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+    result = result_def(ELEMENT)
+    assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
     traits = traits_def(Pure())
 
     def __init__(
@@ -725,26 +841,6 @@ class ExtractOp(IRDLOperation):
         if isinstance(indices, SSAValue):
             indices = [indices]
         return super().__init__(operands=[tensor, indices], result_types=[result_type])
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.tensor)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_ssa_value)
-        printer.print_string("]")
-        printer.print_string(" : ")
-        printer.print_attribute(self.tensor.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        tensor = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
-        parser.parse_punctuation(":")
-        source_tensor_type = parser.parse_type()
-        tensor_type = cast(TensorType[Attribute], source_tensor_type)
-        return cls(tensor, indices, tensor_type.get_element_type())
 
 
 @irdl_op_definition
@@ -761,11 +857,14 @@ class InsertOp(IRDLOperation):
 
     name = "tensor.insert"
 
-    scalar = operand_def(Attribute)
-    dest = operand_def(TensorType)
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+    TENSOR: ClassVar = VarConstraint("TENSOR", TensorType.constr(ELEMENT))
+
+    scalar = operand_def(ELEMENT)
+    dest = operand_def(TENSOR)
     indices = var_operand_def(IndexType)
-    result = result_def(TensorType)
-    # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+    result = result_def(TENSOR)
+    assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
     traits = traits_def(Pure())
 
     def __init__(
@@ -777,29 +876,6 @@ class InsertOp(IRDLOperation):
         if isinstance(indices, SSAValue):
             indices = [indices]
         super().__init__(operands=(scalar, dest, indices), result_types=(dest.type,))
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.scalar)
-        printer.print_string(" into ")
-        printer.print_ssa_value(self.dest)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_ssa_value)
-        printer.print_string("]")
-        printer.print_string(" : ")
-        printer.print_attribute(self.dest.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        scalar = parser.parse_operand()
-        parser.parse_characters("into")
-        dest = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(scalar, dest, indices)
 
 
 @irdl_op_definition
@@ -829,7 +905,7 @@ class FromElementsOp(IRDLOperation):
         *tail_elements: SSAValue,
         result_type: Attribute | None = None,
     ):
-        elements = (head_element,) + tail_elements
+        elements = (head_element, *tail_elements)
 
         if result_type is None:
             result_type = TensorType(head_element.type, (len(elements),))
@@ -952,24 +1028,26 @@ class PadOp(IRDLOperation):
                 f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
                 " must have an equal number of dimensions"
             )
-        source_type = self.source.type
-        if isinstance(source_type, TensorType) and len(self.static_low) != len(
-            source_type.get_shape()
-        ):
+        source_type = cast(TensorType[Attribute], self.source.type)  # verified by IRDL
+        source_shape = source_type.get_shape()
+        if len(self.static_low) != len(source_shape):
             raise VerifyException(
                 f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
                 f" in source tensor ({len(source_type.get_shape())})"
             )
+        # A result dim is dynamic when the source dim is dynamic
+        # OR either pad amount on that dim is dynamic.
         dynamic_dims = tuple(
             i
-            for i, (l, h) in enumerate(
+            for i, i_dims in enumerate(
                 zip(
+                    source_shape,
                     self.static_low.get_values(),
                     self.static_high.get_values(),
                     strict=True,
                 )
             )
-            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+            if DYNAMIC_INDEX in i_dims
         )
         result_dynamic_dims = tuple(
             i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX

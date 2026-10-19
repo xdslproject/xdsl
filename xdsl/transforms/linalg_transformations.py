@@ -77,9 +77,9 @@ class FuseMultiplyAddPass(RewritePattern):
             )
 
             # replace in position of the add op
-            rewriter.replace_op(add, fma)
+            rewriter.replace(add, fma)
             if not mul.res[0].uses:
-                rewriter.erase_op(mul)
+                rewriter.erase(mul)
 
     @staticmethod
     def is_scalar_constant(op: SSAValue) -> bool:

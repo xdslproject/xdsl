@@ -6,7 +6,7 @@ builtin.module {
         %zero = rv32.li 0 : !riscv.reg<a2>
         %step = rv32.li 4 : !riscv.reg<a3>
         %forty = rv32.li 40 : !riscv.reg<a4>
-        riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step %step {
+        riscv_scf.for %offset : !riscv.reg<a5> = %zero : !riscv.reg<a2> to %forty : !riscv.reg<a4> step %step : !riscv.reg<a3> {
             %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
             %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
             %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
@@ -23,7 +23,7 @@ builtin.module {
 // CHECK-NEXT:      %step = rv32.li 4 : !riscv.reg<a3>
 // CHECK-NEXT:      %forty = rv32.li 40 : !riscv.reg<a4>
 // CHECK-NEXT:      %0 = riscv.mv %zero : (!riscv.reg<a2>) -> !riscv.reg<a5>
-// CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb0(%0 : !riscv.reg<a5>), ^bb1(%0 : !riscv.reg<a5>)
+// CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb2(%0 : !riscv.reg<a5>), ^bb1(%0 : !riscv.reg<a5>)
 // CHECK-NEXT:    ^bb1(%offset: !riscv.reg<a5>):
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
@@ -31,8 +31,8 @@ builtin.module {
 // CHECK-NEXT:      %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
 // CHECK-NEXT:      riscv.sw %dstptr, %val, 0 : (!riscv.reg<a7>, !riscv.reg<t0>) -> ()
 // CHECK-NEXT:      %1 = riscv.add %offset, %step : (!riscv.reg<a5>, !riscv.reg<a3>) -> !riscv.reg<a5>
-// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb1(%1 : !riscv.reg<a5>), ^bb0(%1 : !riscv.reg<a5>)
-// CHECK-NEXT:    ^bb0(%2: !riscv.reg<a5>):
+// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb1(%1 : !riscv.reg<a5>), ^bb2(%1 : !riscv.reg<a5>)
+// CHECK-NEXT:    ^bb2(%2: !riscv.reg<a5>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
@@ -47,7 +47,7 @@ builtin.module {
     riscv_func.func @sum_range(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
         %2 = rv32.li 1 : !riscv.reg<a2>
         %3 = rv32.li 0 : !riscv.reg<a3>
-        %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) {
+        %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 : !riscv.reg<a0> to %1 : !riscv.reg<a1> step %2 : !riscv.reg<a2> iter_args(%6 = %3) -> (!riscv.reg<a3>) {
             %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
             riscv_scf.yield %7 : !riscv.reg<a3>
         }
@@ -61,13 +61,13 @@ builtin.module {
 // CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a2>
 // CHECK-NEXT:      %3 = rv32.li 0 : !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.bge %4 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^bb0(%4 : !riscv.reg<a4>, %3 : !riscv.reg<a3>), ^bb1(%4 : !riscv.reg<a4>, %3 : !riscv.reg<a3>)
+// CHECK-NEXT:      riscv_cf.bge %4 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^bb2(%4 : !riscv.reg<a4>, %3 : !riscv.reg<a3>), ^bb1(%4 : !riscv.reg<a4>, %3 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^bb1(%5: !riscv.reg<a4>, %6: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
 // CHECK-NEXT:      %8 = riscv.add %5, %2 : (!riscv.reg<a4>, !riscv.reg<a2>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.blt %8 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^bb1(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>), ^bb0(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>)
-// CHECK-NEXT:    ^bb0(%9: !riscv.reg<a4>, %10: !riscv.reg<a3>):
+// CHECK-NEXT:      riscv_cf.blt %8 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^bb1(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>), ^bb2(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>)
+// CHECK-NEXT:    ^bb2(%9: !riscv.reg<a4>, %10: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      %11 = riscv.mv %10 : (!riscv.reg<a3>) -> !riscv.reg<a0>
 // CHECK-NEXT:      riscv_func.return %11 : !riscv.reg<a0>
@@ -81,10 +81,10 @@ builtin.module {
         %0 = rv32.li 0 : !riscv.reg<a1>
         %1 = rv32.li 0 : !riscv.reg<a2>
         %2 = rv32.li 1 : !riscv.reg<a3>
-        %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 to %arg0 step %2 iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
+        %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 : !riscv.reg<a2> to %arg0 : !riscv.reg<a0> step %2 : !riscv.reg<a3> iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
             %4 = rv32.li 0 : !riscv.reg<a4>
             %5 = rv32.li 1 : !riscv.reg<a5>
-            %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 to %arg0 step %5 iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
+            %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 : !riscv.reg<a4> to %arg0 : !riscv.reg<a0> step %5 : !riscv.reg<a5> iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
                 %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
                 %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
                 riscv_scf.yield %8 : !riscv.reg<a1>
@@ -101,24 +101,24 @@ builtin.module {
 // CHECK-NEXT:      %1 = rv32.li 0 : !riscv.reg<a2>
 // CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a3>
 // CHECK-NEXT:      %3 = riscv.mv %1 : (!riscv.reg<a2>) -> !riscv.reg<a2>
-// CHECK-NEXT:      riscv_cf.bge %3 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^bb0(%3 : !riscv.reg<a2>, %0 : !riscv.reg<a1>), ^bb1(%3 : !riscv.reg<a2>, %0 : !riscv.reg<a1>)
+// CHECK-NEXT:      riscv_cf.bge %3 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^bb4(%3 : !riscv.reg<a2>, %0 : !riscv.reg<a1>), ^bb1(%3 : !riscv.reg<a2>, %0 : !riscv.reg<a1>)
 // CHECK-NEXT:    ^bb1(%arg1: !riscv.reg<a2>, %arg2: !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_1_for"
 // CHECK-NEXT:      %4 = rv32.li 0 : !riscv.reg<a4>
 // CHECK-NEXT:      %5 = rv32.li 1 : !riscv.reg<a5>
 // CHECK-NEXT:      %6 = riscv.mv %4 : (!riscv.reg<a4>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.bge %6 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^bb2(%6 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>), ^bb3(%6 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>)
-// CHECK-NEXT:    ^bb3(%arg3: !riscv.reg<a4>, %arg4: !riscv.reg<a1>):
+// CHECK-NEXT:      riscv_cf.bge %6 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^bb3(%6 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>), ^bb2(%6 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>)
+// CHECK-NEXT:    ^bb2(%arg3: !riscv.reg<a4>, %arg4: !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
 // CHECK-NEXT:      %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
 // CHECK-NEXT:      %9 = riscv.add %arg3, %5 : (!riscv.reg<a4>, !riscv.reg<a5>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.blt %9 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^bb3(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>), ^bb2(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>)
-// CHECK-NEXT:    ^bb2(%10: !riscv.reg<a4>, %11: !riscv.reg<a1>):
+// CHECK-NEXT:      riscv_cf.blt %9 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^bb2(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>), ^bb3(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>)
+// CHECK-NEXT:    ^bb3(%10: !riscv.reg<a4>, %11: !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      %12 = riscv.add %arg1, %2 : (!riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a2>
-// CHECK-NEXT:      riscv_cf.blt %12 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^bb1(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>), ^bb0(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>)
-// CHECK-NEXT:    ^bb0(%13: !riscv.reg<a2>, %14: !riscv.reg<a1>):
+// CHECK-NEXT:      riscv_cf.blt %12 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^bb1(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>), ^bb4(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>)
+// CHECK-NEXT:    ^bb4(%13: !riscv.reg<a2>, %14: !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_end_1_for"
 // CHECK-NEXT:      riscv_func.return %14 : !riscv.reg<a1>
 // CHECK-NEXT:    }
@@ -130,7 +130,7 @@ builtin.module {
 riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg<a1>) {
     %zero = rv32.li 0 : !riscv.reg<a2>
     %forty = rv32.li 40 : !riscv.reg<a4>
-    riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step 4 : si12 {
+    riscv_scf.for %offset : !riscv.reg<a5> = %zero : !riscv.reg<a2> to %forty : !riscv.reg<a4> step 4 : si12 {
         %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
         %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
         %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
@@ -144,7 +144,7 @@ riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg
 // CHECK-NEXT:      %zero = rv32.li 0 : !riscv.reg<a2>
 // CHECK-NEXT:      %forty = rv32.li 40 : !riscv.reg<a4>
 // CHECK-NEXT:      %0 = riscv.mv %zero : (!riscv.reg<a2>) -> !riscv.reg<a5>
-// CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb0(%0 : !riscv.reg<a5>), ^bb1(%0 : !riscv.reg<a5>)
+// CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb2(%0 : !riscv.reg<a5>), ^bb1(%0 : !riscv.reg<a5>)
 // CHECK-NEXT:    ^bb1(%offset: !riscv.reg<a5>):
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
@@ -152,8 +152,8 @@ riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg
 // CHECK-NEXT:      %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
 // CHECK-NEXT:      riscv.sw %dstptr, %val, 0 : (!riscv.reg<a7>, !riscv.reg<t0>) -> ()
 // CHECK-NEXT:      %1 = riscv.addi %offset, 4 : (!riscv.reg<a5>) -> !riscv.reg<a5>
-// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb1(%1 : !riscv.reg<a5>), ^bb0(%1 : !riscv.reg<a5>)
-// CHECK-NEXT:    ^bb0(%2: !riscv.reg<a5>):
+// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb1(%1 : !riscv.reg<a5>), ^bb2(%1 : !riscv.reg<a5>)
+// CHECK-NEXT:    ^bb2(%2: !riscv.reg<a5>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
@@ -163,7 +163,7 @@ riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg
 %lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
 %acc = rv32.li 0 : !riscv.reg<a2>
 
-%res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
+%res = riscv_scf.for %i : !riscv.reg<a3> = %lb : !riscv.reg<a0> to %ub : !riscv.reg<a1> step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
     %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
     riscv_scf.yield %next : !riscv.reg<a2>
 }

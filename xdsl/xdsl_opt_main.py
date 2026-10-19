@@ -2,11 +2,12 @@ import argparse
 import dataclasses
 import inspect
 import sys
+import time
 from collections.abc import Callable, Sequence
 from importlib.metadata import version
-from io import StringIO
+from io import BytesIO, StringIO
 from itertools import accumulate
-from typing import IO, Any, cast
+from typing import IO, Any, ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -18,7 +19,6 @@ from xdsl.universe import Universe
 from xdsl.utils.arg_spec import parse_spec
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
-from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
 
 
@@ -47,6 +47,12 @@ class xDSLOptMain(CommandLineTool):
 
     pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
+
+    version_format: ClassVar[str] = "xdsl-opt built from xdsl version {xdsl_version}"
+    """
+    Format string for the message printed by `--version`. `{xdsl_version}` is
+    replaced by the installed xDSL version.
+    """
 
     def __init__(
         self,
@@ -99,12 +105,11 @@ class xDSLOptMain(CommandLineTool):
                     module = self.parse_chunk(chunk, file_extension, offset)
 
                     if module is not None:
-                        if self.apply_passes(module):
-                            output_stream.write(self.output_resulting_program(module))
+                        self.apply_passes(module)
+                        output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
                 except ParseError as e:
-                    s = e.span
-                    e.span = Span(s.start, s.end, s.input, offset)
+                    e.span = dataclasses.replace(e.span, line_offset=offset)
                     if self.args.parsing_diagnostics:
                         print(e)
                     else:
@@ -173,6 +178,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--time-passes",
+            default=False,
+            action="store_true",
+            help="Print timing information for each pass",
+        )
+
+        arg_parser.add_argument(
             "--verify-diagnostics",
             default=False,
             action="store_true",
@@ -228,6 +240,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
+            version_format=self.version_format,
         )
 
         arg_parser.add_argument(
@@ -270,16 +283,29 @@ class xDSLOptMain(CommandLineTool):
         Fails, if not all passes are registered.
         """
 
+        start_timer = time.perf_counter()
+
         def callback(
-            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+            previous_pass: ModulePass | None,
+            module: ModuleOp,
+            next_pass: ModulePass | None,
         ) -> None:
+            nonlocal start_timer
+            if self.args.time_passes and previous_pass is not None:
+                end_timer = time.perf_counter()
+                duration = end_timer - start_timer
+                print(f"Pass {previous_pass.name} took {duration} seconds")
+
             if not self.args.disable_verify:
                 module.verify()
-            if self.args.print_between_passes:
+            if previous_pass and next_pass and self.args.print_between_passes:
                 print(f"IR after {previous_pass.name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(module)
                 print("\n\n\n")
+
+            if self.args.time_passes and next_pass is not None:
+                start_timer = time.perf_counter()
 
         self.pipeline = PassPipeline.parse_spec(
             self.available_passes,
@@ -287,7 +313,7 @@ class xDSLOptMain(CommandLineTool):
             callback,
         )
 
-    def prepare_input(self) -> tuple[list[tuple[IO[str], int]], str]:
+    def prepare_input(self) -> tuple[list[tuple[IO[bytes], int]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -296,17 +322,17 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: list[tuple[IO[str], int]] = []
+        chunks: list[tuple[IO[bytes], int]] = []
         f, file_extension = self.get_input_stream()
         chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_bytes = f.read().split(b"// -----")
             chunks_off = accumulate(
-                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
+                [0, *[chunk.count(b"\n") for chunk in chunks_bytes[:-1]]]
             )
             chunks = [
-                (StringIO(chunk), off)
-                for chunk, off in zip(chunks_str, chunks_off, strict=True)
+                (BytesIO(chunk), off)
+                for chunk, off in zip(chunks_bytes, chunks_off, strict=True)
             ]
             f.close()
         if self.args.frontend:
@@ -325,14 +351,9 @@ class xDSLOptMain(CommandLineTool):
         else:
             return open(self.args.output_file, "w")
 
-    def apply_passes(self, prog: ModuleOp) -> bool:
+    def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
-        if not self.args.disable_verify:
-            prog.verify()
         self.pipeline.apply(self.ctx, prog)
-        if not self.args.disable_verify:
-            prog.verify()
-        return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
@@ -370,8 +391,16 @@ class xDSLOptMain(CommandLineTool):
 
 
 class VersionAction(argparse.Action):
-    def __init__(self, *args: Any, **kwargs: Any):
+    version_format: str
+
+    def __init__(
+        self,
+        *args: Any,
+        version_format: str = xDSLOptMain.version_format,
+        **kwargs: Any,
+    ):
         super().__init__(nargs=0, *args, **kwargs)
+        self.version_format = version_format
 
     def __call__(
         self,
@@ -380,5 +409,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        print(self.version_format.format(xdsl_version=version("xdsl")))
         parser.exit()

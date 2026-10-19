@@ -1,4 +1,5 @@
-"""Custom xDSL exceptions.
+"""
+Custom xDSL exceptions.
 
 This module contains all custom exceptions used by xDSL.
 """
@@ -89,7 +90,7 @@ class ShrinkException(Exception):
     pass
 
 
-class InterpretationError(Exception):
+class InterpretationError(DiagnosticException):
     """
     An error that can be raised during interpretation, or Interpreter setup.
     """
@@ -116,7 +117,7 @@ class BuilderNotFoundException(Exception):
 
 @dataclass
 class ParseError(Exception):
-    span: Span
+    span: Span[str] | Span[bytes]
     msg: str
 
     def __str__(self) -> str:
@@ -126,7 +127,7 @@ class ParseError(Exception):
 @dataclass
 class MultipleSpansParseError(ParseError):
     ref_text: str | None
-    refs: list[tuple[Span, str | None]]
+    refs: list[tuple[Span[str] | Span[bytes], str | None]]
 
     def __str__(self) -> str:
         res = self.span.print_with_context(self.msg)
@@ -145,9 +146,13 @@ class ArgSpecParseError(BaseException):
         )
 
 
-class LLVMTranslationException(Exception):
+class LLVMTranslationException(DiagnosticException):
     """
     Exception raised during LLVM translation.
     """
 
-    pass
+
+class JITException(DiagnosticException):
+    """
+    Exception raised during JIT compilation.
+    """

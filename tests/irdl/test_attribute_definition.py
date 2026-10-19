@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias, cast
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -26,16 +26,14 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.dialects.utils import BitEnumAttribute
+from xdsl.dialects.utils import BitEnumAttribute, EnumAttribute
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
     BuiltinAttribute,
     Data,
-    EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    StrEnum,
     TypedAttribute,
 )
 from xdsl.irdl import (
@@ -44,7 +42,6 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
-    ConstraintContext,
     GenericData,
     IntConstraint,
     MessageConstraint,
@@ -53,6 +50,7 @@ from xdsl.irdl import (
     ParamDef,
     TypeVarConstraint,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     param_def,
@@ -61,6 +59,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 
 def test_wrong_attribute_type():
@@ -70,7 +69,7 @@ def test_wrong_attribute_type():
     ):
 
         @irdl_attr_definition
-        class AbstractAttribute(Attribute):  # pyright: ignore[reportUnusedClass]
+        class AbstractAttribute(Attribute):
             name = "test.wrong"
             pass
 
@@ -198,7 +197,8 @@ def test_enum_attribute():
 def test_indirect_enum_guard():
     EnumType = TypeVar("EnumType", bound=StrEnum)
     with pytest.raises(
-        TypeError, match="Only direct inheritance from EnumAttribute is allowed."
+        TypeError,
+        match=re.escape("Only direct inheritance from EnumAttribute is allowed."),
     ):
 
         class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
@@ -214,9 +214,7 @@ def test_attribute_def_with_non_identifier_enum():
     """
 
     @irdl_attr_definition
-    class TestNonIdentifierEnumAttr(  # pyright: ignore[reportUnusedClass]
-        EnumAttribute[TestNonIdentifierEnum]
-    ):
+    class TestNonIdentifierEnumAttr(EnumAttribute[TestNonIdentifierEnum]):
         name = "test.non_identifier_enum"
 
 
@@ -418,13 +416,11 @@ def test_bit_enum_illegal_subclass():
 def test_typed_attribute():
     with pytest.raises(
         PyRDLAttrDefinitionError,
-        match="TypedAttribute TypedAttr should have a 'type' parameter.",
+        match=re.escape("TypedAttribute TypedAttr should have a 'type' parameter."),
     ):
 
         @irdl_attr_definition
-        class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute
-        ):
+        class TypedAttr(TypedAttribute):
             name = "test.typed"
 
 
@@ -473,6 +469,59 @@ def test_typed_attribute_parsing_printing():
     assert attr == TypedAttr(IntAttr(42), i32)
 
     assert str(attr) == "#test.typed<42> : i32"
+
+
+################################################################################
+# Parameterized Attribute
+################################################################################
+
+
+def test_parameterized_attribute_verify_called():
+    """Test that a custom verify method of a ParametrizedAttribute is called."""
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        def verify(self):
+            raise VerifyException("Always fails")
+
+    with pytest.raises(VerifyException, match="Always fails"):
+        MyAttr()
+
+
+def test_parameterized_attribute_verify_constraints():
+    """Test that a ParametrizedAttribute verifies its given child attribute constraints."""
+
+    class FailConstraint(AttrConstraint[NoneAttr]):
+        def verify(self, attr: Attribute, constraint_context: VerificationContext):
+            raise VerifyException("Always fails")
+
+        def mapping_type_vars(
+            self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        ) -> FailConstraint:
+            return self
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        child_1: NoneAttr
+        child_2: NoneAttr = param_def(FailConstraint())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "parameter 'child_1' does not verify:\n#builtin.int<1> should be of base attribute none"
+        ),
+    ):
+        MyAttr(cast(NoneAttr, IntAttr(1)), NoneAttr())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("parameter 'child_2' does not verify:\nAlways fails"),
+    ):
+        MyAttr(NoneAttr(), NoneAttr())
 
 
 ################################################################################
@@ -539,7 +588,8 @@ def test_bose_constraint():
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(
-        VerifyException, match="#test.str<foo> should be of base attribute test.bool"
+        VerifyException,
+        match=re.escape("#test.str<foo> should be of base attribute test.bool"),
     ):
         BoolWrapperAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
@@ -576,7 +626,9 @@ def test_union_constraint_right():
 
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
-    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+    ):
         BoolOrIntParamAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
 
@@ -586,7 +638,7 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -618,7 +670,9 @@ def test_annotated_constraint():
 
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
-    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected positive integer, got -42.")
+    ):
         PositiveIntAttr(IntData(-42))
 
 
@@ -656,7 +710,9 @@ def test_typevar_attribute_bool():
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
-    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
+    with pytest.raises(
+        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+    ):
         ParamWrapperAttr(StringData("foo"))  # pyright: ignore
 
 
@@ -685,7 +741,8 @@ def test_param_attr_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+        VerifyException,
+        match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         ParamConstrAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
 
@@ -721,7 +778,8 @@ def test_nested_generic_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+        VerifyException,
+        match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         NestedParamWrapperAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
 
@@ -751,7 +809,9 @@ def test_nested_param_attr_constraint_fail():
     """
     Test that the verifier of a nested parametric constraint can fail.
     """
-    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
+    with pytest.raises(
+        VerifyException, match=re.escape("Expected positive integer, got -42.")
+    ):
         NestedParamConstrAttr(NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))))
 
 
@@ -778,7 +838,9 @@ def test_informative_attribute():
 
     with pytest.raises(
         VerifyException,
-        match="Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none",
+        match=re.escape(
+            "Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none"
+        ),
     ):
         InformativeAttr(IntData(42))
 
@@ -790,9 +852,11 @@ def test_informative_constraint():
     constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
     with pytest.raises(
         VerifyException,
-        match="User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>",
+        match=re.escape(
+            "User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>"
+        ),
     ):
-        constr.verify(IntAttr(1), ConstraintContext())
+        constr.verify(IntAttr(1), VerificationContext())
     assert constr.can_infer(set())
     assert constr.get_bases() == {NoneAttr}
 
@@ -841,7 +905,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext,
+        constraint_context: VerificationContext,
     ) -> None:
         if not isa(attr, ListData):
             raise VerifyException(
@@ -1113,9 +1177,7 @@ def test_non_builtin_name_fail():
     with pytest.raises(PyRDLAttrDefinitionError, match="is not a valid attribute name"):
 
         @irdl_attr_definition
-        class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-            ParametrizedAttribute
-        ):
+        class NonBuiltinNameAttr(ParametrizedAttribute):
             name = "vector"
 
 
@@ -1126,9 +1188,7 @@ def test_non_builtin_name():
     """
 
     @irdl_attr_definition
-    class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute
-    ):
+    class NonBuiltinNameAttr(ParametrizedAttribute):
         name = "test.vector"
 
 
@@ -1138,9 +1198,7 @@ def test_builtin_name():
     """
 
     @irdl_attr_definition
-    class BuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute, BuiltinAttribute
-    ):
+    class BuiltinNameAttr(ParametrizedAttribute, BuiltinAttribute):
         name = "builtin.vector"
 
 
@@ -1223,13 +1281,13 @@ def test_class_var_pass():
     """Test that ClassVar constants are allowed in attribute definitions."""
 
     @irdl_attr_definition
-    class ClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+    class ClassVarAttr(ParametrizedAttribute):
         name = "test.class_var"
         CONSTANT: ClassVar[int]
         param: IntData
 
     @irdl_attr_definition
-    class ClassVarAttr2(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+    class ClassVarAttr2(ParametrizedAttribute):
         name = "test.class_var"
         CONSTANT: ClassVar[int] = 2
         param: IntData
@@ -1239,11 +1297,11 @@ def test_class_var_fail():
     """Test that lowercase ClassVar fields are not allowed."""
     with pytest.raises(
         PyRDLAttrDefinitionError,
-        match='Invalid ClassVar name "constant", must be uppercase.',
+        match=re.escape('Invalid ClassVar name "constant", must be uppercase.'),
     ):
 
         @irdl_attr_definition
-        class InvalidClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        class InvalidClassVarAttr(ParametrizedAttribute):
             name = "test.invalid_class_var"
             constant: ClassVar[int]  # Should be uppercase
             param: IntData

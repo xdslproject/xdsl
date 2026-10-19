@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
 class EmptyTensorLoweringPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: tensor.EmptyOp, rewriter: PatternRewriter, /):
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             bufferization.AllocTensorOp(
                 op.tensor.type,

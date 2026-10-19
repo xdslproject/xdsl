@@ -19,7 +19,7 @@ class LengthOfMap(RewritePattern):
         if not isa(op.li.owner, list_dialect.MapOp):
             return
 
-        rewriter.replace_op(op, list_dialect.LengthOp(op.li.owner.li))
+        rewriter.replace(op, list_dialect.LengthOp(op.li.owner.li))
 
 
 class MapOfMap(RewritePattern):
@@ -36,7 +36,7 @@ class MapOfMap(RewritePattern):
 
         assert isa(first_block.last_op, list_dialect.YieldOp)
         first_block_result = first_block.last_op.yielded
-        rewriter.erase_op(first_block.last_op)
+        rewriter.erase(first_block.last_op)
 
         rewriter.inline_block(
             second_block, InsertPoint.at_end(first_block), [first_block_result]
@@ -45,7 +45,7 @@ class MapOfMap(RewritePattern):
         rewriter.replace_value_with_new_type(op.li.owner.result, op.result.type)
 
         rewriter.replace_all_uses_with(op.result, op.li)
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class OptimizeListOps(ModulePass):

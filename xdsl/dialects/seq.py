@@ -8,10 +8,11 @@ from enum import Enum
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    I8,
     IntegerAttr,
-    IntegerType,
     TypeAttribute,
     i1,
+    i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
 from xdsl.ir import Data, Dialect, Operation, SSAValue
@@ -25,8 +26,9 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
+    prop_def,
     result_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -52,37 +54,24 @@ class ClockDividerOp(IRDLOperation):
 
     name = "seq.clock_div"
 
-    pow2 = attr_def(IntegerAttr)
-    clockIn = operand_def(ClockType)
-    clockOut = result_def(ClockType)
+    pow2 = prop_def(IntegerAttr[I8])
+    clockIn = operand_def(clock)
+    clockOut = result_def(clock)
+
+    assembly_format = "$clockIn `by` $pow2 attr-dict"
 
     def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
-            pow2 = IntegerAttr(pow2, IntegerType(8))
+            pow2 = IntegerAttr(pow2, i8)
         super().__init__(
-            operands=[clockIn], attributes={"pow2": pow2}, result_types=[clock]
+            operands=[clockIn], properties={"pow2": pow2}, result_types=[clock]
         )
 
     def verify_(self) -> None:
-        if self.pow2.type != IntegerType(8):
-            raise VerifyException("pow2 has to be an 8-bit signless integer")
         if self.pow2.value.data.bit_count() != 1:
             raise VerifyException(
                 f"divider value {self.pow2.value.data} is not a power of 2"
             )
-
-    @classmethod
-    def parse(cls, parser: Parser):
-        input_ = parser.parse_operand()
-        parser.parse_keyword("by")
-        divider = parser.parse_integer()
-        return cls(input_, divider)
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_operand(self.clockIn)
-        printer.print_string(" by ")
-        self.pow2.print_without_type(printer)
 
 
 @irdl_op_definition
@@ -95,7 +84,7 @@ class CompRegOp(IRDLOperation):
 
     DATA_TYPE: ClassVar = VarConstraint("DataType", AnyAttr())
 
-    inner_sym = opt_attr_def(InnerSymAttr)
+    inner_sym = opt_prop_def(InnerSymAttr)
     input = operand_def(DATA_TYPE)
     clk = operand_def(clock)
     reset = opt_operand_def(i1)

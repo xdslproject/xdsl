@@ -61,10 +61,10 @@ class ScfForLowering(RewritePattern):
             return
 
         rewriter.erase_block_argument(indvar)
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             (
-                iter_count := riscv.SubOp(op.ub, op.lb),
+                iter_count := riscv.SubOp(op.stop, op.start),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
                 riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,
@@ -81,7 +81,7 @@ class ScfYieldLowering(RewritePattern):
         self, op: riscv_scf.YieldOp, rewriter: PatternRewriter
     ) -> None:
         if isinstance(op.parent_op(), riscv_snitch.FRepOperation):
-            rewriter.replace_op(op, riscv_snitch.FrepYieldOp(*op.operands))
+            rewriter.replace(op, riscv_snitch.FrepYieldOp(*op.operands))
 
 
 class ConvertRiscvScfForToFrepPass(ModulePass):

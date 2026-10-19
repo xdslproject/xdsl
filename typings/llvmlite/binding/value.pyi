@@ -136,7 +136,8 @@ class ValueRef(ffi.ObjectRef):
     def storage_class(self, value):  # -> None:
         ...
     def add_function_attribute(self, attr):  # -> None:
-        """Only works on function value
+        """
+        Only works on function value
 
         Parameters
         -----------

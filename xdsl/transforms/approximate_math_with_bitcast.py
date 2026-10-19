@@ -32,7 +32,7 @@ class MakeBase2(RewritePattern):
             case math.LogOp(operand=x, fastmath=ff) if self.log:
                 ln2 = builtin.FloatAttr(pmath.log(2), t)
 
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     [
                         c := arith.ConstantOp(ln2),
@@ -45,7 +45,7 @@ class MakeBase2(RewritePattern):
             case math.Log1pOp(operand=x, fastmath=ff) if self.log and isa(
                 x.type, builtin.AnyFloat
             ):
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     [
                         one := arith.ConstantOp(builtin.FloatAttr(1.0, x.type)),
@@ -57,7 +57,7 @@ class MakeBase2(RewritePattern):
             # rewrite expe(%a) to exp2(%a * log2(e))
             case math.ExpOp(operand=x, fastmath=ff) if self.exp:
                 log2e = builtin.FloatAttr(pmath.log2(pmath.e), t)
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     [
                         c := arith.ConstantOp(log2e),
@@ -100,7 +100,7 @@ class MakeApprox(RewritePattern):
         match op:
             # log2(%a) -> fp(L * (B - eps + A))
             case math.Log2Op(operand=x, fastmath=ff) if self.log:
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(L, t)),
@@ -114,7 +114,7 @@ class MakeApprox(RewritePattern):
                 )
             case math.Exp2Op(operand=x, fastmath=ff) if self.exp:
                 # 2^%x -> int(%x) * 1/L - B + eps
-                rewriter.replace_op(
+                rewriter.replace(
                     op,
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(1 / L, t)),

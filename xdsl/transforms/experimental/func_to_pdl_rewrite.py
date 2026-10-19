@@ -38,7 +38,7 @@ class FuncOpToPdlRewritePattern(RewritePattern):
                 Block([pdl_root, pdl.RewriteOp(root=rewrite_root, body=func_body)])
             ),
         )
-        rewriter.replace_op(op, pdl_pattern)
+        rewriter.replace(op, pdl_pattern)
 
 
 @dataclass
@@ -47,7 +47,7 @@ class ReturnOpToPdlRewritePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class FuncToPdlRewrite(ModulePass):

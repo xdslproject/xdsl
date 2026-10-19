@@ -33,7 +33,7 @@ def test_named_region_op_init(
     op = op_type("cmath", Region(Block()))
     op2 = op_type(StringAttr("cmath"), Region(Block()))
     op3 = op_type.create(
-        attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())]
+        properties={"sym_name": StringAttr("cmath")}, regions=[Region(Block())]
     )
 
     assert op.is_structurally_equivalent(op2)
@@ -46,7 +46,7 @@ def test_named_region_op_init(
 def test_is_init():
     """Test __init__ of IsOp."""
     op = IsOp(i32)
-    op2 = IsOp.create(attributes={"expected": i32}, result_types=[AttributeType()])
+    op2 = IsOp.create(properties={"expected": i32}, result_types=[AttributeType()])
 
     assert op.is_structurally_equivalent(op2)
 
@@ -58,7 +58,7 @@ def test_base_init():
     """Test __init__ of BaseOp."""
     base_op_ref = BaseOp(SymbolRefAttr("integer"))
     base_op_ref2 = BaseOp.create(
-        attributes={"base_ref": SymbolRefAttr("integer")},
+        properties={"base_ref": SymbolRefAttr("integer")},
         result_types=[AttributeType()],
     )
     assert base_op_ref.is_structurally_equivalent(base_op_ref2)
@@ -66,7 +66,7 @@ def test_base_init():
     base_op_name = BaseOp(StringAttr("integer"))
     base_op_name2 = BaseOp("integer")
     base_op_name3 = BaseOp.create(
-        attributes={"base_name": StringAttr("integer")},
+        properties={"base_name": StringAttr("integer")},
         result_types=[AttributeType()],
     )
     assert base_op_name.is_structurally_equivalent(base_op_name2)
@@ -82,7 +82,7 @@ def test_parametric_init():
     op2 = ParametricOp(StringAttr("complex"), [val1, val2])
     op3 = ParametricOp(SymbolRefAttr("complex"), [val1, val2])
     op4 = ParametricOp.create(
-        attributes={"base_type": SymbolRefAttr("complex")},
+        properties={"base_type": SymbolRefAttr("complex")},
         operands=[val1, val2],
         result_types=[AttributeType()],
     )
@@ -123,7 +123,7 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
     """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
     op = op_type.create(
-        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
+        properties={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
     )
     dialect = DialectOp("mydialect", Region(Block([op])))
     dialect.verify()

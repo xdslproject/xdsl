@@ -35,12 +35,6 @@
     // CHECK-NEXT: ori j_1, j_1, 1
     %xori = riscv.xori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: xori j_1, j_1, 1
-    %slli = riscv.slli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: slli j_1, j_1, 1
-    %srli = riscv.srli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: srli j_1, j_1, 1
-    %srai = riscv.srai %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: srai j_1, j_1, 1
     %lui = riscv.lui 1: () -> !riscv.reg<j_0>
     // CHECK-NEXT: lui j_0, 1
     %auipc = riscv.auipc 1: () -> !riscv.reg<j_0>
@@ -186,14 +180,14 @@
     %fa0 = riscv.get_float_register : !riscv.freg<fa0>
     %fa1 = riscv.get_float_register : !riscv.freg<fa1>
 
-    riscv_snitch.frep_outer %0 {
+    riscv_snitch.frep_outer %0 : !riscv.reg<zero> {
       %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
 
     // CHECK:          frep.o zero, 1, 0, 0
     // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
 
-    riscv_snitch.frep_inner %0 {
+    riscv_snitch.frep_inner %0 : !riscv.reg<zero> {
       %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
     // CHECK:          frep.i zero, 1, 0, 0
@@ -208,16 +202,8 @@
     // CHECK-NEXT: rolw j_2, j_2, j_1
     %rorw = riscv.rorw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: rorw j_2, j_2, j_1
-    %rori = riscv.rori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: rori j_1, j_1, 1
-    %roriw = riscv.roriw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: roriw j_1, j_1, 1
     %bclr = riscv.bclr %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: bclr j_2, j_2, j_1
-    %bclri = riscv.bclri %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: bclri j_1, j_1, 1
-    %bseti = riscv.bseti %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: bseti j_1, j_1, 1
     %adduw = riscv.add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add.uw j_2, j_2, j_1
     %sh1add = riscv.sh1add %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
@@ -232,8 +218,6 @@
     // CHECK-NEXT: sh2add.uw j_2, j_2, j_1
     %sh3adduw = riscv.sh3add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: sh3add.uw j_2, j_2, j_1
-    %slliuw = riscv.slli.uw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: slli.uw j_1, j_1, 1
     %andn = riscv.andn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: andn j_2, j_2, j_1
     %orn = riscv.orn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
@@ -354,6 +338,19 @@
     // CHECK-NEXT: vfadd.s fj_3, fj_0, fj_1
     %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
     // CHECK-NEXT: vfmul.s fj_3, fj_0, fj_1
+    
+    %clz = riscv.clz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clz j_1, j_1
+    %clzw = riscv.clzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clzw j_1, j_1
+    %cpop = riscv.cpop %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpop j_1, j_1
+    %cpopw = riscv.cpopw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpopw j_1, j_1
+    %ctz = riscv.ctz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctz j_1, j_1
+    %ctzw = riscv.ctzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctzw j_1, j_1
 
     // Terminate block
     riscv_func.return

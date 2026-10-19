@@ -33,8 +33,8 @@ def hoist_all(
         value_mapper |= {
             old: new for old, new in zip(o.results, new_op.results, strict=True)
         }
-        rewriter.insert_op(new_op, at)
-        rewriter.replace_op(o, [], new_op.results)
+        rewriter.insert(new_op, at)
+        rewriter.replace(o, [], new_op.results)
 
 
 class AffineIfHoistPattern(RewritePattern):

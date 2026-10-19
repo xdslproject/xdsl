@@ -27,6 +27,8 @@ categories:
     label: "CI"
   - title: "Installation"
     label: "installation"
+  - title: "JIT"
+    label: "JIT"
   - title: "Dependencies"
     label: "dependencies"
   - title: "Miscellaneous"

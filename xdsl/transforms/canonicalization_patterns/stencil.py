@@ -69,7 +69,7 @@ class ApplyUnusedOperands(RewritePattern):
         )
 
         rewriter.inline_block(op.region.block, InsertPoint.at_start(block), block.args)
-        rewriter.replace_op(op, new)
+        rewriter.replace(op, new)
 
 
 class ApplyUnusedResults(RewritePattern):
@@ -107,8 +107,8 @@ class ApplyUnusedResults(RewritePattern):
         for i in unused:
             replace_results.insert(i, None)
 
-        rewriter.replace_op(old_return, stencil.ReturnOp(return_args))
-        rewriter.replace_op(op, new, replace_results)
+        rewriter.replace(old_return, stencil.ReturnOp(return_args))
+        rewriter.replace(op, new, replace_results)
 
 
 class RemoveCastWithNoEffect(RewritePattern):
@@ -119,4 +119,4 @@ class RemoveCastWithNoEffect(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.CastOp, rewriter: PatternRewriter) -> None:
         if op.result.type == op.field.type:
-            rewriter.replace_op(op, [], new_results=[op.field])
+            rewriter.replace(op, [], new_results=[op.field])

@@ -31,11 +31,6 @@ def get_all_targets() -> dict[str, Callable[[], type[Target]]]:
 
         return MPSTarget
 
-    def get_riscemu():
-        from xdsl.targets.riscemu import RISCVEmulatorTarget
-
-        return RISCVEmulatorTarget
-
     def get_riscv_asm():
         from xdsl.dialects.riscv.abstract_ops import RISCVAsmTarget
 
@@ -62,7 +57,6 @@ def get_all_targets() -> dict[str, Callable[[], type[Target]]]:
         "llvm": get_llvm,
         "mlir": get_mlir,
         "mps": get_mps,
-        "riscemu": get_riscemu,
         "riscv-asm": get_riscv_asm,
         "wat": get_wat,
         "wgsl": get_wgsl,

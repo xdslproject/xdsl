@@ -1,0 +1,55 @@
+---
+title: Overview
+layout: page
+---
+
+These are introductory notebooks for the basics of compiler development in xDSL.
+We currently provide two series of notebooks on manipulating IR and working with
+assembly-level dialects.
+
+We use [Marimo](https://marimo.app/), a modern Python notebook that runs in your browser.
+It keeps a dependency graph between cells in the notebook, re-running all dependencies
+of a cell that you change.
+Note that each notebook automatically installs xDSL in an environment in your browser
+tab when you open it, so you may need to wait a little for installation to complete and
+re-run all the cells.
+
+## Manipulating IR
+
+This series introduces MLIR IR, and xDSL APIs to traverse it, define your own IR
+constructs, and implement your rewrites.
+
+1. [Introduction](mlir_introduction.py)
+1. [Func, Arith, and SCF Dialects](mlir_ir.py)
+1. [Traversing IR](traversing_ir.py)
+1. [Builders](builders.py)
+1. [IR Generation](ir_gen.py)
+1. [Rewrites](pattern_rewrites.py)
+1. [Rewrite Exercises](rewrite_exercises.py)
+1. [Defining Dialects](defining_dialects.py)
+1. [Pattern Description Language (PDL)](pdl.py)
+1. [Intermediate Representation Definition Language (IRDL)](irdl.py)
+
+## RISC-V Dialects
+
+This series of notebooks introduces the RISC-V dialects, which let us represent
+assembly-level concepts as MLIR IR.
+
+1. [RISC-V Dialects](riscv_dialects.py)
+1. [Compiling `linalg` to Snitch](linalg_snitch.py)
+
+## Toy Tutorial
+
+An interactive walkthrough of the Toy language and compiler, based on the
+[MLIR Toy tutorial](https://mlir.llvm.org/docs/Tutorials/Toy/).
+The compiler implementation lives under
+[`docs/Toy/`](https://github.com/xdslproject/xdsl/tree/main/docs/Toy).
+
+1. [Chapter 0: Compiling and Running Toy](Toy/ch0.py)
+1. [Chapter 1: Toy Language and AST](Toy/ch1.py)
+1. [Chapter 2: Emitting Basic IR](Toy/ch2.py)
+1. [Chapter 3: Analysis and Transformation](Toy/ch3.py)
+
+## Other Projects
+
+1. [Equality Saturation](eqsat.py)

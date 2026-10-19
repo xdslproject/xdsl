@@ -5,9 +5,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Generic
+from typing import Generic, Self, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import PackableType, ShapedType
 from xdsl.interpreters.utils.ptr import TypedPtr
@@ -55,6 +55,8 @@ class ShapedArray(Generic[_T]):
             raise ValueError(f"Invalid indices {index} for shape {self.shape}")
         # For each dimension, the number of elements in the nested arrays
         strides = ShapedType.strides_for_shape(self.shape)
+        assert None not in strides
+        strides = cast(tuple[int], strides)
         offset = sum(i * stride for i, stride in zip(index, strides, strict=True))
         return offset
 

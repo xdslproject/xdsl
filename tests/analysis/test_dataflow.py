@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from unittest.mock import Mock
 
@@ -105,7 +106,8 @@ def test_program_point_after(
 def test_program_point_after_detached():
     detached_op = test.TestOp()
     with pytest.raises(
-        ValueError, match="Cannot get ProgramPoint after a detached operation."
+        ValueError,
+        match=re.escape("Cannot get ProgramPoint after a detached operation."),
     ):
         ProgramPoint.after(detached_op)
 
@@ -214,7 +216,9 @@ def test_data_flow_solver_load_while_running_raises(solver: DataFlowSolver):
             # Try to load while running
             with pytest.raises(
                 RuntimeError,
-                match="Cannot load new analyses while the solver is running.",
+                match=re.escape(
+                    "Cannot load new analyses while the solver is running."
+                ),
             ):
                 self.solver.load(MyAnalysis)
 
@@ -250,7 +254,8 @@ def test_data_flow_solver_get_lookup_state(solver: DataFlowSolver):
 def test_data_flow_solver_enqueue_not_running(solver: DataFlowSolver):
     # This tests the public contract - enqueue should only work while running
     with pytest.raises(
-        RuntimeError, match="Cannot enqueue work items when the solver is not running."
+        RuntimeError,
+        match=re.escape("Cannot enqueue work items when the solver is not running."),
     ):
         solver.enqueue((Mock(), Mock()))
 
@@ -258,7 +263,8 @@ def test_data_flow_solver_enqueue_not_running(solver: DataFlowSolver):
 def test_data_flow_solver_propagate_not_running(solver: DataFlowSolver):
     # This tests the public contract - propagate should only work while running
     with pytest.raises(
-        RuntimeError, match="Cannot propagate changes when the solver is not running."
+        RuntimeError,
+        match=re.escape("Cannot propagate changes when the solver is not running."),
     ):
         solver.propagate_if_changed(Mock(), ChangeResult.CHANGE)
 
@@ -268,7 +274,9 @@ def test_data_flow_solver_run_twice_raises(solver: DataFlowSolver):
     class ReentrantAnalysis(DataFlowAnalysis):
         def initialize(self, op: Operation) -> None:
             # Try to run again while already running
-            with pytest.raises(RuntimeError, match="Solver is already running."):
+            with pytest.raises(
+                RuntimeError, match=re.escape("Solver is already running.")
+            ):
                 self.solver.initialize_and_run(Mock())
 
         def visit(self, point: ProgramPoint) -> None:

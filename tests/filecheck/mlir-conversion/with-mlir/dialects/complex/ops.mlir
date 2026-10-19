@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | mlir-opt | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | $XDSL_MLIR_OPT --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT | xdsl-opt | filecheck %s
 
 // CHECK-LABEL: func @ops(
 // CHECK-SAME:            %[[F:.*]]: f32) {

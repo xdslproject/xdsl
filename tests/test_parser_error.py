@@ -9,6 +9,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Column
 
 
 @irdl_op_definition
@@ -18,7 +19,7 @@ class UnknownOp(IRDLOperation):
     res = var_result_def()
 
 
-def check_error(prog: str, line: int, column: int, message: str):
+def check_error(prog: str, line: int, column: Column, message: str):
     ctx = Context()
     ctx.load_op(UnknownOp)
 

@@ -311,20 +311,17 @@ class SetupOp(IRDLOperation):
 
         in_state: SSAValue | None = None
         if parser.parse_optional_keyword("from"):
-            in_state = parser.parse_operand()
+            in_state = parser.parse_operand(StateType(accelerator))
 
         parser.parse_keyword("to")
 
         def parse_itm() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal("accelerator field name")
             parser.parse_punctuation("=")
-            val = parser.parse_operand(f'expected value for field "{name}"')
+            val = parser.parse_unresolved_operand(f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
-            assert val.type == typ, (
-                f"ssa value type mismatch! Expected {typ}, got {val.type}"
-            )
-            return name, val
+            return name, parser.resolve_operand(val, typ)
 
         args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parse_itm

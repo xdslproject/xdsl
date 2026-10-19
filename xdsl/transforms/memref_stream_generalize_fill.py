@@ -33,7 +33,8 @@ class GeneralizeFillPattern(RewritePattern):
         with ImplicitBuilder(block) as (arg0, _):
             memref_stream.YieldOp(arg0)
 
-        assert isinstance(memref_type := op.memref.type, memref.MemRefType)
+        memref_type = op.memref.type
+        assert isinstance(memref_type, memref.MemRefType)
 
         memref_type = cast(MemRefType, memref_type)
 
@@ -41,7 +42,7 @@ class GeneralizeFillPattern(RewritePattern):
         index = IndexType()
         ubs = ArrayAttr(IntegerAttr(ub, index) for ub in shape)
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
             memref_stream.GenericOp(
                 (op.value,),

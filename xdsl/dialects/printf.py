@@ -67,11 +67,10 @@ class PrintFormatOp(IRDLOperation):
         format_str = parser.parse_str_literal()
         args: list[SSAValue] = []
         while parser.parse_optional_characters(",") is not None:
-            args.append(arg := parser.parse_operand())
+            arg = parser.parse_unresolved_operand()
             parser.parse_characters(":", " - all arguments must have a type")
             arg_type = parser.parse_type()
-            if arg.type != arg_type:
-                parser.raise_error(f"Parsed ssa vlue {arg} must be of type {arg_type}")
+            args.append(parser.resolve_operand(arg, arg_type))
 
         attr_dict = parser.parse_optional_attr_dict()
 

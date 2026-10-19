@@ -15,6 +15,8 @@ from xdsl.pattern_rewriter import (
 
 i8 = builtin.IntegerType(8)
 
+_PRINTF_TYPE = llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True)
+
 
 def legalize_str_for_symbol_name(val: str):
     """
@@ -75,9 +77,13 @@ def _format_str_for_type(t: Attribute):
     match t:
         case builtin.f64:
             return "%f"
-        case builtin.i32:
+        case builtin.IntegerType(width=builtin.IntAttr(data=32)):
+            if t.signedness.data == builtin.Signedness.UNSIGNED:
+                return "%u"
             return "%i"
-        case builtin.i64:
+        case builtin.IntegerType(width=builtin.IntAttr(data=64)):
+            if t.signedness.data == builtin.Signedness.UNSIGNED:
+                return "%lu"
             return "%li"
         case _:
             raise ValueError(f"Cannot find printf code for {t}")
@@ -133,12 +139,12 @@ class PrintlnOpToPrintfCall(RewritePattern):
         globl = self._construct_global(format_str)
         self.collected_global_symbs[globl.sym_name.data] = globl
 
-        rewriter.replace_op(
+        rewriter.replace(
             op,
-            casts
-            + [
-                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType()),
-                llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
+            [
+                *casts,
+                (ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType())),
+                llvm.CallOp("printf", ptr.result, *args, var_callee_type=_PRINTF_TYPE),
             ],
         )
 
@@ -158,7 +164,7 @@ class PrintfToLLVM(ModulePass):
             [
                 llvm.FuncOp(
                     "printf",
-                    llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True),
+                    _PRINTF_TYPE,
                     linkage=llvm.LinkageAttr("external"),
                 ),
                 *add_printf_call.collected_global_symbs.values(),

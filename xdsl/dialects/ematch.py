@@ -6,6 +6,7 @@ from xdsl.dialects.pdl import (
     ValueType,
 )
 from xdsl.ir import (
+    Block,
     Dialect,
     SSAValue,
 )
@@ -14,7 +15,10 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    successor_def,
+    traits_def,
 )
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition
@@ -140,6 +144,33 @@ class DedupOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class AreEquivalentOp(IRDLOperation):
+    """
+    Check whether two values are in the same equivalence class.
+
+    Unlike `pdl_interp.are_equal`, two equivalence.class results are considered
+    equivalent if their e-classes have been merged, even if they are not the
+    same SSA value. Values that are not equivalence.class results are only
+    equivalent to themselves. On success, control branches to the true
+    destination, otherwise to the false destination.
+    """
+
+    name = "ematch.are_equivalent"
+    traits = traits_def(IsTerminator())
+    lhs = operand_def(ValueType)
+    rhs = operand_def(ValueType)
+    true_dest = successor_def()
+    false_dest = successor_def()
+
+    assembly_format = "$lhs `,` $rhs attr-dict `->` $true_dest `,` $false_dest"
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, true_dest: Block, false_dest: Block
+    ) -> None:
+        super().__init__(operands=[lhs, rhs], successors=[true_dest, false_dest])
+
+
 Ematch = Dialect(
     "ematch",
     [
@@ -149,5 +180,6 @@ Ematch = Dialect(
         GetClassResultsOp,
         UnionOp,
         DedupOp,
+        AreEquivalentOp,
     ],
 )

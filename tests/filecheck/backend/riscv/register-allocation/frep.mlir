@@ -8,10 +8,10 @@ riscv_func.func @main() {
   %4 = riscv.fadd.s %2, %3 : (!riscv.freg, !riscv.freg) -> !riscv.freg
   %5 = riscv.add %0, %1 : (!riscv.reg, !riscv.reg<s0>) -> !riscv.reg
 
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg {
   }
 
-  %7 = riscv_snitch.frep_outer %0 iter_args(%6 = %4) -> (!riscv.freg) {
+  %7 = riscv_snitch.frep_outer %0 : !riscv.reg iter_args(%6 = %4) -> (!riscv.freg) {
     %8 = riscv.fmv.d %6 : (!riscv.freg) -> !riscv.freg
     riscv_snitch.frep_yield %8 : !riscv.freg
   }
@@ -26,9 +26,9 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft1>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t0>, !riscv.reg<s0>) -> !riscv.reg<t1>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_snitch.frep_outer %{{\d+}} {
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_snitch.frep_outer %{{\d+}} : !riscv.reg<t0> {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv_snitch.frep_outer %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.freg<ft0>) {
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv_snitch.frep_outer %{{\d+}} : !riscv.reg<t0> iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.freg<ft0>) {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.fmv.d %{{\d+}} : (!riscv.freg<ft0>) -> !riscv.freg<ft0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        riscv_snitch.frep_yield %{{\d+}} : !riscv.freg<ft0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }

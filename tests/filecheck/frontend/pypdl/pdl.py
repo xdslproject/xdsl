@@ -1,6 +1,7 @@
 # RUN: python %s | filecheck %s
 
-"""Tests for PDL rewriting Python DSL.
+"""
+Tests for PDL rewriting Python DSL.
 
 These tests exercise the API providing an evaluatable Python DSL for expressing
 the semantics of rewrites, which can then be lowered to the PDL dialect using
@@ -35,7 +36,7 @@ ctx.register_function(Rewriter.erase_op, pdl.EraseOp)
 
 
 @ctx.parse_program
-def constant_replace(matched_operation: arith.ConstantOp):
+def constant_replace(matched_operation: arith.ConstantOp) -> None:
     Rewriter.erase_op(matched_operation)
 
 

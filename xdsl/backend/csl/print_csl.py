@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import IO, Literal, cast
+from dataclasses import dataclass, field, replace
+from typing import IO, Literal
 
 from xdsl.context import Context
 from xdsl.dialects import arith, csl, memref, scf
@@ -41,19 +41,32 @@ from xdsl.utils.target import Target
 _CSL_KW_SET = {
     "align",
     "and",
+    "anytype",
+    "asm",
     "bool",
     "break",
+    "color",
+    "comptime",
     "comptime_float",
     "comptime_int",
     "comptime_string",
     "comptime_struct",
     "const",
     "continue",
+    "control_task_id",
+    "data_task_id",
+    "direction",
+    "dsr_dest",
+    "dsr_src0",
+    "dsr_src1",
     "else",
+    "enum",
     "export",
     "extern",
     "f16",
     "f32",
+    "fabin_dsd",
+    "fabout_dsd",
     "false",
     "fn",
     "for",
@@ -62,28 +75,44 @@ _CSL_KW_SET = {
     "i64",
     "i8",
     "if",
+    "imported_module",
+    "inline",
+    "input_queue",
+    "layout",
     "linkname",
     "linksection",
+    "local_task_id",
+    "mem1d_dsd",
+    "mem4d_dsd",
+    "noinline",
     "or",
+    "output_queue",
+    "packed",
     "param",
     "return",
+    "struct",
     "switch",
     "task",
     "true",
+    "type",
     "u16",
     "u32",
     "u64",
     "u8",
+    "union",
+    "ut_id",
     "var",
     "void",
+    "volatile",
     "while",
 }
 """
-The set of CSL language keywords. These should not be used as variable names.
+The set of CSL language keywords and builtin type names. These should not be used
+as variable names.
 
 There is no official list of all reserved keywords in CSL, this list was
-compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax)
-and should be expanded as needed.
+compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax),
+extended with identifiers rejected by `cslc`, and should be expanded as needed.
 """
 
 
@@ -287,7 +316,54 @@ class CslPrintContext:
         if val in self.variables:
             return f"{self._get_variable_name_for(val)}"
         else:
-            return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
+            return f"{intro} {self._get_variable_name_for(val)}{self._type_annotation(val.type)}"
+
+    def _type_annotation(self, type_attr: Attribute) -> str:
+        """
+        Return the type annotation (` : <type>`) for a declaration of a value of
+        the given type.
+        """
+        if isinstance(type_attr, csl.ComptimeStructType):
+            # SDK 2.10.0 drops support for comptime_struct, this syntax works for both
+            # 1.4.0 and 2.10.0.
+            return ""
+        return f" : {self.mlir_type_to_csl_type(type_attr)}"
+
+    def _struct_literal_fields(self, val: SSAValue) -> list[str] | None:
+        """
+        Get the fields (as `.name = value` strings) of a struct value if it is
+        built from struct literals.
+
+        Returns None if the fields of the struct are not known.
+        """
+        match val.owner:
+            case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values):
+                items = items or DictionaryAttr({})
+                fields = fields or ArrayAttr([])
+                return [
+                    f".{k} = {self.attribute_value_to_str(v)}"
+                    for k, v in items.data.items()
+                ] + [
+                    f".{k.data} = {self._get_variable_name_for(v)}"
+                    for k, v in zip(fields.data, values)
+                ]
+            case csl.ConcatStructOp(this_struct=a, another_struct=b):
+                a_fields = self._struct_literal_fields(a)
+                b_fields = self._struct_literal_fields(b)
+                if a_fields is None or b_fields is None:
+                    return None
+                return a_fields + b_fields
+            case _:
+                return None
+
+    def _print_struct_literal(self, res: SSAValue, fields: list[str]):
+        """
+        Print the declaration of a struct value initialised with a struct literal.
+        """
+        self.print(f"{self._var_use(res)} = .{{")
+        for f in fields:
+            self.print(f"{f},", prefix=self._INDENT)
+        self.print("};")
 
     def _export_sym_constness(self, ty: FunctionType | csl.PtrType) -> bool | None:
         """
@@ -324,13 +400,7 @@ class CslPrintContext:
             name = hint
         else:
             prefix = "v" if val.name_hint is None else val.name_hint
-
-            name = f"{prefix}{self._counter}"
-            self._counter += 1
-
-            while name in taken_names:
-                name = f"{prefix}{self._counter}"
-                self._counter += 1
+            name = self._fresh_name(prefix, taken_names)
 
         self.variables[val] = name
         return name
@@ -371,14 +441,16 @@ class CslPrintContext:
         - arrays: [64]f32
         - function: fn(i32) f16
         - color
-        - comptime_struct
+        - comptime_struct (removed in SDK 2.10, see `_type_annotation`)
         - imported_module
         - type
         - comptime_string
 
-        This method supports all of these except type and comptime_string
+        This method supports all of these except type
         """
         match type_attr:
+            case csl.ComptimeStringType():
+                return "comptime_string"
             case csl.ComptimeStructType():
                 return "comptime_struct"
             case csl.ImportedModuleType():
@@ -394,9 +466,9 @@ class CslPrintContext:
             case IntegerType(
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
             ):
-                return f"u{cast(IntegerType, type_attr).width.data}"
+                return f"u{type_attr.width.data}"
             case IntegerType():
-                return f"i{cast(IntegerType, type_attr).width.data}"
+                return f"i{type_attr.width.data}"
             case MemRefType(element_type=Attribute() as elem_t, shape=shape):
                 if any(dim.data == DYNAMIC_INDEX for dim in shape):
                     raise ValueError(
@@ -441,7 +513,7 @@ class CslPrintContext:
         """
         match attr:
             case IntAttr():
-                return str(cast(IntAttr[int], attr).data)
+                return str(attr.data)
             case IntegerAttr(value=val, type=IntegerType(width=IntAttr(data=1))):
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
@@ -498,6 +570,44 @@ class CslPrintContext:
         else:
             self.print(f"{self._var_use(var)} = {value_expr};")
 
+    def _print_yield(self, op: scf.YieldOp, args: Sequence[SSAValue]):
+        """
+        Assign the values yielded by an `scf.yield` to the variables holding the
+        results of the parent `scf.if` or the iteration variables of the parent
+        `scf.for`.
+        """
+        match parent := op.parent_op():
+            case scf.IfOp(output=targets) | scf.ForOp(res=targets):
+                pass
+            case _:
+                return
+        assigns = [
+            (self._get_variable_name_for(t), self._get_variable_name_for(a))
+            for t, a in zip(targets, args)
+        ]
+        assigns = [(t, a) for t, a in assigns if t != a]
+        if isinstance(parent, scf.ForOp) and len(assigns) > 1:
+            tmps: list[tuple[str, str]] = []
+            for t, a in assigns:
+                tmp = self._fresh_name(f"{t}_next")
+                self.print(f"const {tmp} = {a};")
+                tmps.append((t, tmp))
+            assigns = tmps
+        for t, a in assigns:
+            self.print(f"{t} = {a};")
+
+    def _fresh_name(self, prefix: str, taken_names: set[str] | None = None) -> str:
+        """
+        Get a variable name not associated with any SSA value.
+        """
+        taken_names = taken_names or set(self.variables.values()) | _CSL_KW_SET
+        name = f"{prefix}{self._counter}"
+        self._counter += 1
+        while name in taken_names:
+            name = f"{prefix}{self._counter}"
+            self._counter += 1
+        return name
+
     def print_op(self, op: Operation):
         match op:
             case (
@@ -516,7 +626,7 @@ class CslPrintContext:
                 self._print_or_promote_to_inline_expr(
                     op.results[0], self._binop_value_expr(op), brackets=True
                 )
-            case arith.ConstantOp(value=v, result=r):
+            case arith.ConstantOp(value=v, result=r) | csl.ConstStrOp(value=v, res=r):
                 self._print_or_promote_to_inline_expr(r, self.attribute_value_to_str(v))
             case csl.ImportModuleConstOp(module=module, params=params, result=res):
                 name = self._get_variable_name_for(res)
@@ -563,13 +673,9 @@ class CslPrintContext:
                 true_region=true_region,
                 false_region=false_region,
             ):
+                # outputs are assigned by the yield at the end of each branch
                 for o in outputs:
                     self.print(f"{self._var_use(o, 'var')};")
-                # Search for all yield operations and match yield argument names to for argument names
-                for blk in [true_region, false_region]:
-                    if isinstance(blk.block.last_op, scf.YieldOp):
-                        for yield_arg, o in zip(blk.block.last_op.arguments, outputs):
-                            self.variables[yield_arg] = self.variables[o]
                 with self.descend(f"if ({self._get_variable_name_for(cond)})") as inner:
                     inner.print_block(true_region.block)
                 if false_region:
@@ -584,14 +690,11 @@ class CslPrintContext:
             ):
                 idx, *args = bdy.block.args
                 # declare for loop iterators as mutable variables and match their names to for result names
+                # they are updated by the yield at the end of the loop body
                 for result, iter, arg in zip(results, iters, args):
                     iter_name = self._get_variable_name_for(iter)
                     self.print(f"{self._var_use(result, 'var')} = {iter_name};")
                     self.variables[arg] = self.variables[result]
-                # Search for all yield operations and match yield argument names to for argument names
-                if isinstance(bdy.block.last_op, scf.YieldOp):
-                    for yield_arg, arg in zip(bdy.block.last_op.arguments, args):
-                        self.variables[yield_arg] = self.variables[arg]
 
                 idx_type = self.mlir_type_to_csl_type(idx.type)
                 lower_name, upper_name, stp_name, idx_name = map(
@@ -600,8 +703,8 @@ class CslPrintContext:
                 loop_definition = f"\nfor(@range({idx_type}, {lower_name}, {upper_name}, {stp_name})) |{idx_name}|"
                 with self.descend(loop_definition) as inner:
                     inner.print_block(bdy.block)
-            case scf.YieldOp():
-                pass
+            case scf.YieldOp(arguments=args):
+                self._print_yield(op, args)
             case (
                 arith.IndexCastOp(input=inp, result=res)
                 | arith.SIToFPOp(input=inp, result=res)
@@ -617,6 +720,14 @@ class CslPrintContext:
                 type_out = self.mlir_type_to_csl_type(res.type)
                 value_str = f"@as({type_out}, {name_in})"
                 self._print_or_promote_to_inline_expr(res, value_str)
+            case (
+                arith.BitcastOp(input=inp, result=res)
+                | csl.IntPtrCastOp(input=inp, result=res)
+            ):
+                name_in = self._get_variable_name_for(inp)
+                type_out = self.mlir_type_to_csl_type(res.type)
+                value_str = f"@bitcast({type_out}, {name_in})"
+                self._print_or_promote_to_inline_expr(res, value_str)
             case arith.CmpiOp(result=res) | arith.CmpfOp(result=res):
                 self._print_or_promote_to_inline_expr(
                     res, self._cmp_value_expr(op), brackets=True
@@ -628,16 +739,35 @@ class CslPrintContext:
                 if_str = f"if ({cond}) {lhs} else {rhs}"
                 self._print_or_promote_to_inline_expr(res, if_str, brackets=True)
             case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
-                a_var = self._get_variable_name_for(a)
-                b_var = self._get_variable_name_for(b)
-                self._print_or_promote_to_inline_expr(
-                    res, f"@concat_structs({a_var}, {b_var})"
-                )
+                # `@concat_structs` was removed in SDK 2.10, so the concatenation
+                # has to be resolved here, which requires knowing the fields.
+                a_fields = self._struct_literal_fields(a)
+                b_fields = self._struct_literal_fields(b)
+                if a_fields is not None and b_fields is not None:
+                    self._print_struct_literal(res, a_fields + b_fields)
+                elif a_fields == []:
+                    self._print_or_promote_to_inline_expr(
+                        res, self._get_variable_name_for(b)
+                    )
+                elif b_fields == []:
+                    self._print_or_promote_to_inline_expr(
+                        res, self._get_variable_name_for(a)
+                    )
+                else:
+                    raise ValueError(
+                        "Cannot print csl.concat_structs: CSL has no struct "
+                        "concatenation, so the fields of one of the structs must be "
+                        "known or one of the structs must be empty"
+                    )
             case csl.ZerosOp(result=res, is_const=constness):
                 type = self._memref_type_to_string(res)
                 res_name = self._get_variable_name_for(res)
                 kind = "const" if constness else "var"
                 self.print(f"{kind} {res_name} : {type} = @zeros({type});")
+            case memref.AllocOp(memref=res) | memref.AllocaOp(memref=res):
+                type = self._memref_type_to_string(res)
+                res_name = self._get_variable_name_for(res)
+                self.print(f"var {res_name} : {type} = @zeros({type});")
             case csl.ConstantsOp(value=val, result=res, is_const=constness):
                 type = self._memref_type_to_string(res)
                 res_name = self._get_variable_name_for(res)
@@ -701,24 +831,13 @@ class CslPrintContext:
                     init = ""
                 else:
                     init = f" = {self._get_variable_name_for(init)}"
-                ty = self.mlir_type_to_csl_type(res.type)
+                ty = self._type_annotation(res.type)
                 self.variables[res] = name.data
-                self.print(f"param {name.data} : {ty}{init};")
-            case csl.ConstStructOp(
-                items=items, ssa_fields=fields, ssa_values=values, res=res
-            ):
-                items = items or DictionaryAttr({})
-                fields = fields or ArrayAttr([])
-                # First print the fields defined by attributes
-                self.print(f"{self._var_use(res)} = .{{")
-                for k, v in items.data.items():
-                    v = self.attribute_value_to_str(v)
-                    self.print(f".{k} = {v},", prefix=self._INDENT)
-                # Then the fields defined by operands, with their corresponding names
-                for k, v in zip(fields.data, values):
-                    v = self._get_variable_name_for(v)
-                    self.print(f".{k.data} = {v},", prefix=self._INDENT)
-                self.print("};")
+                self.print(f"param {name.data}{ty}{init};")
+            case csl.ConstStructOp(res=res):
+                fields = self._struct_literal_fields(res)
+                assert fields is not None
+                self._print_struct_literal(res, fields)
             case csl.SetTileCodeOp(
                 file=file, x_coord=x_coord, y_coord=y_coord, params=params
             ):
@@ -859,6 +978,9 @@ class CslPrintContext:
             inner_context.print()
         ```
 
+        The sub-context is a copy of this context with its own copy of the
+        variable map and increased indentation.
+
         NOTE: `_symbols_to_export` is passed as a reference, so the sub-context
         could in theory modify the parent's list of exported symbols, in
         practice this should not happen as `SymbolExportOp` has been verified to
@@ -867,13 +989,9 @@ class CslPrintContext:
         if block_start != "":
             block_start = f"{block_start} "
         self.print(f"{block_start}{{")
-        yield CslPrintContext(
-            output=self.output,
+        yield replace(
+            self,
             variables=self.variables.copy(),
-            _symbols_to_export=self._symbols_to_export,
-            _cmp_ops=self._cmp_ops,
-            _binops=self._binops,
-            _counter=self._counter,
             _prefix=self._prefix + self._INDENT,
         )
         self.print("}")

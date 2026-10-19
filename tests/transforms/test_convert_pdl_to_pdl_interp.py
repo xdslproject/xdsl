@@ -1,3 +1,4 @@
+import re
 from typing import cast
 
 import pytest
@@ -122,10 +123,11 @@ def test_extract_tree_predicates():
 
     predicates = p.extract_tree_predicates(root, root_pos, {})
 
+    root_pos = OperationPosition(None, depth=0)
     assert predicates[0] == PositionalPredicate(
         OperationNameQuestion(),
         StringAnswer("op1"),
-        root_pos := OperationPosition(None, depth=0),
+        root_pos,
     )
     assert predicates[1] == PositionalPredicate(
         OperandCountQuestion(),
@@ -288,12 +290,13 @@ def test_operation_with_multiple_results():
     root_pos = OperationPosition(depth=0)
     predicates = p.extract_tree_predicates(root, root_pos, {})
 
+    root_pos = OperationPosition(None, depth=0)
     assert len(predicates) == 7
     assert (
         PositionalPredicate(
             ResultCountQuestion(),
             UnsignedAnswer(2),
-            root_pos := OperationPosition(None, depth=0),
+            root_pos,
         )
         in predicates
     )
@@ -968,7 +971,8 @@ def test_extract_operand_tree_predicates_with_value_type():
 
 
 def test_extract_non_tree_predicates_existing_constraint_result():
-    """Test extract_non_tree_predicates when constraint result already exists in inputs
+    """
+    Test extract_non_tree_predicates when constraint result already exists in inputs
 
     Note: This test documents a limitation where the existing constraint result
     handling has issues with ConstraintPosition.get_operation_depth().
@@ -1067,7 +1071,9 @@ def test_extract_pattern_predicates_multiple_roots():
     pattern = pdl.PatternOp(1, "pattern", body)
     builder = PredicateTreeBuilder()
 
-    with pytest.raises(ValueError, match="Multi-root patterns are not yet supported."):
+    with pytest.raises(
+        ValueError, match=re.escape("Multi-root patterns are not yet supported.")
+    ):
         builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
 
 
@@ -2256,7 +2262,8 @@ def test_get_value_at_operand_group_position():
 
 
 def test_get_value_at_operation_position_passthrough():
-    """Test get_value_at with OperationPosition passthrough (not operand-defining-op)
+    """
+    Test get_value_at with OperationPosition passthrough (not operand-defining-op)
 
     This case occurs when a constraint returns a pdl.OperationType and we need
     to access it through an OperationPosition that just passes through the parent value.
@@ -3002,7 +3009,7 @@ def test_generate_matcher_reuses_failure_block():
     failure_block = Block()
     matcher_body.add_block(failure_block)
     finalize_op = pdl_interp.FinalizeOp()
-    generator.builder.insert_op(finalize_op, InsertPoint.at_end(failure_block))
+    generator.builder.insert(finalize_op, InsertPoint.at_end(failure_block))
     generator.failure_block_stack.append(failure_block)
 
     # Create bool node without failure_node (should use stack)
@@ -4002,7 +4009,8 @@ def test_generate_operation_result_type_rewriter_error_unresolvable():
 
     # Call method - should raise ValueError
     with pytest.raises(
-        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+        ValueError,
+        match=re.escape('Unable to infer result types for pdl.operation "test.op"'),
     ):
         generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
             op_to_create, map_rewrite_value, types_list, rewrite_values
@@ -4044,7 +4052,8 @@ def test_generate_operation_result_type_rewriter_strategy1_partial_resolution():
 
     # Should raise ValueError because not all types can be resolved
     with pytest.raises(
-        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+        ValueError,
+        match=re.escape('Unable to infer result types for pdl.operation "test.op"'),
     ):
         generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
             op_to_create, map_rewrite_value, types_list, rewrite_values
@@ -4088,7 +4097,8 @@ def test_generate_operation_result_type_rewriter_strategy3_operation_before_repl
 
     # Should raise ValueError because Strategy 3 skips this case
     with pytest.raises(
-        ValueError, match='Unable to infer result types for pdl.operation "new.op"'
+        ValueError,
+        match=re.escape('Unable to infer result types for pdl.operation "new.op"'),
     ):
         generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
             new_op, map_rewrite_value, types_list, rewrite_values

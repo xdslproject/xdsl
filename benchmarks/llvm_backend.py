@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-from pathlib import Path
-
+from benchmarks.bench_utils import (
+    BenchmarkClass,
+    benchmark_root_directory,
+    safe_to_repeat,
+)
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.llvm import LLVM
@@ -8,13 +11,16 @@ from xdsl.dialects.vector import Vector
 from xdsl.parser import Parser
 
 FILECHECK_TEST = (
-    Path(__file__).parents[1]
+    benchmark_root_directory()
     / "tests"
     / "filecheck"
     / "backend"
     / "llvm"
     / "convert_op.mlir"
 )
+"""
+Root directory of the benchmark, handling running under ASV or directly.
+"""
 
 
 def _parse_module() -> ModuleOp:
@@ -27,21 +33,24 @@ def _parse_module() -> ModuleOp:
     return module
 
 
-class LLVMBackend:
+class LLVMBackend(BenchmarkClass):
     MODULE = _parse_module()
 
+    @safe_to_repeat
     def time_convert_module(self) -> None:
         from xdsl.backend.llvm.convert import convert_module
 
-        convert_module(LLVMBackend.MODULE)
+        convert_module(LLVMBackend.MODULE, fallback_target_triple=None)
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmark, profile
+    from bench_utils import BenchmarkFunction, profile
 
     BACKEND = LLVMBackend()
     profile(
         {
-            "LLVMBackend.convert_module": Benchmark(BACKEND.time_convert_module),
+            "LLVMBackend.convert_module": BenchmarkFunction(
+                BACKEND.time_convert_module
+            ),
         }
     )

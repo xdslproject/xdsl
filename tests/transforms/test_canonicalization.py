@@ -11,7 +11,7 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 
 class Pattern(RewritePattern):
     def match_and_rewrite(self, op: ir.Operation, rewriter: PatternRewriter, /):
-        rewriter.erase_op(op)
+        rewriter.erase(op)
 
 
 class HasCanonicalizationPatternsTrait1(HasCanonicalizationPatternsTrait):

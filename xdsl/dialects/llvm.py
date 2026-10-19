@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -15,15 +15,22 @@ from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
     ArrayAttr,
+    BFloat16Type,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    Float80Type,
+    Float128Type,
     FloatAttr,
     FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
+    Signedness,
     SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
@@ -36,6 +43,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     BitEnumAttribute,
+    EnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
     parse_dynamic_index_list_without_types,
@@ -47,7 +55,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -59,13 +66,14 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
     EqIntConstraint,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -219,15 +227,44 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             type = parse_llvm_type(parser)
         return (size, type)
 
-    @deprecated("Please use LLVMArrayType(size, type)")
-    @staticmethod
-    def from_size_and_type(size: int | IntAttr, type: Attribute):
-        return LLVMArrayType(size, type)
-
 
 @irdl_attr_definition
 class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.void"
+
+
+def is_compatible_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is compatible with the LLVM dialect.
+
+    Matches MLIR's LLVMDialect::isCompatibleType: signless integers, floats,
+    LLVM dialect types, and 1-D fixed vectors of compatible element types.
+    """
+    if isa(type_attr, IntegerType):
+        return type_attr.signedness.data == Signedness.SIGNLESS
+    if isinstance(
+        type_attr,
+        (
+            BFloat16Type,
+            Float16Type,
+            Float32Type,
+            Float64Type,
+            Float80Type,
+            Float128Type,
+            LLVMStructType,
+            LLVMPointerType,
+            LLVMArrayType,
+            LLVMFunctionType,
+        ),
+    ):
+        return True
+    if isa(type_attr, VectorType):
+        return (
+            type_attr.get_num_dims() == 1
+            and type_attr.get_num_scalable_dims() == 0
+            and is_compatible_type(type_attr.element_type)
+        )
+    return False
 
 
 @irdl_attr_definition
@@ -260,6 +297,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     @property
     def is_variadic(self) -> bool:
         return isinstance(self.variadic, UnitAttr)
+
+    def verify(self) -> None:
+        for i, inp in enumerate(self.inputs):
+            if not is_compatible_type(inp):
+                raise VerifyException(
+                    f"LLVM function argument #{i} has incompatible type '{inp}'"
+                )
+        if not isinstance(self.output, LLVMVoidType) and not is_compatible_type(
+            self.output
+        ):
+            raise VerifyException(
+                f"LLVM function result has incompatible type '{self.output}'"
+            )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -1851,7 +1901,8 @@ class UndefOp(IRDLOperation):
 
 @dataclass(frozen=True)
 class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
-    """Infers a 1D VectorType result from the input element type and mask length.
+    """
+    Infers a 1D VectorType result from the input element type and mask length.
 
     The result shape is determined by the number of elements in the mask,
     while the element type is propagated from the input vectors.
@@ -1860,7 +1911,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     element_constr: AttrConstraint
     mask_constr: VarConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         VectorType.constr(
             self.element_constr,
             shape=ArrayAttr.constr(
@@ -1874,7 +1925,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
             and self.mask_constr.name in var_constraint_names
         )
 
-    def infer(self, context: ConstraintContext) -> VectorType:
+    def infer(self, context: InferenceContext) -> VectorType:
         mask = context.get_variable(self.mask_constr.name)
         assert mask is not None
         mask = cast(DenseArrayBase[IntegerType], mask)
@@ -2677,21 +2728,24 @@ class CallOp(IRDLOperation):
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
         variadic_args: int = 0,
+        var_callee_type: LLVMFunctionType | None = None,
     ):
+        """
+        If `var_callee_type` is not given and `variadic_args` is non-zero, the
+        callee type is inferred.
+        """
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
         op_result_type = [return_type]
         if return_type is None:
             return_type = LLVMVoidType()
-        input_types = [
-            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
-        ]
-        if variadic_args:
+        if var_callee_type is None and variadic_args:
+            input_types = [
+                SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
+            ]
             var_callee_type = LLVMFunctionType(
-                input_types, return_type, bool(variadic_args)
+                input_types, return_type, is_variadic=True
             )
-        else:
-            var_callee_type = None
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={
@@ -3004,6 +3058,11 @@ class SIToFPOp(GenericCastOp):
 @irdl_op_definition
 class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
+
+
+@irdl_op_definition
+class FPTruncOp(GenericCastOp):
+    name = "llvm.fptrunc"
 
 
 @irdl_op_definition
@@ -3326,7 +3385,7 @@ class FLog2Op(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3542,7 +3601,7 @@ class FCopySignOp(IRDLOperation):
         rhs: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[lhs, rhs],
@@ -3649,13 +3708,75 @@ class FPowOp(IRDLOperation):
         rhs: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
             properties={"fastmathFlags": fast_math},
         )
+
+
+@irdl_op_definition
+class StackSaveOp(IRDLOperation):
+    name = "llvm.intr.stacksave"
+
+    res = result_def(LLVMPointerType)
+
+    assembly_format = "attr-dict `:` type($res)"
+
+    def __init__(self):
+        super().__init__(result_types=[LLVMPointerType()])
+
+
+class VectorReduceOperation(IRDLOperation, ABC):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    start_value = operand_def(T)
+    vector = operand_def(VectorType.constr(T))
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        start_value: Operation | SSAValue,
+        vector: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[start_value, vector],
+            result_types=[SSAValue.get(start_value).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class VectorReduceFAddOp(VectorReduceOperation):
+    name = "llvm.intr.vector.reduce.fadd"
+
+
+@irdl_op_definition
+class VectorReduceFMulOp(VectorReduceOperation):
+    name = "llvm.intr.vector.reduce.fmul"
+
+
+@irdl_op_definition
+class StackRestoreOp(IRDLOperation):
+    name = "llvm.intr.stackrestore"
+
+    ptr = operand_def(LLVMPointerType)
+
+    assembly_format = "$ptr attr-dict `:` type($ptr)"
+
+    def __init__(self, ptr: Operation | SSAValue):
+        super().__init__(operands=[ptr])
 
 
 @irdl_op_definition
@@ -3697,6 +3818,7 @@ LLVM = Dialect(
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPTruncOp,
         FPowOp,
         FRemOp,
         FSinOp,
@@ -3724,6 +3846,8 @@ LLVM = Dialect(
         SRemOp,
         ShlOp,
         ShuffleVectorOp,
+        StackRestoreOp,
+        StackSaveOp,
         StoreOp,
         SubOp,
         TruncOp,
@@ -3733,6 +3857,8 @@ LLVM = Dialect(
         UnreachableOp,
         VectorFMaxOp,
         VectorFMinOp,
+        VectorReduceFAddOp,
+        VectorReduceFMulOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

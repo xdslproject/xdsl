@@ -19,7 +19,7 @@ class ElideConstantBranches(RewritePattern):
 
         # if branch is always taken, replace by jump
         if branch_taken:
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 JOp(
                     op.then_arguments,
@@ -29,7 +29,7 @@ class ElideConstantBranches(RewritePattern):
             )
         # if branch is never taken, replace by "fall through"
         else:
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 BranchOp(
                     op.else_arguments,

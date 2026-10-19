@@ -56,6 +56,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -82,7 +83,8 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class InnerSymTarget:
-    """The target of an inner symbol, the entity the symbol is a handle for.
+    """
+    The target of an inner symbol, the entity the symbol is a handle for.
 
     A None operation defines an invalid target, which is returned from InnerSymbolTable.lookup()
     when no matching operation is found. An invalid target is falsey when constrained to bool.
@@ -178,7 +180,7 @@ class InnerSymbolTableTrait(OpTrait):
             )
 
         # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait (or similar),
-        # however don’t test InnerRefNamespace’s symbol lookups
+        # however don't test InnerRefNamespace's symbol lookups
         parent = op.parent_op()
         if parent is None or not parent.has_trait(trait := InnerRefNamespaceLike):
             raise VerifyException(
@@ -195,7 +197,7 @@ class InnerSymbolTable:
         default_factory=dict[StringAttr, InnerSymTarget]
     )
 
-    def __post_init__(self, op: Operation | None = None) -> None:
+    def __post_init__(self, op: Operation | None) -> None:
         pass
         # Here will populate self.symbol_table
 
@@ -209,7 +211,7 @@ class InnerSymbolTableCollection:
     )
     op: InitVar[Operation | None] = None
 
-    def __post_init__(self, op: Operation | None = None) -> None:
+    def __post_init__(self, op: Operation | None) -> None:
         if op is None:
             return
         if not op.has_trait(trait := InnerRefNamespaceTrait):
@@ -245,7 +247,8 @@ class InnerSymbolTableCollection:
 
 
 class InnerRefUserOpInterfaceTrait(OpTrait):
-    """This interface describes an operation that may use a `InnerRef`. This
+    """
+    This interface describes an operation that may use a `InnerRef`. This
     interface allows for users of inner symbols to hook into verification and
     other inner symbol related utilities that are either costly or otherwise
     disallowed within a traditional operation."""
@@ -286,7 +289,8 @@ InnerRefNamespaceLike.register(InnerRefNamespaceTrait)
 
 @dataclass
 class InnerRefNamespace:
-    """Class to perform symbol lookups within a InnerRef namespace, used during verification.
+    """
+    Class to perform symbol lookups within a InnerRef namespace, used during verification.
     Combines InnerSymbolTableCollection with a SymbolTable for resolution of InnerRefAttrs.
 
     Inner symbols are more costly than normal symbols, with tricker verification. For this reason,
@@ -357,7 +361,8 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
 class InnerSymAttr(
     ParametrizedAttribute, Iterable[InnerSymPropertiesAttr], OpaqueSyntaxAttribute
 ):
-    """Inner symbol definition
+    """
+    Inner symbol definition
 
     Defines the properties of an inner_sym attribute. It specifies the symbol name and symbol
     visibility for each field ID. For any ground types, there are no subfields and the field ID is 0.
@@ -902,10 +907,10 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
 
     body = region_def("single_block")
 
@@ -926,7 +931,7 @@ class HWModuleOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
@@ -935,10 +940,10 @@ class HWModuleOp(IRDLOperation):
         if visibility:
             if isinstance(visibility, str):
                 visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
+            properties["sym_visibility"] = visibility
 
         return super().__init__(
-            attributes=attributes,
+            properties=properties,
             regions=[body],
         )
 

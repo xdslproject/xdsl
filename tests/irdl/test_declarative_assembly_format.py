@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import textwrap
 from collections.abc import Callable
 from io import StringIO
@@ -84,6 +85,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
     FormatProgram,
+    FunctionalTypeDirective,
     OperandsDirective,
     OperandVariable,
     ParsingState,
@@ -160,7 +162,7 @@ def test_format_and_print_op():
     ):
 
         @irdl_op_definition
-        class FormatAndPrintOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class FormatAndPrintOp(IRDLOperation):
             name = "test.format_and_print"
 
             assembly_format = "attr-dict"
@@ -199,7 +201,7 @@ def test_expected_attr_dict():
     with pytest.raises(PyRDLOpDefinitionError, match="'attr-dict' directive not found"):
 
         @irdl_op_definition
-        class NoAttrDictOp0(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoAttrDictOp0(IRDLOperation):
             name = "test.no_attr_dict"
 
             assembly_format = ""
@@ -213,7 +215,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp1(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoAttrDictOp1(IRDLOperation):
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict"
@@ -223,7 +225,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp2(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoAttrDictOp2(IRDLOperation):
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict-with-keyword"
@@ -233,7 +235,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp3(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoAttrDictOp3(IRDLOperation):
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict"
@@ -243,7 +245,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp4(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoAttrDictOp4(IRDLOperation):
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict-with-keyword"
@@ -470,9 +472,7 @@ def test_attribute_duplicated():
     ):
 
         @irdl_op_definition
-        class DuplicatedAttributeOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedAttributeOp(IRDLOperation):
             name = "test.duplicated_attribute_op"
             attr = attr_def()
 
@@ -486,9 +486,7 @@ def test_property_duplicated():
     ):
 
         @irdl_op_definition
-        class DuplicatedPropertiesOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedPropertiesOp(IRDLOperation):
             name = "test.duplicated_property_op"
             attr = prop_def()
 
@@ -933,7 +931,7 @@ def test_unknown_variable():
     ) as exc_info:
 
         @irdl_op_definition
-        class UnknownVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class UnknownVarOp(IRDLOperation):
             name = "test.unknown_var_op"
 
             assembly_format = "$var attr-dict"
@@ -952,7 +950,7 @@ def test_missing_operand():
     with pytest.raises(PyRDLOpDefinitionError, match="operand 'operand' not found"):
 
         @irdl_op_definition
-        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoOperandTypeOp(IRDLOperation):
             name = "test.no_operand_type_op"
             operand = operand_def()
 
@@ -966,7 +964,7 @@ def test_operands_missing_type():
     ):
 
         @irdl_op_definition
-        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoOperandTypeOp(IRDLOperation):
             name = "test.no_operand_type_op"
             operand = operand_def()
 
@@ -980,9 +978,7 @@ def test_operands_duplicated():
     ):
 
         @irdl_op_definition
-        class DuplicatedOperandOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedOperandOp(IRDLOperation):
             name = "test.duplicated_operand_op"
             operand = operand_def()
 
@@ -996,9 +992,7 @@ def test_operands_duplicated_type():
     ):
 
         @irdl_op_definition
-        class DuplicatedOperandTypeOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedOperandTypeOp(IRDLOperation):
             name = "test.duplicated_operand_type_op"
             operand = operand_def()
 
@@ -1330,7 +1324,7 @@ def test_operands_directive_fails_with_two_var():
     ):
 
         @irdl_op_definition
-        class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class TwoVarOp(IRDLOperation):
             name = "test.two_var_op"
 
             op1 = var_operand_def()
@@ -1413,7 +1407,7 @@ def test_operands_directive_fails_with_no_operands():
     ):
 
         @irdl_op_definition
-        class NoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoOperandsOp(IRDLOperation):
             name = "test.no_operands_op"
 
             assembly_format = "operands attr-dict `:` type(operands)"
@@ -1428,7 +1422,7 @@ def test_operands_directive_fails_with_other_directive():
     ):
 
         @irdl_op_definition
-        class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class TwoOperandsOp(IRDLOperation):
             name = "test.two_operands_op"
 
             op1 = operand_def()
@@ -1446,7 +1440,7 @@ def test_operands_directive_fails_with_other_type_directive():
     ):
 
         @irdl_op_definition
-        class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class TwoOperandsOp(IRDLOperation):
             name = "test.two_operands_op"
 
             op1 = operand_def()
@@ -1641,7 +1635,7 @@ def test_missing_result_type():
     ):
 
         @irdl_op_definition
-        class NoResultTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoResultTypeOp(IRDLOperation):
             name = "test.no_result_type_op"
             result = result_def()
 
@@ -1655,9 +1649,7 @@ def test_results_duplicated_type():
     ):
 
         @irdl_op_definition
-        class DuplicatedresultTypeOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedresultTypeOp(IRDLOperation):
             name = "test.duplicated_result_type_op"
             result = result_def()
 
@@ -1755,7 +1747,7 @@ def test_variadic_result_failure():
     ):
 
         @irdl_op_definition
-        class VariadicResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class VariadicResultsOp(IRDLOperation):
             name = "test.var_results_op"
 
             res = var_result_def(IndexType())
@@ -1879,7 +1871,7 @@ def test_results_directive_fails_with_two_var():
     ):
 
         @irdl_op_definition
-        class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class TwoVarOp(IRDLOperation):
             name = "test.two_var_op"
 
             res1 = var_result_def()
@@ -1962,7 +1954,7 @@ def test_results_directive_fails_with_no_results():
     ):
 
         @irdl_op_definition
-        class NoResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoResultsOp(IRDLOperation):
             name = "test.no_results_op"
 
             assembly_format = "attr-dict `:` type(results)"
@@ -1977,7 +1969,7 @@ def test_results_directive_fails_with_other_type_directive():
     ):
 
         @irdl_op_definition
-        class TwoResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class TwoResultsOp(IRDLOperation):
             name = "test.two_results_op"
 
             res1 = result_def()
@@ -2166,6 +2158,43 @@ def test_functional_type(program: str):
 
 
 @pytest.mark.parametrize(
+    "signature, expected_operand_types, expected_result_types",
+    [
+        ("", None, None),
+        ("() -> ()", [], []),
+        ("() -> i32", [], [i32]),
+        ("(i32) -> (i32)", [i32], [i32]),
+        ("(i32, f32) -> ()", [i32, f32], []),
+        ("(i32, f32) -> (f32, i32)", [i32, f32], [f32, i32]),
+    ],
+)
+def test_functional_type_optional(
+    signature: str,
+    expected_operand_types: list[Attribute] | None,
+    expected_result_types: list[Attribute] | Attribute | None,
+):
+    """Exercise optional parsing directly, without a declarative optional group."""
+    directive = FunctionalTypeDirective(OperandsDirective(), ResultsDirective())
+    state = ParsingState(test.TestOp)
+    parser = Parser(Context(), f"{signature} next")
+    start_pos = parser.pos
+
+    directive.parse_optional(parser, state)
+
+    operand_types = [
+        None if types is None else list(types) for types in state.operand_types
+    ]
+    result_types = [
+        None if types is None else list(types) for types in state.result_types
+    ]
+    assert operand_types == [expected_operand_types]
+    assert result_types == [expected_result_types]
+    if not signature:
+        assert parser.pos == start_pos
+    parser.parse_keyword("next")
+
+
+@pytest.mark.parametrize(
     "program",
     [
         "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
@@ -2206,7 +2235,7 @@ def test_missing_region():
     with pytest.raises(PyRDLOpDefinitionError, match="region 'region' not found"):
 
         @irdl_op_definition
-        class NoRegionOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoRegionOp(IRDLOperation):
             name = "test.no_region_op"
             region = region_def()
 
@@ -2218,9 +2247,7 @@ def test_region_duplicated():
     with pytest.raises(PyRDLOpDefinitionError, match="region 'r' is already bound"):
 
         @irdl_op_definition
-        class DuplicatedRegionOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedRegionOp(IRDLOperation):
             name = "test.duplicated_region_op"
             r = region_def()
 
@@ -2235,7 +2262,7 @@ def test_attr_dict_directly_before_region_variable():
     ):
 
         @irdl_op_definition
-        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class RegionAttrDictWrongOp(IRDLOperation):
             name = "test.region_op_missing_keyword"
             region = region_def()
 
@@ -2404,11 +2431,13 @@ def test_multiple_optional_regions():
     """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic region variable cannot be followed by another region variable.",
+        match=re.escape(
+            "An optional/variadic region variable cannot be followed by another region variable."
+        ),
     ):
 
         @irdl_op_definition
-        class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class OptionalRegionsOp(IRDLOperation):
             name = "test.optional_regions"
             irdl_options = (AttrSizedRegionSegments(),)
             region1 = opt_region_def()
@@ -2489,11 +2518,13 @@ def test_attr_dict_directly_after_optional_group_with_first_region_variable():
     """Test that regions require an 'attr-dict' directive."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous.",
+        match=re.escape(
+            "An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous."
+        ),
     ):
 
         @irdl_op_definition
-        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class RegionAttrDictWrongOp(IRDLOperation):
             name = "test.region_op_ambiguous_optional_group"
             region = region_def()
 
@@ -2510,7 +2541,7 @@ def test_missing_successor():
     with pytest.raises(PyRDLOpDefinitionError, match="successor 'successor' not found"):
 
         @irdl_op_definition
-        class NoSuccessorOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class NoSuccessorOp(IRDLOperation):
             name = "test.no_successor_op"
             successor = successor_def()
 
@@ -2524,9 +2555,7 @@ def test_successor_duplicated():
     ):
 
         @irdl_op_definition
-        class DuplicatedSucessorOp(  # pyright: ignore[reportUnusedClass]
-            IRDLOperation
-        ):
+        class DuplicatedSucessorOp(IRDLOperation):
             name = "test.duplicated_successor_op"
             succ = successor_def()
 
@@ -2539,18 +2568,18 @@ def test_successors():
     program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^bb0] : () -> ()
-        ^bb0:
-          test.two_successors ^bb0 ^bb0
+          "test.op"() [^bb1] : () -> ()
+        ^bb1:
+          test.two_successors ^bb1 ^bb1
         }) : () -> ()"""
     )
 
     generic_program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^bb0] : () -> ()
-        ^bb0:
-          "test.two_successors"() [^bb0, ^bb0] : () -> ()
+          "test.op"() [^bb1] : () -> ()
+        ^bb1:
+          "test.two_successors"() [^bb1, ^bb1] : () -> ()
         }) : () -> ()"""
     )
 
@@ -2574,12 +2603,12 @@ def test_successors():
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.var_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.var_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
                   "test.var_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2588,17 +2617,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.var_successor ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.var_successor ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.var_successor"() [^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.var_successor"() [^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2606,17 +2635,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.var_successor ^bb0, ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.var_successor ^bb1, ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.var_successor"() [^bb0, ^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.var_successor"() [^bb1, ^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2644,12 +2673,12 @@ def test_variadic_successor(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.opt_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb1] : () -> ()\n^bb1:\n  test.opt_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
                   "test.opt_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2658,17 +2687,17 @@ def test_variadic_successor(program: str, generic_program: str):
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  test.opt_successor ^bb0
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  test.opt_successor ^bb1
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^bb0] : () -> ()
-                ^bb0:
-                  "test.opt_successor"() [^bb0] : () -> ()
+                  "test.op"() [^bb1] : () -> ()
+                ^bb1:
+                  "test.opt_successor"() [^bb1] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2805,11 +2834,10 @@ def test_nested_inference():
             p: AttrConstraint[_T] | None = None,
             q: AttrConstraint | None = None,
         ) -> AttrConstraint[ParamOne[_T]]:
+            cls = cast(type[ParamOne[_T]], ParamOne)
             if n is None and p is None and q is None:
-                return BaseAttr[ParamOne[_T]](ParamOne)
-            return cast(
-                AttrConstraint[ParamOne[_T]], ParamAttrConstraint.get(ParamOne, n, p, q)
-            )
+                return BaseAttr[ParamOne[_T]](cls)
+            return ParamAttrConstraint.get(cls, n, p, q)
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
@@ -2888,9 +2916,10 @@ def test_non_verifying_inference():
             *,
             p: AttrConstraint[_T] | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
+            cls = cast(type[ParamOne[_T]], ParamOne)
             if p is None:
-                return BaseAttr[ParamOne[_T]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
+                return BaseAttr[ParamOne[_T]](cls)
+            return ParamAttrConstraint[ParamOne[_T]](cls, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
@@ -2913,7 +2942,7 @@ def test_non_verifying_inference():
     )
     with pytest.raises(
         VerifyException,
-        match="i32 should be of base attribute test.param_one",
+        match=re.escape("i32 should be of base attribute test.param_one"),
     ):
         parser = Parser(ctx, program)
         while (op := parser.parse_optional_operation()) is not None:
@@ -2993,11 +3022,11 @@ def test_variadic_comma_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic directive cannot be followed by a comma literal.",
+        match=re.escape("A variadic directive cannot be followed by a comma literal."),
     ):
 
         @irdl_op_definition
-        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class CommaSafeguardOp(IRDLOperation):
             name = "test.comma_safeguard"
 
             variadic = variadic_def()
@@ -3036,11 +3065,13 @@ def test_chained_variadic_types_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic type directive cannot be followed by another type directive.",
+        match=re.escape(
+            "An optional/variadic type directive cannot be followed by another type directive."
+        ),
     ):
 
         @irdl_op_definition
-        class VarTypeGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class VarTypeGuardOp(IRDLOperation):
             name = "test.variadic_type_safeguard"
 
             variadic_one = variadic_def_one()
@@ -3061,11 +3092,13 @@ def test_chained_variadic_operands_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="An optional/variadic operand variable cannot be followed by another operand variable.",
+        match=re.escape(
+            "An optional/variadic operand variable cannot be followed by another operand variable."
+        ),
     ):
 
         @irdl_op_definition
-        class VarOpGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class VarOpGuardOp(IRDLOperation):
             name = "test.variadic_operand_safeguard"
 
             variadic_one = variadic_def_one()
@@ -3150,7 +3183,7 @@ def test_impossible_optional_else_group():
     ):
 
         @irdl_op_definition
-        class OptionalImpossibleElseGroup(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class OptionalImpossibleElseGroup(IRDLOperation):
             name = "test.impossible_optional_else_group"
 
             val = opt_prop_def(IntegerAttr[I32])
@@ -3335,7 +3368,7 @@ def test_optional_group_checkers(format: str, error: str):
     ):
 
         @irdl_op_definition
-        class WrongOptionalGroupOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class WrongOptionalGroupOp(IRDLOperation):
             name = "test.wrong_optional_group"
 
             args = var_operand_def()
@@ -3843,9 +3876,8 @@ def test_qualified_attr():
 
 @irdl_custom_directive
 class Hello(CustomDirective):
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         parser.parse_keyword("hello")
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -3881,7 +3913,7 @@ class Bars(CustomDirective):
 
     var: VariadicOperandVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         first = parser.parse_optional_unresolved_operand()
         if first is None:
             operands = []
@@ -3890,7 +3922,6 @@ class Bars(CustomDirective):
             while parser.parse_optional_punctuation("|"):
                 operands.append(parser.parse_unresolved_operand())
         self.var.set(state, operands)
-        return bool(operands)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.var.get(op)
@@ -3929,14 +3960,14 @@ def test_custom_directive_param(program: str):
 
 def test_non_upper_classvar():
     with pytest.raises(
-        PyRDLError, match='Invalid ClassVar name "bad", must be uppercase.'
+        PyRDLError, match=re.escape('Invalid ClassVar name "bad", must be uppercase.')
     ):
 
         @irdl_custom_directive
-        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+        class BadClassVar(CustomDirective):
             bad: ClassVar
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -3948,14 +3979,16 @@ def test_non_upper_classvar():
 def test_bad_parameter():
     with pytest.raises(
         PyRDLError,
-        match="Custom directive BadParam has parameter int_param which is not a format directive.",
+        match=re.escape(
+            "Custom directive BadParam has parameter int_param which is not a format directive."
+        ),
     ):
 
         @irdl_custom_directive
-        class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
+        class BadParam(CustomDirective):
             int_param: int
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -3977,8 +4010,8 @@ class EmptyDirectiveWithParams(CustomDirective):
     operand_types: TypeDirective
     results: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        return True
+    def parse(self, parser: Parser, state: ParsingState):
+        pass
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         pass
@@ -4062,3 +4095,41 @@ def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_keywords_are_non_optional():
+    @irdl_op_definition
+    class NonOptionalKeyword(IRDLOperation):
+        name = "test.non_optional_keyword"
+
+        assembly_format = "`keyword` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(NonOptionalKeyword)
+
+    parser = Parser(ctx, "test.non_optional_keyword keyword")
+    parser.parse_op()
+
+    parser = Parser(ctx, "test.non_optional_keyword")
+
+    with pytest.raises(ParseError, match="Expected 'keyword'"):
+        parser.parse_op()
+
+
+def test_punctuation_is_non_optional():
+    @irdl_op_definition
+    class NonOptionalPunctuation(IRDLOperation):
+        name = "test.non_optional_punctuation"
+
+        assembly_format = "`:` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(NonOptionalPunctuation)
+
+    parser = Parser(ctx, "test.non_optional_punctuation :")
+    parser.parse_op()
+
+    parser = Parser(ctx, "test.non_optional_punctuation")
+
+    with pytest.raises(ParseError, match="Expected ':'"):
+        parser.parse_op()

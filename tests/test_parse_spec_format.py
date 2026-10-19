@@ -113,9 +113,3 @@ def test_invalid_mlir_pipeline():
         match="Expected `mlir-opt` to mark an MLIR pipeline here",
     ):
         list(parse_pipeline("canonicalize[cse]"))
-
-
-def test_deprecated_args():
-    spec = ArgSpec("name", {"hello": ("world",)})
-    with pytest.deprecated_call():
-        assert spec.args == {"hello": ("world",)}  # pyright: ignore[reportDeprecated]

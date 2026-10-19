@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   %lb = "arith.constant"() {"value" = 0 : i32} : () -> i32
@@ -27,7 +27,7 @@
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32, i32) -> i32
 // CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^bb1(%{{.*}}: i32):
+// CHECK-NEXT:   ^bb0(%{{.*}}: i32):
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32) -> ()
 // CHECK-NEXT: }) : () -> ()

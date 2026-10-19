@@ -57,7 +57,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(mv)
             new_results = mv.results
 
-        rewriter.replace_op(op, ops, new_results=new_results)
+        rewriter.replace(op, ops, new_results=new_results)
 
 
 class InsertExitSyscallOp(RewritePattern):
@@ -71,7 +71,7 @@ class InsertExitSyscallOp(RewritePattern):
             return
 
         EXIT = 93
-        rewriter.insert_op(riscv_func.SyscallOp(EXIT))
+        rewriter.insert(riscv_func.SyscallOp(EXIT))
 
 
 @dataclass(frozen=True)

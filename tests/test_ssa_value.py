@@ -21,7 +21,8 @@ def test_var_mixed_builder():
     op = TwoResultOp.build(result_types=[StringAttr("0"), StringAttr("2")])
 
     with pytest.raises(
-        ValueError, match="SSAValue.get: expected operation with a single result."
+        ValueError,
+        match=re.escape("SSAValue.get: expected operation with a single result."),
     ):
         _ = SSAValue.get(op)
 

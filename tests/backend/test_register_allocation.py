@@ -15,11 +15,9 @@ from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.builder import Builder
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import TestAllocatableOp, TestOp, TestRegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    AttrSizedResultSegments,
     IRDLOperation,
     VarConstraint,
     base,
@@ -31,21 +29,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.test_value import create_ssa_value
-
-
-@irdl_attr_definition
-class TestRegister(RegisterType):
-    name = "test.reg"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "y"
 
 
 @irdl_attr_definition
@@ -82,39 +67,6 @@ class TestAliasRegisterB(RegisterType):
         return "test.alias_pool"
 
 
-@irdl_op_definition
-class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
-    name = "test.allocatable"
-
-    in_operands = var_operand_def()
-    inout_operands = var_operand_def()
-    out_results = var_result_def()
-    inout_results = var_result_def()
-
-    traits = traits_def(RegisterAllocatedMemoryEffect())
-
-    irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
-
-    def __init__(
-        self,
-        in_operands: Sequence[SSAValue],
-        inout_operands: Sequence[SSAValue],
-        out_result_types: Sequence[Attribute],
-        inout_result_types: Sequence[Attribute],
-    ):
-        super().__init__(
-            operands=(in_operands, inout_operands),
-            result_types=(out_result_types, inout_result_types),
-        )
-
-    def get_register_constraints(self) -> RegisterConstraints:
-        return RegisterConstraints(
-            self.in_operands,
-            self.out_results,
-            tuple(zip(self.inout_operands, self.inout_results)),
-        )
-
-
 def op(
     ins: Sequence[SSAValue],
     *out_result_types: Attribute,
@@ -126,9 +78,9 @@ def op(
 
 
 def test_gather_allocated():
-    u = TestRegister.unallocated()
-    x0 = TestRegister.from_name("x0")
-    x1 = TestRegister.from_name("x0")
+    u = TestRegisterType.unallocated()
+    x0 = TestRegisterType.from_name("x0")
+    x1 = TestRegisterType.from_name("x0")
 
     @Builder.implicit_region
     def no_preallocated_body() -> None:
@@ -186,7 +138,7 @@ def test_deprecated_iter_used_registers():
     raise a deprecation warning.
     """
 
-    x1 = TestRegister.from_name("x1")
+    x1 = TestRegisterType.from_name("x1")
 
     @irdl_op_definition
     class TestDepracatedAllocatableOp(IRDLOperation, HasRegisterConstraints):
@@ -200,6 +152,9 @@ def test_deprecated_iter_used_registers():
         @override
         def iter_used_registers(self):
             yield x1
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            raise NotImplementedError
 
     o = TestDepracatedAllocatableOp.create()
 
@@ -220,12 +175,12 @@ def test_new_type_for_value():
         def infinite_register_prefix(cls):
             return "y"
 
-    u = TestRegister.unallocated()
-    a0 = TestRegister.from_name("a0")
-    a1 = TestRegister.from_name("a1")
+    u = TestRegisterType.unallocated()
+    a0 = TestRegisterType.from_name("a0")
+    a1 = TestRegisterType.from_name("a1")
 
     available_registers = RegisterStack.get((a0, a1))
-    allocator = ValueAllocator(available_registers, TestRegister)
+    allocator = ValueAllocator(available_registers, TestRegisterType)
 
     r0, r1, r2, r3 = op(
         (), u, a0, OtherRegister.unallocated(), OtherRegister.from_index(1)
@@ -238,13 +193,13 @@ def test_new_type_for_value():
 
 
 def test_allocate_value():
-    u = TestRegister.unallocated()
-    a0 = TestRegister.from_name("a0")
-    a1 = TestRegister.from_name("a1")
-    y0 = TestRegister.from_name("y0")
+    u = TestRegisterType.unallocated()
+    a0 = TestRegisterType.from_name("a0")
+    a1 = TestRegisterType.from_name("a1")
+    y0 = TestRegisterType.from_name("y0")
 
     register_stack = RegisterStack.get((a0, a1), allow_infinite=True)
-    allocator = ValueAllocator(register_stack, TestRegister)
+    allocator = ValueAllocator(register_stack, TestRegisterType)
 
     op0 = op((), u, u, u, u)
     r00, r01, r02, _r03 = op0.results
@@ -347,13 +302,13 @@ def test_allocate_value():
 
 
 def test_allocate_values_same_reg():
-    u = TestRegister.unallocated()
-    a0 = TestRegister.from_name("a0")
-    a1 = TestRegister.from_name("a1")
-    y0 = TestRegister.from_name("y0")
+    u = TestRegisterType.unallocated()
+    a0 = TestRegisterType.from_name("a0")
+    a1 = TestRegisterType.from_name("a1")
+    y0 = TestRegisterType.from_name("y0")
 
     register_stack = RegisterStack.get((a0, a1))
-    allocator = ValueAllocator(register_stack, TestRegister)
+    allocator = ValueAllocator(register_stack, TestRegisterType)
 
     # Empty
     assert not allocator.allocate_values_same_reg(())
@@ -409,12 +364,12 @@ def test_multiple_outputs():
             return RegisterConstraints(self.operands, self.results, ())
 
     available_registers = RegisterStack(allow_infinite=True)
-    register_allocator = BlockNaiveAllocator(available_registers, TestRegister)
+    register_allocator = BlockNaiveAllocator(available_registers, TestRegisterType)
 
     op = AllocatableTestOp(
         result_types=(
-            TestRegister.unallocated(),
-            TestRegister.unallocated(),
+            TestRegisterType.unallocated(),
+            TestRegisterType.unallocated(),
         )
     )
 
@@ -424,12 +379,97 @@ def test_multiple_outputs():
     assert len(op.result_types) == len(set(op.result_types))
 
 
+def test_verify_register_constraints():
+    u = TestRegisterType.unallocated()
+
+    # Correctly implemented `get_register_constraints` passes verification
+    op([create_ssa_value(u)], u, inouts=[create_ssa_value(u)]).verify()
+
+    # A value may be read as an `in` register and also clobbered as an `inout` register,
+    # as long as it is declared once per operand.
+    shared = create_ssa_value(u)
+    op([shared], u, inouts=[shared]).verify()
+
+    # The same holds for a value clobbered by more than one `inout` register.
+    op([], u, inouts=[shared, shared]).verify()
+
+    unrelated = create_ssa_value(u)
+
+    class MisconstrainedOp(HasRegisterConstraints, IRDLOperation):
+        T: ClassVar = VarConstraint("T", base(TestRegisterType))
+
+        a = operand_def(T)
+        b = result_def(T)
+
+    @irdl_op_definition
+    class UndeclaredOperandOp(MisconstrainedOp):
+        name = "test.undeclared_operand"
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((), (self.b,), ())
+
+    @irdl_op_definition
+    class RepeatedOperandOp(MisconstrainedOp):
+        name = "test.repeated_operand"
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((self.a, self.a), (self.b,), ())
+
+    @irdl_op_definition
+    class UndeclaredResultOp(MisconstrainedOp):
+        name = "test.undeclared_result"
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((self.a,), (), ())
+
+    @irdl_op_definition
+    class RepeatedResultOp(MisconstrainedOp):
+        name = "test.repeated_result"
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((self.a,), (self.b, self.b), ())
+
+    @irdl_op_definition
+    class ForeignValueOp(MisconstrainedOp):
+        name = "test.foreign_value"
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((self.a, unrelated), (self.b,), ())
+
+    for op_type, message in (
+        (
+            UndeclaredOperandOp,
+            "Operation test.undeclared_operand operand at index 0 is declared 0 times as `in` or `inout`, expected 1.",
+        ),
+        (
+            RepeatedOperandOp,
+            "Operation test.repeated_operand operand at index 0 is declared 2 times as `in` or `inout`, expected 1.",
+        ),
+        (
+            UndeclaredResultOp,
+            "Operation test.undeclared_result result at index 0 is declared 0 times as `out` or `inout`, expected 1.",
+        ),
+        (
+            RepeatedResultOp,
+            "Operation test.repeated_result result at index 0 is declared 2 times as `out` or `inout`, expected 1.",
+        ),
+        (
+            ForeignValueOp,
+            "Operation test.foreign_value declares values as `in` or `inout` that it "
+            "does not use as operands.",
+        ),
+    ):
+        misconstrained = op_type(operands=[create_ssa_value(u)], result_types=[u])
+        with pytest.raises(VerifyException, match=re.escape(message)):
+            misconstrained.verify()
+
+
 def test_fail_error_message():
     @irdl_op_definition
     class InoutOp(HasRegisterConstraints, IRDLOperation):
         name = "test.inout"
 
-        T: ClassVar = VarConstraint("T", base(TestRegister))
+        T: ClassVar = VarConstraint("T", base(TestRegisterType))
 
         a = operand_def(T)
         b = result_def(T)
@@ -437,10 +477,12 @@ def test_fail_error_message():
         def get_register_constraints(self) -> RegisterConstraints:
             return RegisterConstraints((), (), ((self.a, self.b),))
 
-    a = create_ssa_value(TestRegister.from_index(0))
-    block = Block((InoutOp(operands=[a], result_types=[TestRegister.from_index(1)]),))
+    a = create_ssa_value(TestRegisterType.from_index(0))
+    block = Block(
+        (InoutOp(operands=[a], result_types=[TestRegisterType.from_index(1)]),)
+    )
 
-    allocator = BlockNaiveAllocator(RegisterStack.get(), TestRegister)
+    allocator = BlockNaiveAllocator(RegisterStack.get(), TestRegisterType)
 
     with pytest.raises(
         DiagnosticException,
@@ -463,8 +505,8 @@ def test_fail_error_message():
 
 def test_out_of_registers():
     register_stack = RegisterStack()
-    with pytest.raises(OutOfRegisters, match="Out of registers."):
-        register_stack.pop(TestRegister)
+    with pytest.raises(OutOfRegisters, match=re.escape("Out of registers.")):
+        register_stack.pop(TestRegisterType)
 
 
 def test_reserved_aliased_register():

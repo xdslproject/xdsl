@@ -30,14 +30,14 @@ def initialize_all_asmprinters():  # -> None:
     """
     ...
 
-def initialize_native_target():  # -> None:
+def initialize_native_target() -> None:
     """
     Initialize the native (host) target.  Necessary before doing any
     code generation.
     """
     ...
 
-def initialize_native_asmprinter():  # -> None:
+def initialize_native_asmprinter() -> None:
     """
     Initialize the native ASM printer.
     """

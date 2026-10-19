@@ -47,13 +47,13 @@ class InferConstantStep(RewritePattern):
             return
 
         new_op = type(op)(
-            op.lb,
-            op.ub,
+            op.start,
+            op.stop,
             step_attr,
             op.iter_args,
             rewriter.move_region_contents_to_new_regions(op.body),
         )
-        rewriter.replace_op(op, new_op, new_op.results)
+        rewriter.replace(op, new_op, new_op.results)
 
 
 class RiscvScfForInferConstantStepPass(ModulePass):

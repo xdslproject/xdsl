@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects.affine import ForOp, YieldOp
@@ -27,7 +29,7 @@ def test_for_mismatch_operands_results_counts():
     )
     with pytest.raises(
         VerifyException,
-        match="Expected as many init operands as results.",
+        match=re.escape("Expected as many init operands as results."),
     ):
         f.verify()
 

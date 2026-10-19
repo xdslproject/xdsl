@@ -2,6 +2,7 @@
 Test the usage of scf dialect.
 """
 
+import re
 from typing import cast
 
 import pytest
@@ -299,7 +300,7 @@ def test_reduce_op_num_block_args():
 
     with pytest.raises(
         VerifyException,
-        match="scf.reduce block must have exactly two arguments, but ",
+        match=re.escape("scf.reduce block must have exactly two arguments, but "),
     ):
         rro = ReduceReturnOp(reduce_constant)
         ReduceOp(
@@ -308,14 +309,14 @@ def test_reduce_op_num_block_args():
 
     with pytest.raises(
         VerifyException,
-        match="scf.reduce block must have exactly two arguments, but ",
+        match=re.escape("scf.reduce block must have exactly two arguments, but "),
     ):
         rro = ReduceReturnOp(reduce_constant)
         ReduceOp((init_val,), (Region(Block([rro], arg_types=[i32])),)).verify()
 
     with pytest.raises(
         VerifyException,
-        match="scf.reduce block must have exactly two arguments, but ",
+        match=re.escape("scf.reduce block must have exactly two arguments, but "),
     ):
         rro = ReduceReturnOp(reduce_constant)
         ReduceOp((init_val,), (Region(Block([rro], arg_types=[])),)).verify()
@@ -327,14 +328,14 @@ def test_reduce_op_num_block_arg_types():
 
     with pytest.raises(
         VerifyException,
-        match="scf.reduce block argument types must be the same but have",
+        match=re.escape("scf.reduce block argument types must be the same but have"),
     ):
         rro = ReduceReturnOp(reduce_constant)
         ReduceOp((init_val,), (Region(Block([rro], arg_types=[i32, i64])),)).verify()
 
     with pytest.raises(
         VerifyException,
-        match="scf.reduce block argument types must be the same but have",
+        match=re.escape("scf.reduce block argument types must be the same but have"),
     ):
         rro = ReduceReturnOp(reduce_constant)
         ReduceOp((init_val,), (Region(Block([rro], arg_types=[i64, i32])),)).verify()
@@ -358,7 +359,9 @@ def test_reduce_return_op_at_end():
 
     with pytest.raises(
         VerifyException,
-        match="'scf.reduce' terminates with operation test.termop instead of scf.reduce.return",
+        match=re.escape(
+            "'scf.reduce' terminates with operation test.termop instead of scf.reduce.return"
+        ),
     ):
         ReduceOp(
             (init_val,), (Region(Block([TestTermOp.create()], arg_types=[i32, i32])),)
@@ -394,7 +397,9 @@ def test_reduce_return_type_is_operand_type():
     init_val = ConstantOp.from_int_and_width(10, i32)
     with pytest.raises(
         VerifyException,
-        match="scf.reduce.return result type at end of scf.reduce block must",
+        match=re.escape(
+            "scf.reduce.return result type at end of scf.reduce block must"
+        ),
     ):
         ReduceOp((init_val,), (Region(reduce_block),)).verify()
 

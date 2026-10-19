@@ -47,7 +47,8 @@ class Folder:
                 interface = dialect.get_interface(ConstantMaterializationInterface)
                 if interface is None:
                     return None
-                assert isinstance(type := original_result.type, TypeAttribute)
+                type = original_result.type
+                assert isinstance(type, TypeAttribute)
                 new_op = interface.materialize_constant(val, type)
                 if new_op is None:
                     return None
@@ -72,7 +73,7 @@ class Folder:
                     "Can't insert_with_fold fold an operation that already has a parent."
                 )
             values, new_ops = results
-            builder.insert_op(new_ops)
+            builder.insert(new_ops)
             return values
 
     def replace_with_fold(
@@ -87,5 +88,5 @@ class Folder:
         if results is None:
             return None
         values, new_ops = results
-        rewriter.replace_op(op, new_ops, values, safe_erase)
+        rewriter.replace(op, new_ops, values, safe_erase)
         return values

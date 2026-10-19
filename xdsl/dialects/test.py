@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -16,6 +21,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
@@ -36,6 +43,7 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    SymbolOpInterface,
 )
 
 
@@ -289,6 +297,89 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
+@irdl_op_definition
+class TestSymbolOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference with TestOp is that it satisfies the SymbolOpInterface trait,
+    meaning that we can attach a symbol name to it.
+    """
+
+    name = "test.op_with_symbol"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+
+    sym_name = prop_def(SymbolNameConstraint())
+    traits = traits_def(SymbolOpInterface())
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            regions=(regions,),
+        )
+
+
+@irdl_op_definition
+class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
+    name = "test.allocatable"
+
+    in_operands = var_operand_def()
+    inout_operands = var_operand_def()
+    out_results = var_result_def()
+    inout_results = var_result_def()
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
+    irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
+
+    def __init__(
+        self,
+        in_operands: Sequence[SSAValue],
+        inout_operands: Sequence[SSAValue],
+        out_result_types: Sequence[Attribute],
+        inout_result_types: Sequence[Attribute],
+    ):
+        super().__init__(
+            operands=(in_operands, inout_operands),
+            result_types=(out_result_types, inout_result_types),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            self.in_operands,
+            self.out_results,
+            tuple(zip(self.inout_operands, self.inout_results)),
+        )
+
+
+@irdl_attr_definition
+class TestRegisterType(RegisterType):
+    name = "test.reg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "y"
+
+
 Test = Dialect(
     "test",
     [
@@ -297,9 +388,12 @@ Test = Dialect(
         TestReadOp,
         TestTermOp,
         TestWriteOp,
+        TestSymbolOp,
+        TestAllocatableOp,
     ],
     [
         TestType,
+        TestRegisterType,
     ],
     [OpAsmDialectInterface()],
 )

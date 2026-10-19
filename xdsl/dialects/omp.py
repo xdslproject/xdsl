@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     Signedness,
     StringAttr,
     SymbolNameConstraint,
@@ -21,14 +22,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    BitEnumAttribute,
+    EnumAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -69,6 +72,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 class OpenMPOffloadMappingFlags(IntFlag):
@@ -250,6 +254,21 @@ class ReductionModifier(StrEnum):
     TASK = auto()
 
 
+class GrainsizeType(StrEnum):
+    STRICT = auto()
+
+
+class NumTasksType(StrEnum):
+    STRICT = auto()
+
+
+class CancellationConstructType(StrEnum):
+    PARALLEL = auto()
+    LOOP = auto()
+    SECTIONS = auto()
+    TASKGROUP = auto()
+
+
 class LoopWrapper(NoTerminator):
     """
     Check that the omp operation is a loop wrapper as defined upstream.
@@ -270,7 +289,8 @@ class LoopWrapper(NoTerminator):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
             )
-        assert (inner := op.regions[0].block.first_op) is not None
+        inner = op.regions[0].block.first_op
+        assert inner is not None
         if not (inner.has_trait(LoopWrapper()) or isinstance(inner, LoopNestOp)):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: "
@@ -360,6 +380,38 @@ class OrderModifierAttr(EnumAttribute[OrderModifier], SpacedOpaqueSyntaxAttribut
 
 
 @irdl_attr_definition
+class GrainsizeTypeAttr(EnumAttribute[GrainsizeType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.grainsizetype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#grainsizetypeattr).
+    """
+
+    name = "omp.grainsizetype"
+
+
+@irdl_attr_definition
+class NumTasksTypeAttr(EnumAttribute[NumTasksType], SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.numtaskstype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#numtaskstypeattr).
+    """
+
+    name = "omp.numtaskstype"
+
+
+@irdl_attr_definition
+class CancellationConstructTypeAttr(
+    EnumAttribute[CancellationConstructType], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.cancellationconstructtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#cancellationconstructtypeattr).
+    """
+
+    name = "omp.cancellationconstructtype"
+
+
+@irdl_attr_definition
 class VariableCaptureKindAttr(
     EnumAttribute[VariableCaptureKind], SpacedOpaqueSyntaxAttribute
 ):
@@ -426,31 +478,52 @@ class DeclareTargetAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     name = "omp.declaretarget"
 
-    device_type: DeclareTargetDeviceTypeAttr
-    capture_clause: DeclareTargetCaptureClauseAttr
+    device_type: DeclareTargetDeviceTypeAttr | NoneAttr
+    capture_clause: DeclareTargetCaptureClauseAttr | NoneAttr
+    automap: BoolAttr | NoneAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        with parser.in_angle_brackets():
-            parser.parse_keyword("device_type")
+        fields = ("device_type", "capture_clause", "automap")
+
+        def parse_field() -> tuple[str, Attribute]:
+            key = parser.parse_keyword_in(fields)
             parser.parse_punctuation("=")
-            device_type = DeclareTargetDeviceTypeAttr(
-                DeclareTargetDeviceTypeAttr.parse_parameter(parser)
-            )
-            parser.parse_punctuation(",")
-            parser.parse_keyword("capture_clause")
-            parser.parse_punctuation("=")
-            capture = DeclareTargetCaptureClauseAttr(
-                DeclareTargetCaptureClauseAttr.parse_parameter(parser)
-            )
-            return [device_type, capture]
+            match key:
+                case "device_type":
+                    return key, DeclareTargetDeviceTypeAttr(
+                        DeclareTargetDeviceTypeAttr.parse_parameter(parser)
+                    )
+                case "capture_clause":
+                    return key, DeclareTargetCaptureClauseAttr(
+                        DeclareTargetCaptureClauseAttr.parse_parameter(parser)
+                    )
+                case _:
+                    return key, IntegerAttr.from_bool(parser.parse_boolean())
+
+        seen: dict[str, Attribute] = {}
+        for key, value in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = value
+        return [seen.get(name, NoneAttr()) for name in fields]
 
     def print_parameters(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print_string("device_type = ")
-            self.device_type.print_parameter(printer)
-            printer.print_string(", capture_clause = ")
-            self.capture_clause.print_parameter(printer)
+            separator = ""
+            if not isinstance(self.device_type, NoneAttr):
+                printer.print_string("device_type = ")
+                self.device_type.print_parameter(printer)
+                separator = ", "
+            if not isinstance(self.capture_clause, NoneAttr):
+                printer.print_string(f"{separator}capture_clause = ")
+                self.capture_clause.print_parameter(printer)
+                separator = ", "
+            if not isinstance(self.automap, NoneAttr):
+                printer.print_string(f"{separator}automap = ")
+                printer.print_string("true" if self.automap.value.data else "false")
 
 
 @irdl_attr_definition
@@ -677,7 +750,7 @@ class PrivateClauseOp(IRDLOperation):
     copy_region = region_def()
     dealloc_region = region_def()
 
-    traits = traits_def(IsolatedFromAbove())
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
@@ -1033,7 +1106,8 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
         one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
         for var in self.mapped_vars:
-            assert isinstance(owner := var.owner, MapInfoOp)
+            owner = var.owner
+            assert isinstance(owner, MapInfoOp)
 
             mapped[owner.var_ptr] |= owner.map_type.data
             if len(mapped[owner.var_ptr] & one_of) != 1:
@@ -1075,6 +1149,395 @@ class TargetDataOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TaskwaitOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskwait
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskwait-omptaskwaitop).
+    """
+
+    name = "omp.taskwait"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    nowait = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class TaskyieldOp(IRDLOperation):
+    """
+    Implementation of upstream omp.taskyield
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskyield-omptaskyieldop).
+    """
+
+    name = "omp.taskyield"
+
+
+@irdl_op_definition
+class SingleOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.single
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsingle-ompsingleop).
+    """
+
+    name = "omp.single"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    copyprivate_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars = var_operand_def()
+
+    copyprivate_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    nowait = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_syms = 0 if self.copyprivate_syms is None else len(self.copyprivate_syms)
+        if len(self.copyprivate_vars) != num_syms:
+            raise VerifyException(
+                f"{self.name} inconsistent number of copyprivate vars "
+                f"({len(self.copyprivate_vars)}) and functions ({num_syms})"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TaskOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.task
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptask-omptaskop).
+    """
+
+    name = "omp.task"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+        ).of_length(DEP_COUNT)
+    )
+    final = opt_operand_def(i1)
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    priority = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    event_handle = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+    )
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    mergeable = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    untied = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.in_reduction_vars) + len(self.private_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.in_reduction_vars)
+        num_syms = 0 if self.in_reduction_syms is None else len(self.in_reduction_syms)
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction symbol references "
+                "as in_reduction variables"
+            )
+        byref = self.in_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction byref flags "
+                "as in_reduction variables"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TaskgroupOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.taskgroup
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskgroup-omptaskgroupop).
+    """
+
+    name = "omp.taskgroup"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    task_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    task_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    task_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    region = region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    def num_block_args(self) -> int:
+        return len(self.task_reduction_vars)
+
+    def verify_(self) -> None:
+        num_vars = len(self.task_reduction_vars)
+        num_syms = (
+            0 if self.task_reduction_syms is None else len(self.task_reduction_syms)
+        )
+        if num_vars != num_syms:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction symbol references "
+                "as task_reduction variables"
+            )
+        byref = self.task_reduction_byref
+        if byref is not None and len(byref) != num_vars:
+            raise VerifyException(
+                f"{self.name} expected as many task_reduction byref flags "
+                "as task_reduction variables"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TaskloopOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.taskloop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskloop-omptaskloopop).
+    """
+
+    name = "omp.taskloop"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    final = opt_operand_def(i1)
+    grainsize = opt_operand_def(IntegerType | IndexType)
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    num_tasks = opt_operand_def(IntegerType | IndexType)
+    priority = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    grainsize_mod = opt_prop_def(GrainsizeTypeAttr)
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    mergeable = opt_prop_def(UnitAttr)
+    nogroup = opt_prop_def(UnitAttr)
+    num_tasks_mod = opt_prop_def(NumTasksTypeAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    reduction_mod = opt_prop_def(ReductionModifierAttr)
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    untied = opt_prop_def(UnitAttr)
+
+    region = region_def("single_block")
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return (
+            len(self.in_reduction_vars)
+            + len(self.private_vars)
+            + len(self.reduction_vars)
+        )
+
+    def verify_(self) -> None:
+        if self.grainsize is not None and self.num_tasks is not None:
+            raise VerifyException(
+                "the grainsize clause and num_tasks clause are mutually exclusive "
+                "and may not appear on the same taskloop directive"
+            )
+        num_in_reduction_vars = len(self.in_reduction_vars)
+        num_in_reduction_syms = (
+            0 if self.in_reduction_syms is None else len(self.in_reduction_syms)
+        )
+        if num_in_reduction_vars != num_in_reduction_syms:
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction symbol references "
+                "as in_reduction variables"
+            )
+        in_reduction_byref = self.in_reduction_byref
+        if (
+            in_reduction_byref is not None
+            and len(in_reduction_byref) != num_in_reduction_vars
+        ):
+            raise VerifyException(
+                f"{self.name} expected as many in_reduction byref flags "
+                "as in_reduction variables"
+            )
+        num_reduction_vars = len(self.reduction_vars)
+        num_reduction_syms = (
+            0 if self.reduction_syms is None else len(self.reduction_syms)
+        )
+        if num_reduction_vars != num_reduction_syms:
+            raise VerifyException(
+                f"{self.name} expected as many reduction symbol references "
+                "as reduction variables"
+            )
+        reduction_byref = self.reduction_byref
+        if reduction_byref is not None and len(reduction_byref) != num_reduction_vars:
+            raise VerifyException(
+                f"{self.name} expected as many reduction byref flags "
+                "as reduction variables"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class BarrierOp(IRDLOperation):
+    """
+    Implementation of upstream omp.barrier
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompbarrier-ompbarrierop).
+    """
+
+    name = "omp.barrier"
+
+
+@irdl_op_definition
+class FlushOp(IRDLOperation):
+    """
+    Implementation of upstream omp.flush
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompflush-ompflushop).
+    """
+
+    name = "omp.flush"
+
+    var_list = var_operand_def()
+
+
+@irdl_op_definition
+class MasterOp(IRDLOperation):
+    """
+    Implementation of upstream omp.master
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompmaster-ompmasterop).
+    """
+
+    name = "omp.master"
+
+    region = region_def()
+
+
+@irdl_op_definition
+class MaskedOp(IRDLOperation):
+    """
+    Implementation of upstream omp.masked
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompmasked-ompmaskedop).
+    """
+
+    name = "omp.masked"
+
+    filtered_thread_id = opt_operand_def(IntegerType | IndexType)
+
+    region = region_def()
+
+
+def verify_cancel_construct_parent(
+    op: Operation, construct: CancellationConstructType, directive: str
+) -> Operation | None:
+    """
+    Verifies that `op` is nested in the region the `construct` refers to, ignoring any
+    non-omp operations in between, and returns the operation of that region.
+    """
+    parent = op.parent_op()
+    while parent is not None and parent.dialect_name() != OMP.name:
+        parent = parent.parent_op()
+    if parent is None:
+        raise VerifyException(f"Orphaned {directive} construct")
+    match construct:
+        case CancellationConstructType.PARALLEL:
+            if not isinstance(parent, ParallelOp):
+                raise VerifyException(
+                    f"{directive} parallel must appear inside a parallel region"
+                )
+        case CancellationConstructType.LOOP:
+            parent = parent.parent_op() if isinstance(parent, LoopNestOp) else None
+            if not isinstance(parent, WsLoopOp):
+                raise VerifyException(
+                    f"{directive} loop must appear inside a worksharing-loop region"
+                )
+        case CancellationConstructType.TASKGROUP:
+            if isinstance(parent, LoopNestOp):
+                parent = parent.parent_op()
+            if not isinstance(parent, TaskOp | TaskloopOp):
+                raise VerifyException(
+                    f"{directive} taskgroup must appear inside a task region"
+                )
+        case _:
+            # TODO: verify sections once `omp.sections` is defined
+            pass
+    return parent
+
+
+@irdl_op_definition
+class CancelOp(IRDLOperation):
+    """
+    Implementation of upstream omp.cancel
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompcancel-ompcancelop).
+    """
+
+    name = "omp.cancel"
+
+    if_expr = opt_operand_def(i1)
+
+    cancel_directive = prop_def(CancellationConstructTypeAttr)
+
+    def verify_(self) -> None:
+        construct = verify_cancel_construct_parent(
+            self, self.cancel_directive.data, "cancel"
+        )
+        if not isinstance(construct, WsLoopOp):
+            return
+        if construct.nowait is not None:
+            raise VerifyException(
+                "A worksharing construct that is canceled must not have a nowait clause"
+            )
+        if construct.ordered is not None:
+            raise VerifyException(
+                "A worksharing construct that is canceled must not have an ordered clause"
+            )
+
+
+@irdl_op_definition
+class CancellationPointOp(IRDLOperation):
+    """
+    Implementation of upstream omp.cancellation_point
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompcancellation_point-ompcancellationpointop).
+    """
+
+    name = "omp.cancellation_point"
+
+    cancel_directive = prop_def(CancellationConstructTypeAttr)
+
+    def verify_(self) -> None:
+        verify_cancel_construct_parent(
+            self, self.cancel_directive.data, "cancellation point"
+        )
+
+
 OMP = Dialect(
     "omp",
     [
@@ -1095,6 +1558,18 @@ OMP = Dialect(
         TargetUpdateOp,
         TargetDataOp,
         DeclareReductionOp,
+        TaskwaitOp,
+        TaskyieldOp,
+        SingleOp,
+        TaskOp,
+        TaskgroupOp,
+        TaskloopOp,
+        BarrierOp,
+        FlushOp,
+        MasterOp,
+        MaskedOp,
+        CancelOp,
+        CancellationPointOp,
     ],
     [
         ClauseRequiresKindAttr,
@@ -1113,5 +1588,8 @@ OMP = Dialect(
         VersionAttr,
         ReductionModifierAttr,
         OrderModifierAttr,
+        GrainsizeTypeAttr,
+        NumTasksTypeAttr,
+        CancellationConstructTypeAttr,
     ],
 )

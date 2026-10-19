@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     I32,
     ArrayAttr,
     BoolAttr,
-    ContainerOf,
     DenseIntElementsAttr,
     DictionaryAttr,
     Float16Type,
@@ -27,6 +26,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     VectorType,
+    container_of,
     i16,
     i32,
 )
@@ -51,14 +51,14 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
+    InferenceContext,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    VerificationContext,
     base,
     irdl_op_definition,
     operand_def,
@@ -91,9 +91,9 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
-floatingPointLike = ContainerOf(AnyOf.get(Float16Type, Float32Type, Float64Type))
+boolLike = container_of(IntegerType(1))
+signlessIntegerLike = container_of(IntegerType | IndexType)
+floatingPointLike = container_of(Float16Type | Float32Type | Float64Type)
 
 
 @irdl_op_definition
@@ -152,7 +152,7 @@ class GetOperandsOp(IRDLOperation):
         if index is not None:
             index = IntegerAttr(index, 32)
         parser.parse_characters("of")
-        input_op = parser.parse_operand()
+        input_op = parser.parse_operand(OperationType())
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         return GetOperandsOp.build(
@@ -366,7 +366,7 @@ class GetResultsOp(IRDLOperation):
         if index is not None:
             index = IntegerAttr(index, 32)
         parser.parse_characters("of")
-        input_op = parser.parse_operand()
+        input_op = parser.parse_operand(OperationType())
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         return GetResultsOp.build(
@@ -680,13 +680,13 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
 
-    def infer(self, context: ConstraintContext) -> ValueType | RangeType[ValueType]:
+    def infer(self, context: InferenceContext) -> ValueType | RangeType[ValueType]:
         result_type = self.result_constr.infer(context)
         if isinstance(result_type, RangeType):
             return RangeType(ValueType())
         return ValueType()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         if isa(attr, RangeType[ValueType]):
             result_type = RangeType(TypeType())
         elif isa(attr, ValueType):
@@ -849,24 +849,23 @@ class CreateOperationOp(IRDLOperation):
     def _parse_attr(parser: Parser) -> tuple[Attribute, SSAValue]:
         attrname = parser.parse_attribute()
         parser.parse_punctuation("=")
-        operand = parser.parse_operand()
+        operand = parser.parse_operand(AttributeType())
         return (attrname, operand)
 
     @staticmethod
     def _parse_input_list(parser: Parser) -> list[SSAValue]:
-        values: list[SSAValue] = []
-        if parser.parse_optional_punctuation("("):
-            values = parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
-                parse=lambda: parser.parse_operand(),
-            )
-            parser.parse_punctuation(":")
-            parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
-                parse=lambda: parser.parse_type(),
-            )
-            parser.parse_punctuation(")")
-        return values
+        if not parser.parse_optional_punctuation("("):
+            return []
+        pos = parser.pos
+        values = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        types = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_type
+        )
+        parser.parse_punctuation(")")
+        return list(parser.resolve_operands(values, types, pos))
 
     @classmethod
     def parse(cls, parser: Parser) -> CreateOperationOp:
@@ -960,7 +959,7 @@ class RangeTypeDirective(CustomDirective):
     arguments_type: TypeDirective
     result_type: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         args_inner = self.arguments_type.inner
         assert isinstance(args_inner, VariadicOperandVariable)
 
@@ -976,13 +975,11 @@ class RangeTypeDirective(CustomDirective):
                 element_type = first_type
             result_type = RangeType(element_type)
             self.result_type.set(state, (result_type,))
-            return False  # No input consumed during inference
         else:
             # Parse `: type` for result when no arguments
             parser.parse_punctuation(":")
             result_type = parser.parse_type()
             self.result_type.set(state, (result_type,))
-            return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         arg_types = self.arguments_type.get(op)
@@ -1447,7 +1444,11 @@ class ForEachOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ForEachOp:
         arg = parser.parse_argument()
         parser.parse_characters("in")
-        values = parser.parse_operand()
+        if not isa(arg.type, AnyPDLType):
+            parser.raise_error(
+                "expected a PDL type for the iteration argument", arg.name
+            )
+        values = parser.parse_operand(RangeType(arg.type))
         region = parser.parse_region(arguments=[arg])
         parser.parse_punctuation("->")
         successor = parser.parse_successor()

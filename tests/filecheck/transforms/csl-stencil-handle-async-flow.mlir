@@ -88,7 +88,7 @@
 // CHECK-NEXT:     %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:     "csl_wrapper.yield"(%14, %13, %25) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
+// CHECK-NEXT:   ^bb0(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
 // CHECK-NEXT:     %33 = "csl_wrapper.import"(%memcpy_params) <{module = "<memcpy/memcpy>", fields = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{module = "stencil_comms.csl", fields = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %arg0 = memref.alloc() : memref<512xf32>
@@ -127,7 +127,7 @@
 // CHECK-NEXT:       %var0_bdy = csl.load_var(%var0 : !csl.var<memref<512xf32>>) : memref<512xf32>
 // CHECK-NEXT:       %var1_bdy = csl.load_var(%var1 : !csl.var<memref<512xf32>>) : memref<512xf32>
 // CHECK-NEXT:       csl_stencil.apply(%var0_bdy : memref<512xf32>, %37 : memref<510xf32>) outs (%var1_bdy : memref<512xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, swaps = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], topo = #dmp.topo<1022x510>}> ({
-// CHECK-NEXT:       ^bb2(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
+// CHECK-NEXT:       ^bb0(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
 // CHECK-NEXT:         %43 = csl_stencil.access %arg5[1, 0] : memref<4x255xf32>
 // CHECK-NEXT:         %44 = csl_stencil.access %arg5[-1, 0] : memref<4x255xf32>
 // CHECK-NEXT:         %45 = csl_stencil.access %arg5[0, 1] : memref<4x255xf32>
@@ -138,7 +138,7 @@
 // CHECK-NEXT:         "csl.fadds"(%47, %47, %43) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:         csl_stencil.yield %arg7 : memref<510xf32>
 // CHECK-NEXT:       }, {
-// CHECK-NEXT:       ^bb3(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
+// CHECK-NEXT:       ^bb0(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
 // CHECK-NEXT:         %48 = memref.subview %arg5_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
 // CHECK-NEXT:         %49 = memref.subview %arg5_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
 // CHECK-NEXT:         "csl.fadds"(%arg6_1, %arg6_1, %49) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
@@ -208,10 +208,10 @@
 
 
 // CHECK:       "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [], program_name = "sequential_kernels_func", target = "wse2"}> ({
-// CHECK-NEXT:  ^bb2(%45: i16, %46: i16, %47: i16, %48: i16):
+// CHECK-NEXT:  ^bb0(%45: i16, %46: i16, %47: i16, %48: i16):
 // CHECK-NEXT:    "csl_wrapper.yield"() <{fields = []}> : () -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb3(%49: i16, %50: i16):
+// CHECK-NEXT:  ^bb0(%49: i16, %50: i16):
 // CHECK-NEXT:    %51 = "csl_wrapper.import"() <{module = "<memcpy/memcpy>", fields = []}> : () -> !csl.imported_module
 // CHECK-NEXT:    %arg0_1 = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:    %arg1_1 = memref.alloc() : memref<512xf32>
@@ -223,10 +223,10 @@
 // CHECK-NEXT:    %54 = memref.alloc() {alignment = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:    csl.func @sequential_kernels_func() {
 // CHECK-NEXT:      csl_stencil.apply(%arg0_1 : memref<512xf32>, %54 : memref<510xf32>) outs (%arg1_1 : memref<512xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, swaps = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], topo = #dmp.topo<1022x510>}> ({
-// CHECK-NEXT:      ^bb4(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
+// CHECK-NEXT:      ^bb0(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
 // CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:      ^bb5(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
+// CHECK-NEXT:      ^bb0(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
 // CHECK-NEXT:        "csl.call"() <{callee = @step0}> : () -> ()
 // CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>
@@ -234,10 +234,10 @@
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @step0() {
 // CHECK-NEXT:      csl_stencil.apply(%arg1_1 : memref<512xf32>, %54 : memref<510xf32>) outs (%arg0_1 : memref<512xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, swaps = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], topo = #dmp.topo<1022x510>}> ({
-// CHECK-NEXT:      ^bb4(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
+// CHECK-NEXT:      ^bb0(%arg5: memref<4x255xf32>, %arg6: index, %arg7: memref<510xf32>):
 // CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:      ^bb5(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
+// CHECK-NEXT:      ^bb0(%arg5_1: memref<512xf32>, %arg6_1: memref<510xf32>):
 // CHECK-NEXT:        "csl.call"() <{callee = @step1}> : () -> ()
 // CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>

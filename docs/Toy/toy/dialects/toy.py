@@ -399,7 +399,7 @@ class ReshapeReshapeOpPattern(RewritePattern):
         Reshape(Reshape(x)) = Reshape(x)
         """
         if isinstance(op.arg.owner, ReshapeOp):
-            rewriter.replace_op(op, ReshapeOp(op.arg.owner.arg, op.res.type))
+            rewriter.replace(op, ReshapeOp(op.arg.owner.arg, op.res.type))
 
 
 class FoldConstantReshapeOpPattern(RewritePattern):
@@ -409,7 +409,7 @@ class FoldConstantReshapeOpPattern(RewritePattern):
         Reshaping a constant can be done at compile time
         """
         if isinstance(op.arg.owner, ConstantOp):
-            rewriter.replace_op(
+            rewriter.replace(
                 op,
                 ConstantOp(
                     DenseIntOrFPElementsAttr.from_list(
@@ -472,7 +472,7 @@ class SimplifyRedundantTranspose(RewritePattern):
         Fold transpose(transpose(x)) -> x
         """
         if isinstance(op.arg.owner, TransposeOp):
-            rewriter.replace_op(op, [], [op.arg.owner.arg])
+            rewriter.replace(op, [], [op.arg.owner.arg])
 
 
 class CastOpInferShapeInferencePattern(RewritePattern):
@@ -487,7 +487,7 @@ class CastOpInferShapeInferencePattern(RewritePattern):
 
         if isinstance(op_res_type := op.res.type, TensorType):
             assert shape == op_res_type.get_shape()
-            rewriter.replace_op(op, (), (op.arg,))
+            rewriter.replace(op, (), (op.arg,))
         else:
             rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
 

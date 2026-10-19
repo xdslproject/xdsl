@@ -17,17 +17,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
-    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -59,6 +58,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition
@@ -145,7 +145,7 @@ class LoopDimMapAttr(ParametrizedAttribute):
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
-    hostShared = opt_attr_def(UnitAttr)
+    hostShared = opt_prop_def(UnitAttr)
     asyncDependencies = var_operand_def(AsyncTokenType)
     dynamicSizes = var_operand_def(IndexType)
     symbolOperands = var_operand_def(IndexType)
@@ -157,7 +157,8 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(res_type := self.result.type, memref.MemRefType)
+        res_type = self.result.type
+        assert isinstance(res_type, memref.MemRefType)
         ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
@@ -180,13 +181,13 @@ class AllocOp(IRDLOperation):
         async_dependencies_vals: list[SSAValue] = (
             [SSAValue.get(e) for e in async_dependencies] if async_dependencies else []
         )
-        attributes: dict[str, Attribute] = (
+        properties: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
         )
         super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
-            attributes=attributes,
+            properties=properties,
         )
 
 

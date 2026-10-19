@@ -1,6 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics | filecheck %s
-
-
+// RUN: xdsl-opt --parsing-diagnostics --verify-diagnostics --split-input-file %s | filecheck %s
 
 %lb = "rv32.li"() {"immediate" = 0: i32} : () -> !riscv.reg
 %ub = "rv32.li"() {"immediate" = 100: i32} : () -> !riscv.reg
@@ -18,3 +16,172 @@
 }
 
 // CHECK: Mismatch between block argument count (2) and operand count (3)
+
+// -----
+
+%lb, %ub, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %ub, %step) <{stop_attr = 10 : si32, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of stop_attr or stop_val must be set
+
+// -----
+
+%lb, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %step) <{operandSegmentSizes = array<i32: 1, 0, 1, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of stop_attr or stop_val must be set
+
+// -----
+
+%lb, %ub, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %ub, %step) <{step_attr = 1 : si32, operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of step_attr or step_val must be set
+
+// -----
+
+%lb, %ub = "test.op"() : () -> (!x86.reg64, !x86.reg64)
+
+"x86_scf.for"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64, !x86.reg64) -> (!x86.reg64)
+
+// CHECK: Operation does not verify: Exactly one of step_attr or step_val must be set
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : f32 step 1 : si32 {
+    x86_scf.yield
+}
+
+// CHECK: Expected IntegerAttr
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : si32 step 1 : f32 {
+    x86_scf.yield
+}
+
+// CHECK: Expected IntegerAttr
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : i64 step 1 : si32 {
+    x86_scf.yield
+}
+
+// CHECK: Expected attribute si32 but got i64
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : si32 step 1 : i64 {
+    x86_scf.yield
+}
+
+// CHECK: Expected attribute si32 but got i64
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb : !x86.reg64 step 1 : si32 {
+    x86_scf.yield
+}
+
+// CHECK: Expected an operand.
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64<rax>
+
+"x86_scf.for"(%lb) <{stop_attr = 10 : si32, step_attr = 1 : si32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> ({
+^bb0(%i: !x86.reg64<rbx>):
+    x86_scf.yield
+}) : (!x86.reg64<rax>) -> (!x86.reg64<rax>)
+
+// CHECK: Operation does not verify: Expected induction var to be same type as start
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The x86_scf.for must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+%wrong = "test.op"() : () -> !x86.reg64<r10>
+
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield %wrong : !x86.reg64<r10>
+}
+
+// CHECK: Expected !x86.reg64<r11>, got !x86.reg64<r10>. The x86_scf.for's x86_scf.yield must match carried variables types.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield
+}
+
+// CHECK: Expected 1 args, got 0. The x86_scf.rof must yield its carried variables.
+
+// -----
+
+%lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
+%wrong = "test.op"() : () -> !x86.reg64<r10>
+
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+    x86_scf.yield %wrong : !x86.reg64<r10>
+}
+
+// CHECK: Expected !x86.reg64<r11>, got !x86.reg64<r10>. The x86_scf.rof's x86_scf.yield must match carried variables types.
+
+// -----
+
+%ub = "test.op"() : () -> !x86.reg64
+
+"x86_scf.for"(%ub) <{step_attr = 1 : si32, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64) -> !x86.reg64
+
+// CHECK: expected 1 value for start, but got 0
+
+// -----
+
+%lb = "test.op"() : () -> !x86.reg64
+
+"x86_scf.rof"(%lb) <{step_attr = 1 : si32, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> ({
+^bb0(%i: !x86.reg64):
+    x86_scf.yield
+}) : (!x86.reg64) -> !x86.reg64
+
+// CHECK: expected 1 value for start, but got 0

@@ -58,9 +58,9 @@ class FunctionConstantPinning(RewritePattern):
         # generate the function containing pinned value:
         new_func = generate_func_with_pinned_val(func_op, val, rewriter)
         # insert the specialized function after the generic function (the one we matched on)
-        rewriter.insert_op(new_func, InsertPoint.after(func_op))
+        rewriter.insert(new_func, InsertPoint.after(func_op))
         # insert a compare to the value we specialize and, and branch on if we are equal
-        rewriter.insert_op(
+        rewriter.insert(
             [
                 cst := arith.ConstantOp(val, split_op.results[0].type),
                 is_eq := arith.CmpiOp(split_op.results[0], cst, "eq"),
@@ -98,17 +98,17 @@ class FunctionConstantPinning(RewritePattern):
             # detatch the function
             function_remainder.detach()
             # re-insert it inside the else block of the if statement
-            rewriter.insert_op(function_remainder, InsertPoint.at_end(dest_block))
+            rewriter.insert(function_remainder, InsertPoint.at_end(dest_block))
             # go to next op
             function_remainder = next_op
             next_op = function_remainder.next_op
 
         # insert a yield that yields the return values
-        rewriter.insert_op(
+        rewriter.insert(
             scf.YieldOp(*function_remainder.operands), InsertPoint.at_end(dest_block)
         )
         # return the results of the scf.if
-        rewriter.replace_op(function_remainder, func.ReturnOp(*scf_if.results))
+        rewriter.replace(function_remainder, func.ReturnOp(*scf_if.results))
 
         # remove pinning attribute
         if pinned_vals:
@@ -151,13 +151,13 @@ def generate_func_with_pinned_val(
         if PIN_CONSTANT_VALS in op.attributes:
             # find ops that came before, so we can erase them
             for bad_ops in ops_between_op_and_func_start(func_op, op):
-                rewriter.erase_op(bad_ops)
+                rewriter.erase(bad_ops)
             # then check that we really just have one result (sanity check)
             assert len(op.results) == 1, (
                 "Constant pinning only work on single return operations"
             )
             # replace op by constant
-            rewriter.replace_op(op, arith.ConstantOp(pin, op.results[0].type))
+            rewriter.replace(op, arith.ConstantOp(pin, op.results[0].type))
             # don't look at more operations inside the function
             break
     # return the newly created func op

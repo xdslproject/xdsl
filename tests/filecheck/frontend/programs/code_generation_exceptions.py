@@ -13,7 +13,7 @@ ctx.register_type(c_size_t, builtin.IndexType())
 
 # CHECK: For loops are currently not supported!
 @ctx.parse_program
-def test_for_unsupported(end: c_size_t):
+def test_for_unsupported(end: c_size_t) -> None:
     for _ in range(
         end  # pyright: ignore[reportArgumentType]
     ):

@@ -11,9 +11,22 @@
 %rsp = "test.op"() : () -> !x86.reg64<rsp>
 // CHECK-NEXT: %rdx = "test.op"() : () -> !x86.reg64<rdx>
 %rdx = "test.op"() : () -> !x86.reg64<rdx>
+// CHECK-NEXT: %zmm = "test.op"() : () -> !x86.avx512reg
+%zmm = "test.op"() : () -> !x86.avx512reg
+// CHECK-NEXT: %xmm = "test.op"() : () -> !x86.ssereg
+%xmm = "test.op"() : () -> !x86.ssereg
+
+// Unused reads can be eliminated
+
+// CHECK-NOT: x86.dsm.vmulpd
+%vmulpd = x86.dsm.vmulpd %zmm, [%unallocated] : (!x86.avx512reg, !x86.reg64) -> !x86.avx512reg
+// CHECK-NOT: x86.dsm.vaddsd
+%vaddsd = x86.dsm.vaddsd %xmm, [%unallocated] : (!x86.ssereg, !x86.reg64) -> !x86.ssereg
 
 // Write effects don't get eliminated even if the result is unused
 
+// CHECK-NEXT: x86.ms.vmovsd [%unallocated], %xmm : (!x86.reg64, !x86.ssereg) -> ()
+x86.ms.vmovsd [%unallocated], %xmm : (!x86.reg64, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.add [%unallocated], %unallocated : (!x86.reg64, !x86.reg64) -> ()
 x86.ms.add [%unallocated], %unallocated : (!x86.reg64, !x86.reg64) -> ()
 // CHECK-NEXT: x86.ms.sub [%unallocated + -8], %unallocated : (!x86.reg64, !x86.reg64) -> ()

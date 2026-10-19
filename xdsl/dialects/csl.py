@@ -14,6 +14,9 @@ from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
 from typing import ClassVar, Literal, TypeAlias
 
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -25,6 +28,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     FloatAttr,
     FunctionType,
+    IndexType,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -39,12 +43,12 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
 )
-from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
+from xdsl.dialects.utils import EnumAttribute, parse_func_op_like, print_func_op_like
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    EnumAttribute,
     Operation,
     Region,
     SpacedOpaqueSyntaxAttribute,
@@ -56,7 +60,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParametrizedAttribute,
     VarConstraint,
-    attr_def,
     base,
     eq,
     irdl_attr_definition,
@@ -75,6 +78,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasAncestor,
     HasCanonicalizationPatternsTrait,
     HasParent,
@@ -257,6 +261,15 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
     name = "csl.imported_module"
 
 
+@irdl_attr_definition
+class ComptimeStringType(ParametrizedAttribute, TypeAttribute):
+    """
+    Represents a compile time string.
+    """
+
+    name = "csl.comptime_string"
+
+
 StructLikeConstr = base(ImportedModuleType) | base(ComptimeStructType)
 
 
@@ -345,6 +358,44 @@ class PtrCastOp(IRDLOperation):
 
     def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
         super().__init__(operands=[ptr], result_types=[result_type])
+
+
+IntPtrCastTypeConstr = base(PtrType) | base(IntegerType) | base(IndexType)
+
+
+@irdl_op_definition
+class IntPtrCastOp(IRDLOperation):
+    """
+    Implements `@bitcast(destination_type, value)` between a pointer and an integer.
+
+    Exactly one of the input and result types must be a pointer, the other must be
+    an integer or index. Use `csl.ptrcast` for pointer to pointer casts.
+    """
+
+    name = "csl.intptrcast"
+
+    input = operand_def(IntPtrCastTypeConstr)
+    result = result_def(IntPtrCastTypeConstr)
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(
+        self,
+        input: Operation | SSAValue,
+        result_type: PtrType | IntegerType | IndexType,
+    ):
+        super().__init__(operands=[input], result_types=[result_type])
+
+    def verify_(self) -> None:
+        in_ptr = isinstance(self.input.type, PtrType)
+        out_ptr = isinstance(self.result.type, PtrType)
+        if in_ptr == out_ptr:
+            raise VerifyException(
+                "Expected exactly one of input and result to be a pointer, got "
+                f"{self.input.type} and {self.result.type}"
+            )
 
 
 DsdElementTypeConstr = (
@@ -550,7 +601,7 @@ class CslModuleOp(IRDLOperation):
     name = "csl.module"
     body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),
@@ -586,6 +637,33 @@ class ImportModuleConstOp(IRDLOperation):
             result_types=[ImportedModuleType()],
             properties={"module": name},
         )
+
+
+@irdl_op_definition
+class ConstStrOp(IRDLOperation, HasFolderInterface):
+    """
+    A compile time string literal.
+    """
+
+    name = "csl.const_str"
+
+    traits = traits_def(Pure(), ConstantLike())
+
+    value = prop_def(StringAttr)
+    res = result_def(ComptimeStringType)
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: str | StringAttr):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__(
+            properties={"value": value},
+            result_types=[ComptimeStringType()],
+        )
+
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        return (self.value,)
 
 
 @irdl_op_definition
@@ -2095,6 +2173,13 @@ class ConcatStructOp(IRDLOperation):
         )
 
 
+class CslConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        if isinstance(value, StringAttr) and isinstance(type, ComptimeStringType):
+            return ConstStrOp(value)
+        raise ValueError(f"Cannot materialize constant {value} of type {type}")
+
+
 CSL = Dialect(
     "csl",
     [
@@ -2106,6 +2191,7 @@ CSL = Dialect(
         CallOp,
         ClzOp,
         ConcatStructOp,
+        ConstStrOp,
         ConstStructOp,
         ConstantsOp,
         CslModuleOp,
@@ -2143,6 +2229,7 @@ CSL = Dialect(
         GetMemDsdOp,
         ImportModuleConstOp,
         IncrementDsdOffsetOp,
+        IntPtrCastOp,
         LayoutOp,
         MemberAccessOp,
         MemberCallOp,
@@ -2177,6 +2264,7 @@ CSL = Dialect(
     ],
     [
         ColorType,
+        ComptimeStringType,
         ComptimeStructType,
         DsdType,
         ImportedModuleType,
@@ -2189,4 +2277,5 @@ CSL = Dialect(
         TaskKindAttr,
         VarType,
     ],
+    [CslConstantMaterializationInterface()],
 )

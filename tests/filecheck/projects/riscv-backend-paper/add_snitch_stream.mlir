@@ -19,7 +19,7 @@ builtin.module {
     }> ({
     ^bb0(%a_stream: !snitch.readable<!riscv.freg<ft0>>, %b_stream: !snitch.readable<!riscv.freg<ft1>>, %c_stream: !snitch.writable<!riscv.freg<ft2>>):
         %c5 = rv32.li 5 : !riscv.reg
-        riscv_snitch.frep_outer %c5 {
+        riscv_snitch.frep_outer %c5 : !riscv.reg {
             %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
             %b = riscv_snitch.read from %b_stream : !riscv.freg<ft1>
             %c = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>

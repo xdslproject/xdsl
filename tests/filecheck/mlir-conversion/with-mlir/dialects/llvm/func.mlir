@@ -1,7 +1,8 @@
+// REQUIRES: MLIR_TRANSLATE
 // RUN: MLIR_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt %s --print-debuginfo | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
-// RUN: xdsl-opt %s | mlir-translate --mlir-to-llvmir > /dev/null
+// RUN: xdsl-opt %s --print-debuginfo | $XDSL_MLIR_OPT --allow-unregistered-dialect --mlir-print-local-scope | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
+// RUN: xdsl-opt %s | $XDSL_MLIR_TRANSLATE --mlir-to-llvmir > /dev/null
 
 // This test checks that the llvm.func operation can be parse the following
 // properties.

@@ -10,9 +10,9 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, ClassVar, Generic, cast
+from typing import Any, ClassVar, Generic, Self, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -26,11 +26,10 @@ from xdsl.dialects.builtin import (
     MemRefType,
     StringAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils import AbstractYieldOperation, EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    EnumAttribute,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -87,8 +86,9 @@ class ReadableStreamType(
     def constr(
         element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
-            ReadableStreamType, (element_type,)
+        return cast(
+            ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]],
+            ParamAttrConstraint.get(ReadableStreamType, element_type),
         )
 
 
@@ -110,8 +110,9 @@ class WritableStreamType(
     def constr(
         element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
-            WritableStreamType, (element_type,)
+        return cast(
+            ParamAttrConstraint[WritableStreamType[_StreamTypeElement]],
+            ParamAttrConstraint.get(WritableStreamType, element_type),
         )
 
 
@@ -249,7 +250,8 @@ class ReadOp(IRDLOperation):
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
-            assert isinstance(stream_type := stream_val.type, ReadableStreamType)
+            stream_type = stream_val.type
+            assert isinstance(stream_type, ReadableStreamType)
             stream_type = cast(ReadableStreamType[Attribute], stream_type)
             result_type = stream_type.element_type
         super().__init__(operands=[stream_val], result_types=[result_type])

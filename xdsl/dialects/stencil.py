@@ -8,7 +8,7 @@ from math import prod
 from operator import add, lt, neg
 from typing import ClassVar, Generic, TypeAlias, cast
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -35,12 +35,12 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    ConstraintContext,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
+    VerificationContext,
     attr_def,
     base,
     irdl_attr_definition,
@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -127,15 +128,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             raise VerifyException(
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(*indices: int | IntAttr):
-        array = ArrayAttr(
-            (IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices
-        )
-
-        return IndexAttr(array)
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
@@ -581,11 +573,11 @@ class ApplyOp(IRDLOperation):
         def parse_assign_args():
             arg = parser.parse_argument(expect_type=False)
             parser.parse_punctuation("=")
-            value = parser.parse_operand()
+            value = parser.parse_unresolved_operand()
             parser.parse_punctuation(":")
             type = parser.parse_attribute()
             arg = arg.resolve(type)
-            return arg, value
+            return arg, parser.resolve_operand(value, type)
 
         def parse_operand():
             op = parser.parse_unresolved_operand()
@@ -634,16 +626,6 @@ class ApplyOp(IRDLOperation):
             attributes=attrs,
             properties={"bounds": bounds},
         )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block | Region,
-        result_types: Sequence[TempType[Attribute]] = (),
-        bounds: StencilBoundsAttr | None = None,
-    ):
-        return ApplyOp(args, body, result_types, bounds)
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
@@ -802,15 +784,6 @@ class CastOp(IRDLOperation):
             result_types=[res_type],
         )
 
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        bounds: StencilBoundsAttr,
-        res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
-    ) -> CastOp:
-        return CastOp(field, bounds, res_type)
-
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
         assert isa(self.field.type, FieldType[Attribute])
@@ -867,8 +840,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntegerAttr[IndexType])
-    index = attr_def(IntegerAttr[IndexType])
+    dim = prop_def(IntegerAttr[IndexType])
+    index = prop_def(IntegerAttr[IndexType])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -919,8 +892,8 @@ class DynAccessOp(IRDLOperation):
     )
 
     offset = var_operand_def(builtin.IndexType())
-    lb = attr_def(IndexAttr)
-    ub = attr_def(IndexAttr)
+    lb = prop_def(IndexAttr)
+    ub = prop_def(IndexAttr)
 
     res = result_def(
         MessageConstraint(
@@ -949,7 +922,7 @@ class DynAccessOp(IRDLOperation):
         temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
-            attributes={"lb": lb, "ub": ub},
+            properties={"lb": lb, "ub": ub},
             result_types=[temp_type.element_type],
         )
 
@@ -977,14 +950,6 @@ class ExternalLoadOp(IRDLOperation):
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType,
-    ):
-        return ExternalLoadOp(arg, res_type)
 
 
 @irdl_op_definition
@@ -1017,8 +982,8 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntegerAttr[IndexType])
-    offset = attr_def(IndexAttr)
+    dim = prop_def(IntegerAttr[IndexType])
+    offset = prop_def(IndexAttr)
     idx = result_def(builtin.IndexType())
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
@@ -1144,7 +1109,7 @@ class AccessOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        temp = parser.parse_operand()
+        temp = parser.parse_unresolved_operand()
 
         index = 0
         offset = list[int]()
@@ -1176,17 +1141,10 @@ class AccessOp(IRDLOperation):
                 "Expected return type to be a stencil.temp or stencil.field"
             )
         return cls.build(
-            operands=[temp], result_types=[res_type.element_type], attributes=attrs
+            operands=[parser.resolve_operand(temp, res_type)],
+            result_types=[res_type.element_type],
+            attributes=attrs,
         )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        temp: SSAValue | Operation,
-        offset: Sequence[int],
-        offset_mapping: Sequence[int] | IndexAttr | None = None,
-    ):
-        return AccessOp(temp, offset, offset_mapping)
 
     def verify_(self) -> None:
         # As promised by HasAncestor(ApplyOp)
@@ -1280,7 +1238,7 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             and attr.get_element_type() == other.get_element_type()
         )
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
             if isa(
@@ -1344,15 +1302,6 @@ class LoadOp(IRDLOperation):
             operands=[field],
             result_types=[res_type],
         )
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
-    ):
-        return LoadOp(field, lb, ub)
 
     def verify_(self) -> None:
         field = self.field.type
@@ -1490,7 +1439,7 @@ class StoreOp(IRDLOperation):
             ),
         )
     )
-    bounds = attr_def(StencilBoundsAttr)
+    bounds = prop_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
@@ -1502,16 +1451,7 @@ class StoreOp(IRDLOperation):
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
     ):
-        super().__init__(operands=[temp, field], attributes={"bounds": bounds})
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(
-        temp: SSAValue | Operation,
-        field: SSAValue | Operation,
-        bounds: StencilBoundsAttr,
-    ):
-        return StoreOp(temp, field, bounds)
+        super().__init__(operands=[temp, field], properties={"bounds": bounds})
 
 
 @irdl_op_definition
@@ -1579,11 +1519,6 @@ class ReturnOp(IRDLOperation):
 
     def __init__(self, res: Sequence[SSAValue | Operation]):
         super().__init__(operands=[res])
-
-    @deprecated("Please use the default constructor instead")
-    @staticmethod
-    def get(res: Sequence[SSAValue | Operation]):
-        return ReturnOp(res)
 
     def verify_(self) -> None:
         unroll_factor = self.unroll_factor

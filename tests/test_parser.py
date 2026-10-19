@@ -1,15 +1,18 @@
 import builtins
 import re
+import warnings
 from collections.abc import Sequence
 from io import StringIO
 from typing import cast
 
 import pytest
+from typing_extensions import assert_type
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I32,
     ArrayAttr,
     Builtin,
     CallSiteLoc,
@@ -17,9 +20,11 @@ from xdsl.dialects.builtin import (
     FileLineColLoc,
     FloatAttr,
     FusedLoc,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     NameLoc,
     NoneAttr,
     StringAttr,
@@ -27,10 +32,12 @@ from xdsl.dialects.builtin import (
     UnknownLoc,
     bf16,
     i32,
+    i64,
 )
 from xdsl.dialects.func import Func, FuncOp
-from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, Block, ParametrizedAttribute
+from xdsl.dialects.test import Test, TestOp
+from xdsl.ir import Attribute, Block, ParametrizedAttribute, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -38,7 +45,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser, ForwardDeclaredValue, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import (
@@ -49,6 +56,231 @@ from xdsl.utils.mlir_lexer import (
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
+
+
+def test_utf8_input():
+    source = '// comment\r\n"é😀"'
+    parser = Parser(Context(), source.encode("utf-8"))
+
+    assert parser.lexer.input.content == source
+    assert parser.parse_attribute() == StringAttr("é😀")
+
+
+def test_invalid_utf8_input():
+    with pytest.raises(UnicodeDecodeError):
+        Parser(Context(), b"// \xff")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("defined", [False, True])
+def test_parse_typed_operand(optional: bool, defined: bool):
+    parser = Parser(Context(), "%x#1 %x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    if defined:
+        parser.ssa_values["x"] = tuple(values)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        if optional:
+            value = assert_type(
+                parser.parse_optional_operand(IndexType()), SSAValue[IndexType] | None
+            )
+            repeated = parser.parse_optional_operand(IndexType())
+        else:
+            value = assert_type(parser.parse_operand(IndexType()), SSAValue[IndexType])
+            repeated = parser.parse_operand(IndexType())
+
+    assert value is not None
+    assert value.type == IndexType()
+    assert repeated is value
+    if defined:
+        assert value is values[1]
+    else:
+        assert value is parser.forward_ssa_references["x"][1]
+
+
+def test_parse_optional_typed_operand_absent():
+    parser = Parser(Context(), ",")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert parser.parse_optional_operand(IndexType()) is None
+    parser.parse_punctuation(",")
+
+
+def test_parse_typed_operand_custom_message():
+    parser = Parser(Context(), "")
+    with pytest.raises(ParseError, match="Expected an index operand"):
+        parser.parse_operand(IndexType(), msg="Expected an index operand")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_parse_operand_deprecated(optional: bool, explicit_none: bool):
+    parser = Parser(Context(), "%x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    parser.ssa_values["x"] = tuple(values)
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+
+    with pytest.warns(DeprecationWarning, match="without a type") as warnings:
+        value = parse(None) if explicit_none else parse()
+
+    assert value is values[1]
+    assert len(warnings) == 1
+    assert warnings[0].filename == __file__
+
+
+@pytest.mark.parametrize("positional_message", [False, True])
+def test_parse_operand_deprecated_custom_message(positional_message: bool):
+    parser = Parser(Context(), "")
+    message = "Expected a legacy operand"
+    if positional_message:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(message)  # pyright: ignore[reportDeprecated]
+    else:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(msg=message)  # pyright: ignore[reportDeprecated]
+
+
+@pytest.mark.parametrize("optional", [False, True])
+def test_parse_operand_deprecated_forward_reference(optional: bool):
+    parser = Parser(Context(), "%x")
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+    with pytest.warns(DeprecationWarning, match="without a type"):
+        with pytest.raises(ParseError, match="SSA value used before assignment"):
+            parse()
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize(
+    "t",
+    [IndexType(), IntegerType(32), MemRefType(i32, [2])],
+)
+def test_resolve_operand_matching_type(defined: bool, t: Attribute):
+    parser = Parser(Context(), "%x %x")
+    first = parser.parse_unresolved_operand()
+    second = parser.parse_unresolved_operand()
+    if defined:
+        value = TestOp.create(result_types=[t]).results[0]
+        parser._register_ssa_definition("x", (value,), first.span)
+    else:
+        value = parser.resolve_operand(first, t)
+        assert value.type is t
+
+    assert parser.resolve_operand(second, t) is value
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize(
+    "previous_type, requested_type",
+    [
+        (i32, IndexType()),
+        (i32, i64),
+        (MemRefType(i32, [2]), MemRefType(IndexType(), [2])),
+        (MemRefType(i32, [2]), MemRefType(i32, [3])),
+    ],
+)
+def test_resolve_operand_conflicting_type(
+    defined: bool, previous_type: Attribute, requested_type: Attribute
+):
+    parser = Parser(Context(), "%x %x")
+    first = parser.parse_unresolved_operand()
+    second = parser.parse_unresolved_operand()
+    if defined:
+        value = TestOp.create(result_types=[previous_type]).results[0]
+        parser._register_ssa_definition("x", (value,), first.span)
+    else:
+        parser.resolve_operand(first, previous_type)
+
+    with pytest.raises(
+        ParseError,
+        match=re.escape(
+            f"operand is used with type {requested_type}, but has been "
+            f"previously used or defined with type {previous_type}"
+        ),
+    ) as exc:
+        parser.resolve_operand(second, requested_type)
+    assert exc.value.span == second.span
+
+
+@pytest.mark.parametrize("block_argument", [False, True])
+def test_resolve_operand_forward_definition(block_argument: bool):
+    parser = Parser(Context(), "%x#0 %x#1 %x#0")
+    first, second, repeated = (parser.parse_unresolved_operand() for _ in range(3))
+    first_value = parser.resolve_operand(first, i32)
+    second_value = parser.resolve_operand(second, IndexType())
+    repeated_value = parser.resolve_operand(repeated, i32)
+    assert repeated_value is first_value
+    user = TestOp.create(operands=[first_value, second_value, repeated_value])
+    types = [i32, IndexType()]
+    values = (
+        Block(arg_types=types).args
+        if block_argument
+        else TestOp.create(result_types=types).results
+    )
+
+    parser._register_ssa_definition("x", values, first.span)
+
+    assert tuple(user.operands) == (values[0], values[1], values[0])
+    assert not first_value.uses
+    assert not second_value.uses
+    assert not parser.forward_ssa_references
+    assert parser.resolve_operand(first, i32) is values[0]
+    assert parser.resolve_operand(second, IndexType()) is values[1]
+
+
+@pytest.mark.parametrize("block_argument", [False, True])
+def test_resolve_operand_conflicting_definition(block_argument: bool):
+    parser = Parser(Context(), "%x")
+    operand = parser.parse_unresolved_operand()
+    value = parser.resolve_operand(operand, i32)
+    user = TestOp.create(operands=[value])
+    values = (
+        Block(arg_types=[IndexType()]).args
+        if block_argument
+        else TestOp.create(result_types=[IndexType()]).results
+    )
+
+    with pytest.raises(
+        ParseError, match="Result %x is defined with type index, but used with type i32"
+    ):
+        parser._register_ssa_definition("x", values, operand.span)
+    assert user.operands[0] is value
+
+
+@pytest.mark.parametrize("defined", [False, True])
+@pytest.mark.parametrize("attribute", [i32])
+def test_resolve_operand_typing(defined: bool, attribute: Attribute):
+    parser = Parser(Context(), "%i %m %a")
+    index, memref, attr = (parser.parse_unresolved_operand() for _ in range(3))
+    index_type = IndexType()
+    memref_type = MemRefType(i32, [2])
+    if defined:
+        for operand, typ in (
+            (index, index_type),
+            (memref, memref_type),
+            (attr, attribute),
+        ):
+            value = TestOp.create(result_types=[typ]).results[0]
+            parser._register_ssa_definition(
+                operand.operand_name, (value,), operand.span
+            )
+
+    # Check inference on both the initial lookup and reuse of a cached value.
+    for _ in range(2):
+        assert_type(parser.resolve_operand(index, index_type), SSAValue[IndexType])
+        assert_type(
+            parser.resolve_operand(memref, memref_type),
+            SSAValue[MemRefType[I32]],
+        )
+        assert_type(parser.resolve_operand(attr, attribute), SSAValue[Attribute])
+
+    assert_type(ForwardDeclaredValue(index_type), ForwardDeclaredValue[IndexType])
 
 
 @pytest.mark.parametrize(
@@ -1030,7 +1262,7 @@ def test_parse_location():
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 
-    with pytest.raises(ParseError, match="Unsupported location type."):
+    with pytest.raises(ParseError, match=re.escape("Unsupported location type.")):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
 
     parser = Parser(ctx, "loc(#loc1)")
@@ -1052,10 +1284,10 @@ def test_parse_location():
 
     parser = Parser(ctx, "loc(#not_loc)")
     parser.attribute_aliases["#not_loc"] = IntAttr(42)
-    with pytest.raises(ParseError, match="Expected location alias."):
+    with pytest.raises(ParseError, match=re.escape("Expected location alias.")):
         parser.parse_optional_location()
 
-    with pytest.raises(ParseError, match="Unexpected location syntax."):
+    with pytest.raises(ParseError, match=re.escape("Unexpected location syntax.")):
         Parser(ctx, "loc(1)").parse_optional_location()
 
 
@@ -1492,3 +1724,59 @@ def test_parse_keyword_in_non_matching():
     parser = Parser(Context(), "other remaining")
     with pytest.raises(ParseError, match="Expected one of"):
         parser.parse_keyword_in({"fastcc", "ccc"})
+
+
+@pytest.mark.parametrize(
+    "text, expected_map, expected_names",
+    [
+        # Only constants
+        ("[3, 7]", AffineMap.from_callable(lambda: (3, 7)), ()),
+        # Just SSA dims
+        (
+            "[%i0, %i1]",
+            AffineMap.from_callable(lambda s0, s1: (s0, s1), dim_symbol_split=(0, 2)),
+            ("%i0", "%i1"),
+        ),
+        # SSA dims + const sums
+        (
+            "[%i0 + 3, %i1 + 7]",
+            AffineMap.from_callable(
+                lambda s0, s1: (s0 + 3, s1 + 7), dim_symbol_split=(0, 2)
+            ),
+            ("%i0", "%i1"),
+        ),
+        # SSA dims + complex expression
+        (
+            "[%i0 + 3, 7 * %i1 + 7]",
+            AffineMap.from_callable(
+                lambda s0, s1: (s0 + 3, 7 * s1 + 7), dim_symbol_split=(0, 2)
+            ),
+            ("%i0", "%i1"),
+        ),
+        # Same SSA value used twice resolves to the same operand
+        (
+            "[%i0, %i0 + 7]",
+            AffineMap.from_callable(lambda s0: (s0, s0 + 7), dim_symbol_split=(0, 1)),
+            ("%i0",),
+        ),
+    ],
+)
+def test_parse_affine_map_of_ssa_ids(
+    text: str, expected_map: AffineMap, expected_names: tuple[str, ...]
+):
+    ctx = Context()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+
+    definitions = '%i0, %i1 = "test.op"() : () -> (index, index)\n'
+    parser = Parser(ctx, definitions + text)
+    op = parser.parse_op()
+    affine_map, operands = parser.parse_affine_map_of_ssa_ids()
+
+    assert affine_map == expected_map
+
+    values_by_name = {"%i0": op.results[0], "%i1": op.results[1]}
+
+    for operand, name in zip(operands, expected_names, strict=True):
+        assert operand.type == IndexType()
+        assert operand is values_by_name[name]

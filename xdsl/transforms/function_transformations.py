@@ -71,8 +71,8 @@ class AddBenchTimersPattern(RewritePattern):
         end_call.res[0].name_hint = "timediff"
 
         assert op.body.block.last_op
-        rewriter.insert_op(start_call, InsertPoint.at_start(op.body.block))
-        rewriter.insert_op(
+        rewriter.insert(start_call, InsertPoint.at_start(op.body.block))
+        rewriter.insert(
             [end_call, store_time], InsertPoint.before(op.body.block.last_op)
         )
         op.update_function_type()

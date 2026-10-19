@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    "schedule:weekly",
     ":semanticCommitTypeAll(dependencies)",
     ":semanticCommitScopeDisabled"
   ],
@@ -17,5 +18,18 @@
   "rangeStrategy": "replace",
   "lockFileMaintenance": {
     "enabled": true
-  }
+  },
+  "packageRules": [
+    {
+      "description": "Only major and minor updates for pre-commit hooks",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "enabled": false
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 0 : index} : () -> index
@@ -26,7 +26,7 @@
 // CHECK-NEXT:  %5 = "scf.parallel"(%0, %1, %2, %3) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
 // CHECK-NEXT:  ^bb0(%arg0: index):
 // CHECK-NEXT:    "scf.reduce"(%4) ({
-// CHECK-NEXT:    ^bb1(%arg1: i32, %arg2: i32):
+// CHECK-NEXT:    ^bb0(%arg1: i32, %arg2: i32):
 // CHECK-NEXT:      %6 = "arith.addi"(%arg1, %arg2) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:      "scf.reduce.return"(%6) : (i32) -> ()
 // CHECK-NEXT:    }) : (i32) -> ()

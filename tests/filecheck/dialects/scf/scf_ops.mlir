@@ -181,6 +181,36 @@ builtin.module {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
+  func.func @for_attrs() {
+    %lb = arith.constant 0 : index
+    %ub = arith.constant 42 : index
+    %s = arith.constant 3 : index
+    scf.for %iv = %lb to %ub step %s {
+    } {hello = "world"}
+    %res = scf.for %iv = %lb to %ub step %s iter_args(%acc = %lb) -> (index) {
+      scf.yield %acc : index
+    } {hello = "world"}
+    %lb_i32 = arith.constant 0 : i32
+    scf.for %iv = %lb_i32 to %lb_i32 step %lb_i32 : i32 {
+    } {hello = "world"}
+    func.return
+  }
+
+  // CHECK-NEXT: func.func @for_attrs() {
+  // CHECK-NEXT:   %{{.*}} = arith.constant 0 : index
+  // CHECK-NEXT:   %{{.*}} = arith.constant 42 : index
+  // CHECK-NEXT:   %{{.*}} = arith.constant 3 : index
+  // CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+  // CHECK-NEXT:   } {hello = "world"}
+  // CHECK-NEXT:   %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (index) {
+  // CHECK-NEXT:     scf.yield %{{.*}} : index
+  // CHECK-NEXT:   } {hello = "world"}
+  // CHECK-NEXT:   %{{.*}} = arith.constant 0 : i32
+  // CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} : i32 {
+  // CHECK-NEXT:   } {hello = "world"}
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
   func.func @index_switch(%flag: index) -> i32 {
     %a = arith.constant 0 : i32
     %b = arith.constant 1 : i32
@@ -273,11 +303,11 @@ builtin.module {
   // CHECK:      func.func @execute_region_multiple_blocks() {
   // CHECK-NEXT:   %c = scf.execute_region -> (i32) {
   // CHECK-NEXT:     %cond = "test.op"() : () -> i1
-  // CHECK-NEXT:     cf.cond_br %cond, ^bb0, ^bb1
-  // CHECK-NEXT:   ^bb0:
+  // CHECK-NEXT:     cf.cond_br %cond, ^bb1, ^bb2
+  // CHECK-NEXT:   ^bb1:
   // CHECK-NEXT:     %a = "test.op"() : () -> i32
   // CHECK-NEXT:     scf.yield %a : i32
-  // CHECK-NEXT:   ^bb1:
+  // CHECK-NEXT:   ^bb2:
   // CHECK-NEXT:     %b = "test.op"() : () -> i32
   // CHECK-NEXT:     scf.yield %b : i32
   // CHECK-NEXT:   }

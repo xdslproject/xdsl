@@ -25,11 +25,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_result_def,
+    prop_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
@@ -682,9 +682,9 @@ class SwapOp(IRDLOperation):
     input_stencil = operand_def(stencil.StencilTypeConstr)
     swapped_values = opt_result_def(stencil.TempType[Attribute])
 
-    swaps = attr_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    strategy = attr_def(DomainDecompositionStrategy)
+    strategy = prop_def(DomainDecompositionStrategy)
 
     traits = traits_def(SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect())
 
@@ -718,7 +718,7 @@ class SwapOp(IRDLOperation):
         return SwapOp.build(
             operands=[input_stencil],
             result_types=[result_types],
-            attributes={
+            properties={
                 "strategy": strategy,
                 "swaps": swaps,
             },

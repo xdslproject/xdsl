@@ -57,24 +57,13 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
     """
     pos = parser.pos
     operands = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_operand
+        Parser.Delimiter.NONE, parser.parse_unresolved_operand
     )
     parser.parse_punctuation(":")
     types = parser.parse_comma_separated_list(
         Parser.Delimiter.NONE, parser.parse_attribute
     )
-    end_pos = parser.pos
-    if len(operands) != len(types):
-        parser.raise_error(
-            "Mismatched between the numbers of operands and types", pos, end_pos
-        )
-    for operand, type in zip(operands, types):
-        if operand.type != type:
-            parser.raise_error(
-                "Mismatched between operands and their types", pos, end_pos
-            )
-
-    return operands
+    return list(parser.resolve_operands(operands, types, pos))
 
 
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
@@ -426,7 +415,7 @@ class OperationOp(IRDLOperation):
         def parse_attribute_entry() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
-            type = parser.parse_operand()
+            type = parser.parse_operand(AttributeType())
             return (name, type)
 
         attributes = parser.parse_optional_comma_separated_list(
@@ -491,10 +480,12 @@ def _visit_pdl_ops(op: Operation, visited: set[Operation]):
     # Traverse the operands
     if isinstance(op, OperationOp):
         for value in op.operand_values:
-            assert isinstance(owner := value.owner, Operation)
+            owner = value.owner
+            assert isinstance(owner, Operation)
             _visit_pdl_ops(owner, visited)
     elif isinstance(op, ResultOp | ResultsOp):
-        assert isinstance(owner := op.parent_.owner, Operation)
+        owner = op.parent_.owner
+        assert isinstance(owner, Operation)
         _visit_pdl_ops(owner, visited)
 
     # Traverse the users
@@ -770,11 +761,11 @@ class ResultsOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
         if parser.parse_optional_keyword("of") is not None:
-            parent = parser.parse_operand()
+            parent = parser.parse_operand(OperationType())
             return ResultsOp(parent)
         index = parser.parse_integer()
         parser.parse_keyword("of")
-        parent = parser.parse_operand()
+        parent = parser.parse_operand(OperationType())
         parser.parse_punctuation("->")
         result_type = parser.parse_attribute()
         return ResultsOp(parent, index, result_type)

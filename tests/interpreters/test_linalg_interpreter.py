@@ -1,8 +1,13 @@
+import math
+import re
+from typing import cast
+
 import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -12,12 +17,14 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     f32,
+    f64,
     i32,
     i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
+from xdsl.interpreters.math import MathFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
@@ -31,7 +38,7 @@ def test_unimplemented_inputs():
 
     with pytest.raises(
         NotImplementedError,
-        match="library_call not yet supported in linalg.generic interpreter",
+        match=re.escape("library_call not yet supported in linalg.generic interpreter"),
     ):
         op = linalg.ops.GenericOp(
             (),
@@ -56,7 +63,7 @@ def test_linalg_generic():
             create_ssa_value(MemRefType(i32, [3, 2])),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.transpose_map()),
@@ -74,13 +81,14 @@ def test_linalg_generic():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
+
+    op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
@@ -101,6 +109,7 @@ def test_linalg_generic():
         op.iterator_types,
         (TensorType(i32, [1, 6]),),
     )
+    tensor_op.verify()
 
     c_in = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
@@ -121,7 +130,7 @@ def test_linalg_generic_scalar():
             create_ssa_value(i32),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.from_callable(lambda i, j: ())),
@@ -139,13 +148,14 @@ def test_linalg_generic_scalar():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
+
+    op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = 2
@@ -154,6 +164,74 @@ def test_linalg_generic_scalar():
     interpreter.run_op(op, (a, b, c))
 
     assert c.data == [2, 4, 6, 8, 10, 12]
+
+
+@pytest.mark.parametrize("tensor", [False, True])
+def test_linalg_generic_dynamic_identity_reuses_ir(tensor: bool):
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    array_type = (TensorType if tensor else MemRefType)(i32, [DYNAMIC_INDEX])
+
+    op = linalg.ops.GenericOp(
+        (create_ssa_value(array_type),),
+        (create_ssa_value(array_type),),
+        Region(Block(arg_types=(i32, i32))),
+        (AffineMapAttr(AffineMap.identity(1)),) * 2,
+        (linalg.attrs.IteratorTypeAttr.parallel(),),
+        (array_type,) if tensor else (),
+    )
+
+    with ImplicitBuilder(op.body) as (a, _):
+        linalg.ops.YieldOp(a)
+    op.verify()
+
+    for values in ([], [1], [1, 2, 3], [1, 2, 3, 4, 5]):
+        input_array = ShapedArray(TypedPtr.new_int32(values), [len(values)])
+        initial_output = ShapedArray(
+            TypedPtr.new_int32([-1] * len(values)), [len(values)]
+        )
+
+        results = interpreter.run_op(op, (input_array, initial_output))
+
+        assert input_array.data == values
+        if tensor:
+            (output_array,) = results
+            assert initial_output.data == [-1] * len(values)
+            assert output_array is not initial_output
+        else:
+            assert results == ()
+            output_array = initial_output
+        assert output_array == ShapedArray(TypedPtr.new_int32(values), [len(values)])
+
+
+def test_linalg_transpose_dynamic_reuses_ir():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.ops.TransposeOp(
+        create_ssa_value(TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX])),
+        create_ssa_value(TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX])),
+        DenseArrayBase.from_list(i64, [1, 0]),
+        TensorType(i32, [DYNAMIC_INDEX, DYNAMIC_INDEX]),
+    )
+    op.verify()
+
+    for input_shape, values, expected in (
+        ((0, 3), [], []),
+        ((2, 3), [1, 2, 3, 4, 5, 6], [1, 4, 2, 5, 3, 6]),
+    ):
+        output_shape = (input_shape[1], input_shape[0])
+        input_array = ShapedArray(TypedPtr.new_int32(values), list(input_shape))
+        initial_output = ShapedArray(
+            TypedPtr.new_int32([-1] * len(expected)), list(output_shape)
+        )
+
+        (output_array,) = interpreter.run_op(op, (input_array, initial_output))
+
+        assert input_array.data == values
+        assert initial_output.data == [-1] * len(expected)
+        assert output_array == ShapedArray(
+            TypedPtr.new_int32(expected), list(output_shape)
+        )
 
 
 def test_linalg_generic_reduction():
@@ -190,11 +268,20 @@ def test_linalg_generic_reduction():
     assert c.data == [32]
 
 
-def test_linalg_add():
+@pytest.mark.parametrize(
+    "op_type,expected",
+    [
+        (linalg.ops.AddOp, [7.0, 6.0, 12.0, 9.0]),
+        (linalg.ops.MulOp, [6.0, 8.0, 27.0, 20.0]),
+    ],
+)
+def test_linalg_binary_elementwise(
+    op_type: type[linalg.abstract_ops.ElementwiseOperation], expected: list[float]
+):
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.ops.AddOp(
+    op = op_type(
         (
             create_ssa_value(TensorType(f32, [2, 2])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -209,7 +296,48 @@ def test_linalg_add():
 
     (c,) = interpreter.run_op(op, (a, b, c))
 
-    assert c == ShapedArray(TypedPtr.new_float32([7, 6, 12, 9]), [2, 2])
+    assert c == ShapedArray(TypedPtr.new_float32(expected), [2, 2])
+
+
+@pytest.mark.parametrize(
+    "op_type,expected",
+    [
+        (
+            linalg.ops.ExpOp,
+            [math.exp(1.0), math.exp(2.0), math.exp(3.0), math.exp(4.0)],
+        ),
+        (
+            linalg.ops.LogOp,
+            [math.log(1.0), math.log(2.0), math.log(3.0), math.log(4.0)],
+        ),
+        (
+            linalg.ops.SqrtOp,
+            [math.sqrt(1.0), math.sqrt(2.0), math.sqrt(3.0), math.sqrt(4.0)],
+        ),
+    ],
+)
+def test_linalg_unary_elementwise(
+    op_type: type[linalg.abstract_ops.ElementwiseOperation], expected: list[float]
+):
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    interpreter.register_implementations(ArithFunctions())
+    interpreter.register_implementations(MathFunctions())
+    op = op_type(
+        (create_ssa_value(TensorType(f64, [2, 2])),),
+        (create_ssa_value(TensorType(f64, [2, 2])),),
+        (TensorType(f64, [2, 2]),),
+    )
+
+    i = ShapedArray(TypedPtr.new_float64([1.0, 2.0, 3.0, 4.0]), [2, 2])
+    o = ShapedArray(TypedPtr.new_float64([0.0, 0.0, 0.0, 0.0]), [2, 2])
+
+    (o,) = interpreter.run_op(op, (i, o))
+
+    assert isinstance(o, ShapedArray)
+    o = cast(ShapedArray[float], o)
+    assert o.data == expected
+    assert o == ShapedArray(TypedPtr.new_float64(expected), [2, 2])
 
 
 def test_fill_op():
@@ -228,27 +356,6 @@ def test_fill_op():
     assert b == ShapedArray(
         TypedPtr.new_float32([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]), [2, 3]
     )
-
-
-def test_linalg_mul():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(LinalgFunctions())
-    interpreter.register_implementations(ArithFunctions())
-    op = linalg.ops.MulOp(
-        (
-            create_ssa_value(TensorType(f32, [2, 2])),
-            create_ssa_value(TensorType(f32, [2, 2])),
-        ),
-        (create_ssa_value(TensorType(f32, [2, 2])),),
-        (TensorType(f32, [2, 2]),),
-    )
-
-    a = ShapedArray(TypedPtr.new_float32([1.0, 0.0, 8.0, 4.0]), [2, 2])
-    b = ShapedArray(TypedPtr.new_float32([3.0, 9.0, 1.0, 6.0]), [2, 2])
-    c = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-
-    (c,) = interpreter.run_op(op, (a, b, c))
-    assert c == ShapedArray(TypedPtr.new_float32([3.0, 0.0, 8.0, 24.0]), [2, 2])
 
 
 def test_linalg_transpose():

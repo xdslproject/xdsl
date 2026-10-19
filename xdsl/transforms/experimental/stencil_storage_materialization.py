@@ -41,7 +41,7 @@ class ApplyOpMaterialization(RewritePattern):
             else:
                 new_res.append(out)
         if buffers:
-            rewriter.replace_op(op, [clone, *buffers], new_res)
+            rewriter.replace(op, [clone, *buffers], new_res)
         else:
             clone.erase()
 
