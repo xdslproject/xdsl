@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects.builtin import (
@@ -180,64 +181,57 @@ class FormatParser(BaseParser):
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
-        Check directives that can follow one another without intervening input.
-        Directives that accept empty input do not necessarily separate their neighbours.
+        Check correctness of the declarative format; e.g, chaining variadiclike operand
+        directives leads to ambiguous parsing, and should raise an error here.
         """
-        for i, a in enumerate(elements):
-            for b in elements[i + 1 :]:
-                self.verify_directive_pair(a, b)
-                if not b.can_parse_empty():
-                    break
-
-    def verify_directive_pair(self, a: FormatDirective, b: FormatDirective):
-        """Reject known ambiguities between two potentially adjacent directives."""
-        if (
-            isinstance(a, OptionalGroupDirective)
-            and isinstance(a.then_first, RegionDirective)
-            and isinstance(b, AttrDictDirective)
-            and not b.with_keyword
-        ):
-            self.raise_error(
-                "An optional group with a region as a first element cannot be "
-                "followed by a `attr-dict' directive as it is ambiguous."
-            )
-        if not a.can_parse_empty():
-            return
-        match a, b:
-            case _, PunctuationDirective(",") if a.is_variadic_like():
-                self.raise_error(
-                    "A variadic directive cannot be followed by a comma literal."
-                )
-            case TypeDirective(), TypeDirective():
-                self.raise_error(
-                    "An optional/variadic type directive cannot be followed by another "
-                    "type directive."
-                )
-            case OperandDirective(), OperandDirective():
-                self.raise_error(
-                    "An optional/variadic operand variable cannot be followed by another "
-                    "operand variable."
-                )
-            case (
-                VariadicRegionVariable() | OptionalRegionVariable(),
-                RegionDirective(),
+        for a, b in pairwise(elements):
+            if (
+                isinstance(a, OptionalGroupDirective)
+                and isinstance(a.then_first, RegionDirective)
+                and isinstance(b, AttrDictDirective)
+                and not b.with_keyword
             ):
                 self.raise_error(
-                    "An optional/variadic region variable cannot be followed by another "
-                    "region variable."
+                    "An optional group with a region as a first element cannot be "
+                    "followed by a `attr-dict' directive as it is ambiguous."
                 )
-            case SuccessorDirective(), SuccessorDirective():
-                self.raise_error(
-                    "A variadic successor variable cannot be followed by another "
-                    "variadic successor variable."
-                )
-            case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
-                self.raise_error(
-                    "An `attr-dict' directive without keyword cannot be directly "
-                    "followed by a region variable as it is ambiguous."
-                )
-            case _:
-                pass
+            if not a.is_optional_like():
+                continue
+            match a, b:
+                case _, PunctuationDirective(",") if a.is_variadic_like():
+                    self.raise_error(
+                        "A variadic directive cannot be followed by a comma literal."
+                    )
+                case TypeDirective(), TypeDirective():
+                    self.raise_error(
+                        "An optional/variadic type directive cannot be followed by another "
+                        "type directive."
+                    )
+                case OperandDirective(), OperandDirective():
+                    self.raise_error(
+                        "An optional/variadic operand variable cannot be followed by another "
+                        "operand variable."
+                    )
+                case (
+                    VariadicRegionVariable() | OptionalRegionVariable(),
+                    RegionDirective(),
+                ):
+                    self.raise_error(
+                        "An optional/variadic region variable cannot be followed by another "
+                        "region variable."
+                    )
+                case SuccessorDirective(), SuccessorDirective():
+                    self.raise_error(
+                        "A variadic successor variable cannot be followed by another "
+                        "variadic successor variable."
+                    )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly "
+                        "followed by a region variable as it is ambiguous."
+                    )
+                case _:
+                    pass
 
     def get_constraint_variables(self) -> set[str]:
         """
@@ -704,7 +698,7 @@ class FormatParser(BaseParser):
             self.raise_error("An optional group must have a non-whitespace directive")
         if anchor is None:
             self.raise_error("Every optional group must have an anchor.")
-        if not then_elements[first_non_whitespace_index].can_start_optional_group():
+        if not then_elements[first_non_whitespace_index].is_optional_like():
             self.raise_error(
                 "First element of an optional group must be optionally parsable."
             )
