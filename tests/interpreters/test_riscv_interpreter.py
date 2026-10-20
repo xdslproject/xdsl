@@ -292,6 +292,34 @@ def test_riscv_interpreter():
     assert buffer == test_buffer
 
 
+@pytest.mark.parametrize(
+    "bitwidth, lhs, rhs, expected",
+    [
+        (32, 6, 3, 2),
+        (32, 7, 2, 3),
+        (32, -7, 2, -3),
+        (32, 7, -2, -3),
+        (32, -7, -2, 3),
+        (32, 5, 0, -1),
+        (32, -5, 0, -1),
+        (32, 0, 0, -1),
+        (32, -(2**31), -1, -(2**31)),
+        (64, -7, 2, -3),
+        (64, 5, 0, -1),
+        (64, -(2**63), -1, -(2**63)),
+    ],
+)
+def test_div(bitwidth: int, lhs: int, rhs: int, expected: int):
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(RiscvFunctions(bitwidth=bitwidth))
+    register = riscv.Registers.UNALLOCATED_INT
+
+    assert interpreter.run_op(
+        riscv.DivOp(create_ssa_value(register), create_ssa_value(register)),
+        (lhs, rhs),
+    ) == (expected,)
+
+
 def test_get_data():
     @ModuleOp
     @Builder.implicit_region
