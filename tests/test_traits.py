@@ -60,6 +60,7 @@ from xdsl.traits import (
     MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    RegionSuccessor,
     ReturnLike,
     SameOperandsAndResultType,
     SymbolOpInterface,
@@ -1093,3 +1094,19 @@ def test_return_like():
         match=re.escape("test.return_like does not have zero successors"),
     ):
         successors.verify()
+
+
+def test_region_successor():
+    op = test.TestOp()
+    region = Region()
+    assert RegionSuccessor(region).region is region
+    assert RegionSuccessor(region).operation is None
+    assert RegionSuccessor(region).is_region()
+    assert RegionSuccessor(op).operation is op
+    assert RegionSuccessor(op).region is None
+    assert RegionSuccessor(op).is_operation()
+    assert RegionSuccessor(region) == RegionSuccessor(region)
+    assert (
+        len({RegionSuccessor(region), RegionSuccessor(region), RegionSuccessor(op)})
+        == 2
+    )

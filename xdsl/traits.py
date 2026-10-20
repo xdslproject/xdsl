@@ -878,3 +878,56 @@ class SameOperandsAndResultType(OpTrait):
                 raise VerifyException(
                     f"'{op.name} requires the same encoding for all operands and results"
                 )
+
+
+@dataclass(frozen=True)
+class RegionSuccessor:
+    """
+    This class represents a successor of a region. A region successor can either target another
+    region or target an ancestor operation (at the moment, limited to the immediate parent
+    operation). In the latter case, the control flow branches after/out of the target operation.
+    """
+
+    successor: Region | Operation
+
+    @property
+    def region(self) -> Region | None:
+        """
+        The successor region. None if the successor is an operation.
+
+        Implements MLIR `RegionSuccessor::getSuccessor`.
+        """
+        from xdsl.ir import Region
+
+        return self.successor if isinstance(self.successor, Region) else None
+
+    @property
+    def operation(self) -> Operation | None:
+        """
+        The successor operation. None if the successor is a region.
+
+        Implements MLIR `RegionSuccessor::getSuccessorOp`.
+        """
+        from xdsl.ir import Operation
+
+        return self.successor if isinstance(self.successor, Operation) else None
+
+    def is_region(self) -> bool:
+        """
+        Return true if the successor is a region.
+
+        Implements MLIR `RegionSuccessor::isRegion`.
+        """
+        from xdsl.ir import Region
+
+        return isinstance(self.successor, Region)
+
+    def is_operation(self) -> bool:
+        """
+        Return true if the successor is an operation.
+
+        Implements MLIR `RegionSuccessor::isOperation`.
+        """
+        from xdsl.ir import Operation
+
+        return isinstance(self.successor, Operation)
