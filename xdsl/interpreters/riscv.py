@@ -337,7 +337,18 @@ class RiscvFunctions(InterpreterFunctions):
         lhs = to_signed(args[0], self.bitwidth)
         rhs = to_signed(args[1], self.bitwidth)
 
-        results = (lhs // rhs,)
+        if rhs == 0:
+            # Division by zero sets all bits of the result
+            result = -1
+        else:
+            # Round towards zero, unlike Python's floor division
+            result = abs(lhs) // abs(rhs)
+            if (lhs < 0) != (rhs < 0):
+                result = -result
+            # Signed overflow (MIN_SIGNED / -1) wraps back to MIN_SIGNED
+            result = to_signed(result, self.bitwidth)
+
+        results = (result,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
