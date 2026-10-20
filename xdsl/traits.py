@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, override
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -880,6 +880,35 @@ class SameOperandsAndResultType(OpTrait):
                 )
 
 
+SuccessorOperand: TypeAlias = tuple["Operation", int]
+"""
+A successor operand, identified by its owner operation and operand index. Stands in for MLIR's
+`OpOperand *`: xDSL's `Use` hashes by identity, so it cannot be rebuilt to look up a mapping.
+"""
+
+RegionBranchSuccessorMapping: TypeAlias = Mapping[SuccessorOperand, list["SSAValue"]]
+"""
+A mapping from successor operands to successor inputs.
+
+* A successor operand is an operand of a region branch op or region branch terminator, that is
+  forwarded to a successor input.
+* A successor input is a block argument of a region or a result of the region branch op, that is
+  populated by a successor operand.
+
+The mapping is 1:N. Each successor operand may be forwarded to multiple successor inputs
+(because the control flow can dispatch to multiple possible successors). Operands that are not
+forwarded at all are not present in the mapping.
+"""
+
+RegionBranchInverseSuccessorMapping: TypeAlias = Mapping[
+    "SSAValue", list[SuccessorOperand]
+]
+"""
+A mapping from successor inputs to the successor operands that populate them. The inverse of
+`RegionBranchSuccessorMapping`.
+"""
+
+
 @dataclass(frozen=True)
 class RegionSuccessor:
     """
@@ -1058,6 +1087,14 @@ class InvocationBounds:
 InvocationBounds.UNKNOWN = InvocationBounds(0, None)
 
 
+_StopConditionFn: TypeAlias = Callable[["Region", Sequence[bool]], bool]
+"""
+Stop condition for `RegionBranchOpTrait._traverse_region_graph`. The traversal is interrupted if
+this function returns True for a successor region. The first parameter is the successor region. The
+second parameter indicates all already visited regions.
+"""
+
+
 class RegionBranchOpTrait(OpTrait):
     """
     This interface provides information for region-holding operations that exhibit branching
@@ -1114,6 +1151,167 @@ class RegionBranchOpTrait(OpTrait):
     operand.
     """
 
+    @classmethod
+    def get_entry_successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """
+        Returns the operands of this operation that are forwarded to the successor inputs when
+        branching to `successor`. `successor` is guaranteed to be among the successors that are
+        returned by `get_entry_successor_regions` /
+        `get_successor_regions(op, RegionBranchPoint.PARENT)`.
+
+        Example: In the above example, this method returns the operand `%b` of the `scf.for` op,
+        regardless of the value of `successor`. I.e., this op always forwards the same operands,
+        regardless of whether the loop has 0 or more iterations.
+        """
+        return ()
+
+    @classmethod
+    def get_entry_successor_regions(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when first executing the op.
+
+        Unlike `get_successor_regions`, this method also receives the constant operands of this op
+        (one entry per operand, `None` if the operand has no/unknown constant value). The
+        implementation may use this information to filter out successors. By default, it simply
+        dispatches to `get_successor_regions`.
+
+        Note: The control flow does not necessarily have to enter any region of this op.
+
+        Example: In the above example, this method may return two region successors: the single
+        region of the `scf.for` op and the `scf.for` operation (that implements this interface). If
+        `%lb`, `%ub`, `%step` are constants and it can be determined the loop does not have any
+        iterations, this method may choose to return only this operation. Similarly, if it can be
+        determined that the loop has at least one iteration, this method may choose to return only
+        the region of the loop.
+        """
+        return cls.get_successor_regions(op, RegionBranchPoint.PARENT)
+
+    @classmethod
+    @abc.abstractmethod
+    def get_successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from `point`. These are the
+        regions that may be selected during the flow of control.
+
+        When `point = RegionBranchPoint.PARENT`, this method returns the region successors when
+        entering the operation. Otherwise, this method returns the successor regions when branching
+        from the region indicated by `point`.
+
+        Example: In the above example, this method returns the region of the `scf.for` and the
+        `scf.for` op itself for either region branch point. An implementation may choose to filter
+        out region successors when it is statically known (e.g., by examining the operands of this
+        op) that those successors are not branched to.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def get_successor_regions_from_region(
+        cls, op: Operation, region: Region
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from any terminator in
+        `region`.
+        """
+        regions: list[RegionSuccessor] = []
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is not None and terminator.has_trait(
+                RegionBranchTerminatorOpTrait
+            ):
+                regions.extend(
+                    cls.get_successor_regions(op, RegionBranchPoint(terminator))
+                )
+        return regions
+
+    @classmethod
+    def get_successor_inputs(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """
+        Return all successor inputs for the given region successor. If the given region
+        successor is a region, then the returned values are block arguments. Otherwise, if the
+        given region successor is an operation, the returned values are op results.
+        """
+        return ()
+
+    @classmethod
+    def get_predecessors(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Sequence[RegionBranchPoint]:
+        """Returns all potential branching points (predecessors) for a given region successor."""
+        return [
+            point
+            for point in cls.get_all_region_branch_points(op)
+            if successor in cls.get_successor_regions(op, point)
+        ]
+
+    @classmethod
+    def get_predecessor_values(
+        cls, op: Operation, successor: RegionSuccessor, index: int
+    ) -> Sequence[SSAValue]:
+        """
+        Returns all potential values across all (predecessors) for a given successor input,
+        modeled by its index (its position in the list of values).
+        """
+        predecessors = cls.get_predecessors(op, successor)
+        predecessor_values: list[SSAValue] = []
+        for predecessor in predecessors:
+            if predecessor.is_parent():
+                predecessor_values.append(
+                    cls.get_entry_successor_operands(op, successor)[index]
+                )
+                continue
+            predecessor_values.append(
+                cls.get_successor_operands(op, predecessor, successor)[index]
+            )
+
+        return predecessor_values
+
+    @classmethod
+    def get_region_invocation_bounds(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[InvocationBounds]:
+        """
+        Returns the minimum and maximum number of times this operation will invoke the attached
+        regions (assuming the regions yield normally, i.e. do not abort or invoke an infinite
+        loop). The minimum number of invocations is at least 0. If the maximum number of
+        invocations cannot be statically determined, then it will be set to
+        `InvocationBounds.UNKNOWN`.
+
+        This method also passes along the constant operands of this op. `operands` contains an
+        entry for every operand of this op, with `None` if the operand has no constant value.
+
+        This method may be called speculatively on operations where the provided operands are not
+        necessarily the same as the operation's current operands. This may occur in analyses that
+        wish to determine "what would be the region invocations if these were the operands?"
+        """
+        return [InvocationBounds.UNKNOWN] * len(op.regions)
+
+    @classmethod
+    def are_types_compatible(
+        cls, op: Operation, lhs: Attribute, rhs: Attribute
+    ) -> bool:
+        """
+        This method is called to compare types along control-flow edges. By default, the types
+        are checked as equal.
+        """
+        return lhs == rhs
+
+    @override
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 
@@ -1123,6 +1321,315 @@ class RegionBranchOpTrait(OpTrait):
             raise VerifyException(
                 f"'{op.name}' implements RegionBranchOpInterface but defines no regions."
             )
+
+        self._verify_region_branch_op_interface(op)
+
+    @classmethod
+    def is_repetitive_region(cls, op: Operation, index: int) -> bool:
+        """
+        Return True if control flow originating from the region at `index` may eventually branch
+        back to the same region (maybe after passing through other regions).
+        """
+        region = op.regions[index]
+        return cls._is_region_reachable(region, region)
+
+    @classmethod
+    def has_loop(cls, op: Operation) -> bool:
+        """
+        Return True if there is a loop in the region branching graph. Only reachable regions
+        (starting from the entry regions) are considered.
+        """
+        region_indices = {region: index for index, region in enumerate(op.regions)}
+        for successor in cls.get_successor_regions(op, RegionBranchPoint.PARENT):
+            if (region := successor.region) is not None:
+                has_loop = cls._traverse_region_graph(
+                    region,
+                    # Interrupt traversal if the region was already visited.
+                    lambda next_region, visited: visited[region_indices[next_region]],
+                )
+                if has_loop:
+                    return True
+
+        return False
+
+    @classmethod
+    def get_successor_operands(
+        cls, op: Operation, src: RegionBranchPoint, dest: RegionSuccessor
+    ) -> Sequence[SSAValue]:
+        """
+        Return the successor operands from the source branch point to the destination region
+        successor.
+
+        If the branch point is the parent op, this function returns the entry successor operands of
+        this op. Otherwise, it returns the successor operands of the respective terminator.
+        """
+        if (terminator := src.terminator_predecessor_and_trait) is None:
+            return cls.get_entry_successor_operands(op, dest)
+        terminator_op, trait = terminator
+        return trait.get_successor_operands(terminator_op, dest)
+
+    @classmethod
+    def get_non_successor_inputs(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Sequence[SSAValue]:
+        """
+        Return all non-successor inputs for the given region successor. If the successor is a
+        region, these are the block arguments not forwarded to; if it is the parent, these are the
+        results not forwarded to.
+        """
+        from xdsl.ir import BlockArgument, OpResult
+
+        results: list[SSAValue]
+        if (successor_op := successor.operation) is not None:
+            # successor is an Operation
+            results = list(successor_op.results)
+        else:
+            # successor is a Region
+            region = successor.region
+            assert region is not None
+            entry = region.first_block
+            results = [] if entry is None else list(entry.args)
+
+        successor_inputs = cls.get_successor_inputs(op, successor)
+        if successor_inputs:
+            first = successor_inputs[0]
+            if successor.is_operation():
+                assert isinstance(first, OpResult)
+            else:
+                assert isinstance(first, BlockArgument)
+            input_begin = first.index
+            del results[input_begin : input_begin + len(successor_inputs)]
+        return results
+
+    @classmethod
+    def get_successor_operand_input_mapping(
+        cls, op: Operation, src: RegionBranchPoint | None = None
+    ) -> RegionBranchSuccessorMapping:
+        """
+        Build a mapping from successor operands to successor inputs. Each successor operand could
+        be forwarded to multiple successor inputs. Operands that are not forwarded are not added to
+        the mapping. Unless a specific region branch point is specified, this function takes into
+        account all possible region branch points.
+        """
+        mapping: dict[SuccessorOperand, list[SSAValue]] = {}
+        if src is not None:
+            cls._get_successor_operand_input_mapping(op, mapping, src)
+        else:
+            # No region branch point specified: populate the mapping for all possible region
+            # branch points.
+            for branch_point in cls.get_all_region_branch_points(op):
+                cls._get_successor_operand_input_mapping(op, mapping, branch_point)
+        return mapping
+
+    @classmethod
+    def get_successor_input_operand_mapping(
+        cls, op: Operation
+    ) -> RegionBranchInverseSuccessorMapping:
+        """
+        Build a mapping from successor inputs to successor operands. This is the same as
+        `get_successor_operand_input_mapping`, but inverted.
+        """
+        inverse: dict[SSAValue, list[SuccessorOperand]] = {}
+        for operand, inputs in cls.get_successor_operand_input_mapping(op).items():
+            for input_ in inputs:
+                inverse.setdefault(input_, []).append(operand)
+        return inverse
+
+    @classmethod
+    def get_all_region_branch_points(cls, op: Operation) -> Sequence[RegionBranchPoint]:
+        """
+        Return all possible region branch points: the region branch op itself and all region
+        branch terminators.
+        """
+        points = [RegionBranchPoint.PARENT]
+        for region in op.regions:
+            for block in region.blocks:
+                terminator = block.last_op
+                if terminator is not None and terminator.has_trait(
+                    RegionBranchTerminatorOpTrait
+                ):
+                    points.append(RegionBranchPoint(terminator))
+        return points
+
+    @staticmethod
+    def _edge_description(
+        op: Operation, point: RegionBranchPoint, successor: RegionSuccessor
+    ) -> str:
+        """
+        Return a description of the control flow edge from `point` to `successor` of `op`, for
+        verifier error messages.
+        """
+        terminator = point.terminator
+        source = "parent" if terminator is None else f"Operation '{terminator.name}'"
+        if (region := successor.region) is not None:
+            target = f"Region #{op.get_region_index(region)}"
+        else:
+            successor_op = successor.operation
+            assert successor_op is not None
+            target = f"Operation '{successor_op.name}'"
+        return f"'{op.name}': along control flow edge from {source} to {target}"
+
+    @classmethod
+    def _verify_region_branch_op_interface(cls, op: Operation) -> None:
+        """Verify that types match along control flow edges described by the given op."""
+        # Verify all control flow edges from region branch points to region successors.
+        for point in cls.get_all_region_branch_points(op):
+            for successor in cls.get_successor_regions(op, point):
+                # Verify number of successor operands and successor inputs.
+                succ_operands = cls.get_successor_operands(op, point, successor)
+                succ_inputs = cls.get_successor_inputs(op, successor)
+                if len(succ_operands) != len(succ_inputs):
+                    edge = cls._edge_description(op, point, successor)
+                    raise VerifyException(
+                        f"{edge}: region branch point has {len(succ_operands)} operands, but "
+                        f"region successor needs {len(succ_inputs)} inputs"
+                    )
+
+                # Verify that the types are compatible.
+                for index, (succ_operand, succ_input) in enumerate(
+                    zip(succ_operands, succ_inputs, strict=True)
+                ):
+                    if not cls.are_types_compatible(
+                        op, succ_operand.type, succ_input.type
+                    ):
+                        edge = cls._edge_description(op, point, successor)
+                        raise VerifyException(
+                            f"{edge}: successor operand type #{index} {succ_operand.type} should "
+                            f"match successor input type #{index} {succ_input.type}"
+                        )
+
+    @staticmethod
+    def _region_successors(region: Region) -> list[Region]:
+        """
+        Return the region successors of every region branch terminator in `region`. Exits to the
+        parent op are skipped, since they cannot lead back into a region.
+        """
+        successors: list[Region] = []
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is None:
+                continue
+            trait = terminator.get_trait(RegionBranchTerminatorOpTrait)
+            if trait is None:
+                continue
+            operand_attributes: list[Attribute | None] = [None] * len(
+                terminator.operands
+            )
+            for successor in trait.get_successor_regions(
+                terminator, operand_attributes
+            ):
+                if (successor_region := successor.region) is not None:
+                    successors.append(successor_region)
+        return successors
+
+    @classmethod
+    def _traverse_region_graph(
+        cls, begin: Region, stop_condition_fn: _StopConditionFn
+    ) -> bool:
+        """
+        Traverse the region graph starting at `begin`. The traversal is interrupted if
+        `stop_condition_fn` evaluates to True for a successor region. In that case, this function
+        returns True. Otherwise, if the traversal was not interrupted, this function returns
+        False.
+        """
+        op = begin.parent_op()
+        assert op is not None
+        assert op.has_trait(RegionBranchOpTrait)
+
+        region_indices = {region: index for index, region in enumerate(op.regions)}
+        visited = [False] * len(op.regions)
+        visited[region_indices[begin]] = True
+
+        # Retrieve all successors of the region and enqueue them in the worklist.
+        worklist = cls._region_successors(begin)
+
+        # Process all regions in the worklist via DFS.
+        while worklist:
+            next_region = worklist.pop()
+            if stop_condition_fn(next_region, visited):
+                return True
+            next_index = region_indices[next_region]
+            if visited[next_index]:
+                continue
+            visited[next_index] = True
+            worklist.extend(cls._region_successors(next_region))
+
+        return False
+
+    @classmethod
+    def _is_region_reachable(cls, begin: Region, r: Region) -> bool:
+        """
+        Return True if region `r` is reachable from region `begin` according to the
+        `RegionBranchOpInterface` (by taking a branch).
+        """
+        assert begin.parent_op() is r.parent_op(), (
+            "expected that both regions belong to the same op"
+        )
+        return cls._traverse_region_graph(
+            begin, lambda next_region, _visited: next_region is r
+        )
+
+    @staticmethod
+    def _operands_to_op_operands(
+        op: Operation, src: RegionBranchPoint, operands: Sequence[SSAValue]
+    ) -> Sequence[SuccessorOperand]:
+        """
+        Return the operand slots holding `operands`. They are owned by `op` if `src` is the
+        parent, and by the terminator of `src` otherwise.
+
+        MLIR reads the slots straight from the `OperandRange`, which points into the owner's
+        operand list. Here `operands` are plain values, so the slots are recovered by locating
+        `operands` as a contiguous slice of the owner's operands, which is what an `OperandRange`
+        always is. Raises `ValueError` if `operands` match no slice, or several.
+        """
+        if not operands:
+            return ()
+        terminator = src.terminator
+        owner = op if terminator is None else terminator
+        owner_operands = tuple(owner.operands)
+        forwarded = tuple(operands)
+        size = len(forwarded)
+        starts = [
+            start
+            for start in range(len(owner_operands) - size + 1)
+            if owner_operands[start : start + size] == forwarded
+        ]
+        if not starts:
+            raise ValueError(
+                "Successor operands are not a contiguous slice of the operands of "
+                f"'{owner.name}'."
+            )
+        if len(starts) > 1:
+            raise ValueError(
+                f"Successor operands match several slices of the operands of '{owner.name}', so "
+                "their operand slots are ambiguous."
+            )
+        return [(owner, starts[0] + index) for index in range(size)]
+
+    @classmethod
+    def _get_successor_operand_input_mapping(
+        cls,
+        op: Operation,
+        mapping: dict[SuccessorOperand, list[SSAValue]],
+        src: RegionBranchPoint,
+    ) -> None:
+        """
+        Populate `mapping` with the successor operands forwarded from `src`, each mapped to the
+        successor inputs it is forwarded to.
+        """
+        successors = cls.get_successor_regions(op, src)
+        for dst in successors:
+            operands = cls.get_successor_operands(op, src, dst)
+            inputs = cls.get_successor_inputs(op, dst)
+            assert len(operands) == len(inputs), (
+                "expected the same number of operands and inputs"
+            )
+            for operand, input_ in zip(
+                cls._operands_to_op_operands(op, src, operands),
+                inputs,
+                strict=True,
+            ):
+                mapping.setdefault(operand, []).append(input_)
 
 
 class RegionBranchTerminatorOpTrait(OpTrait):
@@ -1137,6 +1644,42 @@ class RegionBranchTerminatorOpTrait(OpTrait):
     successors.)
     """
 
+    @classmethod
+    def get_successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """Returns the operands passed to `successor`. By default, all operands of `op`."""
+        return op.operands
+
+    @classmethod
+    def get_successor_regions(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors that are branched to after this terminator based
+        on the given constant operands.
+
+        This method also receives the constant operands of this op (one entry per operand, `None`
+        if the operand has no/unknown constant value). The implementation may use this
+        information to filter out successors. By default, it simply dispatches to the parent
+        `RegionBranchOpInterface`'s `get_successor_regions` implementation.
+        """
+        parent = op.parent_op()
+        if parent is None:
+            raise ValueError(f"'{op.name}' has no parent op.")
+        trait = parent.get_trait(RegionBranchOpTrait)
+        if trait is None:
+            raise ValueError(
+                f"'{parent.name}', parent of '{op.name}', does not implement "
+                "RegionBranchOpInterface."
+            )
+        return trait.get_successor_regions(parent, RegionBranchPoint(op))
+
+    @override
     def verify(self, op: Operation) -> None:
         if not op.has_trait(IsTerminator):
             raise VerifyException(f"Expected operation '{op.name}' to be a terminator.")
