@@ -1047,13 +1047,10 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         state.regions[self.index] = region
 
     def parse(self, parser: Parser, state: ParsingState):
-        regions: list[Region] = []
-        current_region = parser.parse_optional_region()
-        while current_region is not None:
-            regions.append(current_region)
-            current_region = parser.parse_optional_region()
-
-        self.set(state, regions)
+        regions = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_region, parser.parse_region
+        )
+        self.set(state, () if regions is None else regions)
 
     def parse_optional(self, parser: Parser, state: ParsingState):
         self.parse(parser, state)
@@ -1066,17 +1063,10 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         if not region:
             return
         state.print_whitespace(printer)
-        printer.print_list(region, printer.print_region, delimiter=" ")
+        printer.print_list(region, printer.print_region)
 
     def set_empty(self, state: ParsingState):
         self.set(state, ())
-
-    def is_comma_separated_list(self) -> bool:
-        # Regions are juxtaposed, not comma-separated.
-        return False
-
-    def can_parse_empty(self) -> bool:
-        return True
 
 
 class OptionalRegionVariable(RegionDirective, OptionalVariable):

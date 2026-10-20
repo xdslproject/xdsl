@@ -2376,22 +2376,22 @@ def test_regions(format: str, program: str, generic_program: str):
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
         ),
         (
-            "$region `,` attr-dict",
-            "test.variadic_region,",
-            '"test.variadic_region"() : () -> ()',
+            "$region attr-dict",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n} {tag = "regions"}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {}) {tag = "regions"} : () -> ()',
         ),
         (
-            "$region `,` attr-dict",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n},',
+            "($region^)? attr-dict-with-keyword",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, {}) : () -> ()',
         ),
         (
@@ -3043,10 +3043,11 @@ def test_int_var_inference():
         (var_operand_def, "$variadic `,` type($variadic) attr-dict"),
         (var_operand_def, "$variadic `:` type($variadic) `,` attr-dict"),
         (var_result_def, "type($variadic) `,` attr-dict"),
+        (var_region_def, "$variadic `,` attr-dict"),
     ],
 )
 def test_variadic_comma_safeguard(
-    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+    variadic_def: Callable[[], VarOperand | VarOpResult | VarRegion], format: str
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
