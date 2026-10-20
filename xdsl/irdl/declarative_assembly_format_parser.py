@@ -180,7 +180,7 @@ class FormatParser(BaseParser):
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
-        Check directives that can follow one another without intervening input.
+        Check that directives can follow one another without intervening input.
         Directives that accept empty input do not necessarily separate their neighbours.
         """
         for i, a in enumerate(elements):
