@@ -1111,21 +1111,9 @@ def test_return_like():
         successors.verify()
 
 
-@irdl_op_definition
-class TerminatorOp(IRDLOperation):
-    """
-    A terminator implementing `RegionBranchTerminatorOpTrait` directly, without
-    `RegionBranchTerminatorOpInterface`.
-    """
-
-    name = "test.terminator"
-    args = var_operand_def()
-    traits = traits_def(IsTerminator(), RegionBranchTerminatorOpTrait())
-
-
 class _ForOpTrait(RegionBranchOpTrait):
     @classmethod
-    def get_successor_regions(
+    def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
     ) -> Sequence[RegionSuccessor]:
         if point.is_parent():
@@ -1133,7 +1121,7 @@ class _ForOpTrait(RegionBranchOpTrait):
         return [RegionSuccessor(op.regions[0]), RegionSuccessor(op)]
 
     @classmethod
-    def get_entry_successor_operands(
+    def entry_successor_operands(
         cls,
         op: Operation,
         successor: RegionSuccessor,
@@ -1141,7 +1129,7 @@ class _ForOpTrait(RegionBranchOpTrait):
         return op.operands
 
     @classmethod
-    def get_successor_inputs(
+    def successor_inputs(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
         if successor.is_operation():
@@ -1166,7 +1154,7 @@ class ForOp(IRDLOperation):
 
 class _YieldTailTrait(RegionBranchTerminatorOpTrait):
     @classmethod
-    def get_successor_operands(
+    def successor_operands(
         cls,
         op: Operation,
         successor: RegionSuccessor,
@@ -1183,41 +1171,13 @@ class YieldTailOp(IRDLOperation):
     traits = traits_def(IsTerminator(), _YieldTailTrait())
 
 
-@irdl_op_definition
-class NoInterfaceOp(IRDLOperation):
-    """An op with a region that does not implement `RegionBranchOpInterface`."""
-
-    name = "test.no_interface"
-    bodies = var_region_def()
-
-
-@irdl_op_definition
-class NotTerminatorOp(IRDLOperation):
-    name = "test.not_terminator"
-    traits = traits_def(RegionBranchTerminatorOpTrait())
-
-
-@irdl_op_definition
-class ResultTerminatorOp(IRDLOperation):
-    name = "test.result_terminator"
-    res = result_def()
-    traits = traits_def(IsTerminator(), RegionBranchTerminatorOpTrait())
-
-
-@irdl_op_definition
-class BranchTerminatorOp(IRDLOperation):
-    name = "test.branch_terminator"
-    dests = var_successor_def()
-    traits = traits_def(IsTerminator(), RegionBranchTerminatorOpTrait())
-
-
 class _ExitOnlyTrait(RegionBranchOpTrait):
     """
     A trait implemented directly, without `RegionBranchOpInterface`, to exercise the defaults of
     `RegionBranchOpTrait`."""
 
     @classmethod
-    def get_successor_regions(
+    def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
     ) -> Sequence[RegionSuccessor]:
         return [RegionSuccessor(op)]
@@ -1230,7 +1190,7 @@ class DummyOp(IRDLOperation, RegionBranchTerminatorOpInterface):
     name = "test.dummy_op"
     traits = traits_def(IsTerminator())
 
-    def get_successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+    def successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return ()
 
 
@@ -1246,9 +1206,7 @@ class LoopRegionsOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     bodies = var_region_def()
 
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         if (terminator := point.terminator) is None:
             return [RegionSuccessor(region) for region in self.regions]
         region = terminator.parent_region()
@@ -1259,7 +1217,7 @@ class LoopRegionsOp(IRDLOperation, RegionBranchOpInterface):
             successors.insert(0, RegionSuccessor(self))
         return successors
 
-    def get_successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results if successor.is_operation() else ()
 
 
@@ -1274,9 +1232,7 @@ class SequentialRegionsOp(IRDLOperation, RegionBranchOpInterface):
     name = "test.sequential_regions_op"
     bodies = var_region_def()
 
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         if (terminator := point.terminator) is None:
             return [RegionSuccessor(self.regions[0])]
         if terminator.parent_region() is self.regions[0]:
@@ -1305,19 +1261,17 @@ class LoopOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     body = region_def()
 
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         if point.is_parent():
             return [RegionSuccessor(self.body)]
         return [RegionSuccessor(self.body), RegionSuccessor(self)]
 
-    def get_entry_successor_operands(
+    def entry_successor_operands(
         self, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
         return self.operands
 
-    def get_successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         if successor.is_operation():
             return self.results
         return self.body.block.args
@@ -1325,7 +1279,7 @@ class LoopOp(IRDLOperation, RegionBranchOpInterface):
 
 class _YieldStridedTrait(RegionBranchTerminatorOpTrait):
     @classmethod
-    def get_successor_operands(
+    def successor_operands(
         cls,
         op: Operation,
         successor: RegionSuccessor,
@@ -1354,43 +1308,24 @@ class IntegerCastOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     body = region_def()
 
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         return [RegionSuccessor(self)]
 
-    def get_entry_successor_operands(
+    def entry_successor_operands(
         self, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
         return self.operands
 
-    def get_successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results
 
     def are_types_compatible(self, lhs: Attribute, rhs: Attribute) -> bool:
         return isinstance(lhs, IntegerType) and isinstance(rhs, IntegerType)
 
 
-@irdl_op_definition
-class NoRegionsOp(IRDLOperation, RegionBranchOpInterface):
-    """An op implementing `RegionBranchOpInterface` without defining any region."""
-
-    name = "test.no_regions"
-
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
-        return [RegionSuccessor(self)]
-
-
 _TEST_OPS: tuple[type[Operation], ...] = (
-    TerminatorOp,
     ForOp,
     YieldTailOp,
-    NoInterfaceOp,
-    NotTerminatorOp,
-    ResultTerminatorOp,
-    BranchTerminatorOp,
     DummyOp,
     LoopRegionsOp,
     SequentialRegionsOp,
@@ -1398,7 +1333,6 @@ _TEST_OPS: tuple[type[Operation], ...] = (
     LoopOp,
     YieldStridedOp,
     IntegerCastOp,
-    NoRegionsOp,
 )
 
 
@@ -1445,9 +1379,9 @@ def _trait(op: Operation, trait_type: type[_TraitT]) -> _TraitT:
 
 
 _NO_INTERFACE_IR = """
-"test.no_interface"() ({
+"test.op"() ({
   %value = "test.op"() : () -> i32
-  "test.terminator"(%value) : (i32) -> ()
+  "test.region_branch_terminator"(%value) : (i32) -> ()
 }) : () -> ()
 """
 
@@ -1556,18 +1490,16 @@ def test_region_branch_terminator_op_trait_without_is_terminator():
 
 
 def test_trait_defaults():
-    module = _parse('"test.no_interface"() ({ "test.termop"() : () -> () }) : () -> ()')
-    op = _find(module, NoInterfaceOp)
+    module = _parse('"test.op"() ({ "test.termop"() : () -> () }) : () -> ()')
+    op = _find(module, test.TestOp)
     successor = RegionSuccessor(op)
-    assert list(_ExitOnlyTrait.get_entry_successor_operands(op, successor)) == []
-    assert list(_ExitOnlyTrait.get_entry_successor_regions(op, [])) == [successor]
-    assert list(_ExitOnlyTrait.get_successor_inputs(op, successor)) == []
-    assert list(_ExitOnlyTrait.get_region_invocation_bounds(op, [])) == [
+    assert list(_ExitOnlyTrait.entry_successor_operands(op, successor)) == []
+    assert list(_ExitOnlyTrait.entry_successor_regions(op, [])) == [successor]
+    assert list(_ExitOnlyTrait.successor_inputs(op, successor)) == []
+    assert list(_ExitOnlyTrait.region_invocation_bounds(op, [])) == [
         InvocationBounds.UNKNOWN
     ]
-    assert (
-        list(_ExitOnlyTrait.get_successor_regions_from_region(op, op.regions[0])) == []
-    )
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, op.regions[0])) == []
     assert _ExitOnlyTrait.are_types_compatible(op, i32, i32)
     assert not _ExitOnlyTrait.are_types_compatible(op, i32, i64)
     # The parent only branches out of the op, so no region is entered.
@@ -1579,11 +1511,10 @@ def test_defaults():
     op = _find(module, SequentialRegionsOp)
     trait = _trait(op, RegionBranchOpTrait)
     successor = RegionSuccessor(op.regions[1])
-    assert list(trait.get_entry_successor_operands(op, successor)) == []
-    assert list(trait.get_successor_inputs(op, successor)) == []
+    assert list(trait.entry_successor_operands(op, successor)) == []
+    assert list(trait.successor_inputs(op, successor)) == []
     assert (
-        list(trait.get_region_invocation_bounds(op, []))
-        == [InvocationBounds.UNKNOWN] * 2
+        list(trait.region_invocation_bounds(op, [])) == [InvocationBounds.UNKNOWN] * 2
     )
     assert trait.are_types_compatible(op, i32, i32)
     assert not trait.are_types_compatible(op, i32, i64)
@@ -1591,8 +1522,9 @@ def test_defaults():
 
 def test_terminator_trait_defaults():
     module = _parse(_NO_INTERFACE_IR)
-    op, terminator = _find(module, NoInterfaceOp), _find(module, TerminatorOp)
-    operands = RegionBranchTerminatorOpTrait.get_successor_operands(
+    op = _find(module, test.TestOp)
+    terminator = _find(module, test.TestRegionBranchTerminatorOp)
+    operands = RegionBranchTerminatorOpTrait.successor_operands(
         terminator, RegionSuccessor(op)
     )
     assert list(operands) == [_name_to_ssa(module)["value"]]
@@ -1608,24 +1540,20 @@ def test_sequential_regions():
     assert terminator1 is not None
     exit_ = RegionSuccessor(op)
     parent = RegionBranchPoint.PARENT
-    assert list(trait.get_successor_regions(op, parent)) == [RegionSuccessor(region0)]
-    assert list(trait.get_successor_regions_from_region(op, region0)) == [
+    assert list(trait.successor_regions(op, parent)) == [RegionSuccessor(region0)]
+    assert list(trait.successor_regions_from_region(op, region0)) == [
         RegionSuccessor(region1)
     ]
-    assert list(trait.get_successor_regions_from_region(op, region1)) == [exit_]
+    assert list(trait.successor_regions_from_region(op, region1)) == [exit_]
     from_terminator0 = RegionBranchPoint(terminator0)
     from_terminator1 = RegionBranchPoint(terminator1)
+    assert list(trait.successor_operands(op, parent, RegionSuccessor(region0))) == []
     assert (
-        list(trait.get_successor_operands(op, parent, RegionSuccessor(region0))) == []
-    )
-    assert (
-        list(
-            trait.get_successor_operands(op, from_terminator0, RegionSuccessor(region1))
-        )
+        list(trait.successor_operands(op, from_terminator0, RegionSuccessor(region1)))
         == []
     )
-    assert list(trait.get_successor_operands(op, from_terminator1, exit_)) == []
-    assert list(trait.get_successor_inputs(op, exit_)) == []
+    assert list(trait.successor_operands(op, from_terminator1, exit_)) == []
+    assert list(trait.successor_inputs(op, exit_)) == []
 
 
 def test_loop_regions():
@@ -1637,33 +1565,33 @@ def test_loop_regions():
     trait = _trait(op, RegionBranchOpTrait)
     region0, region1 = op.regions
     exit_ = RegionSuccessor(op)
-    assert list(trait.get_successor_regions(op, RegionBranchPoint.PARENT)) == [
+    assert list(trait.successor_regions(op, RegionBranchPoint.PARENT)) == [
         RegionSuccessor(region0),
         RegionSuccessor(region1),
     ]
-    assert list(trait.get_successor_regions_from_region(op, region0)) == [
+    assert list(trait.successor_regions_from_region(op, region0)) == [
         RegionSuccessor(region0)
     ]
-    assert list(trait.get_successor_regions_from_region(op, region1)) == [
+    assert list(trait.successor_regions_from_region(op, region1)) == [
         exit_,
         RegionSuccessor(region1),
     ]
-    assert list(trait.get_successor_inputs(op, exit_)) == list(op.results)
-    assert list(trait.get_successor_inputs(op, RegionSuccessor(region0))) == []
+    assert list(trait.successor_inputs(op, exit_)) == list(op.results)
+    assert list(trait.successor_inputs(op, RegionSuccessor(region0))) == []
 
 
 def test_successor_regions(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
     op, yield_op, _ = loop
     body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
     trait = _trait(op, RegionBranchOpTrait)
-    assert list(trait.get_entry_successor_regions(op, [None])) == [body]
-    assert list(trait.get_successor_regions_from_region(op, op.body)) == [body, exit_]
-    assert list(trait.get_all_region_branch_points(op)) == [
+    assert list(trait.entry_successor_regions(op, [None])) == [body]
+    assert list(trait.successor_regions_from_region(op, op.body)) == [body, exit_]
+    assert list(trait.all_region_branch_points(op)) == [
         RegionBranchPoint.PARENT,
         RegionBranchPoint(yield_op),
     ]
     terminator_trait = _trait(yield_op, RegionBranchTerminatorOpTrait)
-    assert list(terminator_trait.get_successor_regions(yield_op, [None])) == [
+    assert list(terminator_trait.successor_regions(yield_op, [None])) == [
         body,
         exit_,
     ]
@@ -1674,10 +1602,10 @@ def test_successor_operands(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
     body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
     trait = _trait(op, RegionBranchOpTrait)
     parent, from_yield = RegionBranchPoint.PARENT, RegionBranchPoint(yield_op)
-    assert list(trait.get_successor_operands(op, parent, body)) == [ssa["init"]]
-    assert list(trait.get_successor_operands(op, from_yield, exit_)) == [ssa["next"]]
-    assert list(trait.get_successor_inputs(op, body)) == [ssa["arg"]]
-    assert list(trait.get_successor_inputs(op, exit_)) == [ssa["res"]]
+    assert list(trait.successor_operands(op, parent, body)) == [ssa["init"]]
+    assert list(trait.successor_operands(op, from_yield, exit_)) == [ssa["next"]]
+    assert list(trait.successor_inputs(op, body)) == [ssa["arg"]]
+    assert list(trait.successor_inputs(op, exit_)) == [ssa["res"]]
 
 
 def test_branch_points_skip_terminators_without_interface():
@@ -1689,24 +1617,27 @@ def test_branch_points_skip_terminators_without_interface():
     """)
     op = _find(module, LoopRegionsOp)
     trait = _trait(op, RegionBranchOpTrait)
-    assert list(trait.get_all_region_branch_points(op)) == [RegionBranchPoint.PARENT]
-    assert list(trait.get_successor_regions_from_region(op, op.regions[0])) == []
+    assert list(trait.all_region_branch_points(op)) == [RegionBranchPoint.PARENT]
+    assert list(trait.successor_regions_from_region(op, op.regions[0])) == []
     assert not trait.is_repetitive_region(op, 0)
     assert not trait.is_repetitive_region(op, 1)
 
 
 def test_terminator_successor_regions_without_parent_interface():
-    terminator = TerminatorOp(operands=[[]])
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
     with pytest.raises(
-        ValueError, match=re.escape("'test.terminator' has no parent op.")
+        ValueError,
+        match=re.escape("'test.region_branch_terminator' has no parent op."),
     ):
-        _trait(terminator, RegionBranchTerminatorOpTrait).get_successor_regions(
+        _trait(terminator, RegionBranchTerminatorOpTrait).successor_regions(
             terminator, []
         )
-    terminator = _find(_parse(_NO_INTERFACE_IR), TerminatorOp)
-    message = "'test.no_interface', parent of 'test.terminator', does not implement"
+    terminator = _find(_parse(_NO_INTERFACE_IR), test.TestRegionBranchTerminatorOp)
+    message = "'test.op', parent of 'test.region_branch_terminator', does not implement"
     with pytest.raises(ValueError, match=re.escape(message)):
-        _trait(terminator, RegionBranchTerminatorOpTrait).get_successor_regions(
+        _trait(terminator, RegionBranchTerminatorOpTrait).successor_regions(
             terminator, []
         )
 
@@ -1716,11 +1647,11 @@ def test_value_flow(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
     body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
     parent, from_yield = RegionBranchPoint.PARENT, RegionBranchPoint(yield_op)
     trait = _trait(op, RegionBranchOpTrait)
-    assert list(trait.get_predecessors(op, body)) == [parent, from_yield]
-    assert list(trait.get_predecessors(op, exit_)) == [from_yield]
+    assert list(trait.predecessors(op, body)) == [parent, from_yield]
+    assert list(trait.predecessors(op, exit_)) == [from_yield]
     # A loop-carried value has two predecessors: the entry operand and the yielded value.
-    assert list(trait.get_predecessor_values(op, body, 0)) == [ssa["init"], ssa["next"]]
-    assert list(trait.get_predecessor_values(op, exit_, 0)) == [ssa["next"]]
+    assert list(trait.predecessor_values(op, body, 0)) == [ssa["init"], ssa["next"]]
+    assert list(trait.predecessor_values(op, exit_, 0)) == [ssa["next"]]
 
 
 def test_value_flow_from_trait():
@@ -1730,13 +1661,14 @@ def test_value_flow_from_trait():
     %init = "test.op"() : () -> i32
     %res = "test.for"(%init) ({
     ^bb0(%iv: index, %arg: i32):
-      "test.terminator"(%arg) : (i32) -> ()
+      "test.region_branch_terminator"(%arg) : (i32) -> ()
     ^bb1(%x: index, %y: i32):
       "test.yield_tail"(%x, %y) : (index, i32) -> ()
     }) : (i32) -> i32
     """)
     op, ssa = _find(module, ForOp), _name_to_ssa(module)
-    terminator, yield_tail = _find(module, TerminatorOp), _find(module, YieldTailOp)
+    terminator = _find(module, test.TestRegionBranchTerminatorOp)
+    yield_tail = _find(module, YieldTailOp)
     body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
     points = [
         RegionBranchPoint.PARENT,
@@ -1744,20 +1676,20 @@ def test_value_flow_from_trait():
         RegionBranchPoint(yield_tail),
     ]
     trait = _trait(op, RegionBranchOpTrait)
-    assert list(trait.get_predecessors(op, body)) == points
-    assert list(trait.get_predecessors(op, exit_)) == points[1:]
-    assert list(trait.get_predecessor_values(op, body, 0)) == [
+    assert list(trait.predecessors(op, body)) == points
+    assert list(trait.predecessors(op, exit_)) == points[1:]
+    assert list(trait.predecessor_values(op, body, 0)) == [
         ssa["init"],
         ssa["arg"],
         ssa["y"],
     ]
-    assert list(trait.get_predecessor_values(op, exit_, 0)) == [ssa["arg"], ssa["y"]]
+    assert list(trait.predecessor_values(op, exit_, 0)) == [ssa["arg"], ssa["y"]]
     # A successor that no branch point reaches has no predecessors.
     unreached = RegionSuccessor(Region())
-    assert list(trait.get_predecessors(op, unreached)) == []
-    assert list(trait.get_predecessor_values(op, unreached, 0)) == []
+    assert list(trait.predecessors(op, unreached)) == []
+    assert list(trait.predecessor_values(op, unreached, 0)) == []
     with pytest.raises(IndexError):
-        trait.get_predecessor_values(op, exit_, 1)
+        trait.predecessor_values(op, exit_, 1)
 
 
 def test_non_successor_inputs():
@@ -1765,30 +1697,26 @@ def test_non_successor_inputs():
     %init = "test.op"() : () -> i32
     %res = "test.for"(%init) ({
     ^bb0(%iv: index, %arg: i32):
-      "test.terminator"(%arg) : (i32) -> ()
+      "test.region_branch_terminator"(%arg) : (i32) -> ()
     }) : (i32) -> i32
     """)
     op, ssa = _find(module, ForOp), _name_to_ssa(module)
     trait = _trait(op, RegionBranchOpTrait)
-    assert list(trait.get_non_successor_inputs(op, RegionSuccessor(op.body))) == [
-        ssa["iv"]
-    ]
-    assert list(trait.get_non_successor_inputs(op, RegionSuccessor(op))) == []
+    assert list(trait.non_successor_inputs(op, RegionSuccessor(op.body))) == [ssa["iv"]]
+    assert list(trait.non_successor_inputs(op, RegionSuccessor(op))) == []
 
 
 def test_successor_mappings(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
     op, yield_op, ssa = loop
     trait = _trait(op, RegionBranchOpTrait)
-    assert trait.get_successor_operand_input_mapping(op) == {
+    assert trait.successor_operand_input_mapping(op) == {
         (op, 0): [ssa["arg"]],
         (yield_op, 0): [ssa["arg"], ssa["res"]],
     }
-    assert trait.get_successor_operand_input_mapping(
-        op, RegionBranchPoint(yield_op)
-    ) == {
+    assert trait.successor_operand_input_mapping(op, RegionBranchPoint(yield_op)) == {
         (yield_op, 0): [ssa["arg"], ssa["res"]],
     }
-    assert trait.get_successor_input_operand_mapping(op) == {
+    assert trait.successor_input_operand_mapping(op) == {
         ssa["arg"]: [(op, 0), (yield_op, 0)],
         ssa["res"]: [(yield_op, 0)],
     }
@@ -1806,7 +1734,7 @@ def test_successor_mapping_with_repeated_operand():
     op, yield_op = _find(module, LoopOp), _find(module, YieldOp)
     block_args, results = op.body.block.args, op.res
     trait = _trait(op, RegionBranchOpTrait)
-    mapping = trait.get_successor_operand_input_mapping(op)
+    mapping = trait.successor_operand_input_mapping(op)
     assert mapping[(op, 0)] == [block_args[0]]
     assert mapping[(op, 1)] == [block_args[1]]
     assert mapping[(yield_op, 0)] == [block_args[0], results[0]]
@@ -1844,7 +1772,7 @@ def test_successor_mapping_unrecoverable_slots(ir: str, message: str):
     assert terminator is not None
     trait = _trait(op, RegionBranchOpTrait)
     with pytest.raises(ValueError, match=message):
-        trait.get_successor_operand_input_mapping(op, RegionBranchPoint(terminator))
+        trait.successor_operand_input_mapping(op, RegionBranchPoint(terminator))
 
 
 # Ports of the `RecursiveRegions` and `NotRecursiveRegions` tests.
@@ -1893,7 +1821,7 @@ def test_converging_successors():
     trait = _trait(op, RegionBranchOpTrait)
     assert not trait.is_repetitive_region(op, 0)
     # The terminators forward no values, so no operand slot is mapped.
-    assert trait.get_successor_operand_input_mapping(op) == {}
+    assert trait.successor_operand_input_mapping(op) == {}
 
 
 def test_has_loop(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
@@ -1982,42 +1910,6 @@ def test_verify_custom_type_compatibility():
         invalid.verify()
 
 
-@pytest.mark.parametrize(
-    ("ir", "op_type", "message"),
-    [
-        (
-            '"test.not_terminator"() : () -> ()',
-            NotTerminatorOp,
-            "Expected operation 'test.not_terminator' to be a terminator.",
-        ),
-        (
-            '%r = "test.result_terminator"() : () -> i32',
-            ResultTerminatorOp,
-            "Expected operation 'test.result_terminator' to have zero results.",
-        ),
-        (
-            """
-            "test.no_interface"() ({
-              "test.branch_terminator"() [^bb1] : () -> ()
-            ^bb1:
-              "test.terminator"() : () -> ()
-            }) : () -> ()
-            """,
-            BranchTerminatorOp,
-            "Expected operation 'test.branch_terminator' to have zero successors.",
-        ),
-    ],
-)
-def test_terminator_verify(ir: str, op_type: type[Operation], message: str):
-    op = _find(_parse(ir), op_type)
-    with pytest.raises(VerifyException, match=re.escape(message)):
-        op.verify()
-
-
 def test_verify_no_regions():
     # Variadic regions may be empty at runtime.
     _find(_parse('"test.loop_regions_op"() : () -> ()'), LoopRegionsOp).verify()
-    op = _find(_parse('"test.no_regions"() : () -> ()'), NoRegionsOp)
-    message = "'test.no_regions' implements RegionBranchOpInterface but defines no"
-    with pytest.raises(VerifyException, match=re.escape(message)):
-        op.verify()

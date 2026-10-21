@@ -142,63 +142,59 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
 
     @override
     @classmethod
-    def get_entry_successor_operands(
+    def entry_successor_operands(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
-        return cast(RegionBranchOpInterface, op).get_entry_successor_operands(successor)
+        return cast(RegionBranchOpInterface, op).entry_successor_operands(successor)
 
     @override
     @classmethod
-    def get_entry_successor_regions(
+    def entry_successor_regions(
         cls, op: Operation, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
-        return cast(RegionBranchOpInterface, op).get_entry_successor_regions(operands)
+        return cast(RegionBranchOpInterface, op).entry_successor_regions(operands)
 
     @override
     @classmethod
-    def get_successor_regions(
+    def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
     ) -> Sequence[RegionSuccessor]:
-        return cast(RegionBranchOpInterface, op).get_successor_regions(point)
+        return cast(RegionBranchOpInterface, op).successor_regions(point)
 
     @override
     @classmethod
-    def get_successor_regions_from_region(
+    def successor_regions_from_region(
         cls, op: Operation, region: Region
     ) -> Sequence[RegionSuccessor]:
-        return cast(RegionBranchOpInterface, op).get_successor_regions_from_region(
-            region
-        )
+        return cast(RegionBranchOpInterface, op).successor_regions_from_region(region)
 
     @override
     @classmethod
-    def get_successor_inputs(
+    def successor_inputs(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
-        return cast(RegionBranchOpInterface, op).get_successor_inputs(successor)
+        return cast(RegionBranchOpInterface, op).successor_inputs(successor)
 
     @override
     @classmethod
-    def get_predecessors(
+    def predecessors(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[RegionBranchPoint]:
-        return cast(RegionBranchOpInterface, op).get_predecessors(successor)
+        return cast(RegionBranchOpInterface, op).predecessors(successor)
 
     @override
     @classmethod
-    def get_predecessor_values(
+    def predecessor_values(
         cls, op: Operation, successor: RegionSuccessor, index: int
     ) -> Sequence[SSAValue]:
-        return cast(RegionBranchOpInterface, op).get_predecessor_values(
-            successor, index
-        )
+        return cast(RegionBranchOpInterface, op).predecessor_values(successor, index)
 
     @override
     @classmethod
-    def get_region_invocation_bounds(
+    def region_invocation_bounds(
         cls, op: Operation, operands: Sequence[Attribute | None]
     ) -> Sequence[InvocationBounds]:
-        return cast(RegionBranchOpInterface, op).get_region_invocation_bounds(operands)
+        return cast(RegionBranchOpInterface, op).region_invocation_bounds(operands)
 
     @override
     @classmethod
@@ -210,77 +206,69 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
 
 class RegionBranchOpInterface(Operation, abc.ABC):
     """
-    An operation subclassing this interface must implement `get_successor_regions`, and may
+    An operation subclassing this interface must implement `successor_regions`, and may
     override the other methods, whose semantics are documented on `RegionBranchOpTrait`.
     Wraps `RegionBranchOpTrait`.
     """
 
     traits = traits_def(_RegionBranchOpInterfaceTrait())
 
-    def get_entry_successor_operands(
+    def entry_successor_operands(
         self, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
-        """See `RegionBranchOpTrait.get_entry_successor_operands`."""
+        """See `RegionBranchOpTrait.entry_successor_operands`."""
         return ()
 
-    def get_entry_successor_regions(
+    def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
-        """See `RegionBranchOpTrait.get_entry_successor_regions`."""
-        return self.get_successor_regions(RegionBranchPoint.PARENT)
+        """See `RegionBranchOpTrait.entry_successor_regions`."""
+        return self.successor_regions(RegionBranchPoint.PARENT)
 
     @abc.abstractmethod
-    def get_successor_regions(
-        self, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
-        """See `RegionBranchOpTrait.get_successor_regions`."""
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        """See `RegionBranchOpTrait.successor_regions`."""
         raise NotImplementedError()
 
-    def get_successor_regions_from_region(
+    def successor_regions_from_region(
         self, region: Region
     ) -> Sequence[RegionSuccessor]:
-        """See `RegionBranchOpTrait.get_successor_regions_from_region`."""
+        """See `RegionBranchOpTrait.successor_regions_from_region`."""
         regions: list[RegionSuccessor] = []
         for block in region.blocks:
             terminator = block.last_op
             if terminator is not None and terminator.has_trait(
                 RegionBranchTerminatorOpTrait
             ):
-                regions.extend(
-                    self.get_successor_regions(RegionBranchPoint(terminator))
-                )
+                regions.extend(self.successor_regions(RegionBranchPoint(terminator)))
         return regions
 
-    def get_successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
-        """See `RegionBranchOpTrait.get_successor_inputs`."""
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        """See `RegionBranchOpTrait.successor_inputs`."""
         return ()
 
-    def get_predecessors(
-        self, successor: RegionSuccessor
-    ) -> Sequence[RegionBranchPoint]:
-        """See `RegionBranchOpTrait.get_predecessors`."""
+    def predecessors(self, successor: RegionSuccessor) -> Sequence[RegionBranchPoint]:
+        """See `RegionBranchOpTrait.predecessors`."""
         return [
             point
-            for point in _RegionBranchOpInterfaceTrait.get_all_region_branch_points(
-                self
-            )
-            if successor in self.get_successor_regions(point)
+            for point in _RegionBranchOpInterfaceTrait.all_region_branch_points(self)
+            if successor in self.successor_regions(point)
         ]
 
-    def get_predecessor_values(
+    def predecessor_values(
         self, successor: RegionSuccessor, index: int
     ) -> Sequence[SSAValue]:
-        """See `RegionBranchOpTrait.get_predecessor_values`."""
+        """See `RegionBranchOpTrait.predecessor_values`."""
         trait = _RegionBranchOpInterfaceTrait
         return [
-            trait.get_successor_operands(self, predecessor, successor)[index]
-            for predecessor in self.get_predecessors(successor)
+            trait.successor_operands(self, predecessor, successor)[index]
+            for predecessor in self.predecessors(successor)
         ]
 
-    def get_region_invocation_bounds(
+    def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
     ) -> Sequence[InvocationBounds]:
-        """See `RegionBranchOpTrait.get_region_invocation_bounds`."""
+        """See `RegionBranchOpTrait.region_invocation_bounds`."""
         return [InvocationBounds.UNKNOWN] * len(self.regions)
 
     def are_types_compatible(self, lhs: Attribute, rhs: Attribute) -> bool:
@@ -296,21 +284,17 @@ class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
 
     @override
     @classmethod
-    def get_successor_operands(
+    def successor_operands(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
-        return cast(RegionBranchTerminatorOpInterface, op).get_successor_operands(
-            successor
-        )
+        return cast(RegionBranchTerminatorOpInterface, op).successor_operands(successor)
 
     @override
     @classmethod
-    def get_successor_regions(
+    def successor_regions(
         cls, op: Operation, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
-        return cast(RegionBranchTerminatorOpInterface, op).get_successor_regions(
-            operands
-        )
+        return cast(RegionBranchTerminatorOpInterface, op).successor_regions(operands)
 
 
 class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
@@ -321,12 +305,12 @@ class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
 
     traits = traits_def(_RegionBranchTerminatorOpInterfaceTrait())
 
-    def get_successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
-        """See `RegionBranchTerminatorOpTrait.get_successor_operands`."""
+    def successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        """See `RegionBranchTerminatorOpTrait.successor_operands`."""
         return self.operands
 
-    def get_successor_regions(
+    def successor_regions(
         self, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
-        """See `RegionBranchTerminatorOpTrait.get_successor_regions`."""
-        return RegionBranchTerminatorOpTrait.get_successor_regions(self, operands)
+        """See `RegionBranchTerminatorOpTrait.successor_regions`."""
+        return RegionBranchTerminatorOpTrait.successor_regions(self, operands)
