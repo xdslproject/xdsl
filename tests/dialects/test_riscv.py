@@ -243,6 +243,15 @@ def test_float_register():
     riscv.FAddSOp(f1, f2).verify()
 
 
+@pytest.mark.parametrize("op_type", [riscv.FAddSOp, riscv.FeqSOp])
+def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
+    lhs = create_ssa_value(riscv.Registers.FT0)
+    rhs = create_ssa_value(riscv.Registers.FT1)
+    op = op_type(lhs, rhs)
+    op.verify()
+    assert op.fastmath == riscv.FastMathFlagsAttr("none")
+
+
 def test_riscv_parse_immediate_value():
     ctx = Context()
     ctx.load_dialect(riscv.RISCV)
