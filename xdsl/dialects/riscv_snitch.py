@@ -49,7 +49,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
-    opt_attr_def,
     prop_def,
     region_def,
     result_def,
@@ -1046,7 +1045,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
 
-    fastmath = opt_attr_def(FastMathFlagsAttr)
+    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1086,7 +1085,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+        if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}

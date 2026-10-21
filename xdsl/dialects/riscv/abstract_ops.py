@@ -487,7 +487,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
     rd = result_def(IntRegisterType)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    fastmath = attr_def(FastMathFlagsAttr)
+    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     def __init__(
         self,
@@ -495,7 +495,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs2: Operation | SSAValue,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
-        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
+        fastmath: FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -542,7 +542,7 @@ class RdRsRsFloatOperationWithFastMath(
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    fastmath = opt_attr_def(FastMathFlagsAttr)
+    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     def __init__(
         self,
@@ -578,7 +578,7 @@ class RdRsRsFloatOperationWithFastMath(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+        if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
