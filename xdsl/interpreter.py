@@ -4,7 +4,6 @@ import platform
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from types import UnionType
 from typing import (
     IO,
     Any,
@@ -13,7 +12,6 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
-    get_args,
 )
 
 from typing_extensions import TypeVar
@@ -29,6 +27,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
+from xdsl.irdl import AnyOf, BaseAttr, IRDLAttrConstraint, irdl_to_attr_constraint
 from xdsl.traits import (
     CallableOpInterface,
     IsTerminator,
@@ -384,7 +383,7 @@ AttributeInvNoDefaultT = TypeVar("AttributeInvNoDefaultT", bound=Attribute)
 
 
 def impl_attr(
-    input_type: type[AttributeInvNoDefaultT] | UnionType,
+    input_type: IRDLAttrConstraint[AttributeInvNoDefaultT],
 ) -> Callable[
     [AttrImpl[_FT, AttributeInvNoDefaultT]],
     AttrImpl[_FT, AttributeInvNoDefaultT],
@@ -392,16 +391,33 @@ def impl_attr(
     """
     Marks the conversion from an attribute to a Python value. The
     `value_for_attribute` method on `Interpreter` will call into this implementation for
-    matching input and output types. A union registers the implementation for each
-    of its member types.
+    matching input and output types. The input must convert to a `BaseAttr` or an
+    `AnyOf` of `BaseAttr` constraints, all with runtime-final attribute classes.
+    Each class is registered separately for exact-class lookup. Constraints on
+    attribute values or parameters are not supported.
 
     See `InterpreterFunctions` for more documentation.
     """
 
+    constraint = irdl_to_attr_constraint(input_type)
+    constraints = (
+        constraint.attr_constrs if isinstance(constraint, AnyOf) else (constraint,)
+    )
+    types: list[type[Attribute]] = []
+    for constraint in constraints:
+        if not isinstance(constraint, BaseAttr):
+            raise ValueError(
+                f"impl_attr requires a BaseAttr or an AnyOf of BaseAttr constraints, "
+                f"got {constraint}"
+            )
+        if constraint.get_bases() is None:
+            raise ValueError(
+                f"impl_attr requires runtime-final attribute classes, "
+                f"got {constraint.attr.__name__}"
+            )
+        types.append(constraint.attr)
+
     def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
-        types = (
-            get_args(input_type) if isinstance(input_type, UnionType) else (input_type,)
-        )
         setattr(func, _ATTR_IMPL_TYPES_KEY, types)
         return func
 
