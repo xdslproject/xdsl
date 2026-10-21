@@ -26,7 +26,6 @@ from xdsl.dialects.riscv import (
     IntRegisterType,
     RdRsRsOperation,
     RISCVAsmOperation,
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     RISCVRegallocOperation,
     RISCVRegisterType,
