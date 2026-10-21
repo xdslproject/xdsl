@@ -2,6 +2,7 @@ from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import memref_stream
+from xdsl.dialects.builtin import FloatAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -11,6 +12,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
@@ -34,31 +36,37 @@ class MemRefStreamFunctions(InterpreterFunctions):
         outputs: tuple[ShapedArray[int | float], ...] = args[
             inputs_count : inputs_count + outputs_count
         ]
-        init_values: tuple[int | float, ...] = args[inputs_count + outputs_count :]
+        init_values: tuple[int | FloatAttr, ...] = args[inputs_count + outputs_count :]
 
         indexing_maps = tuple(attr.data for attr in op.indexing_maps)
         output_indexing_maps = indexing_maps[inputs_count:]
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
 
-        inits: list[int | float | None] = [None] * len(op.outputs)
+        inits: list[int | FloatAttr | None] = [None] * len(op.outputs)
         for index, init in zip(op.init_indices, init_values, strict=True):
             inits[index.data] = init
 
         if inner_ubs:
-            inputs: tuple[ShapedArray[float] | float, ...] = args[:inputs_count]
+            inputs: tuple[ShapedArray[float] | int | FloatAttr, ...] = args[
+                :inputs_count
+            ]
             input_indexing_maps = indexing_maps[:inputs_count]
             for outer_indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
                 output_loop_args = tuple(
                     (
-                        o.load(indexing_map.eval(outer_indices, ()))
+                        scalar_attr(
+                            o.load(indexing_map.eval(outer_indices, ())),
+                            block_arg.type,
+                        )
                         if init is None
                         else init
                     )
-                    for o, indexing_map, init in zip(
+                    for o, indexing_map, init, block_arg in zip(
                         outputs,
                         output_indexing_maps,
                         inits,
+                        op.body.block.args[inputs_count:],
                         strict=True,
                     )
                 )
@@ -67,14 +75,20 @@ class MemRefStreamFunctions(InterpreterFunctions):
                 ):
                     input_loop_args = tuple(
                         (
-                            (cast(ShapedArray[Any], i)).load(
-                                indexing_map.eval(outer_indices + inner_indices, ())
+                            scalar_attr(
+                                (cast(ShapedArray[Any], i)).load(
+                                    indexing_map.eval(outer_indices + inner_indices, ())
+                                ),
+                                block_arg.type,
                             )
                             if isinstance(i, ShapedArray)
                             else i
                         )
-                        for i, indexing_map in zip(
-                            inputs, input_indexing_maps, strict=True
+                        for i, indexing_map, block_arg in zip(
+                            inputs,
+                            input_indexing_maps,
+                            op.body.block.args[:inputs_count],
+                            strict=True,
                         )
                     )
 
@@ -86,16 +100,26 @@ class MemRefStreamFunctions(InterpreterFunctions):
                     output_loop_args, output_indexing_maps, outputs, strict=True
                 ):
                     result_indices = indexing_map.eval(outer_indices, ())
-                    output.store(result_indices, res)
+                    output.store(
+                        result_indices,
+                        res.value.data if isinstance(res, FloatAttr) else res,
+                    )
         else:
             for indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
                 loop_args = tuple(
                     (
-                        (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
+                        scalar_attr(
+                            (cast(ShapedArray[Any], i)).load(
+                                indexing_map.eval(indices, ())
+                            ),
+                            block_arg.type,
+                        )
                         if isinstance(i, ShapedArray)
                         else i
                     )
-                    for i, indexing_map in zip(args, indexing_maps, strict=True)
+                    for i, indexing_map, block_arg in zip(
+                        args, indexing_maps, op.body.block.args, strict=True
+                    )
                 )
                 loop_results = interpreter.run_ssacfg_region(
                     op.body, loop_args, "for_loop"
@@ -104,7 +128,10 @@ class MemRefStreamFunctions(InterpreterFunctions):
                     loop_results, output_indexing_maps, outputs, strict=True
                 ):
                     result_indices = indexing_map.eval(indices, ())
-                    output.store(result_indices, res)
+                    output.store(
+                        result_indices,
+                        res.value.data if isinstance(res, FloatAttr) else res,
+                    )
 
         return ()
 

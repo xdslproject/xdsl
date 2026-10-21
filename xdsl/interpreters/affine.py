@@ -1,6 +1,7 @@
 from typing import Any, cast
 
 from xdsl.dialects import affine
+from xdsl.dialects.builtin import FloatAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -9,7 +10,9 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -27,7 +30,7 @@ class AffineFunctions(InterpreterFunctions):
         indices = affine_map.data.eval(affine_dims, [])
 
         indices = tuple(indices)
-        memref.store(indices, value)
+        memref.store(indices, value.value.data if isa(value, FloatAttr) else value)
 
         return ()
 
@@ -45,7 +48,7 @@ class AffineFunctions(InterpreterFunctions):
         indices = tuple(indices)
         value = memref.load(indices)
 
-        return (value,)
+        return (scalar_attr(value, op.result.type),)
 
     @impl(affine.ForOp)
     def run_for(

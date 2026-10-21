@@ -55,6 +55,8 @@ class ArithFunctions(InterpreterFunctions):
         value = cast(IntegerAttr | FloatAttr, op.value)
         if isa(value, IntegerAttr[builtin.IndexType]):
             return (to_signed(value.value.data, interpreter.index_bitwidth),)
+        if isa(value, FloatAttr):
+            return (value,)
         return (value.value.data,)
 
     @impl(arith.SubiOp)
@@ -101,41 +103,48 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.SubfOp)
     def run_subf(self, interpreter: Interpreter, op: arith.SubfOp, args: PythonValues):
-        return (args[0] - args[1],)
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        return (FloatAttr(args[0].value.data - args[1].value.data, op.result.type),)
 
     @impl(arith.AddfOp)
     def run_addf(self, interpreter: Interpreter, op: arith.AddfOp, args: PythonValues):
-        return (args[0] + args[1],)
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        return (FloatAttr(args[0].value.data + args[1].value.data, op.result.type),)
 
     @impl(arith.MulfOp)
     def run_mulf(self, interpreter: Interpreter, op: arith.MulfOp, args: PythonValues):
-        return (args[0] * args[1],)
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        return (FloatAttr(args[0].value.data * args[1].value.data, op.result.type),)
 
     @impl(arith.MinimumfOp)
     def run_minimumf(
         self, interpreter: Interpreter, op: arith.MinimumfOp, args: PythonValues
     ):
-        if isnan(args[0]) or isnan(args[1]):
-            return (float("NaN"),)
-        if args[0] == 0 and args[1] == 0:
-            if copysign(1.0, args[0]) < 0 or copysign(1.0, args[1]) < 0:
-                return (-0.0,)
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        lhs, rhs = args[0].value.data, args[1].value.data
+        if isnan(lhs) or isnan(rhs):
+            return (FloatAttr(float("NaN"), op.result.type),)
+        if lhs == 0 and rhs == 0:
+            if copysign(1.0, lhs) < 0 or copysign(1.0, rhs) < 0:
+                return (FloatAttr(-0.0, op.result.type),)
             else:
-                return (0.0,)
-        return (min(args[0], args[1]),)
+                return (FloatAttr(0.0, op.result.type),)
+        return (args[0] if lhs <= rhs else args[1],)
 
     @impl(arith.MaximumfOp)
     def run_maximumf(
         self, interpreter: Interpreter, op: arith.MaximumfOp, args: PythonValues
     ):
-        if isnan(args[0]) or isnan(args[1]):
-            return (float("NaN"),)
-        if args[0] == 0 and args[1] == 0:
-            if copysign(1.0, args[0]) > 0 or copysign(1.0, args[1]) > 0:
-                return (0.0,)
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        lhs, rhs = args[0].value.data, args[1].value.data
+        if isnan(lhs) or isnan(rhs):
+            return (FloatAttr(float("NaN"), op.result.type),)
+        if lhs == 0 and rhs == 0:
+            if copysign(1.0, lhs) > 0 or copysign(1.0, rhs) > 0:
+                return (FloatAttr(0.0, op.result.type),)
             else:
-                return (-0.0,)
-        return (max(args[0], args[1]),)
+                return (FloatAttr(-0.0, op.result.type),)
+        return (args[0] if lhs >= rhs else args[1],)
 
     @impl(arith.CmpiOp)
     def run_cmpi(self, interpreter: Interpreter, op: arith.CmpiOp, args: PythonValues):
@@ -173,8 +182,8 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.CmpfOp)
     def run_cmpf(self, interpreter: Interpreter, op: arith.CmpfOp, args: PythonValues):
-        x = args[0]
-        y = args[1]
+        x = args[0].value.data
+        y = args[1].value.data
 
         o = not isnan(x) and not isnan(y)
         u = isnan(x) or isnan(y)

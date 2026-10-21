@@ -9,7 +9,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.builtin import scalar_attr, xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.traits import SymbolTable
@@ -48,7 +48,9 @@ class MemRefFunctions(InterpreterFunctions):
         memref = cast(ShapedArray[Any], memref)
 
         indices = tuple(indices)
-        memref.store(indices, value)
+        memref.store(
+            indices, value.value.data if isa(value, builtin.FloatAttr) else value
+        )
 
         return ()
 
@@ -63,7 +65,7 @@ class MemRefFunctions(InterpreterFunctions):
         indices = tuple(indices)
         value = shaped_array.load(indices)
 
-        return (value,)
+        return (scalar_attr(value, op.res.type),)
 
     @impl(memref.GetGlobalOp)
     def run_get_global(

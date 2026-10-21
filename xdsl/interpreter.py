@@ -40,6 +40,16 @@ PythonValues: TypeAlias = tuple[Any, ...]
 """
 A tuple of result values corresponding to the results of the operation being
 interpreted.
+
+The standard dialect implementations represent floating-point scalars with
+`FloatAttr`, carrying the SSA value's type. Integer and index scalars use native
+integers; RISC-V register values already use attributes.
+`ShapedArray` and `TypedPtr` keep native numeric storage; floating-point scalar
+loads and region arguments are wrapped, and stores unwrap attribute payloads.
+Callers and external function implementations must use the same representations.
+
+Other types have dialect-specific representations; the interpreter dispatch itself
+does not impose a representation on custom implementations.
 """
 
 

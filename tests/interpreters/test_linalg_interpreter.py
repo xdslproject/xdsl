@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
     MemRefType,
     ModuleOp,
     StringAttr,
@@ -347,7 +348,7 @@ def test_fill_op():
         (create_ssa_value(TensorType(f32, [2, 3])),),
         (TensorType(f32, [2, 3]),),
     )
-    a = 1.0
+    a = FloatAttr(1.0, f32)
     b = ShapedArray(TypedPtr.new_float32([0.0] * 6), [2, 3])
     (b,) = interpreter.run_op(op, (a, b))
     assert b == ShapedArray(

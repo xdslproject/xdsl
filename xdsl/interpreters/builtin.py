@@ -23,6 +23,18 @@ from xdsl.utils.comparisons import to_signed
 from xdsl.utils.hints import isa
 
 
+def scalar_attr(value: int | float, value_type: Attribute) -> int | FloatAttr:
+    """
+    Convert a numeric storage value to its runtime scalar representation.
+    Floating-point scalars use attributes; integers and indices remain native.
+    """
+    if isinstance(value_type, builtin.AnyFloat):
+        return FloatAttr(float(value), value_type)
+    assert isinstance(value_type, builtin.IndexType | IntegerType)
+    assert isinstance(value, int)
+    return value
+
+
 def xtype_for_el_type(
     el_type: Attribute, index_bitwidth: Literal[32, 64]
 ) -> PackableType[Any]:
@@ -56,10 +68,10 @@ class BuiltinFunctions(InterpreterFunctions):
     @impl_attr(AnyFloat)
     def float_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: AnyFloat
-    ) -> float:
+    ) -> FloatAttr:
         interpreter.interpreter_assert(isa(attr, FloatAttr))
         attr = cast(FloatAttr, attr)
-        return attr.value.data
+        return attr
 
     @impl_attr(IntegerType)
     def integer_attr_value(

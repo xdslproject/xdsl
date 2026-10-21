@@ -5,17 +5,19 @@ from typing import Any, cast
 from typing_extensions import TypeVar
 
 from xdsl.dialects import tensor
-from xdsl.dialects.builtin import DYNAMIC_INDEX, TensorType
+from xdsl.dialects.builtin import DYNAMIC_INDEX, FloatAttr, TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    PythonValues,
     impl,
     register_impls,
 )
-from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.builtin import scalar_attr, xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 T = TypeVar("T")
 
@@ -67,10 +69,10 @@ class TensorFunctions(InterpreterFunctions):
         self,
         interpreter: Interpreter,
         op: tensor.InsertOp,
-        args: tuple[T | ShapedArray[T] | int, ...],
-    ) -> tuple[ShapedArray[T]]:
-        value = cast(T, args[0])
-        dest = cast(ShapedArray[T], args[1])
+        args: PythonValues,
+    ) -> tuple[ShapedArray[Any]]:
+        value = args[0].value.data if isa(args[0], FloatAttr) else args[0]
+        dest = cast(ShapedArray[Any], args[1])
         indices = cast(Sequence[int], args[2:])
 
         assert isinstance(dest, ShapedArray)
@@ -86,15 +88,15 @@ class TensorFunctions(InterpreterFunctions):
         self,
         interpreter: Interpreter,
         op: tensor.ExtractOp,
-        args: tuple[ShapedArray[T] | int, ...],
-    ) -> tuple[T]:
-        tensor = cast(ShapedArray[T], args[0])
+        args: PythonValues,
+    ) -> PythonValues:
+        tensor = cast(ShapedArray[Any], args[0])
         indices = cast(Sequence[int], args[1:])
 
         assert isinstance(tensor, ShapedArray)
         assert len(indices) == len(tensor.shape)
 
-        return (tensor.load(indices),)
+        return (scalar_attr(tensor.load(indices), op.result.type),)
 
     @impl(tensor.DimOp)
     def run_dim(

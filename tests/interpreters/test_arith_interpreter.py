@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import copysign, isnan
+from math import isnan
 from typing import Literal
 
 import pytest
@@ -28,6 +28,7 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    FloatAttr,
     IndexType,
     IntegerType,
     ModuleOp,
@@ -157,10 +158,12 @@ def test_subf(lhs_value: float, rhs_value: float):
     subf = SubfOp(lhs_f64_op, rhs_f64_op)
     subf.verify()
 
-    ret = interpreter.run_op(subf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        subf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value - rhs_value
+    assert ret[0] == FloatAttr(lhs_value - rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -169,10 +172,12 @@ def test_addf(lhs_value: float, rhs_value: float):
     addf = AddfOp(lhs_f64_op, rhs_f64_op)
     addf.verify()
 
-    ret = interpreter.run_op(addf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        addf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value + rhs_value
+    assert ret[0] == FloatAttr(lhs_value + rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -181,10 +186,12 @@ def test_mulf(lhs_value: float, rhs_value: float):
     mulf = MulfOp(lhs_f64_op, rhs_f64_op)
     mulf.verify()
 
-    ret = interpreter.run_op(mulf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        mulf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value * rhs_value
+    assert ret[0] == FloatAttr(lhs_value * rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -193,10 +200,12 @@ def test_minf(lhs_value: float, rhs_value: float):
     minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
     minf.verify()
 
-    ret = interpreter.run_op(minf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        minf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == min(lhs_value, rhs_value)
+    assert ret[0] == FloatAttr(min(lhs_value, rhs_value), f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -205,32 +214,37 @@ def test_maximumf(lhs_value: float, rhs_value: float):
     maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
     maxf.verify()
 
-    ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        maxf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == max(lhs_value, rhs_value)
+    assert ret[0] == FloatAttr(max(lhs_value, rhs_value), f64)
 
 
 def test_minmax_corner():
     maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
     maxf.verify()
 
-    assert copysign(1.0, interpreter.run_op(maxf, (0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (0.0, -0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, -0.0))[0]) == -1.0
-    assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
-    assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
+    zero = FloatAttr(0.0, f64)
+    negative_zero = FloatAttr(-0.0, f64)
+    nan = FloatAttr(float("NaN"), f64)
+    assert interpreter.run_op(maxf, (zero, zero)) == (zero,)
+    assert interpreter.run_op(maxf, (negative_zero, zero)) == (zero,)
+    assert interpreter.run_op(maxf, (zero, negative_zero)) == (zero,)
+    assert interpreter.run_op(maxf, (negative_zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(maxf, (nan, zero)) == (nan,)
+    assert interpreter.run_op(maxf, (zero, nan)) == (nan,)
 
     minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
     minf.verify()
 
-    assert copysign(1.0, interpreter.run_op(minf, (0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(minf, (-0.0, 0.0))[0]) == -1.0
-    assert copysign(1.0, interpreter.run_op(minf, (0.0, -0.0))[0]) == -1.0
-    assert copysign(1.0, interpreter.run_op(minf, (-0.0, -0.0))[0]) == -1.0
-    assert isnan(interpreter.run_op(minf, (float("NaN"), 0.0))[0])
-    assert isnan(interpreter.run_op(minf, (0.0, float("NaN")))[0])
+    assert interpreter.run_op(minf, (zero, zero)) == (zero,)
+    assert interpreter.run_op(minf, (negative_zero, zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (negative_zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (nan, zero)) == (nan,)
+    assert interpreter.run_op(minf, (zero, nan)) == (nan,)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -382,7 +396,9 @@ def test_cmpf(lhs_value: float, rhs_value: float, pred: str):
     cmpf = CmpfOp(lhs_f64_op, rhs_f64_op, pred)
     cmpf.verify()
 
-    ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        cmpf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
     assert ret[0] == expectation
