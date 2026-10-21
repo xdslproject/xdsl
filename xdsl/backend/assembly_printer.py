@@ -8,7 +8,7 @@ from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 
 
-class AssemblyPrinter(BasePrinter):
+class AssemblyPrinter(BasePrinter[str]):
     _current_section: str | None = None
 
     def emit_section(self, new_section: str):

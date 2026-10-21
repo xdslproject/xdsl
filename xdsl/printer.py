@@ -3,9 +3,9 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import chain
-from typing import cast
+from typing import IO, cast
 
 from typing_extensions import TypeVar
 
@@ -49,35 +49,56 @@ from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
-@dataclass(eq=False, repr=False)
-class Printer(BasePrinter):
-    print_generic_format: bool = field(default=False)
-    print_properties_as_attributes: bool = field(default=False)
-    print_debuginfo: bool = field(default=False)
-    diagnostic: Diagnostic = field(default_factory=Diagnostic)
-    printing_location: bool = field(default=False)
+@dataclass(eq=False, repr=False, init=False)
+class Printer(BasePrinter[str]):
+    """Serialize MLIR to text."""
 
-    _ssa_values: dict[SSAValue, str] = field(
-        default_factory=dict[SSAValue, str], init=False
-    )
-    _blocks: dict[Block, str] = field(default_factory=dict[Block, str], init=False)
+    print_generic_format: bool
+    print_properties_as_attributes: bool
+    print_debuginfo: bool
+    diagnostic: Diagnostic
+    printing_location: bool
 
-    """
-    maps SSA Values to their "allocated" names
-    """
-    _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict[str, int]()], init=False
-    )
-    _block_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict[str, int]()], init=False
-    )
-    _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
-    _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
+    # Maps SSA values and blocks to their allocated names.
+    _ssa_values: dict[SSAValue, str]
+    _blocks: dict[Block, str]
+    _ssa_names: list[dict[str, int]]
+    _block_names: list[dict[str, int]]
+    _next_valid_name_id: list[int]
+    _next_valid_block_id: list[int]
 
-    _dialect_resources: dict[str, set[str]] = field(default_factory=dict[str, set[str]])
-    """
-    resources that were referenced in the ir
-    """
+    _dialect_resources: dict[str, set[str]]
+    """Resources that were referenced in the IR."""
+
+    def __init__(
+        self,
+        stream: IO[str] | None = None,
+        print_generic_format: bool = False,
+        print_properties_as_attributes: bool = False,
+        print_debuginfo: bool = False,
+        diagnostic: Diagnostic | None = None,
+        printing_location: bool = False,
+        _dialect_resources: dict[str, set[str]] | None = None,
+        *,
+        indent_num_spaces: int = 2,
+    ) -> None:
+        super().__init__(stream, content_type=str, indent_num_spaces=indent_num_spaces)
+        self.print_generic_format = print_generic_format
+        self.print_properties_as_attributes = print_properties_as_attributes
+        self.print_debuginfo = print_debuginfo
+        self.diagnostic = Diagnostic() if diagnostic is None else diagnostic
+        self.printing_location = printing_location
+
+        self._ssa_values = {}
+        self._blocks = {}
+        self._ssa_names = [{}]
+        self._block_names = [{}]
+        self._next_valid_name_id = [0]
+        self._next_valid_block_id = [0]
+
+        self._dialect_resources = (
+            {} if _dialect_resources is None else _dialect_resources
+        )
 
     @property
     def ssa_names(self):

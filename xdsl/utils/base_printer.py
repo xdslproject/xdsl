@@ -1,28 +1,82 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Generator, Iterable
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass, field
-from typing import IO, Any
+from dataclasses import dataclass
+from typing import IO, Any, Generic, cast, overload
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.lexer import ContentT, Offset
 
-@dataclass(eq=False, repr=False)
-class BasePrinter:
-    stream: IO[str] | None = field(default=None)
-    indent_num_spaces: int = field(default=2, kw_only=True)
-    _indent: int = field(default=0, init=False)
-    _current_line: int = field(default=0, init=False)
-    _current_column: int = field(default=0, init=False)
 
-    _next_line_callback: list[Callable[[], None]] = field(
-        default_factory=list[Callable[[], None]], init=False
-    )
+@dataclass(eq=False, repr=False, init=False)
+class BasePrinter(Generic[ContentT]):
+    """Print native content, defaulting to text; select `content_type=bytes` for bytes."""
+
+    stream: IO[ContentT]
+    """Output stream, defaulting to stdout at construction time."""
+
+    newline: ContentT
+    indent_num_spaces: int
+    _indent: int
+    _current_line: int
+    _current_column: Offset
+    _space: ContentT
+    _encode: Callable[[str], ContentT]
+    _next_line_callback: list[Callable[[], None]]
+
+    @overload
+    def __init__(
+        self: BasePrinter[str],
+        stream: IO[str] | None = None,
+        *,
+        content_type: type[str] = str,
+        indent_num_spaces: int = 2,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        stream: IO[ContentT] | None = None,
+        *,
+        content_type: type[ContentT],
+        indent_num_spaces: int = 2,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        stream: IO[Any] | None = None,
+        *,
+        content_type: type[str | bytes] = str,
+        indent_num_spaces: int = 2,
+    ) -> None:
+        if stream is None:
+            stream = sys.stdout if content_type is str else sys.stdout.buffer
+        self.stream = cast(IO[ContentT], stream)
+        self.indent_num_spaces = indent_num_spaces
+        self._indent = 0
+        self._current_line = 0
+        self._current_column = 0
+        self._next_line_callback = []
+        if content_type is str:
+            self._encode = cast(Callable[[str], ContentT], str)
+        else:
+            self._encode = cast(Callable[[str], ContentT], str.encode)
+        self.newline = self._encode("\n")
+        self._space = self._encode(" ")
+
+    def _write(self, content: ContentT) -> None:
+        self.stream.write(content)
 
     def print_string(self, text: str, *, indent: int | None = None) -> None:
+        """Print Python text, encoding it as UTF-8 for a byte printer."""
+        self.print_content(self._encode(text), indent=indent)
+
+    def print_content(self, text: ContentT, *, indent: int | None = None) -> None:
         """
-        Prints a string to the printer's output.
+        Print native content without encoding or decoding.
 
         This function takes into account indentation level when
         printing new lines.
@@ -30,32 +84,32 @@ class BasePrinter:
         then the `Printer` instance's indentation level is used.
         """
 
-        num_newlines = text.count("\n")
+        num_newlines = text.count(self.newline)
 
         if not num_newlines:
             self._current_column += len(text)
-            print(text, end="", file=self.stream)
+            self._write(text)
             return
 
         indent = self._indent if indent is None else indent
-        lines = text.split("\n")
+        lines = cast(list[ContentT], text.split(self.newline))
 
         if indent == 0 and not self._next_line_callback:
             # No indent and no callback to print after the next newline, the text
             # can be printed directly.
             self._current_line += num_newlines
             self._current_column = len(lines[-1])
-            print(text, end="", file=self.stream)
+            self._write(text)
             return
 
         # Line and column information is not computed ahead of time
         # as indent-aware newline printing may use it as part of
         # callbacks.
-        print(lines[0], end="", file=self.stream)
+        self._write(lines[0])
         self._current_column += len(lines[0])
         for line in lines[1:]:
             self._print_new_line(indent=indent)
-            print(line, end="", file=self.stream)
+            self._write(line)
             self._current_column += len(line)
 
     T = TypeVar("T")
@@ -91,7 +145,7 @@ class BasePrinter:
     ) -> None:
         indent = self._indent if indent is None else indent
         # Prints a newline, bypassing the `print_string` method
-        print(file=self.stream)
+        self._write(self.newline)
         self._current_line += 1
         if print_message:
             for callback in self._next_line_callback:
@@ -99,7 +153,7 @@ class BasePrinter:
             self._next_line_callback = []
         num_spaces = indent * self.indent_num_spaces
         # Prints indentation, bypassing the `print_string` method
-        print(" " * num_spaces, end="", file=self.stream)
+        self._write(self._space * num_spaces)
         self._current_column = num_spaces
 
     @contextmanager
