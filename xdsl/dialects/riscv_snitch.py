@@ -31,8 +31,6 @@ from xdsl.dialects.riscv import (
     RISCVRegallocOperation,
     RISCVRegisterType,
     RsRsIntegerOperation,
-    parse_immediate_value,
-    print_immediate_value,
     si12,
     ui5,
 )
@@ -107,7 +105,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
 
 @irdl_op_definition
-class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
+class ScfgwiOp(RISCVInstruction):
     """
     Write the value in rs to the Snitch stream configuration location pointed by
     immediate value in the memory-mapped address space.
@@ -121,6 +119,10 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+    )
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -145,17 +147,6 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> set[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 @irdl_op_definition
@@ -1106,7 +1097,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
         )
 
 
-class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and a source floating-point register.
@@ -1119,6 +1110,8 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
+
+    assembly_format = "$rd_in `,` $rs attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(AlwaysSpeculatable())
 
