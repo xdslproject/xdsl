@@ -973,6 +973,10 @@ class FunctionalTypeDirective(FormatDirective):
         parser.parse_punctuation("(")
         self._parse_suffix(parser, state)
 
+    def set_empty(self, state: ParsingState):
+        self.operand_typeable_directive.set_types(state, ())
+        self.result_typeable_directive.set_types(state, ())
+
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
         with printer.in_parens():
