@@ -149,7 +149,6 @@ from .ops import (
     JalOp,
     JalrOp,
     JOp,
-    LabelAttr,
     LabelOp,
     LbOp,
     LbuOp,
@@ -397,7 +396,6 @@ RISCV = Dialect(
     [
         IntRegisterType,
         FloatRegisterType,
-        LabelAttr,
         FastMathFlagsAttr,
     ],
 )

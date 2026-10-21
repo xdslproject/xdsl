@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
 from typing import ClassVar, cast
 
 from xdsl.backend.assembly_printer import (
@@ -76,7 +75,6 @@ from .abstract_ops import (
     RdRsRsIntegerOperation,
     RdRsRsRsFloatOperation,
     RISCVAsmOperation,
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     RISCVRegallocOperation,
     RsRsImmFloatOperation,
@@ -87,7 +85,6 @@ from .abstract_ops import (
 from .attrs import (
     SI20,
     FastMathFlagsAttr,
-    LabelAttr,
 )
 from .registers import (
     FloatRegisterType,
@@ -770,7 +767,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | IntegerAttr[SI20] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI20] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2043,7 +2040,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2052,17 +2049,19 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
     """
 
     name = "riscv.label"
-    label = attr_def(LabelAttr)
+    label = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
 
     def __init__(
         self,
-        label: str | LabelAttr,
+        label: str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(label, str):
-            label = LabelAttr(label)
+            label = StringAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2075,26 +2074,6 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
 
     def assembly_line(self) -> str | None:
         return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.label.data)
-        return {"label"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 @irdl_op_definition
@@ -3019,7 +2998,7 @@ class FLdOp(RdRsImmFloatOperation):
         value = assembly_arg_str(self.rd)
         imm = assembly_arg_str(self.immediate)
         offset = assembly_arg_str(self.rs1)
-        if isinstance(self.immediate, LabelAttr):
+        if isinstance(self.immediate, StringAttr):
             return AssemblyPrinter.assembly_line(
                 instruction_name, f"{value}, {imm}, {offset}", self.comment
             )
@@ -3294,7 +3273,6 @@ RISCV = Dialect(
     [
         IntRegisterType,
         FloatRegisterType,
-        LabelAttr,
         FastMathFlagsAttr,
     ],
 )

@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
 from xdsl.dialects.riscv import (
     UI5,
     IntRegisterType,
-    LabelAttr,
     Registers,
     parse_immediate_value,
     ui5,
@@ -49,7 +48,7 @@ class LiOp(LiOperation[I32]):
 
     def __init__(
         self,
-        immediate: int | IntegerAttr[I32] | str | LabelAttr,
+        immediate: int | IntegerAttr[I32] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
