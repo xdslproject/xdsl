@@ -931,3 +931,95 @@ class RegionSuccessor:
         from xdsl.ir import Operation
 
         return isinstance(self.successor, Operation)
+
+
+class RegionBranchOpTrait(OpTrait):
+    """
+    This interface provides information for region-holding operations that exhibit branching
+    behavior between held regions. It models the control flow edges between regions (and between
+    the op and its regions), as well as the data flow (value propagation) that occurs along those
+    control flow edges.
+
+    This interface is meant to model well-defined cases of control-flow and value propagation,
+    where what occurs along control-flow edges is assumed to be side-effect free.
+
+    A "region branch point" indicates the point from which a branch (edge) originates. It can
+    indicate:
+    1. A `RegionBranchTerminatorOpInterface` terminator in any of the immediately nested regions
+       of this op.
+    2. `RegionBranchPoint.PARENT`: the branch originates from outside of the op, i.e., when
+       first executing this op.
+
+    When branching from a region branch point to a region successor, the "successor operands" to
+    be forwarded from the region branch point can be specified with `get_entry_successor_operands`
+    / `RegionBranchTerminatorOpInterface.get_successor_operands`.
+
+    A "region successor" indicates the target of a branch. It can indicate:
+    1. A region of this op.
+    2. A parent operation, i.e., the control flow leaves/resumes after that op.
+
+    The SSA values to which successor operands are forwarded are called "successor inputs".
+
+    By default, successor operands and successor block arguments/successor results must have the
+    same type. `are_types_compatible` can be implemented to allow non-equal types.
+
+    Note: This interface works in conjunction with `RegionBranchTerminatorOpInterface`. All
+    immediately nested block terminators that model branching between regions must implement the
+    `RegionBranchTerminatorOpInterface`. Otherwise, analyses/transformations may miss control flow
+    edges and produce incorrect results. Not every block terminator is necessarily a region branch
+    terminator: e.g., in the presence of unstructured control flow, a block terminator could
+    indicate a branch to a different block within the same region.
+
+    Example:
+
+    ```
+    %r = scf.for %iv = %lb to %ub step %step iter_args(%a = %b)
+        -> tensor<5xf32> {
+      ...
+      scf.yield %c : tensor<5xf32>
+    }
+    ```
+
+    `scf.for` has one region. There are two region branch points with two identical region
+    successors:
+    * parent => op(%r), region0(%a)
+    * `scf.yield` => op(%r), region0(%a)
+
+    `%a` and `%r` are successor inputs. `%b` is an entry successor operand. `%c` is a successor
+    operand.
+    """
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.irdl import IRDLOperation
+
+        # MLIR rejects ops declared with zero regions, so an op with variadic regions
+        # may still have none at runtime.
+        if isinstance(op, IRDLOperation) and not op.get_irdl_definition().regions:
+            raise VerifyException(
+                f"'{op.name}' implements RegionBranchOpInterface but defines no regions."
+            )
+
+
+class RegionBranchTerminatorOpTrait(OpTrait):
+    """
+    This interface provides information for branching terminator operations in the presence of a
+    parent `RegionBranchOpInterface` implementation. It acts as a marker for valid region branch
+    points and specifies which operands are passed to which region successor.
+
+    Note: If an operation does not implement the `RegionBranchTerminatorOpInterface`, then that op
+    has no region successors. (However, there may be other block terminators in the same region
+    that implement the `RegionBranchTerminatorOpInterface`, so the enclosing region may have region
+    successors.)
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not op.has_trait(IsTerminator):
+            raise VerifyException(f"Expected operation '{op.name}' to be a terminator.")
+        if op.results:
+            raise VerifyException(
+                f"Expected operation '{op.name}' to have zero results."
+            )
+        if op.successors:
+            raise VerifyException(
+                f"Expected operation '{op.name}' to have zero successors."
+            )
