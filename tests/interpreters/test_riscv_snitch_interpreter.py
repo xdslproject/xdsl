@@ -1,6 +1,6 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, riscv, riscv_snitch, rv32, snitch
-from xdsl.dialects.builtin import FloatAttr, ModuleOp, f64
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr, ModuleOp, f64, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -12,7 +12,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 def test_read_write():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(RiscvSnitchFunctions())
 
     a0 = riscv.Registers.A0
@@ -24,11 +24,11 @@ def test_read_write():
     assert interpreter.run_op(
         riscv_snitch.ReadOp(create_ssa_value(snitch.ReadableStreamType(a0)), a0),
         (input_stream,),
-    ) == (1,)
+    ) == (IntegerAttr(1, i32),)
     assert interpreter.run_op(
         riscv_snitch.ReadOp(create_ssa_value(snitch.ReadableStreamType(a1)), a1),
         (input_stream,),
-    ) == (2,)
+    ) == (IntegerAttr(2, i32),)
 
     assert (
         interpreter.run_op(
@@ -36,26 +36,26 @@ def test_read_write():
                 create_ssa_value(a0), create_ssa_value(snitch.ReadableStreamType(a0))
             ),
             (
-                1,
+                IntegerAttr(1, i32),
                 output_stream,
             ),
         )
         == ()
     )
-    assert output_stream.values == [1]
+    assert output_stream.values == [IntegerAttr(1, i32)]
     assert (
         interpreter.run_op(
             riscv_snitch.WriteOp(
                 create_ssa_value(a1), create_ssa_value(snitch.ReadableStreamType(a1))
             ),
             (
-                2,
+                IntegerAttr(2, i32),
                 output_stream,
             ),
         )
         == ()
     )
-    assert output_stream.values == [1, 2]
+    assert output_stream.values == [IntegerAttr(1, i32), IntegerAttr(2, i32)]
 
 
 def test_frep_carried_vars():
@@ -82,10 +82,12 @@ def test_frep_carried_vars():
             result = riscv_snitch.FrepOuterOp(count, for_loop_region, (initial,)).res
             func.ReturnOp(*result)
 
-    interpreter = Interpreter(sum_to_for_op)
+    interpreter = Interpreter(sum_to_for_op, index_bitwidth=32)
     interpreter.register_implementations(RiscvSnitchFunctions())
     interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(Rv32Functions())
     interpreter.register_implementations(FuncFunctions())
 
-    assert interpreter.call_op("sum_to", (5,)) == (FloatAttr(64.0, f64),)
+    assert interpreter.call_op("sum_to", (IntegerAttr(5, i32),)) == (
+        FloatAttr(64.0, f64),
+    )
