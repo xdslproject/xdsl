@@ -5,7 +5,7 @@ from collections.abc import Iterator, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from typing_extensions import TypeVar
 
@@ -552,7 +552,7 @@ class MemoryEffectKind(Enum):
     """
     The kind of side effect an operation can have.
 
-    MLIR has a more detailed version of this, able to tie effects to specfic resources or
+    MLIR has a more detailed version of this, able to tie effects to specific resources or
     values. Here, everything has its effect on the universe.
     """
 
@@ -811,7 +811,7 @@ class Commutative(OpTrait):
 
 class HasInsnRepresentation(OpTrait, abc.ABC):
     """
-    A trait providing information on how to encode an operation using a .insn assember directive.
+    A trait providing information on how to encode an operation using a .insn assembler directive.
 
     The returned string contains python string.format placeholders where formatted operands are inserted during
     printing.
@@ -931,6 +931,131 @@ class RegionSuccessor:
         from xdsl.ir import Operation
 
         return isinstance(self.successor, Operation)
+
+
+@dataclass(frozen=True, init=False)
+class RegionBranchPoint:
+    """
+    This class represents a point being branched from in the methods of the
+    `RegionBranchOpInterface`.
+
+    One can branch from one of two kinds of places:
+    * The parent operation (aka the `RegionBranchOpInterface` implementation)
+    * A `RegionBranchTerminatorOpInterface` inside a region within the parent operation.
+
+    Construct with the terminator being branched from. Use `RegionBranchPoint.PARENT` to branch
+    from the parent operation. Raises `ValueError` if the terminator does not implement
+    `RegionBranchTerminatorOpInterface`. The constructor implements MLIR
+    `RegionBranchPoint(RegionBranchTerminatorOpInterface)`.
+    """
+
+    predecessor: Operation | None
+
+    _interface: RegionBranchTerminatorOpTrait | None = field(compare=False, repr=False)
+    """The `RegionBranchTerminatorOpTrait` of `predecessor`."""
+
+    PARENT: ClassVar[RegionBranchPoint]
+    """
+    The `RegionBranchPoint` representing the parent operation.
+
+    Implements MLIR `RegionBranchPoint::parent`.
+    """
+
+    def __init__(self, predecessor: Operation) -> None:
+        interface = predecessor.get_trait(RegionBranchTerminatorOpTrait)
+        if interface is None:
+            raise ValueError(
+                f"'{predecessor.name}' does not implement RegionBranchTerminatorOpInterface."
+            )
+        object.__setattr__(self, "predecessor", predecessor)
+        object.__setattr__(self, "_interface", interface)
+
+    def is_parent(self) -> bool:
+        """
+        Returns true if branching from the parent op.
+
+        Implements MLIR `RegionBranchPoint::isParent`.
+        """
+        return self.predecessor is None
+
+    @property
+    def terminator(self) -> Operation | None:
+        """
+        The terminator if branching from a region. None otherwise.
+
+        Implements MLIR `RegionBranchPoint::getTerminatorPredecessorOrNull`.
+        """
+        return self.predecessor
+
+    @property
+    def terminator_predecessor_and_trait(
+        self,
+    ) -> tuple[Operation, RegionBranchTerminatorOpTrait] | None:
+        """
+        The terminator and its `RegionBranchTerminatorOpTrait` if branching from a
+        region. None otherwise.
+
+        Implements MLIR `RegionBranchPoint::getTerminatorPredecessorOrNull`, together with
+        `terminator`. MLIR returns a single interface handle that is both the op and its interface
+        methods. In xDSL the op and its trait are separate objects, and the trait methods take the
+        op as an argument, so this property returns both.
+        """
+        if self.predecessor is None or self._interface is None:
+            return None
+        return self.predecessor, self._interface
+
+
+# Mirrors MLIR's private default constructor: bypasses `__init__`, which rejects `None`.
+RegionBranchPoint.PARENT = object.__new__(RegionBranchPoint)
+object.__setattr__(RegionBranchPoint.PARENT, "predecessor", None)
+object.__setattr__(RegionBranchPoint.PARENT, "_interface", None)
+
+
+@dataclass(frozen=True)
+class InvocationBounds:
+    """
+    This class represents upper and lower bounds on the number of times a region of a
+    `RegionBranchOpInterface` can be invoked. The lower bound is at least zero, but the upper bound
+    may not be known.
+    """
+
+    lower: int
+    """
+    The minimum number of times the successor region will be invoked.
+
+    Implements MLIR `InvocationBounds::getLowerBound`.
+    """
+
+    upper: int | None
+    """
+    The maximum number of times the successor region will be invoked or `None` if an upper bound
+    is not known.
+
+    Implements MLIR `InvocationBounds::getUpperBound`.
+    """
+
+    UNKNOWN: ClassVar[InvocationBounds]
+    """
+    The unknown invocation bounds, i.e., there is no information on how many times a region may
+    be invoked.
+
+    Implements MLIR `InvocationBounds::getUnknown`.
+    """
+
+    def __post_init__(self) -> None:
+        """Implements the checks of MLIR `InvocationBounds` constructor."""
+        if self.lower < 0:
+            raise ValueError(
+                f"Invocation lower bound must be at least 0, got {self.lower}."
+            )
+        if self.upper is not None and self.upper < self.lower:
+            raise ValueError(
+                f"Invocation upper bound ({self.upper}) cannot be less than lower bound "
+                f"({self.lower})."
+            )
+
+
+InvocationBounds.UNKNOWN = InvocationBounds(0, None)
 
 
 class RegionBranchOpTrait(OpTrait):
