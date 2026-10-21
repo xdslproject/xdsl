@@ -275,10 +275,14 @@
     // CHECK-NEXT: riscv.ecall
     riscv.ebreak
     // CHECK-NEXT: riscv.ebreak
-    riscv.directive ".bss"
-    // CHECK-NEXT: riscv.directive ".bss"
+    riscv.directive ".bss" ""
+    // CHECK-NEXT: riscv.directive ".bss" ""
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
+    riscv.directive ".bss" "" {tag = "keep"}
+    // CHECK-NEXT: riscv.directive ".bss" "" {tag = "keep"}
+    riscv.directive ".align" "2" {tag = "keep"}
+    // CHECK-NEXT: riscv.directive ".align" "2" {tag = "keep"}
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       riscv.nop
     }
@@ -570,8 +574,10 @@
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss", value = ""} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss", value = "", tag = "keep"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2", tag = "keep"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
 // CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
