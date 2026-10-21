@@ -73,6 +73,17 @@ def test_register(
     assert register.register_name.data == name
 
 
+def test_register_widths_are_distinct():
+    registers = (
+        x86.registers.RAX,
+        x86.registers.EAX,
+        x86.registers.AX,
+        x86.registers.AL,
+    )
+    assert len({register.index for register in registers}) == 1
+    assert len(set(registers)) == 4
+
+
 def test_rflags_register():
     rflags = x86.registers.RFLAGS
     assert rflags.is_allocated

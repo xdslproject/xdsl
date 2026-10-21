@@ -33,8 +33,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
 
-    Registers have a name, as used in assembly, and an index as used in the binary
-    encoding.
+    Registers store an index as used in the binary encoding. Their assembly names
+    are derived from the index, so aliases identify the same register.
 
     Some approaches for register allocation have stages where values are assigned to a
     fixed set of registers that is distinct from the registers that exist on a target
@@ -47,7 +47,15 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
 
     index: IntAttr | NoneAttr
-    register_name: StringAttr
+
+    @property
+    def register_name(self) -> StringAttr:
+        """The canonical assembly name, or an empty string if unallocated."""
+        if isinstance(self.index, NoneAttr):
+            return StringAttr("")
+        if self.index.data < 0:
+            return StringAttr(self.infinite_register_prefix() + str(~self.index.data))
+        return StringAttr(self.abi_name_by_index()[self.index.data])
 
     def __init_subclass__(cls) -> None:
         # Detect register names clashing with the infinite register prefix
@@ -73,106 +81,73 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Returns an unallocated register of this type.
         """
-        return cls(NoneAttr(), StringAttr(""))
+        return cls(NoneAttr())
 
     @classmethod
-    def _parameters_from_name(
-        cls, register_name: StringAttr
-    ) -> tuple[IntAttr | NoneAttr, StringAttr]:
-        """
-        Returns the parameter list required to construct a register instance from the given register_name.
-        """
-        if not register_name.data:
-            return NoneAttr(), register_name
-        index = cls.index_by_name().get(register_name.data)
-        if index is None:
-            # Try to decode as infinite register
-            prefix = cls.infinite_register_prefix()
-            if register_name.data.startswith(prefix):
-                suffix = register_name.data[len(prefix) :]
-                # infinite registers go from -1 to -inf
-                try:
-                    index = ~int(suffix)
-                except ValueError:
-                    index = None
-            else:
-                index = None
+    def _index_from_name(cls, name: str) -> IntAttr | NoneAttr:
+        """Resolve an assembly name to its register index."""
+        if not name:
+            return NoneAttr()
+        if (index := cls.index_by_name().get(name)) is not None:
+            return IntAttr(index)
 
-        # Raise verification error instead
-        index_attr = NoneAttr() if index is None else IntAttr(index)
-        return index_attr, register_name
+        prefix = cls.infinite_register_prefix()
+        if name.startswith(prefix):
+            suffix = name[len(prefix) :]
+            try:
+                infinite_index = int(suffix)
+            except ValueError:
+                pass
+            else:
+                if infinite_index >= 0 and suffix == str(infinite_index):
+                    return IntAttr(~infinite_index)
+
+        raise ValueError(f"Invalid register name {name} for register type {cls.name}.")
 
     @classmethod
     def from_name(cls, register_name: StringAttr | str) -> Self:
-        if not isinstance(register_name, StringAttr):
-            register_name = StringAttr(register_name)
-        return cls(*cls._parameters_from_name(register_name))
+        if isinstance(register_name, StringAttr):
+            register_name = register_name.data
+        return cls(cls._index_from_name(register_name))
 
     @classmethod
     def from_index(cls, index: int) -> Self:
-        if index < 0:
-            return cls.infinite_register(~index)
-        name = cls.abi_name_by_index()[index]
-        return cls(IntAttr(index), StringAttr(name))
+        if index >= 0 and index not in cls.abi_name_by_index():
+            raise ValueError(f"Invalid index {index} for register type {cls.name}.")
+        return cls(IntAttr(index))
 
     @property
     def is_allocated(self) -> bool:
         """Returns true if the register is allocated, otherwise false"""
-        return bool(self.register_name.data)
+        return isinstance(self.index, IntAttr)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         if parser.parse_optional_punctuation("<"):
+            start_pos = parser.pos
             name = parser.parse_identifier()
+            end_pos = parser.pos
             parser.parse_punctuation(">")
-            params = cls._parameters_from_name(StringAttr(name))
-        else:
-            params = (NoneAttr(), StringAttr(""))
-
-        return params
+            try:
+                return (cls._index_from_name(name),)
+            except ValueError as e:
+                parser.raise_error(str(e), start_pos, end_pos)
+        return (NoneAttr(),)
 
     def print_parameters(self, printer: Printer) -> None:
-        if self.register_name.data:
+        if self.is_allocated:
             with printer.in_angle_brackets():
                 printer.print_string(self.register_name.data)
 
     def verify(self) -> None:
-        name = self.register_name.data
-        expected_index = type(self).index_by_name().get(name)
-
-        if isinstance(self.index, NoneAttr):
-            if not name:
-                # Unallocated, expect NoneAttr
-                return
-
-            if expected_index is None:
-                raise VerifyException(
-                    f"Invalid register name {name} for register type {self.name}."
-                )
-            else:
-                raise VerifyException(
-                    f"Missing index for register {name}, expected {expected_index}."
-                )
-
-        if not name:
+        if (
+            isinstance(self.index, IntAttr)
+            and self.index.data >= 0
+            and self.index.data not in self.abi_name_by_index()
+        ):
             raise VerifyException(
-                f"Invalid index {self.index.data} for unallocated register."
+                f"Invalid index {self.index.data} for register type {self.name}."
             )
-
-        if expected_index is not None:
-            # Normal registers
-            if expected_index == self.index.data:
-                return
-
-            raise VerifyException(
-                f"Invalid index {self.index.data} for register {name}, expected {expected_index}."
-            )
-
-        infinite_register_name = self.infinite_register_prefix() + str(~self.index.data)
-        if name == infinite_register_name:
-            return
-
-        raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
 
     @classmethod
     def allocatable_registers(cls) -> Sequence[Self]:
@@ -223,16 +198,11 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     def infinite_register(cls, index: int) -> Self:
         """
         Provide the register at the given index in the "infinite" register set.
-        Index must be positive.
+        Index must be nonnegative.
         """
-        assert index >= 0, f"Infinite index must be positive, got {index}."
-        register_name = cls.infinite_register_prefix() + str(index)
-        assert register_name not in cls.index_by_name(), (
-            f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
-        )
-        index_attr = IntAttr(~index)
-        res = cls(index_attr, StringAttr(register_name))
-        return res
+        if index < 0:
+            raise ValueError(f"Infinite index must be nonnegative, got {index}.")
+        return cls(IntAttr(~index))
 
 
 @dataclass(frozen=True)

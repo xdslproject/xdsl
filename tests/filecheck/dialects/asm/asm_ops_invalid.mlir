@@ -25,4 +25,4 @@
 %v = asm.from_reg %r {attr} : !test.reg<x0> -> i32
 %r2 = asm.to_reg %v {attr} : i32 -> !test.reg<x1>
 
-// CHECK: Expected original register type !test.reg<x0> to be equal to own register type !test.reg<x1>.
+// CHECK: Expected original register type !test.reg<a0> to be equal to own register type !test.reg<a1>.
