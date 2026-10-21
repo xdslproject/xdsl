@@ -6,6 +6,7 @@ from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
+    FloatAttr,
     IntegerAttr,
     ModuleOp,
     TensorType,
@@ -165,8 +166,8 @@ def test_riscv_interpreter():
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0),
-    ) == (12.0,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64)),
+    ) == (FloatAttr(12.0, f64),)
 
     # D extension arithmetic
 
@@ -176,61 +177,61 @@ def test_riscv_interpreter():
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0, 5.0),
-    ) == (17.0,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64), FloatAttr(5.0, f64)),
+    ) == (FloatAttr(17.0, f64),)
 
     assert interpreter.run_op(
         riscv.FAddDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0),
-    ) == (7.0,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64)),
+    ) == (FloatAttr(7.0, f64),)
 
     assert interpreter.run_op(
         riscv.FSubDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0),
-    ) == (-1.0,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64)),
+    ) == (FloatAttr(-1.0, f64),)
 
     assert interpreter.run_op(
         riscv.FMulDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0),
-    ) == (12.0,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64)),
+    ) == (FloatAttr(12.0, f64),)
 
     assert interpreter.run_op(
         riscv.FDivDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (3.0, 4.0),
-    ) == (0.75,)
+        (FloatAttr(3.0, f64), FloatAttr(4.0, f64)),
+    ) == (FloatAttr(0.75, f64),)
 
     assert interpreter.run_op(
         riscv.FMinDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (1, 2),
-    ) == (1,)
+        (FloatAttr(1.0, f64), FloatAttr(2.0, f64)),
+    ) == (FloatAttr(1.0, f64),)
 
     assert interpreter.run_op(
         riscv.FMaxDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
-        (1, 2),
-    ) == (2,)
+        (FloatAttr(1.0, f64), FloatAttr(2.0, f64)),
+    ) == (FloatAttr(2.0, f64),)
 
     assert interpreter.run_op(
         riscv.FMVOp(create_ssa_value(register)),
-        (42.0,),
-    ) == (42.0,)
+        (FloatAttr(42.0, f64),),
+    ) == (FloatAttr(42.0, f64),)
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
@@ -238,12 +239,12 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FMvWXOp(create_ssa_value(fregister)),
         (convert_f32_to_u32(3.0),),
-    ) == (3.0,)
+    ) == (FloatAttr(3.0, f64),)
 
     assert (
         interpreter.run_op(
             riscv.FSwOp(create_ssa_value(register), create_ssa_value(fregister), 8),
-            (buffer, 3.0),
+            (buffer, FloatAttr(3.0, f64)),
         )
         == ()
     )
@@ -254,7 +255,7 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FLwOp(create_ssa_value(register), 8),
         (buffer,),
-    ) == (3.0,)
+    ) == (FloatAttr(3.0, f64),)
 
     assert buffer == test_buffer
 
@@ -265,24 +266,27 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FLdOp(create_ssa_value(register), 8),
         (buffer,),
-    ) == (struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0],)
+    ) == (FloatAttr(struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0], f64),)
 
     assert buffer == test_buffer
 
     assert interpreter.run_op(
         riscv.FMvDOp(create_ssa_value(register), rd=fregister),
-        (5.0,),
-    ) == (5.0,)
+        (FloatAttr(5.0, f64),),
+    ) == (FloatAttr(5.0, f64),)
 
     assert interpreter.run_op(
         riscv.FCvtDWOp(create_ssa_value(register)),
         (42,),
-    ) == (42.0,)
+    ) == (FloatAttr(42.0, f64),)
 
     assert (
         interpreter.run_op(
             riscv.FSdOp(create_ssa_value(register), create_ssa_value(fregister), 8),
-            (buffer, struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0]),
+            (
+                buffer,
+                FloatAttr(struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0], f64),
+            ),
         )
         == ()
     )
@@ -344,7 +348,8 @@ def test_cast():
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.cast_value(riscv.Registers.UNALLOCATED_FLOAT, f64, 42.0) == 42.0
+    value = FloatAttr(42.0, f64)
+    assert interpreter.cast_value(riscv.Registers.UNALLOCATED_FLOAT, f64, value) == 42.0
 
 
 def test_register_contents():

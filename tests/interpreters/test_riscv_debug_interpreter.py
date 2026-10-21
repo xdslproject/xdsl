@@ -1,7 +1,7 @@
 from io import StringIO
 
 from xdsl.dialects import riscv, riscv_debug
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import FloatAttr, ModuleOp, f64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
@@ -29,7 +29,7 @@ def test_riscv_interpreter():
                     create_ssa_value(riscv.Registers.UNALLOCATED_FLOAT),
                 ),
             ),
-            (1, -1, 2.0, -2.0),
+            (1, -1, FloatAttr(2.0, f64), FloatAttr(-2.0, f64)),
         )
         == ()
     )
