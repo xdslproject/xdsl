@@ -654,10 +654,10 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 %dk_kmovd = x86.dk.kmovd %ks_kmovd : (!x86.avx512maskreg) -> !x86.reg64
 // CHECK-NEXT: %dk_kmovd = x86.dk.kmovd %ks_kmovd : (!x86.avx512maskreg) -> !x86.reg64
 
-%ks_kmovq = x86.ks.kmovq %0 : (!x86.reg64) -> !x86.avx512maskreg
-// CHECK-NEXT: %ks_kmovq = x86.ks.kmovq %0 : (!x86.reg64) -> !x86.avx512maskreg
-%dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
-// CHECK-NEXT: %dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
+%ks_kmovq = x86.ks.kmovq %0 {comment = "to mask", tag = "keep"} : (!x86.reg64) -> !x86.avx512maskreg
+// CHECK-NEXT: %ks_kmovq = x86.ks.kmovq %0 {comment = "to mask", tag = "keep"} : (!x86.reg64) -> !x86.avx512maskreg
+%dk_kmovq = x86.dk.kmovq %ks_kmovq {comment = "from mask", tag = "keep"} : (!x86.avx512maskreg) -> !x86.reg64
+// CHECK-NEXT: %dk_kmovq = x86.dk.kmovq %ks_kmovq {comment = "from mask", tag = "keep"} : (!x86.avx512maskreg) -> !x86.reg64
 
 // ---- pmov ----
 

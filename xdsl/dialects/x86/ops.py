@@ -30,7 +30,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
 from typing import IO, ClassVar, Generic, Literal, Self, TypeAlias, cast
@@ -58,7 +57,6 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import (
-    Attribute,
     Operation,
     OpResult,
     SSAValue,
@@ -83,7 +81,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -163,81 +161,6 @@ class X86HasRegisterConstraints(
         # results are "out" registers.
         # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
-
-
-class X86CustomFormatOperation(IRDLOperation, ABC):
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        args = cls.parse_unresolved_operands(parser)
-        custom_attributes = cls.custom_parse_attributes(parser)
-        remaining_attributes = parser.parse_optional_attr_dict()
-        # TODO ensure distinct keys for attributes
-        attributes = custom_attributes | remaining_attributes
-        regions = parser.parse_region_list()
-        pos = parser.pos
-        operand_types, result_types = cls.parse_op_type(parser)
-        operands = parser.resolve_operands(args, operand_types, pos)
-        return cls.build(
-            operands=operands,
-            result_types=result_types,
-            attributes=attributes,
-            regions=regions,
-        )
-
-    @classmethod
-    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
-        """
-        Parse a list of comma separated unresolved operands.
-        Notice that this method will consume trailing comma.
-        """
-        if operand := parser.parse_optional_unresolved_operand():
-            operands = [operand]
-            while parser.parse_optional_punctuation(",") and (
-                operand := parser.parse_optional_unresolved_operand()
-            ):
-                operands.append(operand)
-            return operands
-        return []
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        """
-        Parse attributes with custom syntax. Subclasses may override this method.
-        """
-        return parser.parse_optional_attr_dict()
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        func_type = parser.parse_function_type()
-        return func_type.inputs.data, func_type.outputs.data
-
-    def print(self, printer: Printer) -> None:
-        if self.operands:
-            printer.print_string(" ")
-            printer.print_list(self.operands, printer.print_operand)
-        printed_attributes = self.custom_print_attributes(printer)
-        unprinted_attributes = {
-            name: attr
-            for name, attr in self.attributes.items()
-            if name not in printed_attributes
-        }
-        printer.print_op_attributes(unprinted_attributes)
-        printer.print_regions(self.regions)
-        self.print_op_type(printer)
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        """
-        Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
-        """
-        printer.print_op_attributes(self.attributes)
-        return self.attributes.keys()
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_operation_type(self)
 
 
 class X86Instruction(X86AsmOperation, X86HasRegisterConstraints):
@@ -407,9 +330,7 @@ class DSK_Operation(X86Instruction, ABC):
         return register_out, reg(self.source)
 
 
-class DK_Operation(
-    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
-):
+class DK_Operation(X86Instruction, HasRegisterConstraints, ABC):
     """
     A base class for x86 operations that have one general purpose destination register
     and one writemask source register.
@@ -417,6 +338,8 @@ class DK_Operation(
 
     destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
     source = operand_def(AVX512MaskRegisterType)
+
+    assembly_format = "$source attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -443,9 +366,7 @@ class DK_Operation(
         return reg(self.destination), reg(self.source)
 
 
-class KS_Operation(
-    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
-):
+class KS_Operation(X86Instruction, HasRegisterConstraints, ABC):
     """
     A base class for x86 operations that have one general purpose destination register
     and one writemask source register.
@@ -453,6 +374,8 @@ class KS_Operation(
 
     destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
     source = operand_def(GeneralRegisterType)
+
+    assembly_format = "$source attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -1108,7 +1031,7 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
         return (memory_access,)
 
 
-class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
+class ConditionalJumpOperation(X86Instruction, ABC):
     """
     A base class for Jcc operations.
 
@@ -2777,7 +2700,7 @@ class DirectiveOp(X86AsmOperation, X86HasRegisterConstraints):
 
 
 @irdl_op_definition
-class C_JmpOp(X86Instruction, X86CustomFormatOperation):
+class C_JmpOp(X86Instruction):
     """
     Unconditional jump to the label specified in destination.
 
@@ -2862,9 +2785,7 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class FallthroughOp(
-    X86AsmOperation, X86HasRegisterConstraints, X86CustomFormatOperation
-):
+class FallthroughOp(X86AsmOperation, X86HasRegisterConstraints):
     """
     Continue execution into the next block.
     The successor of this operation must be immediately after this operation's parent.
