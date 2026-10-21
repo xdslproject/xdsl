@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     ModuleOp,
     Signedness,
+    StringAttr,
     i32,
 )
 from xdsl.parser import Parser
@@ -127,11 +128,13 @@ def test_comment_op():
     assert code == "    # my comment\n"
 
 
-def test_label_op_without_comment():
+@pytest.mark.parametrize("label", ["mylabel", StringAttr("mylabel")])
+def test_label_op_without_comment(label: str | StringAttr):
     label_str = "mylabel"
-    label_op = riscv.LabelOp(label_str)
+    label_op = riscv.LabelOp(label)
+    label_op.verify()
 
-    assert label_op.label.data == label_str
+    assert label_op.label == StringAttr(label_str)
 
     code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n"

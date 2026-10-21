@@ -216,12 +216,12 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def get_immediate_value(
-        interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
+        interpreter: Interpreter, imm: IntegerAttr | StringAttr
     ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
-            case riscv.LabelAttr():
+            case StringAttr():
                 data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
 

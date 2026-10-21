@@ -63,7 +63,6 @@ from .attrs import (
     UI5,
     UI6,
     FastMathFlagsAttr,
-    LabelAttr,
     i12,
     i20,
     parse_immediate_value,
@@ -183,7 +182,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | LabelAttr | SSAValue | RegisterType | str
+    IntegerAttr | StringAttr | SSAValue | RegisterType | str
 )
 
 
@@ -240,7 +239,7 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return t.register_name.data
     elif isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
-    elif isinstance(arg, LabelAttr):
+    elif isinstance(arg, StringAttr):
         return arg.data
     elif isinstance(arg, RegisterType):
         return arg.register_name.data
@@ -351,14 +350,14 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | IntegerAttr[I12] | str | LabelAttr,
+        immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -394,12 +393,12 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I12] | LabelAttr)
+    immediate = attr_def(IntegerAttr[I12] | StringAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[I12] | str | LabelAttr,
+        immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -407,7 +406,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -592,11 +591,11 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I20] | LabelAttr)
+    immediate = attr_def(IntegerAttr[I20] | StringAttr)
 
     def __init__(
         self,
-        immediate: int | IntegerAttr | str | LabelAttr,
+        immediate: int | IntegerAttr | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -604,7 +603,7 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -644,11 +643,11 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(IntegerAttr[SI20] | LabelAttr)
+    immediate = attr_def(IntegerAttr[SI20] | StringAttr)
 
     def __init__(
         self,
-        immediate: int | IntegerAttr[SI20] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI20] | str | StringAttr,
         *,
         rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
@@ -656,7 +655,7 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -706,12 +705,12 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12] | LabelAttr)
+    immediate = attr_def(IntegerAttr[SI12] | StringAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -719,7 +718,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -857,12 +856,12 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
+    immediate = attr_def(IntegerAttr[UI5] | StringAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
+        immediate: int | IntegerAttr[UI5] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -870,7 +869,7 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, ui5)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -917,12 +916,12 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(IntegerAttr[SI12] | LabelAttr)
+    immediate = attr_def(IntegerAttr[SI12] | StringAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
@@ -930,7 +929,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -1030,20 +1029,20 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    offset = attr_def(IntegerAttr[SI12] | LabelAttr)
+    offset = attr_def(IntegerAttr[SI12] | StringAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: int | IntegerAttr[SI12] | LabelAttr,
+        offset: int | IntegerAttr[SI12] | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(offset, int):
             offset = IntegerAttr(offset, si12)
         if isinstance(offset, str):
-            offset = LabelAttr(offset)
+            offset = StringAttr(offset)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1089,14 +1088,14 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1487,7 +1486,7 @@ class LiOperation(
     """
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
+    immediate = attr_def(IntegerAttr[IWidth] | StringAttr)
 
     traits = traits_def(
         AlwaysSpeculatable(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()
@@ -1495,13 +1494,13 @@ class LiOperation(
 
     def __init__(
         self,
-        immediate: IntegerAttr[IWidth] | str | LabelAttr,
+        immediate: IntegerAttr[IWidth] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
+            immediate = StringAttr(immediate)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1516,7 +1515,7 @@ class LiOperation(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
-    def fold(self) -> tuple[IntegerAttr[IWidth] | LabelAttr]:
+    def fold(self) -> tuple[IntegerAttr[IWidth] | StringAttr]:
         return (self.immediate,)
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
