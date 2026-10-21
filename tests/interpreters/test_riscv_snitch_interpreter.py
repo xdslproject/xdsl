@@ -1,6 +1,6 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, riscv, riscv_snitch, rv32, snitch
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import FloatAttr, ModuleOp, f64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -66,7 +66,9 @@ def test_frep_carried_vars():
     @Builder.implicit_region
     def sum_to_for_op():
         with ImplicitBuilder(
-            func.FuncOp("sum_to", ((float_register,), (float_register,))).body
+            func.FuncOp(
+                "sum_to", ((riscv.Registers.UNALLOCATED_INT,), (float_register,))
+            ).body
         ) as (count,):
             one = rv32.LiOp(1).rd
             initial = riscv.FCvtDWOp(one, rd=acc_reg_type).rd
@@ -86,4 +88,4 @@ def test_frep_carried_vars():
     interpreter.register_implementations(Rv32Functions())
     interpreter.register_implementations(FuncFunctions())
 
-    assert interpreter.call_op("sum_to", (5,)) == (64,)
+    assert interpreter.call_op("sum_to", (5,)) == (FloatAttr(64.0, f64),)

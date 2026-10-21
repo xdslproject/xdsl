@@ -8,6 +8,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
+    FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -53,6 +54,11 @@ STACK_KEY = "stack"
 
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
+    """
+    Floating registers carry `FloatAttr[f64]`, preserving the existing Python double
+    arithmetic, including for F-extension ops.
+    """
+
     custom_instructions: dict[str, CustomInstructionFn]
     bitwidth: int
 
@@ -390,7 +396,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] * args[1],)
+        results = (FloatAttr(args[0].value.data * args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMvWXOp)
@@ -401,7 +407,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (convert_u32_to_f32(args[0]),)
+        results = (FloatAttr(convert_u32_to_f32(args[0]), builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSwOp)
@@ -412,7 +418,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        (args[0] + op.immediate.value.data).float32[0] = args[1]
+        (args[0] + op.immediate.value.data).float32[0] = args[1].value.data
         return ()
 
     @impl(riscv.FLwOp)
@@ -425,7 +431,7 @@ class RiscvFunctions(InterpreterFunctions):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
-        results = ((args[0] + offset).float32[0],)
+        results = (FloatAttr((args[0] + offset).float32[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMVOp)
@@ -451,7 +457,12 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] * args[1] + args[2],)
+        results = (
+            FloatAttr(
+                args[0].value.data * args[1].value.data + args[2].value.data,
+                builtin.f64,
+            ),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FAddDOp)
@@ -462,7 +473,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] + args[1],)
+        results = (FloatAttr(args[0].value.data + args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSubDOp)
@@ -473,7 +484,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] - args[1],)
+        results = (FloatAttr(args[0].value.data - args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMulDOp)
@@ -484,7 +495,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] * args[1],)
+        results = (FloatAttr(args[0].value.data * args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FDivDOp)
@@ -495,7 +506,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] / args[1],)
+        results = (FloatAttr(args[0].value.data / args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMinDOp)
@@ -506,7 +517,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (min(args[0], args[1]),)
+        results = (min(args, key=lambda value: value.value.data),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMaxDOp)
@@ -517,7 +528,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (max(args[0], args[1]),)
+        results = (max(args, key=lambda value: value.value.data),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FCvtDWOp)
@@ -528,7 +539,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (float(args[0]),)
+        results = (FloatAttr(float(args[0]), builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSdOp)
@@ -540,7 +551,7 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = op.immediate.value.data
-        (args[0] + offset).float64[0] = args[1]
+        (args[0] + offset).float64[0] = args[1].value.data
         return ()
 
     @impl(riscv.FLdOp)
@@ -553,7 +564,7 @@ class RiscvFunctions(InterpreterFunctions):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
-        results = ((args[0] + offset).float64[0],)
+        results = (FloatAttr((args[0] + offset).float64[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMvDOp)
@@ -604,8 +615,9 @@ class RiscvFunctions(InterpreterFunctions):
         input_type: riscv.FloatRegisterType,
         output_type: builtin.Float64Type,
         value: Any,
-    ) -> Any:
-        return value
+    ) -> float:
+        assert isa(value, FloatAttr[builtin.Float64Type])
+        return value.value.data
 
     @impl_attr(riscv.IntRegisterType)
     def register_value(

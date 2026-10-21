@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects import snitch_stream
-from xdsl.dialects.builtin import f64
+from xdsl.dialects.builtin import Float64Type, FloatAttr, f64
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -16,27 +16,27 @@ from xdsl.interpreters.utils.stream import ReadableStream, WritableStream
 
 
 @dataclass
-class StridedPointerInputStream(ReadableStream[float]):
+class StridedPointerInputStream(ReadableStream[FloatAttr[Float64Type]]):
     offset_iter: Iterator[int]
     pointer: ptr.RawPtr
     index = -1
 
-    def read(self) -> float:
+    def read(self) -> FloatAttr[Float64Type]:
         self.index += 1
         offset = next(self.offset_iter)
-        return ptr.TypedPtr((self.pointer + offset), xtype=f64)[0]
+        return FloatAttr(ptr.TypedPtr((self.pointer + offset), xtype=f64)[0], f64)
 
 
 @dataclass
-class StridedPointerOutputStream(WritableStream[float]):
+class StridedPointerOutputStream(WritableStream[FloatAttr[Float64Type]]):
     index = -1
     offset_iter: Iterator[int]
     pointer: ptr.RawPtr
 
-    def write(self, value: float) -> None:
+    def write(self, value: FloatAttr[Float64Type]) -> None:
         self.index += 1
         offset = next(self.offset_iter)
-        ptr.TypedPtr((self.pointer + offset), xtype=f64)[0] = value
+        ptr.TypedPtr((self.pointer + offset), xtype=f64)[0] = value.value.data
 
 
 @register_impls
