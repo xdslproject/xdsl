@@ -56,11 +56,13 @@ from xdsl.traits import (
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    InvocationBounds,
     IsTerminator,
     MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     RegionBranchOpTrait,
+    RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
     RegionSuccessor,
     ReturnLike,
@@ -1112,6 +1114,40 @@ def test_region_successor():
         len({RegionSuccessor(region), RegionSuccessor(region), RegionSuccessor(op)})
         == 2
     )
+
+
+def test_region_branch_point():
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    point = RegionBranchPoint(terminator)
+    assert RegionBranchPoint.PARENT.is_parent()
+    assert RegionBranchPoint.PARENT.terminator is None
+    assert RegionBranchPoint.PARENT.terminator_predecessor_and_trait is None
+    assert not point.is_parent()
+    assert point.terminator is terminator
+    assert point.terminator_predecessor_and_trait == (
+        terminator,
+        terminator.get_trait(RegionBranchTerminatorOpTrait),
+    )
+    assert point == RegionBranchPoint(terminator)
+    assert point != RegionBranchPoint.PARENT
+    assert len({point, RegionBranchPoint(terminator), RegionBranchPoint.PARENT}) == 2
+
+
+def test_region_branch_point_without_terminator_interface():
+    message = "'test.op' does not implement RegionBranchTerminatorOpInterface."
+    with pytest.raises(ValueError, match=re.escape(message)):
+        RegionBranchPoint(test.TestOp())
+
+
+def test_invocation_bounds():
+    assert InvocationBounds(0, None) == InvocationBounds.UNKNOWN
+    assert InvocationBounds(2, 2).upper == 2
+    with pytest.raises(ValueError, match="lower bound must be at least 0"):
+        InvocationBounds(-1, None)
+    with pytest.raises(ValueError, match="cannot be less than lower bound"):
+        InvocationBounds(2, 1)
 
 
 def test_region_branch_op_trait_without_regions():
