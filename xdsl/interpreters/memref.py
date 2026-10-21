@@ -47,10 +47,8 @@ class MemRefFunctions(InterpreterFunctions):
 
         memref = cast(ShapedArray[Any], memref)
 
-        indices = tuple(indices)
-        memref.store(
-            indices, value.value.data if isa(value, builtin.FloatAttr) else value
-        )
+        indices = tuple(index.value.data for index in indices)
+        memref.store(indices, value.value.data)
 
         return ()
 
@@ -62,10 +60,10 @@ class MemRefFunctions(InterpreterFunctions):
 
         shaped_array = cast(ShapedArray[Any], shaped_array)
 
-        indices = tuple(indices)
+        indices = tuple(index.value.data for index in indices)
         value = shaped_array.load(indices)
 
-        return (scalar_attr(value, op.res.type),)
+        return (scalar_attr(value, op.res.type, interpreter.index_bitwidth),)
 
     @impl(memref.GetGlobalOp)
     def run_get_global(

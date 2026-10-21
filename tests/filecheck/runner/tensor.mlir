@@ -52,5 +52,5 @@ builtin.module {
 // CHECK-NEXT: result: (
 // CHECK-NEXT:     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
 // CHECK-NEXT:     [11, 12, 13, 14],
-// CHECK-NEXT:     [0, 1, 0, 1]
+// CHECK-NEXT:     [0, -1, 0, -1]
 // CHECK-NEXT: )

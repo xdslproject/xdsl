@@ -15,7 +15,7 @@ from xdsl.utils.hints import isa
 @register_impls
 class PrintfFunctions(InterpreterFunctions):
     def _format_arg(self, fmt_val: Any, arg: Any) -> str:
-        if isinstance(arg, builtin.FloatAttr):
+        if isinstance(arg, builtin.IntegerAttr | builtin.FloatAttr):
             arg = arg.value.data
         if isa(fmt_val.type, builtin.I1):
             return "true" if arg else "false"

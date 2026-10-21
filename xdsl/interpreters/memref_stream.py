@@ -2,7 +2,7 @@ from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import memref_stream
-from xdsl.dialects.builtin import FloatAttr
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -36,19 +36,21 @@ class MemRefStreamFunctions(InterpreterFunctions):
         outputs: tuple[ShapedArray[int | float], ...] = args[
             inputs_count : inputs_count + outputs_count
         ]
-        init_values: tuple[int | FloatAttr, ...] = args[inputs_count + outputs_count :]
+        init_values: tuple[IntegerAttr | FloatAttr, ...] = args[
+            inputs_count + outputs_count :
+        ]
 
         indexing_maps = tuple(attr.data for attr in op.indexing_maps)
         output_indexing_maps = indexing_maps[inputs_count:]
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
 
-        inits: list[int | FloatAttr | None] = [None] * len(op.outputs)
+        inits: list[IntegerAttr | FloatAttr | None] = [None] * len(op.outputs)
         for index, init in zip(op.init_indices, init_values, strict=True):
             inits[index.data] = init
 
         if inner_ubs:
-            inputs: tuple[ShapedArray[float] | int | FloatAttr, ...] = args[
+            inputs: tuple[ShapedArray[float] | IntegerAttr | FloatAttr, ...] = args[
                 :inputs_count
             ]
             input_indexing_maps = indexing_maps[:inputs_count]
@@ -58,6 +60,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
                         scalar_attr(
                             o.load(indexing_map.eval(outer_indices, ())),
                             block_arg.type,
+                            interpreter.index_bitwidth,
                         )
                         if init is None
                         else init
@@ -80,6 +83,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
                                     indexing_map.eval(outer_indices + inner_indices, ())
                                 ),
                                 block_arg.type,
+                                interpreter.index_bitwidth,
                             )
                             if isinstance(i, ShapedArray)
                             else i
@@ -100,10 +104,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
                     output_loop_args, output_indexing_maps, outputs, strict=True
                 ):
                     result_indices = indexing_map.eval(outer_indices, ())
-                    output.store(
-                        result_indices,
-                        res.value.data if isinstance(res, FloatAttr) else res,
-                    )
+                    output.store(result_indices, res.value.data)
         else:
             for indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
                 loop_args = tuple(
@@ -113,6 +114,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
                                 indexing_map.eval(indices, ())
                             ),
                             block_arg.type,
+                            interpreter.index_bitwidth,
                         )
                         if isinstance(i, ShapedArray)
                         else i
@@ -128,10 +130,7 @@ class MemRefStreamFunctions(InterpreterFunctions):
                     loop_results, output_indexing_maps, outputs, strict=True
                 ):
                     result_indices = indexing_map.eval(indices, ())
-                    output.store(
-                        result_indices,
-                        res.value.data if isinstance(res, FloatAttr) else res,
-                    )
+                    output.store(result_indices, res.value.data)
 
         return ()
 

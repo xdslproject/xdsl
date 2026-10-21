@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
     StringAttr,
@@ -158,7 +159,7 @@ def test_linalg_generic_scalar():
     op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = 2
+    b = IntegerAttr(2, i32)
     c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))

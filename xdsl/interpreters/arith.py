@@ -10,6 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.comparisons import to_signed, to_unsigned
@@ -54,52 +55,52 @@ class ArithFunctions(InterpreterFunctions):
         )
         value = cast(IntegerAttr | FloatAttr, op.value)
         if isa(value, IntegerAttr[builtin.IndexType]):
-            return (to_signed(value.value.data, interpreter.index_bitwidth),)
-        if isa(value, FloatAttr):
-            return (value,)
-        return (value.value.data,)
+            return (
+                scalar_attr(value.value.data, value.type, interpreter.index_bitwidth),
+            )
+        return (value,)
 
     @impl(arith.SubiOp)
     def run_subi(self, interpreter: Interpreter, op: arith.SubiOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs - rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs - rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.AddiOp)
     def run_addi(self, interpreter: Interpreter, op: arith.AddiOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs + rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs + rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.MuliOp)
     def run_muli(self, interpreter: Interpreter, op: arith.MuliOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs * rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs * rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.AndIOp)
     def run_andi(self, interpreter: Interpreter, op: arith.AndIOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs & rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs & rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.OrIOp)
     def run_ori(self, interpreter: Interpreter, op: arith.OrIOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs | rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs | rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.XOrIOp)
     def run_xori(self, interpreter: Interpreter, op: arith.XOrIOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
-        return (to_signed(lhs ^ rhs, _int_bitwidth(interpreter, op.result.type)),)
+        lhs = args[0].value.data
+        rhs = args[1].value.data
+        return (scalar_attr(lhs ^ rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.SubfOp)
     def run_subf(self, interpreter: Interpreter, op: arith.SubfOp, args: PythonValues):
@@ -152,29 +153,29 @@ class ArithFunctions(InterpreterFunctions):
         bitwidth = _int_bitwidth(interpreter, op.lhs.type)
         predicate = op.predicate.value.data
         interpret = to_unsigned if predicate >= 6 else to_signed
-        lhs = interpret(args[0], bitwidth)
-        rhs = interpret(args[1], bitwidth)
+        lhs = interpret(args[0].value.data, bitwidth)
+        rhs = interpret(args[1].value.data, bitwidth)
         match predicate:
             case 0:  # "eq"
-                return (lhs == rhs,)
+                return (IntegerAttr.from_bool(lhs == rhs),)
             case 1:  # "ne"
-                return (lhs != rhs,)
+                return (IntegerAttr.from_bool(lhs != rhs),)
             case 2:  # "slt"
-                return (lhs < rhs,)
+                return (IntegerAttr.from_bool(lhs < rhs),)
             case 3:  # "sle"
-                return (lhs <= rhs,)
+                return (IntegerAttr.from_bool(lhs <= rhs),)
             case 4:  # "sgt"
-                return (lhs > rhs,)
+                return (IntegerAttr.from_bool(lhs > rhs),)
             case 5:  # "sge"
-                return (lhs >= rhs,)
+                return (IntegerAttr.from_bool(lhs >= rhs),)
             case 6:  # "ult"
-                return (lhs < rhs,)
+                return (IntegerAttr.from_bool(lhs < rhs),)
             case 7:  # "ule"
-                return (lhs <= rhs,)
+                return (IntegerAttr.from_bool(lhs <= rhs),)
             case 8:  # "ugt"
-                return (lhs > rhs,)
+                return (IntegerAttr.from_bool(lhs > rhs),)
             case 9:  # "uge"
-                return (lhs >= rhs,)
+                return (IntegerAttr.from_bool(lhs >= rhs),)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
@@ -190,37 +191,37 @@ class ArithFunctions(InterpreterFunctions):
 
         match op.predicate.value.data:
             case 0:
-                return (False,)
+                return (IntegerAttr.from_bool(False),)
             case 1:
-                return ((x == y) and o,)
+                return (IntegerAttr.from_bool((x == y) and o),)
             case 2:
-                return ((x > y) and o,)
+                return (IntegerAttr.from_bool((x > y) and o),)
             case 3:
-                return ((x >= y) and o,)
+                return (IntegerAttr.from_bool((x >= y) and o),)
             case 4:
-                return ((x < y) and o,)
+                return (IntegerAttr.from_bool((x < y) and o),)
             case 5:
-                return ((x <= y) and o,)
+                return (IntegerAttr.from_bool((x <= y) and o),)
             case 6:
-                return ((x != y) and o,)
+                return (IntegerAttr.from_bool((x != y) and o),)
             case 7:
-                return (o,)
+                return (IntegerAttr.from_bool(o),)
             case 8:
-                return ((x == y) or u,)
+                return (IntegerAttr.from_bool((x == y) or u),)
             case 9:
-                return ((x > y) or u,)
+                return (IntegerAttr.from_bool((x > y) or u),)
             case 10:
-                return ((x >= y) or u,)
+                return (IntegerAttr.from_bool((x >= y) or u),)
             case 11:
-                return ((x < y) or u,)
+                return (IntegerAttr.from_bool((x < y) or u),)
             case 12:
-                return ((x <= y) or u,)
+                return (IntegerAttr.from_bool((x <= y) or u),)
             case 13:
-                return ((x != y) or u,)
+                return (IntegerAttr.from_bool((x != y) or u),)
             case 14:
-                return (u,)
+                return (IntegerAttr.from_bool(u),)
             case 15:
-                return (True,)
+                return (IntegerAttr.from_bool(True),)
             case _:
                 raise InterpretationError(
                     f"arith.cmpf predicate {op.predicate} mot implemented yet."
@@ -230,20 +231,20 @@ class ArithFunctions(InterpreterFunctions):
     def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
         bitwidth = _int_bitwidth(interpreter, op.result.type)
-        lhs = to_signed(args[0], bitwidth)
-        rhs = args[1]
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = args[1].value.data
         assert rhs >= 0
-        return (to_signed(lhs << rhs, bitwidth),)
+        return (scalar_attr(lhs << rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.ShRSIOp)
     def run_shrsi(
         self, interpreter: Interpreter, op: arith.ShRSIOp, args: PythonValues
     ):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
-        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
-        rhs = args[1]
+        lhs = to_signed(args[0].value.data, _int_bitwidth(interpreter, op.result.type))
+        rhs = args[1].value.data
         assert rhs >= 0
-        return (lhs >> rhs,)
+        return (scalar_attr(lhs >> rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.DivSIOp)
     def run_divsi(
@@ -251,13 +252,13 @@ class ArithFunctions(InterpreterFunctions):
     ):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
         bitwidth = _int_bitwidth(interpreter, op.result.type)
-        lhs = to_signed(args[0], bitwidth)
-        rhs = to_signed(args[1], bitwidth)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
             div = -div
-        return (to_signed(div, bitwidth),)
+        return (scalar_attr(div, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.RemSIOp)
     def run_remsi(
@@ -265,13 +266,15 @@ class ArithFunctions(InterpreterFunctions):
     ):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
         bitwidth = _int_bitwidth(interpreter, op.result.type)
-        lhs = to_signed(args[0], bitwidth)
-        rhs = to_signed(args[1], bitwidth)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
         assert rhs != 0
         div = abs(lhs) // abs(rhs)
         if (lhs > 0) != (rhs > 0):
             div = -div
-        return (lhs - div * rhs,)
+        return (
+            scalar_attr(lhs - div * rhs, op.result.type, interpreter.index_bitwidth),
+        )
 
     @impl(arith.FloorDivSIOp)
     def run_floordivsi(
@@ -279,10 +282,10 @@ class ArithFunctions(InterpreterFunctions):
     ):
         assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
         bitwidth = _int_bitwidth(interpreter, op.result.type)
-        lhs = to_signed(args[0], bitwidth)
-        rhs = to_signed(args[1], bitwidth)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
         assert rhs != 0
-        return (to_signed(lhs // rhs, bitwidth),)
+        return (scalar_attr(lhs // rhs, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.SelectOp)
     def run_select(
@@ -321,7 +324,7 @@ class ArithFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: arith.IndexCastOp, args: PythonValues
     ):
         assert len(args) == 1
-        result = args[0]
+        result = args[0].value.data
 
         assert isa(op.input.type, builtin.IndexType | builtin.IntegerType)
 
@@ -335,4 +338,4 @@ class ArithFunctions(InterpreterFunctions):
         else:
             result = to_signed(result, result_bitwidth)
 
-        return (result,)
+        return (scalar_attr(result, op.result.type, interpreter.index_bitwidth),)
