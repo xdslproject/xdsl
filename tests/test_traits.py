@@ -60,6 +60,8 @@ from xdsl.traits import (
     MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    RegionBranchOpTrait,
+    RegionBranchTerminatorOpTrait,
     RegionSuccessor,
     ReturnLike,
     SameOperandsAndResultType,
@@ -1110,3 +1112,34 @@ def test_region_successor():
         len({RegionSuccessor(region), RegionSuccessor(region), RegionSuccessor(op)})
         == 2
     )
+
+
+def test_region_branch_op_trait_without_regions():
+    @irdl_op_definition
+    class NoRegionsOp(IRDLOperation):
+        name = "test.no_regions"
+
+        traits = traits_def(RegionBranchOpTrait())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "'test.no_regions' implements RegionBranchOpInterface but defines no "
+            "regions."
+        ),
+    ):
+        NoRegionsOp().verify()
+
+
+def test_region_branch_terminator_op_trait_without_is_terminator():
+    @irdl_op_definition
+    class NotTerminatorOp(IRDLOperation):
+        name = "test.not_terminator"
+
+        traits = traits_def(RegionBranchTerminatorOpTrait())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Expected operation 'test.not_terminator' to be a terminator."),
+    ):
+        NotTerminatorOp().verify()

@@ -43,6 +43,8 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    RegionBranchOpTrait,
+    RegionBranchTerminatorOpTrait,
     SymbolOpInterface,
 )
 
@@ -367,6 +369,41 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
         )
 
 
+@irdl_op_definition
+class TestRegionBranchOp(IRDLOperation):
+    """
+    This operation can take an arbitrary number of operands, results and regions.
+    It satisfies the RegionBranchOpTrait trait, and is used in filecheck testing
+    of the trait's verifier.
+    """
+
+    name = "test.region_branch_op"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+
+    traits = traits_def(RegionBranchOpTrait())
+
+
+@irdl_op_definition
+class TestRegionBranchTerminatorOp(IRDLOperation):
+    """
+    This terminator can take an arbitrary number of operands, results and
+    successors. It satisfies the RegionBranchTerminatorOpTrait trait, and is used
+    in filecheck testing of the trait's verifier, which rejects results and
+    successors.
+    """
+
+    name = "test.region_branch_terminator"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    successor = var_successor_def()
+
+    traits = traits_def(IsTerminator(), RegionBranchTerminatorOpTrait())
+
+
 @irdl_attr_definition
 class TestRegisterType(RegisterType):
     name = "test.reg"
@@ -390,6 +427,8 @@ Test = Dialect(
         TestWriteOp,
         TestSymbolOp,
         TestAllocatableOp,
+        TestRegionBranchOp,
+        TestRegionBranchTerminatorOp,
     ],
     [
         TestType,
