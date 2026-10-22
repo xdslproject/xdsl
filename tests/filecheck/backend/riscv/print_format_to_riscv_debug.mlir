@@ -12,5 +12,5 @@ printf.print_format "bitwidths {} {} {} {}", %i32 : i32, %i64 : i64, %f32 : f32,
 // CHECK-NEXT:   %i64_1 = builtin.unrealized_conversion_cast %i64 : i64 to !riscv.reg
 // CHECK-NEXT:   %f32_1 = builtin.unrealized_conversion_cast %f32 : f32 to !riscv.freg
 // CHECK-NEXT:   %f64_1 = builtin.unrealized_conversion_cast %f64 : f64 to !riscv.freg
-// CHECK-NEXT:   riscv_debug.printf %i32_1, %i64_1, %f32_1, %f64_1 "bitwidths {} {} {} {}" : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> ()
+// CHECK-NEXT:   riscv_debug.printf %i32_1, %i64_1, %f32_1, %f64_1, "bitwidths {} {} {} {}" : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> ()
 // CHECK-NEXT: }

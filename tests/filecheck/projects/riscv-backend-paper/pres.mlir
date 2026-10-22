@@ -6,7 +6,7 @@
 riscv_func.func @pres_1(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
+    %ub = riscv.addi %zero, 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
     %x_i = riscv.add %X, %i : (!riscv.reg<a0>, !riscv.reg<a3>) -> !riscv.reg<a5>
     %x = riscv.flw %x_i, 0 : (!riscv.reg<a5>) -> !riscv.freg<ft0>
@@ -23,7 +23,7 @@ riscv_func.func @pres_1(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a
 riscv_func.func @pres_2(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
+    %ub = riscv.addi %zero, 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
     %x_i = riscv.add %X, %i : (!riscv.reg<a0>, !riscv.reg<a3>) -> !riscv.reg<a5>
     %x = riscv.fld %x_i, 0 : (!riscv.reg<a5>) -> !riscv.freg<ft0>
@@ -39,9 +39,9 @@ riscv_func.func @pres_2(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a
 
 riscv_func.func @pres_3(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
-    %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %n = riscv.addi %zero, 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
-    %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %ub = riscv.addi %zero, 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> ()
     riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> ()
     riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> ()
@@ -60,9 +60,9 @@ riscv_func.func @pres_3(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a
 
 riscv_func.func @pres_4(%X: !riscv.reg<a0>, %Y: !riscv.reg<a1>, %Z: !riscv.reg<a2>) {
     %zero = rv32.get_register : !riscv.reg<zero>
-    %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %n = riscv.addi %zero, 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
-    %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %ub = riscv.addi %zero, 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> ()
     riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> ()
     riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> ()

@@ -129,16 +129,13 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
         """
         Parse a list of comma separated unresolved operands.
 
-        Notice that this method will consume trailing comma.
+        A non-empty list must end with a comma before the custom attributes.
         """
-        if operand := parser.parse_optional_unresolved_operand():
-            operands = [operand]
-            while parser.parse_optional_punctuation(",") and (
-                operand := parser.parse_optional_unresolved_operand()
-            ):
-                operands.append(operand)
-            return operands
-        return []
+        operands: list[UnresolvedOperand] = []
+        while operand := parser.parse_optional_unresolved_operand():
+            operands.append(operand)
+            parser.parse_punctuation(",")
+        return operands
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:

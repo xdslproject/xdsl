@@ -63,7 +63,7 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
+        printer.print_string(", " if self.inputs else " ")
         printer.print_attribute(self.format_str)
         return {"format_str"}
 

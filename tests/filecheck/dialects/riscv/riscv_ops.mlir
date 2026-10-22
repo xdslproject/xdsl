@@ -135,9 +135,9 @@
 
     // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
-    %csrrw_rw = riscv.csrrw %0 1024 : (!riscv.reg) -> !riscv.reg
+    %csrrw_rw = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrw_w = riscv.csrrw %0 1024, "w" : (!riscv.reg) -> !riscv.reg
+    %csrrw_w = riscv.csrrw %0, 1024, "w" : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024, "w" : (!riscv.reg) -> !riscv.reg
     %csrrs_rw = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
