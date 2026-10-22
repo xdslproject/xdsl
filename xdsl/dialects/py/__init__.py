@@ -10,14 +10,26 @@ The Python dialect is under heavy development, and the definitions are not yet s
         1. We assume no exceptions are raised in the code.
 """
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import (
-    I64,
+    ArrayAttr,
+    BoolAttr,
+    Float64Type,
+    FloatAttr,
+    IntAttr,
     IntegerAttr,
     StringAttr,
+    SymbolNameConstraint,
+    f64,
+    i1,
 )
 from xdsl.ir import (
+    Attribute,
     Dialect,
     ParametrizedAttribute,
+    Region,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -26,10 +38,24 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
+    traits_def,
+    var_operand_def,
+    var_result_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    Pure,
+    SymbolOpInterface,
+)
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -73,21 +99,107 @@ class PyModuleOp(PyOperation):
     body = region_def()
 
 
+PyConstValue = IntAttr | BoolAttr | FloatAttr[Float64Type] | StringAttr
+"""The attribute kinds a `py.const` can hold, one per Python literal type."""
+
+
 @irdl_op_definition
 class PyConstOp(PyOperation):
     """
     x = CONST
+
+    Holds a Python `int` (of any size), `bool`, `float` or `str` literal.
     """
 
     name = "py.const"
-    assembly_format = "$const attr-dict"
 
-    # We can expand this to other types later.
-    const = prop_def(IntegerAttr[I64])
+    const = prop_def(PyConstValue)
     res = result_def(PyObjectType())
 
-    def __init__(self, const: IntegerAttr[I64]):
+    traits = traits_def(Pure())
+
+    def __init__(self, const: Attribute):
         super().__init__(properties={"const": const}, result_types=[PyObjectType()])
+
+    @staticmethod
+    def from_value(value: int | bool | float | str) -> "PyConstOp":
+        """Build the constant for a Python literal."""
+        match value:
+            case bool():
+                return PyConstOp(IntegerAttr.from_bool(value))
+            case int():
+                return PyConstOp(IntAttr(value))
+            case float():
+                return PyConstOp(FloatAttr(value, f64))
+            case str():
+                return PyConstOp(StringAttr(value))
+
+    @property
+    def value(self) -> int | bool | float | str:
+        """The Python literal this constant holds."""
+        const = self.const
+        if isinstance(const, IntAttr):
+            return const.data
+        if isinstance(const, StringAttr):
+            return const.data
+        if isinstance(const, FloatAttr):
+            return const.value.data
+        return bool(const.value.data)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "PyConstOp":
+        if (string := parser.parse_optional_str_literal()) is not None:
+            op = cls.from_value(string)
+        elif (boolean := parser.parse_optional_boolean()) is not None:
+            op = cls.from_value(boolean)
+        else:
+            op = cls.from_value(parser.parse_number())
+        op.attributes.update(parser.parse_optional_attr_dict())
+        return op
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        value = self.value
+        match value:
+            case bool():
+                printer.print_string("true" if value else "false")
+            case str():
+                printer.print_string_literal(value)
+            case _:
+                printer.print_string(repr(value))
+        printer.print_op_attributes(self.attributes)
+
+
+@irdl_op_definition
+class PyBuildTupleOp(PyOperation):
+    """Build a Python tuple from its elements, in order."""
+
+    name = "py.build_tuple"
+    elements = var_operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    assembly_format = "`(` $elements `)` attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, elements: Sequence[SSAValue]):
+        super().__init__(operands=[elements], result_types=[PyObjectType()])
+
+
+@irdl_op_definition
+class PyUnpackOp(PyOperation):
+    """
+    x, y, ... = VALUE
+
+    Unpack a Python iterable into a fixed number of values.
+    """
+
+    name = "py.unpack"
+    value = operand_def(PyObjectType())
+    res = var_result_def(PyObjectType())
+    assembly_format = "$value attr-dict `:` type($res)"
+
+    def __init__(self, value: SSAValue, count: int):
+        super().__init__(operands=[value], result_types=[[PyObjectType()] * count])
 
 
 @irdl_op_definition
@@ -114,11 +226,166 @@ class PyBinOp(PyOperation):
         )
 
 
+@irdl_op_definition
+class PyCompareOp(PyOperation):
+    """
+    x CMPOP y
+
+    The operator is named as in Python's `ast` module, in lowercase, for example
+    "lt" or "noteq".
+    """
+
+    name = "py.compare"
+    lhs = operand_def(PyObjectType())
+    rhs = operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    op = prop_def(StringAttr)
+    assembly_format = "$op $lhs $rhs attr-dict"
+
+    def __init__(self, op: StringAttr, lhs: Operand, rhs: Operand):
+        super().__init__(
+            operands=[lhs, rhs], properties={"op": op}, result_types=[PyObjectType()]
+        )
+
+
+@irdl_op_definition
+class PyCallOp(PyOperation):
+    """
+    CALLEE(ARGS, KEYWORD=ARG, ...)
+
+    Call the Python object named `callee`, as written in the source, for example
+    "f" or "MyClass.method". The callee is not resolved here. The last
+    `len(keywords)` arguments are passed by keyword, with these names.
+    """
+
+    name = "py.call"
+    callee = prop_def(StringAttr)
+    keywords = opt_prop_def(ArrayAttr[StringAttr])
+    args = var_operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    assembly_format = "$callee `(` $args `)` (`keywords` $keywords^)? attr-dict"
+
+    def __init__(
+        self,
+        callee: str | StringAttr,
+        args: Sequence[SSAValue],
+        keywords: Sequence[str] = (),
+    ):
+        if isinstance(callee, str):
+            callee = StringAttr(callee)
+        properties: dict[str, Attribute] = {"callee": callee}
+        if keywords:
+            properties["keywords"] = ArrayAttr(StringAttr(k) for k in keywords)
+        super().__init__(
+            operands=[args], properties=properties, result_types=[PyObjectType()]
+        )
+
+    @property
+    def keyword_names(self) -> tuple[str, ...]:
+        return () if self.keywords is None else tuple(k.data for k in self.keywords)
+
+    def verify_(self) -> None:
+        if len(self.keyword_names) > len(self.args):
+            raise VerifyException(
+                f"Expected at most {len(self.args)} keyword names, "
+                f"got {len(self.keyword_names)}"
+            )
+
+
+@irdl_op_definition
+class PyBoolOp(PyOperation):
+    """
+    bool(x)
+
+    Python's truthiness check, giving an `i1` for use as a branch condition.
+    """
+
+    name = "py.bool"
+    value = operand_def(PyObjectType())
+    res = result_def(i1)
+    assembly_format = "$value attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, value: SSAValue):
+        super().__init__(operands=[value], result_types=[i1])
+
+
+@irdl_op_definition
+class PyFuncOp(PyOperation):
+    """
+    def NAME(ARG: ANNOTATION, ...) -> RETURN_ANNOTATION: BODY
+
+    The annotations are kept as written in the source, to be resolved later.
+    """
+
+    name = "py.func"
+    sym_name = prop_def(SymbolNameConstraint())
+    arg_annotations = prop_def(ArrayAttr[StringAttr])
+    return_annotation = prop_def(StringAttr)
+    body = region_def("single_block")
+    assembly_format = (
+        "$sym_name $arg_annotations `->` $return_annotation attr-dict-with-keyword "
+        "$body"
+    )
+
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
+
+    def __init__(
+        self,
+        name: str,
+        arg_annotations: Sequence[str],
+        return_annotation: str,
+        body: Region,
+    ):
+        super().__init__(
+            properties={
+                "sym_name": StringAttr(name),
+                "arg_annotations": ArrayAttr(StringAttr(a) for a in arg_annotations),
+                "return_annotation": StringAttr(return_annotation),
+            },
+            regions=[body],
+        )
+
+    def verify_(self) -> None:
+        args = self.body.block.args
+        if len(args) != len(self.arg_annotations):
+            raise VerifyException(
+                f"Expected {len(self.arg_annotations)} block arguments, one per "
+                f"annotation, got {len(args)}"
+            )
+        if any(arg.type != PyObjectType() for arg in args):
+            raise VerifyException("Expected all block arguments to be !py.object")
+
+
+@irdl_op_definition
+class PyReturnOp(PyOperation):
+    """
+    return VALUE
+    """
+
+    name = "py.return"
+    values = var_operand_def(PyObjectType())
+    assembly_format = "$values attr-dict"
+
+    traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
+
+    def __init__(self, *values: SSAValue):
+        super().__init__(operands=[values])
+
+
 Py = Dialect(
     "py",
     [
         PyBinOp,
+        PyBoolOp,
+        PyBuildTupleOp,
+        PyCallOp,
+        PyCompareOp,
         PyConstOp,
+        PyFuncOp,
+        PyReturnOp,
+        PyUnpackOp,
     ],
     [
         PyObjectType,
