@@ -20,6 +20,13 @@ _EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 @dataclass
 class BaseParser(GenericParser[MLIRTokenKind]):
+    """
+    Common parsers for MLIR tokens.
+
+    Optional parsers return None for absent syntax without consuming input.
+    Malformed present syntax raises a ParseError instead of returning None.
+    """
+
     def parse_optional_boolean(self) -> bool | None:
         """
         Parse a boolean, if present, with the format `true` or `false`.
@@ -104,6 +111,9 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         if (value := self._parse_optional_token(MLIRTokenKind.FLOAT_LIT)) is not None:
             value = value.kind.get_float_value(value.span)
             return -value if is_negative else value
+
+        if is_negative:
+            self.raise_error("Expected float literal after '-'")
 
     def parse_float(
         self,
