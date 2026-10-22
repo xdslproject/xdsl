@@ -1433,6 +1433,7 @@ class AttrParser(BaseParser):
     def parse_optional_builtin_int_or_float_attr(
         self,
     ) -> IntegerAttr | FloatAttr | None:
+        literal_span = self._current_token.span
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
@@ -1455,6 +1456,13 @@ class AttrParser(BaseParser):
         if isinstance(type, AnyFloat):
             if is_hexadecimal_token:
                 assert isinstance(value, int)
+                # Check that the encoded bits fit within the bit pattern of the float
+                if value.bit_length() > type.bitwidth:
+                    self.raise_error(
+                        "Hexadecimal float constant out of range for type",
+                        literal_span,
+                    )
+                # The compile time size is at least the bitwidth
                 raw = value.to_bytes(type.compile_time_size, "little")
                 return FloatAttr(next(type.iter_unpack(raw)), type)
             return FloatAttr(float(value), type)

@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnknownLoc,
     bf16,
+    f4E2M1FN,
     i32,
     i64,
 )
@@ -1144,6 +1145,18 @@ def test_parse_number(
 
 
 @pytest.mark.parametrize(
+    "text",
+    ["0x100000000 : f32", "0x10000 : bf16", "0x10 : f4E2M1FN"],
+)
+def test_parse_hex_float_out_of_range(text: str):
+    parser = Parser(Context(), text)
+    with pytest.raises(
+        ParseError, match="Hexadecimal float constant out of range for type"
+    ):
+        parser.parse_attribute()
+
+
+@pytest.mark.parametrize(
     "text, expected_value",
     [
         ("3: i16", IntegerAttr(3, 16)),
@@ -1152,6 +1165,8 @@ def test_parse_number(
         ("-64: i64", IntegerAttr(-64, 64)),
         ("-64.4: f64", FloatAttr(-64.4, 64)),
         ("32.4: f32", FloatAttr(32.4, 32)),
+        ("0x00003c00 : f16", FloatAttr(1.0, 16)),
+        ("0xf : f4E2M1FN", FloatAttr(-6.0, f4E2M1FN)),
         ("0x7e00 : f16", FloatAttr(float("nan"), 16)),
         ("0x7c00 : f16", FloatAttr(float("inf"), 16)),
         ("0xfc00 : f16", FloatAttr(float("-inf"), 16)),
