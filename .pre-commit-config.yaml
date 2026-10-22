@@ -34,6 +34,6 @@ repos:
           - prettier@3.9.1
           - prettier-plugin-toml@3.0.2
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: 67cd950188cc8e2611e9ac21d1b032fdd446c601 # frozen: v2.28.0
+    rev: 50e0f3aee9dc5747a5f173f79a7417403c18dda6 # frozen: v2.30.3
     hooks:
       - id: pyproject-fmt
