@@ -36,7 +36,7 @@ jobs:
         run: xdsl-stubgen
 
       - name: Typecheck
-        run: uv run --locked basedpyright
+        run: uv run --locked basedpyright --threads 4
 
       - name: Prune uv cache
         run: uv cache prune --ci
