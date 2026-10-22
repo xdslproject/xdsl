@@ -57,20 +57,23 @@ builtin.module {
 ```text
 .
 ├── utils
-│   ├── builder.py            : Build a module from a function AST, verify it,
-│   │                           and apply the configured transformation passes
+│   ├── builder.py            : Build a module from a function AST: generate
+│   │                           `py`, lower it, verify it, and apply the
+│   │                           configured transformation passes
 │   ├── exceptions.py         : Custom exceptions for the frontend and code
 │   │                           generation
 │   ├── op_inserter.py        : Helper class to add operations from a stack to
 │   │                           the end of an operation/region/block
 │   └── type_conversion.py    : Map between Python objects, Python AST nodes,
 │                               and xDSL IR for the types and functions
-├── code_generation.py        : Walk AST to generate xDSL from nodes. Simple
-│                               operands and control flow supported. Explicitly
-│                               no support for assignment. Implicitly no support
-│                               for complex structures such as classes
+├── code_generation.py        : Walk AST to generate the `py` dialect from
+│                               nodes. Simple operands and control flow
+│                               supported. Implicitly no support for complex
+│                               structures such as classes
 ├── context.py                : Configure mappings and transformations, and
 │                               decorate functions with parse_program
+├── lowering.py               : Lower `py` to the types and operations
+│                               registered in the context
 ├── program.py                : Callable function wrapper with lazily built
 │                               and cached IR accessible through module
 └── README.md
