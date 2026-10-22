@@ -587,8 +587,7 @@ class ForOp(IRDLOperation, RegionBranchOpInterface):
                 "Body block must have induction var as first block arg"
             )
 
-        indvar, *block_iter_args = self.body.block.args
-        block_iter_args_num = len(block_iter_args)
+        indvar = self.body.block.args[0]
         iter_args = self.iter_args
         iter_args_num = len(self.iter_args)
 
@@ -596,17 +595,6 @@ class ForOp(IRDLOperation, RegionBranchOpInterface):
             if opnd.type != indvar.type:
                 raise VerifyException(
                     "Expected induction var to be same type as bounds and step"
-                )
-        if iter_args_num + 1 != block_iter_args_num + 1:
-            raise VerifyException(
-                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
-                "Body block must have induction and loop-carried variables as args."
-            )
-        for i, arg in enumerate(iter_args):
-            if block_iter_args[i].type != arg.type:
-                raise VerifyException(
-                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
-                    "Block args after the induction variable must match the loop-carried variables."
                 )
         if (last_op := self.body.block.last_op) is not None and isinstance(
             last_op, YieldOp
@@ -1004,16 +992,6 @@ class IndexSwitchOp(IRDLOperation, RegionBranchOpInterface):
             for region in self.regions
         ]
 
-    def _verify_region(self, region: Region, name: str):
-        yield_op = region.block.last_op
-        assert isinstance(yield_op, YieldOp)
-
-        if yield_op.operand_types != self.result_types:
-            raise VerifyException(
-                f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})"
-                f" but expected ({', '.join(str(x) for x in self.result_types)})"
-            )
-
     def verify_(self) -> None:
         if len(self.cases) != len(self.case_regions):
             raise VerifyException(
@@ -1023,10 +1001,6 @@ class IndexSwitchOp(IRDLOperation, RegionBranchOpInterface):
         cases = self.cases
         if len(set(cases.iter_values())) != len(cases):
             raise VerifyException("has duplicate case value")
-
-        self._verify_region(self.default_region, "default")
-        for name, region in zip(cases.iter_values(), self.case_regions, strict=True):
-            self._verify_region(region, str(name))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
