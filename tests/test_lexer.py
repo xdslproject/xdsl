@@ -1,7 +1,7 @@
 from enum import Enum, auto
+from typing import assert_type
 
 import pytest
-from typing_extensions import assert_type
 
 from xdsl.utils.exceptions import MultipleSpansParseError, ParseError
 from xdsl.utils.lexer import (
