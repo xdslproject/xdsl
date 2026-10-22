@@ -2,6 +2,7 @@ import ast
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -154,13 +155,21 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(cf.AssertOp(condition, msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Only assignment to a single variable is supported.",
-            )
+        match node.targets:
+            case [ast.Name(id=name)]:
+                names = [name]
+            case [ast.Tuple(elts=elements)] if all(
+                isinstance(element, ast.Name) for element in elements
+            ):
+                names = [cast(ast.Name, element).id for element in elements]
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only assignment to a variable or a tuple of variables is "
+                    "supported.",
+                )
         # Desymrefication cannot yet carry an updated value out of a nested region,
         # so an assignment inside an `if` would silently keep the old value.
         if self.inserter.insertion_point is not self.function_body:
@@ -170,13 +179,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 "Assignments are only supported directly in the function body.",
             )
-        value = self.visit_single_value(node.value)
-        name = node.targets[0].id
+        values = [self.visit_single_value(node.value)]
+        if isinstance(node.targets[0], ast.Tuple):
+            self.insert_op(py.PyUnpackOp(values[0], len(names)), node)
+            values = [self.inserter.get_operand() for _ in names][::-1]
+
         assert self.symbol_table is not None
-        if name not in self.symbol_table:
-            self.symbol_table.add(name)
-            self.insert_op(symref.DeclareOp(name), node)
-        self.insert_op(symref.UpdateOp(name, value), node)
+        for name, value in zip(names, values, strict=True):
+            if name not in self.symbol_table:
+                self.symbol_table.add(name)
+                self.insert_op(symref.DeclareOp(name), node)
+            self.insert_op(symref.UpdateOp(name, value), node)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         self.visit(node.right)
@@ -408,6 +421,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
+
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        elements = [self.visit_single_value(element) for element in node.elts]
+        self.insert_op(py.PyBuildTupleOp(elements), node)
 
     def visit_Return(self, node: ast.Return) -> None:
         if self.last_return is not None:
