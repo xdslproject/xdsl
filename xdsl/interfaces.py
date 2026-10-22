@@ -19,6 +19,8 @@ from xdsl.traits import (
     ConditionallySpeculatable,
     HasCanonicalizationPatternsTrait,
     HasFolder,
+    RegionBranchOpTrait,
+    RegionBranchTerminatorOpTrait,
 )
 
 
@@ -125,3 +127,36 @@ class ConditionallySpeculatableInterface(Operation, abc.ABC):
         and no observable side effects.
         """
         raise NotImplementedError()
+
+
+class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
+    """
+    Gets the region branching behaviour from the operation's implementation of
+    `RegionBranchOpInterface`.
+    """
+
+
+class RegionBranchOpInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface models branching between its regions.
+    Wraps `RegionBranchOpTrait`.
+    """
+
+    traits = traits_def(_RegionBranchOpInterfaceTrait())
+
+
+class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
+    """
+    Gets the region branching behaviour from the operation's implementation of
+    `RegionBranchTerminatorOpInterface`.
+    """
+
+
+class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface is a terminator that branches between the
+    regions of its parent `RegionBranchOpInterface`. Wraps
+    `RegionBranchTerminatorOpTrait`.
+    """
+
+    traits = traits_def(_RegionBranchTerminatorOpInterfaceTrait())
