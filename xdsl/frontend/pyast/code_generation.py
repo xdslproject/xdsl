@@ -440,7 +440,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
