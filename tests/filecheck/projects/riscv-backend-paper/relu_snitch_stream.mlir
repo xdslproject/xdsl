@@ -36,7 +36,7 @@ builtin.module {
     %v3 = riscv.fld %B, 24 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
     %v4 = riscv.fld %B, 32 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
     %v5 = riscv.fld %B, 40 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
-    riscv_debug.printf %v0, %v1, %v2, %v3, %v4, %v5 "[[{}, {}, {}], [{}, {}, {}]]" : (!riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg) -> ()
+    riscv_debug.printf %v0, %v1, %v2, %v3, %v4, %v5, "[[{}, {}, {}], [{}, {}, {}]]" : (!riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg) -> ()
     riscv_func.return
   }
 }

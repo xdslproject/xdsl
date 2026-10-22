@@ -81,9 +81,9 @@
 
     riscv.jalr %0, 1 : (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr zero, 1
-    riscv.jalr %0 1, !riscv.reg<j_0> : (!riscv.reg<zero>) -> ()
+    riscv.jalr %0, 1, !riscv.reg<j_0> : (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr j_0, zero, 1
-    riscv.jalr %0 "label" : (!riscv.reg<zero>) -> ()
+    riscv.jalr %0, "label" : (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr zero, label
 
     riscv.ret

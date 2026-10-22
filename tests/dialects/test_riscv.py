@@ -252,13 +252,31 @@ def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
     assert op.fastmath == riscv.FastMathFlagsAttr("none")
 
 
-def test_riscv_parse_immediate_value():
+@pytest.mark.parametrize(
+    "prog, message",
+    [
+        (
+            "riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()",
+            "Expected immediate",
+        ),
+        ("riscv.addi %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        ("riscv.flw %0 17 : (!riscv.reg) -> !riscv.freg", "Expected ','"),
+        ("riscv.roriw %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        (
+            'riscv.beq %0, %1 "target" : (!riscv.reg, !riscv.reg) -> ()',
+            "Expected ','",
+        ),
+        ("riscv.jalr %0 17 : (!riscv.reg) -> ()", "Expected ','"),
+        ("riscv.csrrw %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        ("riscv.csrrs %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+    ],
+)
+def test_riscv_parse_immediate_value(prog: str, message: str):
     ctx = Context()
     ctx.load_dialect(riscv.RISCV)
 
-    prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""
     parser = Parser(ctx, prog)
-    with pytest.raises(ParseError, match="Expected immediate"):
+    with pytest.raises(ParseError, match=message):
         parser.parse_operation()
 
 
