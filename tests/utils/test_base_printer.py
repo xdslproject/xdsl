@@ -50,12 +50,23 @@ def test_native_bytes(monkeypatch: pytest.MonkeyPatch):
     # An explicit binary stream must work even when stdout has no byte buffer.
     monkeypatch.setattr("sys.stdout", StringIO())
     output = BytesIO()
-    printer = BasePrinter(output, content_type=bytes)
+    printer = BasePrinter(output, encode=str.encode)
     printer.print_string("é")
     with printer.indented():
         printer.print_content(b"\n\xff\x00\nend")
         printer.print_content(b"\nraw\n\x80", indent=0)
     assert output.getvalue() == b"\xc3\xa9\n  \xff\x00\n  end\nraw\n\x80"
+
+
+def test_custom_encoding():
+    output = BytesIO()
+    printer = BasePrinter(
+        output, encode=lambda text: text.encode("latin-1"), indent_num_spaces=4
+    )
+    with printer.indented():
+        printer.print_string("\né")
+        printer.print_content(b"\xff")
+    assert output.getvalue() == b"\n    \xe9\xff"
 
 
 @pytest.mark.parametrize("binary", [False, True])
@@ -66,7 +77,11 @@ def test_default_stream_is_bound_at_construction(binary: bool):
         TextIOWrapper(redirected_output, encoding="utf-8") as redirected_stdout,
     ):
         with redirect_stdout(original_stdout):
-            printer = BasePrinter(content_type=bytes) if binary else BasePrinter()
+            printer = (
+                BasePrinter(original_stdout.buffer, encode=str.encode)
+                if binary
+                else BasePrinter()
+            )
         with redirect_stdout(redirected_stdout):
             printer.print_string("é\n")
 

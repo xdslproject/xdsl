@@ -13,7 +13,10 @@ from xdsl.utils.lexer import ContentT, Offset
 
 @dataclass(eq=False, repr=False, init=False)
 class BasePrinter(Generic[ContentT]):
-    """Print native content, defaulting to text; select `content_type=bytes` for bytes."""
+    """
+    Print native content, defaulting to text.
+    Pass a bytes stream and `str.encode` to print bytes.
+    """
 
     stream: IO[ContentT]
     """Output stream, defaulting to stdout at construction time."""
@@ -31,39 +34,34 @@ class BasePrinter(Generic[ContentT]):
     def __init__(
         self: BasePrinter[str],
         stream: IO[str] | None = None,
+        encode: Callable[[str], str] = str,
         *,
-        content_type: type[str] = str,
         indent_num_spaces: int = 2,
     ) -> None: ...
 
     @overload
     def __init__(
         self,
-        stream: IO[ContentT] | None = None,
+        stream: IO[ContentT],
+        encode: Callable[[str], ContentT],
         *,
-        content_type: type[ContentT],
         indent_num_spaces: int = 2,
     ) -> None: ...
 
     def __init__(
         self,
         stream: IO[Any] | None = None,
+        encode: Callable[[str], str | bytes] = str,
         *,
-        content_type: type[str | bytes] = str,
         indent_num_spaces: int = 2,
     ) -> None:
-        if stream is None:
-            stream = sys.stdout if content_type is str else sys.stdout.buffer
-        self.stream = cast(IO[ContentT], stream)
+        self.stream = cast(IO[ContentT], sys.stdout if stream is None else stream)
+        self._encode = cast(Callable[[str], ContentT], encode)
         self.indent_num_spaces = indent_num_spaces
         self._indent = 0
         self._current_line = 0
         self._current_column = 0
         self._next_line_callback = []
-        if content_type is str:
-            self._encode = cast(Callable[[str], ContentT], str)
-        else:
-            self._encode = cast(Callable[[str], ContentT], str.encode)
         self.newline = self._encode("\n")
         self._space = self._encode(" ")
 
@@ -71,7 +69,7 @@ class BasePrinter(Generic[ContentT]):
         self.stream.write(content)
 
     def print_string(self, text: str, *, indent: int | None = None) -> None:
-        """Print Python text, encoding it as UTF-8 for a byte printer."""
+        """Print Python text using the configured encoding function."""
         self.print_content(self._encode(text), indent=indent)
 
     def print_content(self, text: ContentT, *, indent: int | None = None) -> None:

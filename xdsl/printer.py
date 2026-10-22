@@ -82,7 +82,7 @@ class Printer(BasePrinter[str]):
         *,
         indent_num_spaces: int = 2,
     ) -> None:
-        super().__init__(stream, content_type=str, indent_num_spaces=indent_num_spaces)
+        super().__init__(stream, indent_num_spaces=indent_num_spaces)
         self.print_generic_format = print_generic_format
         self.print_properties_as_attributes = print_properties_as_attributes
         self.print_debuginfo = print_debuginfo
