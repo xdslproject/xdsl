@@ -70,6 +70,7 @@ from xdsl.traits import (
     InvocationBounds,
     IsTerminator,
     MemoryEffectKind,
+    OperandRange,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     RegionBranchOpTrait,
@@ -1125,8 +1126,8 @@ class _ForOpTrait(RegionBranchOpTrait):
         cls,
         op: Operation,
         successor: RegionSuccessor,
-    ) -> Sequence[SSAValue]:
-        return op.operands
+    ) -> OperandRange:
+        return OperandRange(op)
 
     @classmethod
     def successor_inputs(
@@ -1158,8 +1159,8 @@ class _YieldTailTrait(RegionBranchTerminatorOpTrait):
         cls,
         op: Operation,
         successor: RegionSuccessor,
-    ) -> Sequence[SSAValue]:
-        return op.operands[1:]
+    ) -> OperandRange:
+        return OperandRange(op, 1)
 
 
 @irdl_op_definition
@@ -1190,8 +1191,8 @@ class DummyOp(IRDLOperation, RegionBranchTerminatorOpInterface):
     name = "test.dummy_op"
     traits = traits_def(IsTerminator())
 
-    def successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
-        return ()
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self, 0, 0)
 
 
 @irdl_op_definition
@@ -1266,34 +1267,13 @@ class LoopOp(IRDLOperation, RegionBranchOpInterface):
             return [RegionSuccessor(self.body)]
         return [RegionSuccessor(self.body), RegionSuccessor(self)]
 
-    def entry_successor_operands(
-        self, successor: RegionSuccessor
-    ) -> Sequence[SSAValue]:
-        return self.operands
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         if successor.is_operation():
             return self.results
         return self.body.block.args
-
-
-class _YieldStridedTrait(RegionBranchTerminatorOpTrait):
-    @classmethod
-    def successor_operands(
-        cls,
-        op: Operation,
-        successor: RegionSuccessor,
-    ) -> Sequence[SSAValue]:
-        return op.operands[::2]
-
-
-@irdl_op_definition
-class YieldStridedOp(IRDLOperation):
-    """A terminator forwarding every other operand, which is not a contiguous slice."""
-
-    name = "test.yield_strided"
-    args = var_operand_def()
-    traits = traits_def(IsTerminator(), _YieldStridedTrait())
 
 
 @irdl_op_definition
@@ -1311,10 +1291,8 @@ class IntegerCastOp(IRDLOperation, RegionBranchOpInterface):
     def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         return [RegionSuccessor(self)]
 
-    def entry_successor_operands(
-        self, successor: RegionSuccessor
-    ) -> Sequence[SSAValue]:
-        return self.operands
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results
@@ -1331,7 +1309,6 @@ _TEST_OPS: tuple[type[Operation], ...] = (
     SequentialRegionsOp,
     YieldOp,
     LoopOp,
-    YieldStridedOp,
     IntegerCastOp,
 )
 
@@ -1710,15 +1687,15 @@ def test_successor_mappings(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
     op, yield_op, ssa = loop
     trait = _trait(op, RegionBranchOpTrait)
     assert trait.successor_operand_input_mapping(op) == {
-        (op, 0): [ssa["arg"]],
-        (yield_op, 0): [ssa["arg"], ssa["res"]],
+        (op, 0): (ssa["arg"],),
+        (yield_op, 0): (ssa["arg"], ssa["res"]),
     }
     assert trait.successor_operand_input_mapping(op, RegionBranchPoint(yield_op)) == {
-        (yield_op, 0): [ssa["arg"], ssa["res"]],
+        (yield_op, 0): (ssa["arg"], ssa["res"]),
     }
     assert trait.successor_input_operand_mapping(op) == {
-        ssa["arg"]: [(op, 0), (yield_op, 0)],
-        ssa["res"]: [(yield_op, 0)],
+        ssa["arg"]: ((op, 0), (yield_op, 0)),
+        ssa["res"]: ((yield_op, 0),),
     }
 
 
@@ -1735,44 +1712,45 @@ def test_successor_mapping_with_repeated_operand():
     block_args, results = op.body.block.args, op.res
     trait = _trait(op, RegionBranchOpTrait)
     mapping = trait.successor_operand_input_mapping(op)
-    assert mapping[(op, 0)] == [block_args[0]]
-    assert mapping[(op, 1)] == [block_args[1]]
-    assert mapping[(yield_op, 0)] == [block_args[0], results[0]]
-    assert mapping[(yield_op, 1)] == [block_args[1], results[1]]
+    assert mapping[(op, 0)] == (block_args[0],)
+    assert mapping[(op, 1)] == (block_args[1],)
+    assert mapping[(yield_op, 0)] == (block_args[0], results[0])
+    assert mapping[(yield_op, 1)] == (block_args[1], results[1])
 
 
-@pytest.mark.parametrize(
-    ("ir", "message"),
-    [
-        (
-            """
-            %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
-            "test.loop"() ({
-            ^bb0(%x: i32, %y: i32):
-              "test.yield_strided"(%a, %b, %c) : (i32, i32, i32) -> ()
-            }) : () -> (i32, i32)
-            """,
-            "are not a contiguous slice",
-        ),
-        (
-            """
-            %a = "test.op"() : () -> i32
-            "test.loop"() ({
-            ^bb0(%x: i32):
-              "test.yield_tail"(%a, %a) : (i32, i32) -> ()
-            }) : () -> i32
-            """,
-            "operand slots are ambiguous",
-        ),
-    ],
-)
-def test_successor_mapping_unrecoverable_slots(ir: str, message: str):
-    op = _find(_parse(ir), LoopOp)
-    terminator = op.body.block.last_op
-    assert terminator is not None
+def test_successor_mapping_with_operand_repeated_outside_range():
+    # `%a` fills both operands of `test.yield_tail`, but only the second one is forwarded.
+    module = _parse("""
+    %a = "test.op"() : () -> i32
+    "test.loop"() ({
+    ^bb0(%x: i32):
+      "test.yield_tail"(%a, %a) : (i32, i32) -> ()
+    }) : () -> i32
+    """)
+    op, yield_tail = _find(module, LoopOp), _find(module, YieldTailOp)
     trait = _trait(op, RegionBranchOpTrait)
-    with pytest.raises(ValueError, match=message):
-        trait.successor_operand_input_mapping(op, RegionBranchPoint(terminator))
+    mapping = trait.successor_operand_input_mapping(op, RegionBranchPoint(yield_tail))
+    assert mapping == {(yield_tail, 1): (op.body.block.args[0], op.results[0])}
+
+
+def test_operand_range():
+    a, b, c = create_ssa_value(i32), create_ssa_value(i32), create_ssa_value(i32)
+    op = test.TestOp(operands=[a, b, c])
+    tail = OperandRange(op, 1)
+    assert (tail.start, tail.stop) == (1, 3)
+    assert list(tail) == [b, c]
+    assert len(tail) == 2
+    assert tail[0] is b
+    assert tail[-1] is c
+    assert list(tail[1:]) == [c]
+    assert tail.op_operands == ((op, 1), (op, 2))
+    assert list(OperandRange(op)) == [a, b, c]
+    assert len(OperandRange(op, 3)) == 0
+    message = (
+        "Operand range [2, 4) is out of bounds for 'test.op', which has 3 operands."
+    )
+    with pytest.raises(ValueError, match=re.escape(message)):
+        OperandRange(op, 2, 4)
 
 
 # Ports of the `RecursiveRegions` and `NotRecursiveRegions` tests.

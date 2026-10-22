@@ -6,21 +6,43 @@ import re
 from typing import cast
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.builder import Builder
-from xdsl.dialects.arith import ConstantOp
-from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
+from xdsl.context import Context
+from xdsl.dialects.arith import Arith, ConstantOp
+from xdsl.dialects.builtin import (
+    Builtin,
+    IndexType,
+    IntegerAttr,
+    ModuleOp,
+    i1,
+    i32,
+    i64,
+)
 from xdsl.dialects.scf import (
+    ConditionOp,
+    ExecuteRegionOp,
     ForOp,
     IfOp,
+    IndexSwitchOp,
     ParallelOp,
     ReduceOp,
     ReduceReturnOp,
+    Scf,
     WhileOp,
     YieldOp,
 )
-from xdsl.dialects.test import TestTermOp
-from xdsl.ir import Block, BlockArgument, Region
+from xdsl.dialects.test import Test, TestTermOp
+from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.parser import Parser
+from xdsl.traits import (
+    InvocationBounds,
+    RegionBranchOpTrait,
+    RegionBranchPoint,
+    RegionBranchTerminatorOpTrait,
+    RegionSuccessor,
+)
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
@@ -435,3 +457,376 @@ def test_while():
     )
     assert (len(while_loop.results)) == 2
     assert (len(while_loop.operands)) == 2
+
+
+# RegionBranchOpInterface implementations, ported from MLIR's `SCF.cpp`.
+
+
+def _parse(ir: str) -> ModuleOp:
+    ctx = Context()
+    for dialect in (Builtin, Arith, Scf, Test):
+        ctx.load_dialect(dialect)
+    module = Parser(ctx, ir).parse_module()
+    module.verify()
+    return module
+
+
+_OpT = TypeVar("_OpT", bound=Operation)
+
+
+def _find(module: ModuleOp, op_type: type[_OpT]) -> _OpT:
+    return next(op for op in module.walk() if isinstance(op, op_type))
+
+
+def _name_to_ssa(module: ModuleOp) -> dict[str, SSAValue]:
+    """Map the name hint of every named result and block argument to its value."""
+    values: dict[str, SSAValue] = {}
+    for op in module.walk():
+        values |= {res.name_hint: res for res in op.results if res.name_hint}
+        for region in op.regions:
+            for block in region.blocks:
+                values |= {arg.name_hint: arg for arg in block.args if arg.name_hint}
+    return values
+
+
+def _trait(op: Operation) -> RegionBranchOpTrait:
+    trait = op.get_trait(RegionBranchOpTrait)
+    assert trait is not None
+    return trait
+
+
+def _successors(op: Operation, point: RegionBranchPoint) -> list[RegionSuccessor]:
+    return list(_trait(op).successor_regions(op, point))
+
+
+_TRUE = IntegerAttr(1, i1)
+_FALSE = IntegerAttr(0, i1)
+
+
+def test_for_region_branch():
+    module = _parse("""
+    %lb, %ub, %step, %init = "test.op"() : () -> (index, index, index, i32)
+    %res = scf.for %iv = %lb to %ub step %step iter_args(%acc = %init) -> (i32) {
+      scf.yield %acc : i32
+    }
+    """)
+    for_op, yield_op = _find(module, ForOp), _find(module, YieldOp)
+    ssa = _name_to_ssa(module)
+    body, exit_ = RegionSuccessor(for_op.body), RegionSuccessor(for_op)
+    assert _successors(for_op, RegionBranchPoint.PARENT) == [body, exit_]
+    assert _successors(for_op, RegionBranchPoint(yield_op)) == [body, exit_]
+    entry_operands = for_op.entry_successor_operands(body)
+    assert list(entry_operands) == [ssa["init"]]
+    assert entry_operands.op_operands == ((for_op, 3),)
+    assert list(for_op.successor_inputs(body)) == [ssa["acc"]]
+    assert list(for_op.successor_inputs(exit_)) == [ssa["res"]]
+    assert _trait(for_op).has_loop(for_op)
+    assert _trait(for_op).is_repetitive_region(for_op, 0)
+
+
+@pytest.mark.parametrize(
+    ("bounds", "trip_count"),
+    [
+        ("%lb = arith.constant 3 : index\n%ub = arith.constant 3 : index", 0),
+        ("%lb = arith.constant 5 : index\n%ub = arith.constant 2 : index", 0),
+        ("%lb = arith.constant 0 : index\n%ub = arith.constant 1 : index", 1),
+        ("%lb = arith.constant 0 : index\n%ub = arith.constant 10 : index", 4),
+        ('%lb = arith.constant 0 : index\n%ub = "test.op"() : () -> index', None),
+        ('%lb = "test.op"() : () -> index\n%ub = arith.constant 10 : index', None),
+        # ub = lb + 6 without signed wrap: (6 / 3) = 2 iterations.
+        (
+            '%lb = "test.op"() : () -> index\n%c6 = arith.constant 6 : index\n'
+            "%ub = arith.addi %lb, %c6 overflow<nsw> : index",
+            2,
+        ),
+        # Without the nsw flag, the difference is not trusted.
+        (
+            '%lb = "test.op"() : () -> index\n%c6 = arith.constant 6 : index\n'
+            "%ub = arith.addi %lb, %c6 : index",
+            None,
+        ),
+        # ub = lb - 6 without signed wrap: zero iterations.
+        (
+            '%lb = "test.op"() : () -> index\n%c6 = arith.constant -6 : index\n'
+            "%ub = arith.addi %lb, %c6 overflow<nsw> : index",
+            0,
+        ),
+    ],
+)
+def test_for_static_trip_count(bounds: str, trip_count: int | None):
+    module = _parse(f"""
+    {bounds}
+    %step = arith.constant 3 : index
+    scf.for %iv = %lb to %ub step %step {{
+    }}
+    """)
+    for_op, yield_op = _find(module, ForOp), _find(module, YieldOp)
+    body, exit_ = RegionSuccessor(for_op.body), RegionSuccessor(for_op)
+    from_parent = _successors(for_op, RegionBranchPoint.PARENT)
+    from_yield = _successors(for_op, RegionBranchPoint(yield_op))
+    if trip_count is None:
+        assert (from_parent, from_yield) == ([body, exit_], [body, exit_])
+    elif trip_count == 0:
+        assert (from_parent, from_yield) == ([exit_], [body, exit_])
+    elif trip_count == 1:
+        assert (from_parent, from_yield) == ([body], [exit_])
+    else:
+        assert (from_parent, from_yield) == ([body], [body, exit_])
+
+
+def test_for_static_trip_count_same_bounds():
+    # The same non-constant value as both bounds: zero iterations.
+    module = _parse("""
+    %bound, %step = "test.op"() : () -> (index, index)
+    scf.for %iv = %bound to %bound step %step {
+    }
+    """)
+    for_op = _find(module, ForOp)
+    exit_ = RegionSuccessor(for_op)
+    assert _successors(for_op, RegionBranchPoint.PARENT) == [exit_]
+
+
+def test_for_static_trip_count_step_as_upper_bound():
+    # A zero lower bound and the step as upper bound: one iteration.
+    module = _parse("""
+    %lb = arith.constant 0 : index
+    %step = "test.op"() : () -> index
+    scf.for %iv = %lb to %step step %step {
+    }
+    """)
+    for_op, yield_op = _find(module, ForOp), _find(module, YieldOp)
+    body, exit_ = RegionSuccessor(for_op.body), RegionSuccessor(for_op)
+    assert _successors(for_op, RegionBranchPoint.PARENT) == [body]
+    assert _successors(for_op, RegionBranchPoint(yield_op)) == [exit_]
+
+
+@pytest.mark.parametrize("step", ["0", "-1"])
+def test_for_static_trip_count_unknown_step(step: str):
+    module = _parse(f"""
+    %lb = arith.constant 0 : i32
+    %ub = arith.constant 10 : i32
+    %step = arith.constant {step} : i32
+    scf.for %iv = %lb to %ub step %step : i32 {{
+    }}
+    """)
+    for_op = _find(module, ForOp)
+    body, exit_ = RegionSuccessor(for_op.body), RegionSuccessor(for_op)
+    assert _successors(for_op, RegionBranchPoint.PARENT) == [body, exit_]
+
+
+def test_for_successor_mapping_with_repeated_operand():
+    # `%c0` is both the lower bound and the initial value of `%acc`.
+    module = _parse("""
+    %c0 = arith.constant 0 : index
+    %n, %c1 = "test.op"() : () -> (index, index)
+    %res = scf.for %iv = %c0 to %n step %c1 iter_args(%acc = %c0) -> (index) {
+      scf.yield %acc : index
+    }
+    """)
+    for_op, yield_op = _find(module, ForOp), _find(module, YieldOp)
+    ssa = _name_to_ssa(module)
+    mapping = _trait(for_op).successor_operand_input_mapping(for_op)
+    assert mapping == {
+        (for_op, 3): (ssa["acc"], ssa["res"]),
+        (yield_op, 0): (ssa["acc"], ssa["res"]),
+    }
+
+
+def test_if_region_branch():
+    module = _parse("""
+    %cond = "test.op"() : () -> i1
+    %res = scf.if %cond -> (i32) {
+      %a = "test.op"() : () -> i32
+      scf.yield %a : i32
+    } else {
+      %b = "test.op"() : () -> i32
+      scf.yield %b : i32
+    }
+    """)
+    if_op = _find(module, IfOp)
+    then_yield = if_op.true_region.block.last_op
+    assert isinstance(then_yield, YieldOp)
+    then, else_ = (
+        RegionSuccessor(if_op.true_region),
+        RegionSuccessor(if_op.false_region),
+    )
+    exit_ = RegionSuccessor(if_op)
+    assert _successors(if_op, RegionBranchPoint.PARENT) == [then, else_]
+    assert _successors(if_op, RegionBranchPoint(then_yield)) == [exit_]
+    assert list(if_op.successor_inputs(exit_)) == list(if_op.results)
+    assert list(if_op.successor_inputs(then)) == []
+    assert list(if_op.entry_successor_regions([None])) == [then, else_]
+    assert list(if_op.entry_successor_regions([_TRUE])) == [then]
+    assert list(if_op.entry_successor_regions([_FALSE])) == [else_]
+    assert list(if_op.region_invocation_bounds([None])) == [InvocationBounds(0, 1)] * 2
+    assert list(if_op.region_invocation_bounds([_TRUE])) == [
+        InvocationBounds(0, 1),
+        InvocationBounds(0, 0),
+    ]
+    assert list(if_op.region_invocation_bounds([_FALSE])) == [
+        InvocationBounds(0, 0),
+        InvocationBounds(0, 1),
+    ]
+    assert not _trait(if_op).has_loop(if_op)
+
+
+def test_if_without_else_region_branch():
+    module = _parse("""
+    %cond = "test.op"() : () -> i1
+    scf.if %cond {
+    }
+    """)
+    if_op = _find(module, IfOp)
+    then, exit_ = RegionSuccessor(if_op.true_region), RegionSuccessor(if_op)
+    assert _successors(if_op, RegionBranchPoint.PARENT) == [then, exit_]
+    assert list(if_op.entry_successor_regions([None])) == [then, exit_]
+    assert list(if_op.entry_successor_regions([_TRUE])) == [then]
+    assert list(if_op.entry_successor_regions([_FALSE])) == [exit_]
+
+
+def test_while_region_branch():
+    module = _parse("""
+    %init = "test.op"() : () -> i32
+    %res = scf.while (%arg = %init) : (i32) -> i32 {
+      %cond = "test.op"(%arg) : (i32) -> i1
+      scf.condition(%cond) %arg : i32
+    } do {
+    ^bb0(%body_arg : i32):
+      scf.yield %body_arg : i32
+    }
+    """)
+    while_op = _find(module, WhileOp)
+    condition, yield_op = _find(module, ConditionOp), _find(module, YieldOp)
+    ssa = _name_to_ssa(module)
+    before = RegionSuccessor(while_op.before_region)
+    after = RegionSuccessor(while_op.after_region)
+    exit_ = RegionSuccessor(while_op)
+    assert _successors(while_op, RegionBranchPoint.PARENT) == [before]
+    assert _successors(while_op, RegionBranchPoint(condition)) == [exit_, after]
+    assert _successors(while_op, RegionBranchPoint(yield_op)) == [before]
+    assert list(while_op.entry_successor_operands(before)) == [ssa["init"]]
+    assert list(while_op.successor_inputs(before)) == [ssa["arg"]]
+    assert list(while_op.successor_inputs(after)) == [ssa["body_arg"]]
+    assert list(while_op.successor_inputs(exit_)) == [ssa["res"]]
+    condition_operands = condition.successor_operands(after)
+    assert list(condition_operands) == [ssa["arg"]]
+    assert condition_operands.op_operands == ((condition, 1),)
+    assert list(condition.successor_regions([None, None])) == [after, exit_]
+    assert list(condition.successor_regions([_TRUE, None])) == [after]
+    assert list(condition.successor_regions([_FALSE, None])) == [exit_]
+    assert _trait(while_op).has_loop(while_op)
+    assert _trait(while_op).is_repetitive_region(while_op, 0)
+    assert _trait(while_op).is_repetitive_region(while_op, 1)
+
+
+def test_while_successor_mapping_with_repeated_operand():
+    # `%cond` is both the condition and the forwarded value.
+    module = _parse("""
+    %init = "test.op"() : () -> i1
+    %res = scf.while (%arg = %init) : (i1) -> i1 {
+      scf.condition(%arg) %arg : i1
+    } do {
+    ^bb0(%body_arg : i1):
+      scf.yield %body_arg : i1
+    }
+    """)
+    while_op, condition = _find(module, WhileOp), _find(module, ConditionOp)
+    ssa = _name_to_ssa(module)
+    mapping = _trait(while_op).successor_operand_input_mapping(
+        while_op, RegionBranchPoint(condition)
+    )
+    assert mapping == {(condition, 1): (ssa["res"], ssa["body_arg"])}
+
+
+def test_execute_region_region_branch():
+    module = _parse("""
+    %res = scf.execute_region -> (i32) {
+      %a = "test.op"() : () -> i32
+      scf.yield %a : i32
+    }
+    """)
+    op, yield_op = _find(module, ExecuteRegionOp), _find(module, YieldOp)
+    body, exit_ = RegionSuccessor(op.region), RegionSuccessor(op)
+    assert _successors(op, RegionBranchPoint.PARENT) == [body]
+    assert _successors(op, RegionBranchPoint(yield_op)) == [exit_]
+    assert list(op.region_invocation_bounds([])) == [InvocationBounds(1, 1)]
+    assert list(op.successor_inputs(exit_)) == list(op.results)
+    assert list(op.successor_inputs(body)) == []
+    assert not _trait(op).has_loop(op)
+
+
+def test_index_switch_region_branch():
+    module = _parse("""
+    %arg = "test.op"() : () -> index
+    %res = scf.index_switch %arg -> i32
+    case 2 {
+      %a = "test.op"() : () -> i32
+      scf.yield %a : i32
+    }
+    case 5 {
+      %b = "test.op"() : () -> i32
+      scf.yield %b : i32
+    }
+    default {
+      %c = "test.op"() : () -> i32
+      scf.yield %c : i32
+    }
+    """)
+    op = _find(module, IndexSwitchOp)
+    default, case2, case5 = (RegionSuccessor(region) for region in op.regions)
+    exit_ = RegionSuccessor(op)
+    case_yield = op.case_regions[0].block.last_op
+    assert isinstance(case_yield, YieldOp)
+    assert _successors(op, RegionBranchPoint.PARENT) == [default, case2, case5]
+    assert _successors(op, RegionBranchPoint(case_yield)) == [exit_]
+    assert list(op.successor_inputs(exit_)) == list(op.results)
+    assert list(op.successor_inputs(case2)) == []
+    index = IndexType()
+    assert list(op.entry_successor_regions([None])) == [default, case2, case5]
+    assert list(op.entry_successor_regions([IntegerAttr(5, index)])) == [case5]
+    assert list(op.entry_successor_regions([IntegerAttr(7, index)])) == [default]
+    assert list(op.region_invocation_bounds([None])) == [InvocationBounds(0, 1)] * 3
+    # The default region comes first, so case `k` is region `k + 1`.
+    assert list(op.region_invocation_bounds([IntegerAttr(2, index)])) == [
+        InvocationBounds(0, 0),
+        InvocationBounds(0, 1),
+        InvocationBounds(0, 0),
+    ]
+    assert list(op.region_invocation_bounds([IntegerAttr(5, index)])) == [
+        InvocationBounds(0, 0),
+        InvocationBounds(0, 0),
+        InvocationBounds(0, 1),
+    ]
+    assert list(op.region_invocation_bounds([IntegerAttr(7, index)])) == [
+        InvocationBounds(0, 1),
+        InvocationBounds(0, 0),
+        InvocationBounds(0, 0),
+    ]
+
+
+def test_parallel_region_branch():
+    module = _parse("""
+    %lb, %ub, %step, %init = "test.op"() : () -> (index, index, index, i32)
+    %res = "scf.parallel"(%lb, %ub, %step, %init) <{
+      operandSegmentSizes = array<i32: 1, 1, 1, 1>
+    }> ({
+    ^bb0(%i : index):
+      %v = "test.op"() : () -> i32
+      scf.reduce(%v : i32) {
+      ^bb1(%x : i32, %y : i32):
+        scf.reduce.return %x : i32
+      }
+    }) : (index, index, index, i32) -> i32
+    """)
+    op, reduce_op = _find(module, ParallelOp), _find(module, ReduceOp)
+    body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
+    assert _successors(op, RegionBranchPoint.PARENT) == [body, exit_]
+    assert _successors(op, RegionBranchPoint(reduce_op)) == [body, exit_]
+    assert list(op.entry_successor_operands(body)) == []
+    assert list(reduce_op.successor_operands(exit_)) == []
+    terminator_trait = reduce_op.get_trait(RegionBranchTerminatorOpTrait)
+    assert terminator_trait is not None
+    assert list(terminator_trait.successor_regions(reduce_op, [None])) == [
+        body,
+        exit_,
+    ]

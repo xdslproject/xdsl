@@ -375,6 +375,9 @@ class TestRegionBranchOpTrait(RegionBranchOpTrait):
     """
     Enters the first region, if any. Every region branches back to the parent
     operation.
+
+    TODO: encode the successors in the IR, so that filecheck tests can describe
+    any control flow between the regions.
     """
 
     @classmethod

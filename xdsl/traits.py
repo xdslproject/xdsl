@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar, TypeAlias, overload
 
 from typing_extensions import TypeVar, override
 
@@ -886,7 +886,60 @@ A successor operand, identified by its owner operation and operand index. Stands
 `OpOperand *`: xDSL's `Use` hashes by identity, so it cannot be rebuilt to look up a mapping.
 """
 
-RegionBranchSuccessorMapping: TypeAlias = Mapping[SuccessorOperand, list["SSAValue"]]
+
+@dataclass(frozen=True, init=False)
+class OperandRange(Sequence["SSAValue"]):
+    """
+    The operands of `owner` in `[start, stop)`.
+
+    Like MLIR's `OperandRange`, it keeps track of which operands the values come from, and not just
+    the values. The successor mappings need this, as the same value can be passed to several
+    operands, e.g. `scf.for %i = %c0 to %n step %c1 iter_args(%a = %c0)`.
+    """
+
+    owner: Operation
+    start: int
+    stop: int
+
+    def __init__(
+        self, owner: Operation, start: int = 0, stop: int | None = None
+    ) -> None:
+        num_operands = len(owner.operands)
+        if stop is None:
+            stop = num_operands
+        if not 0 <= start <= stop <= num_operands:
+            raise ValueError(
+                f"Operand range [{start}, {stop}) is out of bounds for '{owner.name}', "
+                f"which has {num_operands} operands."
+            )
+        object.__setattr__(self, "owner", owner)
+        object.__setattr__(self, "start", start)
+        object.__setattr__(self, "stop", stop)
+
+    @overload
+    def __getitem__(self, index: int) -> SSAValue: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[SSAValue]: ...
+
+    def __getitem__(self, index: int | slice) -> SSAValue | Sequence[SSAValue]:
+        return self.owner.operands[self.start : self.stop][index]
+
+    def __iter__(self) -> Iterator[SSAValue]:
+        return iter(self.owner.operands[self.start : self.stop])
+
+    def __len__(self) -> int:
+        return self.stop - self.start
+
+    @property
+    def op_operands(self) -> tuple[SuccessorOperand, ...]:
+        """The operands in the range, as `(owner, index)` pairs."""
+        return tuple((self.owner, index) for index in range(self.start, self.stop))
+
+
+RegionBranchSuccessorMapping: TypeAlias = Mapping[
+    SuccessorOperand, tuple["SSAValue", ...]
+]
 """
 A mapping from successor operands to successor inputs.
 
@@ -901,7 +954,7 @@ forwarded at all are not present in the mapping.
 """
 
 RegionBranchInverseSuccessorMapping: TypeAlias = Mapping[
-    "SSAValue", list[SuccessorOperand]
+    "SSAValue", tuple[SuccessorOperand, ...]
 ]
 """
 A mapping from successor inputs to the successor operands that populate them. The inverse of
@@ -1156,7 +1209,7 @@ class RegionBranchOpTrait(OpTrait):
         cls,
         op: Operation,
         successor: RegionSuccessor,
-    ) -> Sequence[SSAValue]:
+    ) -> OperandRange:
         """
         Returns the operands of this operation that are forwarded to the successor inputs when
         branching to `successor`. `successor` is guaranteed to be among the successors that are
@@ -1167,7 +1220,7 @@ class RegionBranchOpTrait(OpTrait):
         regardless of the value of `successor`. I.e., this op always forwards the same operands,
         regardless of whether the loop has 0 or more iterations.
         """
-        return ()
+        return OperandRange(op, 0, 0)
 
     @classmethod
     def entry_successor_regions(
@@ -1353,7 +1406,7 @@ class RegionBranchOpTrait(OpTrait):
     @classmethod
     def successor_operands(
         cls, op: Operation, src: RegionBranchPoint, dest: RegionSuccessor
-    ) -> Sequence[SSAValue]:
+    ) -> OperandRange:
         """
         Return the successor operands from the source branch point to the destination region
         successor.
@@ -1417,7 +1470,7 @@ class RegionBranchOpTrait(OpTrait):
             # branch points.
             for branch_point in cls.all_region_branch_points(op):
                 cls._successor_operand_input_mapping(op, mapping, branch_point)
-        return mapping
+        return {operand: tuple(inputs) for operand, inputs in mapping.items()}
 
     @classmethod
     def successor_input_operand_mapping(
@@ -1431,7 +1484,7 @@ class RegionBranchOpTrait(OpTrait):
         for operand, inputs in cls.successor_operand_input_mapping(op).items():
             for input_ in inputs:
                 inverse.setdefault(input_, []).append(operand)
-        return inverse
+        return {input_: tuple(operands) for input_, operands in inverse.items()}
 
     @classmethod
     def all_region_branch_points(cls, op: Operation) -> Sequence[RegionBranchPoint]:
@@ -1565,43 +1618,6 @@ class RegionBranchOpTrait(OpTrait):
             begin, lambda next_region, _visited: next_region is r
         )
 
-    @staticmethod
-    def _operands_to_op_operands(
-        op: Operation, src: RegionBranchPoint, operands: Sequence[SSAValue]
-    ) -> Sequence[SuccessorOperand]:
-        """
-        Return the operand slots holding `operands`. They are owned by `op` if `src` is the
-        parent, and by the terminator of `src` otherwise.
-
-        MLIR reads the slots straight from the `OperandRange`, which points into the owner's
-        operand list. Here `operands` are plain values, so the slots are recovered by locating
-        `operands` as a contiguous slice of the owner's operands, which is what an `OperandRange`
-        always is. Raises `ValueError` if `operands` match no slice, or several.
-        """
-        if not operands:
-            return ()
-        terminator = src.terminator
-        owner = op if terminator is None else terminator
-        owner_operands = tuple(owner.operands)
-        forwarded = tuple(operands)
-        size = len(forwarded)
-        starts = [
-            start
-            for start in range(len(owner_operands) - size + 1)
-            if owner_operands[start : start + size] == forwarded
-        ]
-        if not starts:
-            raise ValueError(
-                "Successor operands are not a contiguous slice of the operands of "
-                f"'{owner.name}'."
-            )
-        if len(starts) > 1:
-            raise ValueError(
-                f"Successor operands match several slices of the operands of '{owner.name}', so "
-                "their operand slots are ambiguous."
-            )
-        return [(owner, starts[0] + index) for index in range(size)]
-
     @classmethod
     def _successor_operand_input_mapping(
         cls,
@@ -1620,11 +1636,7 @@ class RegionBranchOpTrait(OpTrait):
             assert len(operands) == len(inputs), (
                 "expected the same number of operands and inputs"
             )
-            for operand, input_ in zip(
-                cls._operands_to_op_operands(op, src, operands),
-                inputs,
-                strict=True,
-            ):
+            for operand, input_ in zip(operands.op_operands, inputs, strict=True):
                 mapping.setdefault(operand, []).append(input_)
 
 
@@ -1645,9 +1657,9 @@ class RegionBranchTerminatorOpTrait(OpTrait):
         cls,
         op: Operation,
         successor: RegionSuccessor,
-    ) -> Sequence[SSAValue]:
+    ) -> OperandRange:
         """Returns the operands passed to `successor`. By default, all operands of `op`."""
-        return op.operands
+        return OperandRange(op)
 
     @classmethod
     def successor_regions(

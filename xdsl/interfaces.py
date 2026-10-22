@@ -22,6 +22,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasFolder,
     InvocationBounds,
+    OperandRange,
     RegionBranchOpTrait,
     RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
@@ -144,7 +145,7 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     @classmethod
     def entry_successor_operands(
         cls, op: Operation, successor: RegionSuccessor
-    ) -> Sequence[SSAValue]:
+    ) -> OperandRange:
         return cast(RegionBranchOpInterface, op).entry_successor_operands(successor)
 
     @override
@@ -213,11 +214,9 @@ class RegionBranchOpInterface(Operation, abc.ABC):
 
     traits = traits_def(_RegionBranchOpInterfaceTrait())
 
-    def entry_successor_operands(
-        self, successor: RegionSuccessor
-    ) -> Sequence[SSAValue]:
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
         """See `RegionBranchOpTrait.entry_successor_operands`."""
-        return ()
+        return OperandRange(self, 0, 0)
 
     def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
@@ -286,7 +285,7 @@ class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
     @classmethod
     def successor_operands(
         cls, op: Operation, successor: RegionSuccessor
-    ) -> Sequence[SSAValue]:
+    ) -> OperandRange:
         return cast(RegionBranchTerminatorOpInterface, op).successor_operands(successor)
 
     @override
@@ -305,9 +304,9 @@ class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
 
     traits = traits_def(_RegionBranchTerminatorOpInterfaceTrait())
 
-    def successor_operands(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
         """See `RegionBranchTerminatorOpTrait.successor_operands`."""
-        return self.operands
+        return OperandRange(self)
 
     def successor_regions(
         self, operands: Sequence[Attribute | None]
