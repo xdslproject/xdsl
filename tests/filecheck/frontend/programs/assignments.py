@@ -58,7 +58,19 @@ def unused(x: int) -> None:
     _result = effect(x)
 
 
-for program in (assign_and_use, reassign, unused):
+@ctx.parse_program
+def unpacked(x: int) -> bool:
+    _y, z = pair(x, x)
+    return z
+
+
+@ctx.parse_program
+def swapped(x: int, y: int) -> int:
+    x, y = y, x
+    return add(x, effect(y))
+
+
+for program in (assign_and_use, reassign, unused, unpacked, swapped):
     print(program.module)
 
 # CHECK:       func.func @assign_and_use(%x: i32) -> i32 {
@@ -78,6 +90,17 @@ for program in (assign_and_use, reassign, unused):
 # CHECK-NEXT:    func.return
 # CHECK-NEXT:  }
 
+# CHECK:       func.func @unpacked(%x: i32) -> i1 {
+# CHECK-NEXT:    %0, %1 = arith.addui_extended %x, %x : i32, i1
+# CHECK-NEXT:    func.return %1 : i1
+# CHECK-NEXT:  }
+
+# CHECK:       func.func @swapped(%x: i32, %y: i32) -> i32 {
+# CHECK-NEXT:    %0 = "test.op"(%x) : (i32) -> i32
+# CHECK-NEXT:    %1 = arith.addi %y, %0 : i32
+# CHECK-NEXT:    func.return %1 : i32
+# CHECK-NEXT:  }
+
 
 def print_error(program: PyASTProgram[..., Any]) -> None:
     try:
@@ -95,9 +118,20 @@ def chained(x: int) -> int:
 
 
 @ctx.parse_program
-def unpacked(x: int) -> int:
-    y, _z = pair(x, x)
+def nested(x: int) -> int:
+    (y, _z), _w = (x, x), x
     return y
+
+
+@ctx.parse_program
+def too_many(x: int) -> int:
+    y, _z, _w = pair(x, x)  # pyright: ignore[reportAssignmentType, reportUnknownVariableType]
+    return y
+
+
+@ctx.parse_program
+def tuple_value(x: int) -> None:
+    _y = x, x
 
 
 @ctx.parse_program
@@ -120,11 +154,21 @@ def inside_if(x: int, flag: bool) -> int:
     return y
 
 
-for program in (chained, unpacked, changed_type, no_value, inside_if):
+for program in (
+    chained,
+    nested,
+    too_many,
+    tuple_value,
+    changed_type,
+    no_value,
+    inside_if,
+):
     print_error(program)
 
-# CHECK:      chained: Only assignment to a single variable is supported.
-# CHECK-NEXT: unpacked: Only assignment to a single variable is supported.
+# CHECK:      chained: Only assignment to a variable or a tuple of variables is supported.
+# CHECK-NEXT: nested: Only assignment to a variable or a tuple of variables is supported.
+# CHECK-NEXT: too_many: Expected 3 values to unpack, but got 2.
+# CHECK-NEXT: tuple_value: Expected an expression with exactly one result.
 # CHECK-NEXT: changed_type: Cannot change the type of variable 'y'.
 # CHECK-NEXT: no_value: Expected an expression with exactly one result.
 # CHECK-NEXT: inside_if: Assignments are only supported directly in the function body.
