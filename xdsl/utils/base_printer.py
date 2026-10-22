@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable, Generator, Iterable
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
+from io import BufferedIOBase, RawIOBase, TextIOBase
 from typing import IO, Any, Generic, cast, overload
 
 from typing_extensions import TypeVar
@@ -14,8 +15,10 @@ from xdsl.utils.lexer import ContentT, Offset
 @dataclass(eq=False, repr=False, init=False)
 class BasePrinter(Generic[ContentT]):
     """
-    Print native content, defaulting to text.
-    Pass a bytes stream and `str.encode` to print bytes.
+    Print native content to a text or binary stream, defaulting to stdout.
+
+    Standard text streams use `str`, and standard binary streams use `str.encode`
+    (UTF-8). Custom streams require an explicit `encode` function.
     """
 
     stream: IO[ContentT]
@@ -34,7 +37,7 @@ class BasePrinter(Generic[ContentT]):
     def __init__(
         self: BasePrinter[str],
         stream: IO[str] | None = None,
-        encode: Callable[[str], str] = str,
+        encode: Callable[[str], str] | None = None,
         *,
         indent_num_spaces: int = 2,
     ) -> None: ...
@@ -43,7 +46,7 @@ class BasePrinter(Generic[ContentT]):
     def __init__(
         self,
         stream: IO[ContentT],
-        encode: Callable[[str], ContentT],
+        encode: Callable[[str], ContentT] | None = None,
         *,
         indent_num_spaces: int = 2,
     ) -> None: ...
@@ -51,11 +54,22 @@ class BasePrinter(Generic[ContentT]):
     def __init__(
         self,
         stream: IO[Any] | None = None,
-        encode: Callable[[str], str | bytes] = str,
+        encode: Callable[[str], str | bytes] | None = None,
         *,
         indent_num_spaces: int = 2,
     ) -> None:
-        self.stream = cast(IO[ContentT], sys.stdout if stream is None else stream)
+        if stream is None:
+            stream = sys.stdout
+            if encode is None:
+                encode = str
+        if encode is None:
+            if isinstance(stream, TextIOBase):
+                encode = str
+            elif isinstance(stream, BufferedIOBase | RawIOBase):
+                encode = str.encode
+            else:
+                raise TypeError("encode must be supplied for custom streams")
+        self.stream = cast(IO[ContentT], stream)
         self._encode = cast(Callable[[str], ContentT], encode)
         self.indent_num_spaces = indent_num_spaces
         self._indent = 0

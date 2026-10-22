@@ -21,7 +21,7 @@ class WGSLPrinter(BasePrinter[str]):
     def __init__(
         self, stream: IO[str] | None = None, *, indent_num_spaces: int = 2
     ) -> None:
-        super().__init__(stream, indent_num_spaces=indent_num_spaces)
+        super().__init__(stream, encode=str, indent_num_spaces=indent_num_spaces)
         self.name_dict = {}
         self.count = 0
 
