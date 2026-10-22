@@ -474,9 +474,7 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperationWithFastMath(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
+class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source floating-point
     registers with an integer destination register, and can be annotated with fastmath flags.
@@ -488,6 +486,11 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = (
+        "$rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     def __init__(
         self,
@@ -513,25 +516,8 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        fast = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            fast = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        attributes["fastmath"] = fast
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        if self.fastmath != FastMathFlagsAttr("none"):
-            printer.print_string(" fastmath")
-            self.fastmath.print_parameter(printer)
-        return {"fastmath"}
-
-
-class RdRsRsFloatOperationWithFastMath(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
+class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     and two source floating-point registers and can be annotated with fastmath flags.
@@ -543,6 +529,11 @@ class RdRsRsFloatOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = (
+        "$rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     def __init__(
         self,
@@ -567,21 +558,6 @@ class RdRsRsFloatOperationWithFastMath(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        flags = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        attributes["fastmath"] = flags
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        if self.fastmath != FastMathFlagsAttr("none"):
-            printer.print_string(" fastmath")
-            self.fastmath.print_parameter(printer)
-        return {"fastmath"}
 
 
 class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

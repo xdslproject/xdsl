@@ -26,7 +26,6 @@ from xdsl.dialects.riscv import (
     IntRegisterType,
     RdRsRsOperation,
     RISCVAsmOperation,
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     RISCVRegallocOperation,
     RISCVRegisterType,
@@ -1027,9 +1026,7 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = traits_def(AlwaysSpeculatable())
 
 
-class RdRsRsAccumulatingFloatOperationWithFastMath(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
+class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and two source floating-point registers and can
@@ -1046,6 +1043,11 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     rs2 = operand_def(FloatRegisterType)
 
     fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = (
+        "$rd_in `,` $rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -1074,21 +1076,6 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd_in, self.rs1, self.rs2
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        flags = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        attributes["fastmath"] = flags
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> set[str]:
-        if self.fastmath != FastMathFlagsAttr("none"):
-            printer.print_string(" fastmath")
-            self.fastmath.print_parameter(printer)
-        return {"fastmath"}
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
