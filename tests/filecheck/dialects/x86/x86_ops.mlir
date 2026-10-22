@@ -655,6 +655,25 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 %dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
 // CHECK-NEXT: %dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
 
+// ---- BF16 dot product and its operand shuffles ----
+
+%bf16_a = x86.dm.vmovdqu16 [%1 + 64] : (!x86.reg64) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_a = x86.dm.vmovdqu16 [%1 + 64] : (!x86.reg64) -> !x86.avx512reg
+%bf16_a_masked = x86.dmk.vmovdqu16 [%1], %k1 {z} : (!x86.reg64, !x86.avx512maskreg) -> !x86.avx2reg
+// CHECK-NEXT: %bf16_a_masked = x86.dmk.vmovdqu16[%1], %k1 {z} : (!x86.reg64, !x86.avx512maskreg) -> !x86.avx2reg
+%bf16_b = x86.dm.vpbroadcastd [%1 + 8] : (!x86.reg64) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_b = x86.dm.vpbroadcastd [%1 + 8] : (!x86.reg64) -> !x86.avx512reg
+%bf16_lo = x86.dss.vpunpcklwd %bf16_a, %bf16_b : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_lo = x86.dss.vpunpcklwd %bf16_a, %bf16_b : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%bf16_hi = x86.dss.vpunpckhwd %bf16_a, %bf16_b : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_hi = x86.dss.vpunpckhwd %bf16_a, %bf16_b : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%bf16_acc = x86.rss.vdpbf16ps %bf16_lo, %bf16_hi, %bf16_b : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_acc = x86.rss.vdpbf16ps %bf16_lo, %bf16_hi, %bf16_b : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%bf16_shuf = x86.dssi.vshufi64x2 %bf16_lo, %bf16_hi, 68 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_shuf = x86.dssi.vshufi64x2 %bf16_lo, %bf16_hi, 68 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%bf16_ins = x86.dssi.vinserti32x8 %bf16_lo, %bf16_a_masked, 1 : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_ins = x86.dssi.vinserti32x8 %bf16_lo, %bf16_a_masked, 1 : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg
+
 // ---- pmov ----
 
 %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)

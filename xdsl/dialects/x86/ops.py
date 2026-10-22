@@ -1797,6 +1797,20 @@ class DS_VpbroadcastdOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]
 
 
 @irdl_op_definition
+class DM_VpbroadcastdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast a doubleword integer from memory to every doubleword element of d.
+    ```C
+    x[d] = [m + offset]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpbroadcast)
+    """
+
+    name = "x86.dm.vpbroadcastd"
+
+
+@irdl_op_definition
 class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast double precision floating-point scalar in s to d.
@@ -3595,6 +3609,20 @@ class RSS_Vfmadd231psOp(
 
 
 @irdl_op_definition
+class RSS_Vdpbf16psOp(
+    RSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Multiply the pairs of BF16 elements in s1 and s2, and add both products of each
+    pair to the corresponding single-precision element of r.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vdpbf16ps).
+    """
+
+    name = "x86.rss.vdpbf16ps"
+
+
+@irdl_op_definition
 class RSM_Vfmadd231psOp(
     RSMB_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
 ):
@@ -3723,6 +3751,32 @@ class DSS_VpxorqOp(
     """
 
     name = "x86.dss.vpxorq"
+
+
+@irdl_op_definition
+class DSS_VpunpcklwdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Interleave the words of the low quadword of each 128-bit lane of s1 and s2 into d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/punpcklbw:punpcklwd:punpckldq:punpcklqdq).
+    """
+
+    name = "x86.dss.vpunpcklwd"
+
+
+@irdl_op_definition
+class DSS_VpunpckhwdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Interleave the words of the high quadword of each 128-bit lane of s1 and s2 into d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/punpckhbw:punpckhwd:punpckhdq:punpckhqdq).
+    """
+
+    name = "x86.dss.vpunpckhwd"
 
 
 @irdl_op_definition
@@ -3891,6 +3945,17 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
+class DM_Vmovdqu16Op(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move unaligned packed word integer values from memory to vector register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movdqu:vmovdqu8:vmovdqu16:vmovdqu32:vmovdqu64).
+    """
+
+    name = "x86.dm.vmovdqu16"
+
+
+@irdl_op_definition
 class DMK_VmovapdOp(DMK_Operation[GeneralRegisterType]):
     """
     Move aligned packed double precision floating-point values from memory to vector
@@ -3936,6 +4001,18 @@ class DMK_VmovupsOp(DMK_Operation[GeneralRegisterType]):
     """
 
     name = "x86.dmk.vmovups"
+
+
+@irdl_op_definition
+class DMK_Vmovdqu16Op(DMK_Operation[GeneralRegisterType]):
+    """
+    Move unaligned packed word integer values from memory to vector register using
+    writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movdqu:vmovdqu8:vmovdqu16:vmovdqu32:vmovdqu64).
+    """
+
+    name = "x86.dmk.vmovdqu16"
 
 
 @irdl_op_definition
@@ -4223,6 +4300,34 @@ class DSSI_ShufpsOp(
     """
 
     name = "x86.dssi.shufps"
+
+
+@irdl_op_definition
+class DSSI_Vshufi64x2Op(
+    DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Select 128-bit lanes of quadwords from source0 (for the lower half of d) and
+    source1 (for the upper half) using the two-bit fields of the immediate.
+
+    See external [documentation](https://www.felixcloutier.com/x86/shuff32x4:shuff64x2:shufi32x4:shufi64x2)
+    """
+
+    name = "x86.dssi.vshufi64x2"
+
+
+@irdl_op_definition
+class DSSI_Vinserti32x8Op(
+    DSSI_Operation[AVX512RegisterType, AVX512RegisterType, AVX2RegisterType]
+):
+    """
+    Copy source0 to d and replace the 256-bit half selected by the immediate with
+    source1.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vinserti128:vinserti32x4:vinserti64x2:vinserti32x8:vinserti64x4)
+    """
+
+    name = "x86.dssi.vinserti32x8"
 
 
 class GetAnyRegisterOperation(

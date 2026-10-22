@@ -693,3 +693,22 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: kmovq k1, r8
 %dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg<k1>) -> !x86.reg64<r8>
 // CHECK-NEXT: kmovq r8, k1
+
+// ---- BF16 dot product and its operand shuffles ----
+
+%bf16_a = x86.dm.vmovdqu16 [%1 + 64] : (!x86.reg64<rdx>) -> !x86.avx512reg<zmm3>
+// CHECK-NEXT: vmovdqu16 zmm3, [rdx+64]
+%bf16_a_masked = x86.dmk.vmovdqu16 [%1], %k1 {z} : (!x86.reg64<rdx>, !x86.avx512maskreg<k1>) -> !x86.avx2reg<ymm4>
+// CHECK-NEXT: vmovdqu16 ymm4 {k1}{z}, [rdx]
+%bf16_b = x86.dm.vpbroadcastd [%1 + 8] : (!x86.reg64<rdx>) -> !x86.avx512reg<zmm5>
+// CHECK-NEXT: vpbroadcastd zmm5, [rdx+8]
+%bf16_lo = x86.dss.vpunpcklwd %bf16_a, %bf16_b : (!x86.avx512reg<zmm3>, !x86.avx512reg<zmm5>) -> !x86.avx512reg<zmm6>
+// CHECK-NEXT: vpunpcklwd zmm6, zmm3, zmm5
+%bf16_hi = x86.dss.vpunpckhwd %bf16_a, %bf16_b : (!x86.avx512reg<zmm3>, !x86.avx512reg<zmm5>) -> !x86.avx512reg<zmm7>
+// CHECK-NEXT: vpunpckhwd zmm7, zmm3, zmm5
+%bf16_acc = x86.rss.vdpbf16ps %bf16_lo, %bf16_hi, %bf16_b : (!x86.avx512reg<zmm6>, !x86.avx512reg<zmm7>, !x86.avx512reg<zmm5>) -> !x86.avx512reg<zmm6>
+// CHECK-NEXT: vdpbf16ps zmm6, zmm7, zmm5
+%bf16_shuf = x86.dssi.vshufi64x2 %bf16_acc, %bf16_hi, 68 : (!x86.avx512reg<zmm6>, !x86.avx512reg<zmm7>) -> !x86.avx512reg<zmm8>
+// CHECK-NEXT: vshufi64x2 zmm8, zmm6, zmm7, 68
+%bf16_ins = x86.dssi.vinserti32x8 %bf16_shuf, %bf16_a_masked, 1 : (!x86.avx512reg<zmm8>, !x86.avx2reg<ymm4>) -> !x86.avx512reg<zmm9>
+// CHECK-NEXT: vinserti32x8 zmm9, zmm8, ymm4, 1
