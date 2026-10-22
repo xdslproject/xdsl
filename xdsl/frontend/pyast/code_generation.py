@@ -55,6 +55,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     last_return: ast.Return | None = field(default=None)
     """The most recently visited return in the function being generated."""
 
+    function_body: Block | None = field(default=None)
+    """
+    The entry block of the function being generated. Statements in nested regions,
+    such as the branches of an `if`, are inserted into other blocks.
+    """
+
     file: str | None
     """Path of the file containing the program being processed."""
 
@@ -139,8 +145,36 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        # Desymrefication cannot yet carry an updated value out of a nested region,
+        # so an assignment inside an `if` would silently keep the old value.
+        if self.inserter.insertion_point is not self.function_body:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Assignments are only supported directly in the function body.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -469,6 +503,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         entry_block = Block(arg_types=argument_types)
         body = Region(entry_block)
+        self.function_body = entry_block
         parent_block = self.inserter.insertion_point
         self.inserter.set_insertion_point_from_block(entry_block)
 
@@ -509,6 +544,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
         self.symbol_table = None
+        self.function_body = None
         self.inserter.set_insertion_point_from_block(parent_block)
 
     def visit_If(self, node: ast.If) -> None:
