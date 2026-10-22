@@ -2204,6 +2204,53 @@ def test_functional_type_optional(
     parser.parse_keyword("next")
 
 
+@pytest.mark.parametrize("in_else", [False, True])
+@pytest.mark.parametrize("signature", [None, "() -> ()", "(i32, f32) -> i64"])
+def test_optional_group_functional_type(in_else: bool, signature: str | None):
+    @irdl_op_definition
+    class OptionalSignatureOp(IRDLOperation):
+        name = "test.optional_signature"
+        args = var_operand_def()
+        res = var_result_def()
+        flag = opt_prop_def(UnitAttr)
+
+        assembly_format = (
+            "(`empty` $flag^):(functional-type($args, $res) `args` $args)? attr-dict"
+            if in_else
+            else "(`signature` functional-type($args, $res) `args` $args $flag^)? attr-dict"
+        )
+
+    ctx = Context()
+    ctx.load_dialect(Test)
+    ctx.load_op(OptionalSignatureOp)
+    if signature is None:
+        program = "test.optional_signature" + (" empty" if in_else else "")
+        expected_operands: tuple[Attribute, ...] = ()
+        expected_results: tuple[Attribute, ...] = ()
+    else:
+        prefix = "" if in_else else " signature"
+        program = f"test.optional_signature{prefix} {signature} args"
+        expected_operands = ()
+        expected_results = ()
+        if signature != "() -> ()":
+            program = (
+                '%0, %1 = "test.op"() : () -> (i32, f32)\n%2 = ' + program + " %0, %1"
+            )
+            expected_operands = (i32, f32)
+            expected_results = (IntegerType(64),)
+
+    parser = Parser(ctx, program)
+    op = parser.parse_operation()
+    if signature == "(i32, f32) -> i64":
+        op = parser.parse_operation()
+    assert isinstance(op, OptionalSignatureOp)
+    op.verify()
+    assert op.operand_types == expected_operands
+    assert op.result_types == expected_results
+    assert (op.flag is not None) == (in_else == (signature is None))
+    check_roundtrip(program, ctx)
+
+
 @pytest.mark.parametrize(
     "program",
     [
