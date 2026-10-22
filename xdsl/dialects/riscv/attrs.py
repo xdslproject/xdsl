@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Literal, TypeAlias
+from typing import ClassVar, Literal, TypeAlias
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -9,12 +9,22 @@ from xdsl.dialects.builtin import (
     IntegerType,
     Signedness,
     StringAttr,
+    i32,
+    i64,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import AttrParser
+from xdsl.irdl import IRDLOperation, irdl_attr_definition
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    irdl_custom_directive,
+)
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -76,3 +86,44 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | StringAttr)
             immediate.print_without_type(printer)
         case StringAttr():
             printer.print_string_literal(immediate.data)
+
+
+@irdl_custom_directive
+class _Immediate(CustomDirective):
+    """A bare integer of a fixed type, or a quoted label."""
+
+    immediate: AttributeVariable
+    INTEGER_TYPE: ClassVar[IntegerType]
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        self.immediate.set(state, parse_immediate_value(parser, self.INTEGER_TYPE))
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        immediate = self.immediate.get(op)
+        assert isa(immediate, IntegerAttr | StringAttr)
+        state.print_whitespace(printer)
+        print_immediate_value(printer, immediate)
+
+
+class ImmediateI12(_Immediate):
+    INTEGER_TYPE = i12
+
+
+class ImmediateSI12(_Immediate):
+    INTEGER_TYPE = si12
+
+
+class ImmediateI20(_Immediate):
+    INTEGER_TYPE = i20
+
+
+class ImmediateUI5(_Immediate):
+    INTEGER_TYPE = ui5
+
+
+class ImmediateI32(_Immediate):
+    INTEGER_TYPE = i32
+
+
+class ImmediateI64(_Immediate):
+    INTEGER_TYPE = i64
