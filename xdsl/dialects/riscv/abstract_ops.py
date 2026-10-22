@@ -336,7 +336,7 @@ class RdRsRsFloatOperation(
         super().__init__(rs1, rs2, rd=rd, comment=comment)
 
 
-class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RsRsImmFloatOperation(RISCVInstruction, ABC):
     """
     A base class for RV32F operations that have two source registers
     (one integer and one floating-point) and an immediate.
@@ -345,6 +345,10 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(FloatRegisterType)
     immediate = attr_def(IntegerAttr[I12])
+
+    assembly_format = (
+        "$rs1 `,` $rs2 `,` $immediate attr-dict `:` `(` type(operands) `)` `->` `(` `)`"
+    )
 
     def __init__(
         self,
@@ -371,17 +375,6 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -1045,7 +1038,7 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"offset"}
 
 
-class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RsRsImmIntegerOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -1056,6 +1049,10 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
+
+    assembly_format = (
+        "$rs1 `,` $rs2 `,` $immediate attr-dict `:` `(` type(operands) `)` `->` `(` `)`"
+    )
 
     # All S-Type operations write to memory
     traits = traits_def(MemoryWriteEffect())
@@ -1085,17 +1082,6 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 class RsRsIntegerOperation(RISCVInstruction, ABC):
