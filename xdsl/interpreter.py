@@ -27,6 +27,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
+from xdsl.irdl import AnyOf, BaseAttr, IRDLAttrConstraint, irdl_to_attr_constraint
 from xdsl.traits import (
     CallableOpInterface,
     IsTerminator,
@@ -382,7 +383,7 @@ AttributeInvNoDefaultT = TypeVar("AttributeInvNoDefaultT", bound=Attribute)
 
 
 def impl_attr(
-    input_type: type[AttributeInvNoDefaultT],
+    input_type: IRDLAttrConstraint[AttributeInvNoDefaultT],
 ) -> Callable[
     [AttrImpl[_FT, AttributeInvNoDefaultT]],
     AttrImpl[_FT, AttributeInvNoDefaultT],
@@ -390,13 +391,34 @@ def impl_attr(
     """
     Marks the conversion from an attribute to a Python value. The
     `value_for_attribute` method on `Interpreter` will call into this implementation for
-    matching input and output types.
+    matching input and output types. The input must convert to a `BaseAttr` or an
+    `AnyOf` of `BaseAttr` constraints, all with runtime-final attribute classes.
+    Each class is registered separately for exact-class lookup. Constraints on
+    attribute values or parameters are not supported.
 
     See `InterpreterFunctions` for more documentation.
     """
 
+    constraint = irdl_to_attr_constraint(input_type)
+    constraints = (
+        constraint.attr_constrs if isinstance(constraint, AnyOf) else (constraint,)
+    )
+    types: list[type[Attribute]] = []
+    for constraint in constraints:
+        if not isinstance(constraint, BaseAttr):
+            raise ValueError(
+                f"impl_attr requires a BaseAttr or an AnyOf of BaseAttr constraints, "
+                f"got {constraint}"
+            )
+        if constraint.get_bases() is None:
+            raise ValueError(
+                f"impl_attr requires runtime-final attribute classes, "
+                f"got {constraint.attr.__name__}"
+            )
+        types.append(constraint.attr)
+
     def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
-        setattr(func, _ATTR_IMPL_TYPES_KEY, input_type)
+        setattr(func, _ATTR_IMPL_TYPES_KEY, types)
         return func
 
     return annot
@@ -478,9 +500,10 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
             elif _ATTR_IMPL_TYPES_KEY in val.__dir__():
                 # This is an attribute value implementation
                 types = getattr(val, _ATTR_IMPL_TYPES_KEY)
-                if types not in attr_impl_dict:
-                    # subclass overrides superclass definition
-                    attr_impl_dict[types] = val
+                for attr_type in types:
+                    if attr_type not in attr_impl_dict:
+                        # subclass overrides superclass definition
+                        attr_impl_dict[attr_type] = val
             elif _CALLABLE_OP_TYPE_KEY in val.__dir__():
                 op_type = getattr(val, _CALLABLE_OP_TYPE_KEY)
                 if op_type not in callable_impl_dict:

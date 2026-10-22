@@ -1,9 +1,10 @@
-from typing import Literal
+from typing import Literal, get_args
 
 import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
+    AnyFloat,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
@@ -61,3 +62,10 @@ def test_index_values(index_bitwidth: Literal[32, 64], value: int, expected: int
 
     assert interpreter.value_for_attribute(attr, attr.type) == expected
     assert interpreter.run_op(constant, ()) == (expected,)
+
+
+@pytest.mark.parametrize("value_type", [t() for t in get_args(AnyFloat)])
+def test_float_values(value_type: AnyFloat):
+    value = interpreter.value_for_attribute(FloatAttr(2.0, value_type), value_type)
+    assert isinstance(value, float)
+    assert value == 2.0

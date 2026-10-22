@@ -2,8 +2,7 @@ from typing import Any, Literal, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    Float32Type,
-    Float64Type,
+    AnyFloat,
     FloatAttr,
     IntegerAttr,
     IntegerType,
@@ -54,17 +53,9 @@ class BuiltinFunctions(InterpreterFunctions):
             for (o, r, arg) in zip(op.operands, op.results, args)
         )
 
-    @impl_attr(Float64Type)
-    def float64_attr_value(
-        self, interpreter: Interpreter, attr: Attribute, attr_type: Float64Type
-    ) -> float:
-        interpreter.interpreter_assert(isa(attr, FloatAttr))
-        attr = cast(FloatAttr, attr)
-        return attr.value.data
-
-    @impl_attr(Float32Type)
-    def float32_attr_value(
-        self, interpreter: Interpreter, attr: Attribute, attr_type: Float32Type
+    @impl_attr(AnyFloat)
+    def float_attr_value(
+        self, interpreter: Interpreter, attr: Attribute, attr_type: AnyFloat
     ) -> float:
         interpreter.interpreter_assert(isa(attr, FloatAttr))
         attr = cast(FloatAttr, attr)
