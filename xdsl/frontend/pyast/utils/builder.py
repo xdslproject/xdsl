@@ -4,14 +4,14 @@ from typing import Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.pyast.code_generation import (
-    CodeGenerationVisitor,
+from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
+from xdsl.frontend.pyast.lowering import (
     FunctionDefinitionConstructor,
+    PyLowering,
     ReturnConstructor,
     build_func,
     build_return,
 )
-from xdsl.frontend.pyast.lowering import PyLowering
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     LiteralRegistry,
@@ -50,7 +50,7 @@ class PyASTBuilder:
     """An ordered list of passes and callbacks to apply to the built module."""
 
     function_definition_constructor: FunctionDefinitionConstructor = build_func
-    """Construct the enclosing operation before visiting function statements."""
+    """Construct the operation for each function."""
 
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
@@ -65,13 +65,7 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(
-            type_converter,
-            module,
-            self.file,
-            self.function_definition_constructor,
-            self.return_constructor,
-        ).visit(self.function_ast)
+        CodeGenerationVisitor(module, self.file).visit(self.function_ast)
         module.verify()
 
         # Lower the generated `py` operations to the registered operations

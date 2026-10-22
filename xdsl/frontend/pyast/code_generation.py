@@ -1,12 +1,10 @@
 import ast
 import itertools
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
-import xdsl.dialects.func as func
 import xdsl.dialects.py as py
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
@@ -14,27 +12,7 @@ from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.utils.lexer import Location
-
-FunctionDefinitionConstructor = Callable[
-    [str, builtin.FunctionType, Region, Location], Operation
-]
-"""Wrap a function region containing argument bindings, before visiting statements."""
-
-ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
-"""Construct a return operation, or return None when no terminator is needed."""
-
-
-def build_func(
-    name: str, signature: builtin.FunctionType, body: Region, location: Location
-) -> func.FuncOp:
-    return func.FuncOp(name, signature, body)
-
-
-def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnOp:
-    return func.ReturnOp(*values)
 
 
 @dataclass(init=False)
@@ -43,9 +21,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     Visitor that generates the `py` dialect from the Python AST, with source locations
     for the errors found when lowering it.
     """
-
-    type_converter: TypeConverter
-    """Used for type conversion during code generation."""
 
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
@@ -68,24 +43,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    function_definition_constructor: FunctionDefinitionConstructor
-    """Construct an enclosing operation before visiting the function statements."""
-
-    return_constructor: ReturnConstructor
-    """Construct return operations, optionally omitting the terminator."""
-
-    def __init__(
-        self,
-        type_converter: TypeConverter,
-        module: builtin.ModuleOp,
-        file: str | None,
-        function_definition_constructor: FunctionDefinitionConstructor = build_func,
-        return_constructor: ReturnConstructor = build_return,
-    ) -> None:
-        self.type_converter = type_converter
+    def __init__(self, module: builtin.ModuleOp, file: str | None) -> None:
         self.file = file
-        self.function_definition_constructor = function_definition_constructor
-        self.return_constructor = return_constructor
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)

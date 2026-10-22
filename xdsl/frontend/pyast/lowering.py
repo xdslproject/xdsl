@@ -1,17 +1,12 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import xdsl.dialects.func as func
 import xdsl.dialects.py as py
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
 from xdsl.dialects.builtin import FileLineColLoc, FunctionType, i1
-from xdsl.frontend.pyast.code_generation import (
-    FunctionDefinitionConstructor,
-    ReturnConstructor,
-    build_func,
-    build_return,
-)
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import (
@@ -19,11 +14,34 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Operation,
+    Region,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.lexer import Location
+
+FunctionDefinitionConstructor = Callable[
+    [str, FunctionType, Region, Location], Operation
+]
+"""
+Construct the operation for a function from its name, signature, body and location.
+The body is lowered after the operation is constructed.
+"""
+
+ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
+"""Construct a return operation, or return None when no terminator is needed."""
+
+
+def build_func(
+    name: str, signature: FunctionType, body: Region, location: Location
+) -> func.FuncOp:
+    return func.FuncOp(name, signature, body)
+
+
+def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnOp:
+    return func.ReturnOp(*values)
+
 
 BINARY_OPERATOR_OVERLOADS = {
     "Add": "__add__",

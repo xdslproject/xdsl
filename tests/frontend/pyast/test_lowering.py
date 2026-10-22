@@ -12,13 +12,13 @@ from xdsl.dialects.py import Py
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.symref import Symref
 from xdsl.dialects.test import Test
-from xdsl.frontend.pyast.code_generation import (
+from xdsl.frontend.pyast.lowering import (
     FunctionDefinitionConstructor,
+    PyLowering,
     ReturnConstructor,
     build_func,
     build_return,
 )
-from xdsl.frontend.pyast.lowering import PyLowering
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Region, SSAValue
