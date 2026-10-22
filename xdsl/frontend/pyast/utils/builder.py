@@ -11,6 +11,7 @@ from xdsl.frontend.pyast.code_generation import (
     build_func,
     build_return,
 )
+from xdsl.frontend.pyast.lowering import PyLowering
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     LiteralRegistry,
@@ -71,6 +72,15 @@ class PyASTBuilder:
             self.function_definition_constructor,
             self.return_constructor,
         ).visit(self.function_ast)
+        module.verify()
+
+        # Lower the generated `py` operations to the registered operations
+        PyLowering(
+            type_converter,
+            self.file,
+            self.function_definition_constructor,
+            self.return_constructor,
+        ).lower(module)
         module.verify()
 
         self.post_transforms.apply(self.build_context.clone(), module)

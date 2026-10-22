@@ -2,11 +2,11 @@ import ast
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
+import xdsl.dialects.py as py
 import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
 from xdsl.frontend.pyast.utils.exceptions import (
@@ -14,7 +14,7 @@ from xdsl.frontend.pyast.utils.exceptions import (
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.utils.lexer import Location
 
 FunctionDefinitionConstructor = Callable[
@@ -38,7 +38,10 @@ def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnO
 
 @dataclass(init=False)
 class CodeGenerationVisitor(ast.NodeVisitor):
-    """Visitor that generates xDSL from the Python AST."""
+    """
+    Visitor that generates the `py` dialect from the Python AST, with source locations
+    for the errors found when lowering it.
+    """
 
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
@@ -46,10 +49,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
-    symbol_table: dict[str, Attribute] | None = field(default=None)
+    symbol_table: set[str] | None = field(default=None)
     """
-    Maps local variable names to their xDSL types. A single dictionary is sufficient
-    because inner functions and global variables are not allowed (yet).
+    The names of the local variables. A single set is sufficient because inner
+    functions and global variables are not allowed (yet).
     """
 
     last_return: ast.Return | None = field(default=None)
@@ -86,16 +89,18 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
 
-    def get_symbol(self, node: ast.Name) -> Attribute:
-        assert self.symbol_table is not None
-        if node.id not in self.symbol_table:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Symbol '{node.id}' is not defined.",
-            )
-        return self.symbol_table[node.id]
+    def location(self, node: ast.expr | ast.stmt | ast.arg) -> builtin.FileLineColLoc:
+        """The location of `node` in the source, with a one-based column."""
+        return builtin.FileLineColLoc(
+            builtin.StringAttr(self.file or "<unknown>"),
+            builtin.IntAttr(node.lineno),
+            builtin.IntAttr(node.col_offset + 1),
+        )
+
+    def insert_op(self, op: Operation, node: ast.expr | ast.stmt) -> None:
+        """Insert an operation generated from `node`."""
+        op.location = self.location(node)
+        self.inserter.insert_op(op)
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -113,6 +118,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         return self.inserter.get_operand()
 
+    def visit_condition(self, node: ast.expr) -> SSAValue:
+        """Visit an expression used as a condition, giving its truth value."""
+        self.insert_op(py.PyBoolOp(self.visit_single_value(node)), node)
+        return self.inserter.get_operand()
+
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
             self.file,
@@ -126,7 +136,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         pass
 
     def visit_Assert(self, node: ast.Assert) -> None:
-        self.visit(node.test)
+        condition = self.visit_condition(node.test)
         if node.msg is None:
             msg = ""
         else:
@@ -141,8 +151,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"'ast.{type(node.msg).__qualname__}'",
                 )
             msg = str(node.msg.value)
-        op = cf.AssertOp(self.inserter.get_operand(), msg)
-        self.inserter.insert_op(op)
+        self.insert_op(cf.AssertOp(condition, msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
@@ -165,101 +174,24 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         name = node.targets[0].id
         assert self.symbol_table is not None
         if name not in self.symbol_table:
-            self.symbol_table[name] = value.type
-            self.inserter.insert_op(symref.DeclareOp(name))
-        elif self.symbol_table[name] != value.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Cannot change the type of variable '{name}'.",
-            )
-        self.inserter.insert_op(symref.UpdateOp(name, value))
+            self.symbol_table.add(name)
+            self.insert_op(symref.DeclareOp(name), node)
+        self.insert_op(symref.UpdateOp(name, value), node)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
-        op_name: str = node.op.__class__.__qualname__
-
-        # Table with mappings of Python AST operator to Python methods.
-        python_AST_operator_to_python_overload = {
-            "Add": "__add__",
-            "Sub": "__sub__",
-            "Mult": "__mul__",
-            "Div": "__truediv__",
-            "FloorDiv": "__floordiv__",
-            "Mod": "__mod__",
-            "Pow": "__pow__",
-            "LShift": "__lshift__",
-            "RShift": "__rshift__",
-            "BitOr": "__or__",
-            "BitXor": "__xor__",
-            "BitAnd": "__and__",
-            "MatMult": "__matmul__",
-        }
-
-        if op_name not in python_AST_operator_to_python_overload:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Unexpected binary operation {op_name}.",
-            )
-
-        # Check that the types of the operands are the same.
-        # This is a (temporary?) restriction over Python for implementation simplicity.
-        # This also means that we do not need to support reflected operations
-        # (__radd__, __rsub__, etc.) which only exist for operations between different types.
         self.visit(node.right)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.type != rhs.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Expected the same types for binary operation '{op_name}', "
-                f"but got {lhs.type} and {rhs.type}.",
-            )
-
-        ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.type_registry.get_annotation(ir_type)
-        if source_type is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"IR type '{ir_type}' is not registered with a source type.",
-            )
-
-        method_name = python_AST_operator_to_python_overload[op_name]
-        function_name = f"{source_type.__qualname__}.{method_name}"
-        op = self.type_converter.function_registry.resolve_operation(
-            module_name=source_type.__module__,
-            method_name=function_name,
-            args=(lhs, rhs),
-        )
-        if op is not None:
-            self.inserter.insert_op(op)
-            return
-
-        overload_name = python_AST_operator_to_python_overload[op_name]
-        raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
-            f"Binary operation '{op_name}' "
-            f"is not supported by type '{source_type.__qualname__}' "
-            f"which does not overload '{overload_name}'.",
-        )
+        op_name = builtin.StringAttr(node.op.__class__.__qualname__.lower())
+        self.insert_op(py.PyBinOp(op_name, lhs, rhs), node)
 
     def visit_Call(self, node: ast.Call) -> None:
         match node.func:
             case ast.Name():
-                source_kind = "function"
-                source, source_name = self._call_source_function(node)
-            case ast.Attribute():
-                source_kind = "classmethod"
-                source, source_name = self._call_source_classmethod(node)
+                callee = node.func.id
+            case ast.Attribute(value=ast.Name(id=class_name), attr=method_name):
+                callee = f"{class_name}.{method_name}"
             case _:
                 raise CodeGenerationException(
                     self.file,
@@ -268,17 +200,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     "Unsupported call expression.",
                 )
 
-        ir_op = self.type_converter.function_registry.get_operation_constructor(source)
-        if ir_op is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"{source_kind.capitalize()} '{source_name}' is not registered.",
-            )
-
         args = [self.visit_single_value(arg) for arg in node.args]
-        kwargs: dict[str, SSAValue] = {}
+        keywords: list[str] = []
         for keyword in node.keywords:
             if keyword.arg is None:
                 raise CodeGenerationException(
@@ -287,53 +210,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     "Unpacking keyword arguments is not supported.",
                 )
-            kwargs[keyword.arg] = self.visit_single_value(keyword.value)
+            keywords.append(keyword.arg)
+            args.append(self.visit_single_value(keyword.value))
 
-        self.inserter.insert_op(ir_op(*args, **kwargs))
-
-    # Get called function for a call expression.
-    def _call_source_function(self, node: ast.Call) -> tuple[Callable[..., Any], str]:
-        assert isinstance(node.func, ast.Name)
-
-        func_name = node.func.id
-        func = self.type_converter.globals.get(func_name, None)
-        if func is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Function '{func_name}' is not defined in scope.",
-            )
-        return func, func_name
-
-    # Get called classmethod for a call expression.
-    def _call_source_classmethod(
-        self, node: ast.Call
-    ) -> tuple[Callable[..., Any], str]:
-        assert isinstance(node.func, ast.Attribute)
-        assert isinstance(node.func.value, ast.Name)
-
-        class_name = node.func.value.id
-        method_name = node.func.attr
-        classmethod_name = f"{class_name}.{method_name}"
-
-        source_class = self.type_converter.globals.get(class_name, None)
-        if source_class is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Class '{class_name}' is not defined in scope.",
-            )
-        classmethod_ = getattr(source_class, method_name, None)
-        if classmethod_ is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Method '{method_name}' is not defined on class '{class_name}'.",
-            )
-        return classmethod_, classmethod_name
+        self.insert_op(py.PyCallOp(callee, args, keywords), node)
 
     def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
@@ -346,18 +226,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__qualname__
-
-        # Table with mappings of Python AST cmpop to Python method.
-        python_AST_cmpop_to_python_overload = {
-            "Eq": "__eq__",
-            "Gt": "__gt__",
-            "GtE": "__ge__",
-            "Lt": "__lt__",
-            "LtE": "__le__",
-            "NotEq": "__ne__",
-            "In": "__contains__",
-            "NotIn": "__contains__",
-        }
 
         # Table with currently unsupported Python AST cmpops.
         # The "is" and "is not" operators are (currently) not supported,
@@ -375,69 +243,23 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Unsupported comparison operation '{op_name}'.",
             )
 
-        # Check that the types of the operands are the same.
-        # This is a (temporary?) restriction over Python for implementation simplicity.
-        # This also means that we do not need to consider swapping arguments
-        # (__eq__ and __ne__ are their own reflection, __lt__ <-> __gt__  and __le__ <-> __ge__).
         self.visit(comp)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.type != rhs.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Expected the same types for comparison operator '{op_name}',"
-                f" but got {lhs.type} and {rhs.type}.",
-            )
-
-        ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.type_registry.get_annotation(ir_type)
-        if source_type is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"IR type '{ir_type}' is not registered with a source type.",
-            )
-
-        method_name = python_AST_cmpop_to_python_overload[op_name]
-        function_name = f"{source_type.__qualname__}.{method_name}"
-        op = self.type_converter.function_registry.resolve_operation(
-            module_name=source_type.__module__,
-            method_name=function_name,
-            args=(lhs, rhs),
-        )
-        if op is not None:
-            self.inserter.insert_op(op)
-            return
-
-        python_op = python_AST_cmpop_to_python_overload[op_name]
-        raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
-            f"Comparison operation '{op_name}' "
-            f"is not supported by type '{ir_type.name}' "
-            f"which does not overload '{python_op}'.",
+        self.insert_op(
+            py.PyCompareOp(builtin.StringAttr(op_name.lower()), lhs, rhs), node
         )
 
     def visit_Constant(self, node: ast.Constant) -> None:
-        if (
-            literal_op := self.type_converter.literal_registry.resolve_operation(
-                node.value
+        if not isinstance(node.value, int | float | str):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
             )
-        ) is not None:
-            self.inserter.insert_op(literal_op)
-            return
-
-        raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
-            f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
-        )
+        self.insert_op(py.PyConstOp.from_value(node.value), node)
 
     def visit_Expr(self, node: ast.Expr) -> None:
         stack_size = len(self.inserter.stack)
@@ -457,11 +279,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 f"Cannot have an inner function '{node.name}' inside another function.",
             )
-        self.symbol_table = dict()
+        self.symbol_table = set()
         self.last_return = None
 
-        # Then, convert types in the function signature.
-        argument_types: list[Attribute] = []
+        # The annotations are kept as written, and resolved when lowering.
+        argument_annotations: list[str] = []
         for arg in node.args.args:
             if arg.annotation is None:
                 raise CodeGenerationException(
@@ -470,17 +292,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     arg.col_offset,
                     "Function arguments must be type hinted",
                 )
-            xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(arg.annotation), self.type_converter.globals
-            )
-            if xdsl_type is None:
-                raise CodeGenerationException(
-                    self.file,
-                    arg.lineno,
-                    arg.col_offset,
-                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
-                )
-            argument_types.append(xdsl_type)
+            argument_annotations.append(ast.unparse(arg.annotation))
 
         returns = node.returns
         if returns is None:
@@ -490,22 +302,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 "Function return type must be annotated.",
             )
-        return_types: list[Attribute] = []
-        if not (isinstance(returns, ast.Constant) and returns.value is None):
-            xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(returns), self.type_converter.globals
-            )
-            if xdsl_type is None:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Unsupported function return type: '{ast.unparse(returns)}'",
-                )
-            return_types.append(xdsl_type)
 
-        entry_block = Block(arg_types=argument_types)
-        body = Region(entry_block)
+        entry_block = Block(arg_types=[py.PyObjectType()] * len(node.args.args))
         self.function_body = entry_block
         parent_block = self.inserter.insertion_point
         self.inserter.set_insertion_point_from_block(entry_block)
@@ -514,16 +312,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for arg, value in zip(node.args.args, entry_block.args, strict=True):
             symbol_name = str(arg.arg)
             value.name_hint = symbol_name
-            self.symbol_table[symbol_name] = value.type
+            value.location = self.location(arg)
+            self.symbol_table.add(symbol_name)
             entry_block.add_op(symref.DeclareOp(symbol_name))
             entry_block.add_op(symref.UpdateOp(symbol_name, value))
 
-        function_op = self.function_definition_constructor(
-            node.name,
-            builtin.FunctionType.from_lists(argument_types, return_types),
-            body,
-            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
+        function_op = py.PyFuncOp(
+            node.name, argument_annotations, ast.unparse(returns), Region(entry_block)
         )
+        function_op.location = self.location(node)
         parent_block.add_op(function_op)
 
         # Parse function body.
@@ -552,8 +349,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def visit_If(self, node: ast.If) -> None:
         # Get the condition.
-        self.visit(node.test)
-        cond = self.inserter.get_operand()
+        cond = self.visit_condition(node.test)
         cond_block = self.inserter.insertion_point
 
         def visit_region(stmts: list[ast.stmt]) -> Region:
@@ -576,43 +372,39 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Reset insertion point and insert a new operation.
         self.inserter.set_insertion_point_from_block(cond_block)
-        self.inserter.insert_op(op)
+        self.insert_op(op, node)
 
     def visit_IfExp(self, node: ast.IfExp) -> None:
-        self.visit(node.test)
-        cond = self.inserter.get_operand()
+        cond = self.visit_condition(node.test)
         cond_block = self.inserter.insertion_point
 
-        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]:
+        def visit_expr(expr: ast.expr) -> Region:
             region = Region([Block()])
             self.inserter.set_insertion_point_from_region(region)
             self.visit(expr)
             result = self.inserter.get_operand()
-            self.inserter.insert_op(scf.YieldOp(result))
-            return result.type, region
+            self.insert_op(scf.YieldOp(result), expr)
+            return region
 
-        # Generate code for both branches.
-        true_type, true_region = visit_expr(node.body)
-        false_type, false_region = visit_expr(node.orelse)
+        # Generate code for both branches. Their types are checked when lowering.
+        true_region = visit_expr(node.body)
+        false_region = visit_expr(node.orelse)
+        op = scf.IfOp(cond, [py.PyObjectType()], true_region, false_region)
 
-        # Check types are the same for this to be a valid if statement.
-        if true_type != false_type:
+        # Reset insertion point to add scf.if.
+        self.inserter.set_insertion_point_from_block(cond_block)
+        self.insert_op(op, node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        assert self.symbol_table is not None
+        if node.id not in self.symbol_table:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Expected the same types for if expression,"
-                f" but got {true_type} and {false_type}.",
+                f"Symbol '{node.id}' is not defined.",
             )
-        op = scf.IfOp(cond, [true_type], true_region, false_region)
-
-        # Reset insertion point to add scf.if.
-        self.inserter.set_insertion_point_from_block(cond_block)
-        self.inserter.insert_op(op)
-
-    def visit_Name(self, node: ast.Name) -> None:
-        fetch_op = symref.FetchOp(node.id, self.get_symbol(node))
-        self.inserter.insert_op(fetch_op)
+        self.insert_op(symref.FetchOp(node.id, py.PyObjectType()), node)
 
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
@@ -634,9 +426,4 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         else:
             # TODO: Support multiple return values if we allow multiple assignments.
             operands = (self.visit_single_value(value),)
-        op = self.return_constructor(
-            operands,
-            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
-        )
-        if op is not None:
-            self.inserter.insert_op(op)
+        self.insert_op(py.PyReturnOp(*operands), node)
