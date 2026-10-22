@@ -1,3 +1,5 @@
+import pytest
+
 import xdsl.dialects.py as py
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i64
 
@@ -8,3 +10,10 @@ def test_custom_inits():
     b1 = py.PyBinOp(op=StringAttr("add"), lhs=c1.results[0], rhs=c2.results[0])
     assert b1.operands[0] is c1.results[0]
     assert b1.operands[1] is c2.results[0]
+
+
+@pytest.mark.parametrize("value", [0, -(2**100), True, False, 1.5, "s"])
+def test_const_from_value(value: int | bool | float | str):
+    const = py.PyConstOp.from_value(value)
+    assert const.value == value
+    assert type(const.value) is type(value)
