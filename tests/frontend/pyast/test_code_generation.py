@@ -3,13 +3,12 @@ from textwrap import dedent
 
 from xdsl.dialects import builtin, py
 from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 
 
 def generate(source: str) -> builtin.ModuleOp:
     module = builtin.ModuleOp([])
     function = ast.parse(dedent(source)).body[0]
-    CodeGenerationVisitor(TypeConverter(), module, "test.py").visit(function)
+    CodeGenerationVisitor(module, "test.py").visit(function)
     return module
 
 
@@ -85,7 +84,7 @@ def discarded(x: int) -> None:
     consume(x)
     x
 """
-    visitor = StackRecordingVisitor(TypeConverter(), builtin.ModuleOp([]), None)
+    visitor = StackRecordingVisitor(builtin.ModuleOp([]), None)
     visitor.stack_sizes = []
     visitor.visit(ast.parse(source).body[0])
 

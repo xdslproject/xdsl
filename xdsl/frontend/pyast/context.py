@@ -10,7 +10,7 @@ from typing_extensions import TypeForm
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.pyast.code_generation import (
+from xdsl.frontend.pyast.lowering import (
     FunctionDefinitionConstructor,
     ReturnConstructor,
     build_func,
@@ -76,7 +76,7 @@ class PyASTContext:
     """The xDSL context to use when applying transformations to the built module."""
 
     function_definition_constructor: FunctionDefinitionConstructor = build_func
-    """Construct the enclosing operation before visiting function statements."""
+    """Construct the operation for each function."""
 
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
