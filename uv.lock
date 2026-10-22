@@ -959,14 +959,14 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.25.1"
+version = "0.25.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click", marker = "sys_platform != 'emscripten'" },
     { name = "docutils" },
     { name = "itsdangerous" },
     { name = "jedi" },
-    { name = "loro", marker = "sys_platform != 'android' and sys_platform != 'emscripten'" },
+    { name = "loro", marker = "python_full_version < '3.15' and sys_platform != 'android' and sys_platform != 'emscripten'" },
     { name = "markdown" },
     { name = "msgspec" },
     { name = "narwhals" },
@@ -976,16 +976,16 @@ dependencies = [
     { name = "pymdown-extensions" },
     { name = "python-multipart" },
     { name = "pyyaml" },
-    { name = "pyzmq", marker = "python_full_version < '3.15' and sys_platform != 'emscripten'" },
+    { name = "pyzmq", marker = "sys_platform != 'emscripten'" },
     { name = "starlette", marker = "sys_platform != 'emscripten'" },
     { name = "tomlkit" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
     { name = "uvicorn", marker = "sys_platform != 'emscripten'" },
     { name = "websockets", marker = "sys_platform != 'emscripten'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/7b/29895b0d747758da46a051f57c594634ab02f3993d5eab2f2e49ce4f144f/marimo-0.25.1.tar.gz", hash = "sha256:934db2ceb6c2b8c9ae3514a7a22e6b22ecf54fabea0b6138aed1980f8f1536ff", size = 50186739, upload-time = "2026-10-01T21:01:28.262Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d6/f4aae3466a41d34952ac84a4b9bcd83744da592b496c98e34ccd2a0f20d9/marimo-0.25.2.tar.gz", hash = "sha256:3cfa38ac84c66625e1f7cb7dc81a41ebd592244000ffe37effb28a91765056b0", size = 38844392, upload-time = "2026-10-19T20:10:30.145Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/e6/695f462fd473981325146edde01c12390413ebaa33c1f0b49191d6b55f86/marimo-0.25.1-py3-none-any.whl", hash = "sha256:dec4a87bc5db16b85181ba4880e67bb55485912b7ef26748a0bbf052c59203fd", size = 50850300, upload-time = "2026-10-01T21:01:24.577Z" },
+    { url = "https://files.pythonhosted.org/packages/06/5c/c26a57aefe28fceab762ad104744c1af18a4b62809629897722c866bbd2f/marimo-0.25.2-py3-none-any.whl", hash = "sha256:7acb7a433755c6d965c03e07725477ab63804f6667ba9e37e4da582f358018c7", size = 39465510, upload-time = "2026-10-19T20:10:25.147Z" },
 ]
 
 [[package]]
@@ -2938,7 +2938,7 @@ requires-dist = [
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<24" },
     { name = "llvmlite", marker = "extra == 'llvm'", specifier = "~=0.50.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.25,<0.26" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.25.2,<0.26" },
     { name = "ordered-set", specifier = "==4.1" },
     { name = "prek", marker = "extra == 'dev'", specifier = "~=0.5.5" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
