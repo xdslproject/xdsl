@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.hints import isa
+from xdsl.utils.identity import identity
 from xdsl.utils.target import Target
 
 
@@ -21,7 +22,7 @@ class WGSLPrinter(BasePrinter[str]):
     def __init__(
         self, stream: IO[str] | None = None, *, indent_num_spaces: int = 2
     ) -> None:
-        super().__init__(stream, encode=str, indent_num_spaces=indent_num_spaces)
+        super().__init__(stream, encode=identity, indent_num_spaces=indent_num_spaces)
         self.name_dict = {}
         self.count = 0
 

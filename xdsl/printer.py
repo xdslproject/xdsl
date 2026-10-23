@@ -46,6 +46,7 @@ from xdsl.utils.bitwise_casts import (
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.hints import isa
+from xdsl.utils.identity import identity
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
@@ -82,7 +83,7 @@ class Printer(BasePrinter[str]):
         *,
         indent_num_spaces: int = 2,
     ) -> None:
-        super().__init__(stream, encode=str, indent_num_spaces=indent_num_spaces)
+        super().__init__(stream, encode=identity, indent_num_spaces=indent_num_spaces)
         self.print_generic_format = print_generic_format
         self.print_properties_as_attributes = print_properties_as_attributes
         self.print_debuginfo = print_debuginfo

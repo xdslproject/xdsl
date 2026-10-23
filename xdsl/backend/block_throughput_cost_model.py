@@ -14,6 +14,7 @@ from tempfile import NamedTemporaryFile
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
 from xdsl.ir import Block
+from xdsl.utils.identity import identity
 
 
 class BlockThroughputCostModel(ABC):
@@ -109,7 +110,7 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
             self.src_path = tmp_file.name
-            printer = AssemblyPrinter(stream=tmp_file, encode=lambda x: x)
+            printer = AssemblyPrinter(stream=tmp_file, encode=identity)
             for op in block.walk():
                 assert isinstance(op, AssemblyPrintable), (
                     f"Block operation {op} should be an assembly instruction"

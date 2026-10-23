@@ -9,6 +9,7 @@ from typing import IO, Any, Generic, cast, overload
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.identity import identity
 from xdsl.utils.lexer import ContentT, Offset
 
 
@@ -17,7 +18,7 @@ class BasePrinter(Generic[ContentT]):
     """
     Print native content to a text or binary stream, defaulting to stdout.
 
-    Standard text streams use `str`, and standard binary streams use `str.encode`
+    Standard text streams use `identity`, and standard binary streams use `str.encode`
     (UTF-8). Custom streams require an explicit `encode` function.
     """
 
@@ -61,10 +62,10 @@ class BasePrinter(Generic[ContentT]):
         if stream is None:
             stream = sys.stdout
             if encode is None:
-                encode = str
+                encode = identity
         if encode is None:
             if isinstance(stream, TextIOBase):
-                encode = str
+                encode = identity
             elif isinstance(stream, BufferedIOBase | RawIOBase):
                 encode = str.encode
             else:

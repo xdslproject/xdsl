@@ -10,6 +10,7 @@ from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
 from xdsl.printer import Printer
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.color_printer import ColorPrinter
+from xdsl.utils.identity import identity
 
 
 def test_indented():
@@ -92,7 +93,7 @@ def test_custom_stream_requires_encoding():
 
 def test_custom_stream_with_encoding():
     stream = Mock(spec=IO)
-    printer = BasePrinter[str](stream, encode=str)
+    printer = BasePrinter[str](stream, encode=identity)
     printer.print_string("é\n")
     stream.write.assert_called_once_with("é\n")
 
