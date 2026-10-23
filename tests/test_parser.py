@@ -1108,6 +1108,44 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
 
 
 @pytest.mark.parametrize(
+    "text, allow_negative, expected",
+    [
+        ("0.0", True, 0.0),
+        ("1.5", False, 1.5),
+        ("-2.25", True, -2.25),
+        ("-2.25", False, None),
+        ("-", False, None),
+        ("end", True, None),
+        ("1", True, None),
+    ],
+)
+def test_parse_float(text: str, allow_negative: bool, expected: float | None):
+    parser = Parser(Context(), text)
+    pos = parser.pos
+    assert parser.parse_optional_float(allow_negative=allow_negative) == expected
+    if expected is None:
+        assert parser.pos == pos
+
+    parser = Parser(Context(), text)
+    if expected is None:
+        with pytest.raises(ParseError, match="Expected float literal"):
+            parser.parse_float(allow_negative=allow_negative)
+    else:
+        assert parser.parse_float(allow_negative=allow_negative) == expected
+
+
+@pytest.mark.parametrize("text", ["-", "- end", "-1", "--1.0"])
+def test_parse_float_malformed(text: str):
+    parser = Parser(Context(), text)
+    with pytest.raises(ParseError, match="Expected float literal after '-'"):
+        parser.parse_optional_float()
+
+    parser = Parser(Context(), text)
+    with pytest.raises(ParseError, match="Expected float literal after '-'"):
+        parser.parse_float()
+
+
+@pytest.mark.parametrize(
     "text, allow_boolean, expected_value",
     [
         ("42", False, 42),
