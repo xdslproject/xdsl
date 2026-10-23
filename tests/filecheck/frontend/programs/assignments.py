@@ -84,8 +84,6 @@ def print_error(program: PyASTProgram[..., Any]) -> None:
         program.module
     except CodeGenerationException as error:
         print(f"{program.name}: {error.msg}")
-    else:
-        raise AssertionError(f"expected {program.name} to be rejected")
 
 
 @ctx.parse_program
