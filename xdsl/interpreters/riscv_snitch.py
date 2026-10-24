@@ -28,7 +28,7 @@ class RiscvSnitchFunctions(InterpreterFunctions):
         count_minus_one, *loop_args = args
         loop_args = tuple(loop_args)
 
-        for _ in range(count_minus_one + 1):
+        for _ in range(count_minus_one.value.data + 1):
             loop_args = interpreter.run_ssacfg_region(op.body, loop_args, "frep.o")
 
         return loop_args

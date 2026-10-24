@@ -9,7 +9,11 @@ from xdsl.backend.register_allocatable import (
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
-from xdsl.interfaces import HasFolderInterface
+from xdsl.interfaces import (
+    HasFolderInterface,
+    RegionBranchOpInterface,
+    RegionBranchTerminatorOpInterface,
+)
 from xdsl.ir import (
     Attribute,
     Block,
@@ -43,8 +47,6 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
-    RegionBranchOpTrait,
-    RegionBranchTerminatorOpTrait,
     SymbolOpInterface,
 )
 
@@ -370,11 +372,11 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
 
 
 @irdl_op_definition
-class TestRegionBranchOp(IRDLOperation):
+class TestRegionBranchOp(IRDLOperation, RegionBranchOpInterface):
     """
     This operation can take an arbitrary number of operands, results and regions.
-    It satisfies the RegionBranchOpTrait trait, and is used in filecheck testing
-    of the trait's verifier.
+    It implements RegionBranchOpInterface, and is used in filecheck testing of
+    the RegionBranchOpTrait verifier.
     """
 
     name = "test.region_branch_op"
@@ -383,16 +385,14 @@ class TestRegionBranchOp(IRDLOperation):
     ops = var_operand_def()
     regs = var_region_def()
 
-    traits = traits_def(RegionBranchOpTrait())
-
 
 @irdl_op_definition
-class TestRegionBranchTerminatorOp(IRDLOperation):
+class TestRegionBranchTerminatorOp(IRDLOperation, RegionBranchTerminatorOpInterface):
     """
     This terminator can take an arbitrary number of operands, results and
-    successors. It satisfies the RegionBranchTerminatorOpTrait trait, and is used
-    in filecheck testing of the trait's verifier, which rejects results and
-    successors.
+    successors. It implements RegionBranchTerminatorOpInterface, and is used in
+    filecheck testing of the RegionBranchTerminatorOpTrait verifier, which rejects
+    results and successors.
     """
 
     name = "test.region_branch_terminator"
@@ -401,7 +401,7 @@ class TestRegionBranchTerminatorOp(IRDLOperation):
     ops = var_operand_def()
     successor = var_successor_def()
 
-    traits = traits_def(IsTerminator(), RegionBranchTerminatorOpTrait())
+    traits = traits_def(IsTerminator())
 
 
 @irdl_attr_definition

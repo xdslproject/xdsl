@@ -1179,3 +1179,13 @@ def test_region_branch_terminator_op_trait_without_is_terminator():
         match=re.escape("Expected operation 'test.not_terminator' to be a terminator."),
     ):
         NotTerminatorOp().verify()
+
+
+def test_region_branch_interfaces():
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[]])
+    assert op.has_trait(RegionBranchOpTrait)
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    assert terminator.has_trait(RegionBranchTerminatorOpTrait)
+    assert terminator.has_trait(IsTerminator)

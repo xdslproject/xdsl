@@ -1,5 +1,6 @@
 from math import ceil
 
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -9,6 +10,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Operation
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -18,8 +20,8 @@ class RiscvLibcFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: Operation, args: PythonValues
     ) -> PythonValues:
         assert len(args) == 1
-        assert isinstance(args[0], int)
-        size = args[0]
+        assert isa(args[0], IntegerAttr)
+        size = args[0].value.data
         if size % 4 != 0:
             # malloc a bit too much if not word-aligned
             size = ceil(size / 4) * 4
@@ -32,10 +34,10 @@ class RiscvLibcFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: Operation, args: PythonValues
     ) -> PythonValues:
         assert len(args) == 2
-        assert isinstance(args[0], int)
-        assert isinstance(args[1], int)
-        num = args[0]
-        size = args[1]
+        assert isa(args[0], IntegerAttr)
+        assert isa(args[1], IntegerAttr)
+        num = args[0].value.data
+        size = args[1].value.data
 
         num_bytes = num * size
 
@@ -57,8 +59,8 @@ class RiscvLibcFunctions(InterpreterFunctions):
     def putchar(self, iterpreter: Interpreter, op: Operation, args: PythonValues):
         assert len(args) == 1
         char = args[0]
-        if isinstance(char, int):
-            iterpreter.print(chr(char), end="")
+        if isa(char, IntegerAttr):
+            iterpreter.print(chr(char.value.data), end="")
         else:
             iterpreter.print(char, end="")
         return (char,)

@@ -13,6 +13,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -26,10 +27,13 @@ class Rv32Functions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         assert len(args) == 1
-        assert isinstance(args[0], int)
-        py_op_result = op.py_operation(IntegerAttr(args[0], i32))
+        assert isa(args[0], IntegerAttr)
+        py_op_result = op.py_operation(
+            IntegerAttr(args[0].value, i32, truncate_bits=True)
+        )
         assert py_op_result is not None
-        results = (py_op_result.value.data,)
+        assert py_op_result.type.bitwidth == interpreter.index_bitwidth
+        results = (py_op_result,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(rv32.LiOp)
