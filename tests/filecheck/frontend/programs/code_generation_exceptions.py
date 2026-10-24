@@ -27,7 +27,7 @@ except NotImplementedError as e:
     print(e)
 
 
-# CHECK: Unsupported Python AST node <ast.If object
+# CHECK: Unsupported Python AST node {{(<ast\.)?If}}
 @ctx.parse_program
 def test_if_unsupported(end: c_size_t) -> None:
     if end:
