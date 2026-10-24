@@ -46,6 +46,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize.CanonicalizePass
 
+    def get_canonicalize_register_allocation():
+        from xdsl.transforms import canonicalize_register_allocation
+
+        return canonicalize_register_allocation.CanonicalizePostRegisterAllocationPass
+
     def get_constant_fold_interp():
         from xdsl.transforms import constant_fold_interp
 
@@ -688,6 +693,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
+        "canonicalize-register-allocation": get_canonicalize_register_allocation,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
         "control-flow-hoist": get_control_flow_hoist,
