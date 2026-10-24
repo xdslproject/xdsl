@@ -376,6 +376,20 @@ def test_register_contents():
     ):
         RiscvFunctions.get_reg_value(interpreter, i1, two)
 
+    x0 = riscv.IntRegisterType.from_name("x0")
+    assert RiscvFunctions.get_reg_value(interpreter, x0, 0) == 0
+    assert RiscvFunctions.set_reg_value(interpreter, x0, 42) == 0
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
+
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.FP, 42) == 42
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.S0, 42) == 42
+    assert (
+        RiscvFunctions.get_reg_value(
+            interpreter, riscv.IntRegisterType.from_name("x8"), 42
+        )
+        == 42
+    )
+
     with pytest.raises(
         InterpretationError, match="Unexpected type i1, expected register type"
     ):
