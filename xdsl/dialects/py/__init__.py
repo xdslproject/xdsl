@@ -211,7 +211,7 @@ class PyCallOp(PyOperation):
             callee = StringAttr(callee)
         properties: dict[str, Attribute] = {"callee": callee}
         if keywords:
-            properties["keywords"] = ArrayAttr(StringAttr(k) for k in keywords)
+            properties["keywords"] = ArrayAttr(StringAttr.get(k) for k in keywords)
         super().__init__(
             operands=[args], properties=properties, result_types=[PyObjectType()]
         )
