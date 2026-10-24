@@ -4,7 +4,9 @@ import pytest
 
 from xdsl.dialects import riscv, rv32
 from xdsl.dialects.builtin import (
+    IntegerAttr,
     ModuleOp,
+    i32,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -33,7 +35,7 @@ def test_riscv_interpreter():
     )
 
     rv32_functions = Rv32Functions()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(rv32_functions)
 
     assert interpreter.run_op(rv32.LiOp("label0"), ()) == (
@@ -43,7 +45,9 @@ def test_riscv_interpreter():
         TypedPtr.new_int32((59,)).raw,
     )
 
-    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (
+        IntegerAttr(0, i32),
+    )
 
     get_non_zero = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
     with pytest.raises(
@@ -57,10 +61,13 @@ def test_register_contents():
     module_op = ModuleOp([])
 
     rv32_functions = Rv32Functions()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(rv32_functions)
 
-    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, 1) == 1
+    one = IntegerAttr(1, i32)
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, one) == one
 
-    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
-    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (
+        IntegerAttr(0, i32),
+    )
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.T0), ()) == (one,)

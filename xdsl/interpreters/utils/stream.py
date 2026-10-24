@@ -4,6 +4,8 @@ from typing import Generic
 
 from typing_extensions import TypeVar
 
+from xdsl.dialects.builtin import I32, IntegerAttr, i32
+
 T = TypeVar("T")
 TCov = TypeVar("TCov", covariant=True)
 TCon = TypeVar("TCon", contravariant=True)
@@ -30,25 +32,25 @@ class WritableStream(abc.ABC, Generic[TCon]):
 
 
 @dataclass
-class Nats(ReadableStream[int]):
+class Nats(ReadableStream[IntegerAttr[I32]]):
     """
     A stream designed for testing, outputs the next natural number each time it's read.
     """
 
     index = 0
 
-    def read(self) -> int:
+    def read(self) -> IntegerAttr[I32]:
         self.index += 1
-        return self.index
+        return IntegerAttr(self.index, i32)
 
 
 @dataclass
-class Acc(WritableStream[int]):
+class Acc(WritableStream[IntegerAttr[I32]]):
     """
     A stream designed for testing, appends the next natural number written.
     """
 
-    values: list[int] = field(default_factory=list[int])
+    values: list[IntegerAttr[I32]] = field(default_factory=list[IntegerAttr[I32]])
 
-    def write(self, value: int) -> None:
+    def write(self, value: IntegerAttr[I32]) -> None:
         return self.values.append(value)
