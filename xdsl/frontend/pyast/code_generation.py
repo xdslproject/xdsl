@@ -139,8 +139,36 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only assignment to a single variable is supported.",
+            )
+        # Desymrefication cannot yet carry an updated value out of a nested region,
+        # so an assignment inside an `if` would silently keep the old value.
+        if isinstance(self.inserter.insertion_point.parent_op(), scf.IfOp):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Assignments are only supported directly in the function body.",
+            )
+        value = self.visit_single_value(node.value)
+        name = node.targets[0].id
+        assert self.symbol_table is not None
+        if name not in self.symbol_table:
+            self.symbol_table[name] = value.type
+            self.inserter.insert_op(symref.DeclareOp(name))
+        elif self.symbol_table[name] != value.type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot change the type of variable '{name}'.",
+            )
+        self.inserter.insert_op(symref.UpdateOp(name, value))
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -406,7 +434,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Expr(self, node: ast.Expr) -> None:
+        stack_size = len(self.inserter.stack)
         self.visit(node.value)
+        # Keep the operations, but discard the values of an expression statement.
+        del self.inserter.stack[stack_size:]
 
     def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
@@ -517,27 +548,28 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         cond = self.inserter.get_operand()
         cond_block = self.inserter.insertion_point
 
-        def visit_region(stmts: list[ast.stmt]) -> Region:
-            region = Region([Block()])
+        # Insert the operation first, so that the branches are already nested in it
+        # while their statements are visited.
+        op = scf.IfOp(cond, [], Region(Block()), Region(Block()))
+        self.inserter.insert_op(op)
+
+        def visit_region(region: Region, stmts: list[ast.stmt]) -> None:
             self.inserter.set_insertion_point_from_region(region)
             for stmt in stmts:
                 self.visit(stmt)
-            return region
 
         # Generate code for both branches.
-        true_region = visit_region(node.body)
-        false_region = visit_region(node.orelse)
+        visit_region(op.true_region, node.body)
+        visit_region(op.false_region, node.orelse)
 
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        true_region.blocks[-1].add_op(scf.YieldOp())
-        false_region.blocks[-1].add_op(scf.YieldOp())
-        op = scf.IfOp(cond, [], true_region, false_region)
+        op.true_region.blocks[-1].add_op(scf.YieldOp())
+        op.false_region.blocks[-1].add_op(scf.YieldOp())
 
-        # Reset insertion point and insert a new operation.
+        # Reset insertion point.
         self.inserter.set_insertion_point_from_block(cond_block)
-        self.inserter.insert_op(op)
 
     def visit_IfExp(self, node: ast.IfExp) -> None:
         self.visit(node.test)
