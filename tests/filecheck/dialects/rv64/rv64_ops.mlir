@@ -5,6 +5,8 @@
 riscv_func.func @main() {
   %0 = rv64.li 5 : !riscv.reg<j_1>
   // CHECK: %{{.*}} = rv64.li 5 : !riscv.reg<j_1>
+  %li_lo = rv64.li "%lo(label)" : !riscv.reg<a0>
+  // CHECK-NEXT: %{{.*}} = rv64.li "%lo(label)" : !riscv.reg<a0>
   %slli = rv64.slli %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
   // CHECK-NEXT:      %{{.*}} = rv64.slli %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
   %srli = rv64.srli %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
@@ -40,6 +42,7 @@ riscv_func.func @main() {
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:      %0 = "rv64.li"() {immediate = 5 : i64} : () -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %li_lo = "rv64.li"() {immediate = "%lo(label)"} : () -> !riscv.reg<a0>
 // CHECK-GENERIC-NEXT:      %slli = "rv64.slli"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 // CHECK-GENERIC-NEXT:      %srli = "rv64.srli"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 // CHECK-GENERIC-NEXT:      %srai = "rv64.srai"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
@@ -59,6 +62,7 @@ riscv_func.func @main() {
 // CHECK-ASM:       .text
 // CHECK-ASM-NEXT:  main:
 // CHECK-ASM-NEXT:      li j_1, 5
+// CHECK-ASM-NEXT:      li a0, %lo(label)
 // CHECK-ASM-NEXT:      slli j_1, j_1, 1
 // CHECK-ASM-NEXT:      srli j_1, j_1, 1
 // CHECK-ASM-NEXT:      srai j_1, j_1, 1

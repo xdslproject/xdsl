@@ -18,7 +18,6 @@ from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
     Registers,
-    parse_immediate_value,
 )
 from xdsl.dialects.riscv.abstract_ops import (
     GetAnyRegisterOperation,
@@ -31,10 +30,10 @@ from xdsl.dialects.riscv.abstract_ops import (
 )
 from xdsl.dialects.riscv.attrs import (
     UI6,
+    ImmediateI64,
     ui6,
 )
 from xdsl.ir import (
-    Attribute,
     Dialect,
     Operation,
     SSAValue,
@@ -44,7 +43,6 @@ from xdsl.irdl import (
     lazy_traits_def,
     traits_def,
 )
-from xdsl.parser import Parser
 from xdsl.traits import (
     AlwaysSpeculatable,
     MemoryReadEffect,
@@ -63,6 +61,9 @@ class LiOp(LiOperation[I64]):
 
     name = "rv64.li"
 
+    assembly_format = "custom<ImmediateI64>($immediate) attr-dict `:` type($rd)"
+    custom_directives = (ImmediateI64,)
+
     def __init__(
         self,
         immediate: int | IntegerAttr[I64] | str | StringAttr,
@@ -73,12 +74,6 @@ class LiOp(LiOperation[I64]):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i64)
         super().__init__(immediate, rd=rd, comment=comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i64)
-        return attributes
 
 
 class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):

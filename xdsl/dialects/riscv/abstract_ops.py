@@ -63,6 +63,10 @@ from .attrs import (
     UI5,
     UI6,
     FastMathFlagsAttr,
+    ImmediateI12,
+    ImmediateI20,
+    ImmediateSI12,
+    ImmediateUI5,
     i12,
     i20,
     parse_immediate_value,
@@ -374,7 +378,7 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.immediate
 
 
-class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmFloatOperation(RISCVInstruction, ABC):
     """
     A base class for RV32Foperations that have one floating-point
     destination register, one source register and
@@ -384,6 +388,12 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[I12] | StringAttr)
+
+    assembly_format = (
+        "$rs1 `,` custom<ImmediateI12>($immediate) attr-dict `:` "
+        "functional-type(operands, results)"
+    )
+    custom_directives = (ImmediateI12,)
 
     def __init__(
         self,
@@ -411,17 +421,6 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
@@ -550,7 +549,7 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2
 
 
-class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdImmIntegerOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -558,6 +557,11 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[I20] | StringAttr)
+
+    assembly_format = (
+        "custom<ImmediateI20>($immediate) attr-dict `:` `(` `)` `->` type($rd)"
+    )
+    custom_directives = (ImmediateI20,)
 
     def __init__(
         self,
@@ -583,17 +587,6 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i20)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -661,7 +654,7 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return (), ()
 
 
-class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmIntegerOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -672,6 +665,12 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12] | StringAttr)
+
+    assembly_format = (
+        "$rs1 `,` custom<ImmediateSI12>($immediate) attr-dict `:` "
+        "functional-type(operands, results)"
+    )
+    custom_directives = (ImmediateSI12,)
 
     def __init__(
         self,
@@ -699,17 +698,6 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 IWidth = TypeVar("IWidth", bound=I32 | I64)
@@ -807,7 +795,7 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(
         )
 
 
-class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmBitManipOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -823,6 +811,12 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[UI5] | StringAttr)
+
+    assembly_format = (
+        "$rs1 `,` custom<ImmediateUI5>($immediate) attr-dict `:` "
+        "functional-type(operands, results)"
+    )
+    custom_directives = (ImmediateUI5,)
 
     def __init__(
         self,
@@ -850,17 +844,6 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui5)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -985,7 +968,7 @@ class RdRsFloatOperation(
         super().__init__(rs, rd=rd, comment=comment)
 
 
-class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RsRsOffIntegerOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -996,6 +979,12 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
     offset = attr_def(IntegerAttr[SI12] | StringAttr)
+
+    assembly_format = (
+        "$rs1 `,` $rs2 `,` custom<ImmediateSI12>($offset) attr-dict `:` "
+        "`(` type(operands) `)` `->` `(` `)`"
+    )
+    custom_directives = (ImmediateSI12,)
 
     def __init__(
         self,
@@ -1022,17 +1011,6 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.offset
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_immediate_value(parser, si12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
 
 
 class RsRsImmIntegerOperation(RISCVInstruction, ABC):
@@ -1432,7 +1410,6 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
 
 
 class LiOperation(
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     HasFolderInterface,
     ABC,
@@ -1476,23 +1453,6 @@ class LiOperation(
 
     def fold(self) -> tuple[IntegerAttr[IWidth] | StringAttr]:
         return (self.immediate,)
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
 
 
 IOffset = TypeVar("IOffset", bound=I12 | SI12)
