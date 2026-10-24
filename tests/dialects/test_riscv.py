@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.context import Context
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, rv32, rv64
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -269,11 +269,27 @@ def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
         ("riscv.jalr %0 17 : (!riscv.reg) -> ()", "Expected ','"),
         ("riscv.csrrw %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
         ("riscv.csrrs %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        (
+            "riscv.addi %0, 2048 : (!riscv.reg) -> !riscv.reg",
+            "out of range for type si12",
+        ),
+        (
+            "riscv.flw %0, 4096 : (!riscv.reg) -> !riscv.freg",
+            "out of range for type i12",
+        ),
+        (
+            "riscv.roriw %0, -1 : (!riscv.reg) -> !riscv.reg",
+            "out of range for type ui5",
+        ),
+        ("riscv.lui 1048576 : () -> !riscv.reg", "out of range for type i20"),
+        ("rv32.li 4294967296 : !riscv.reg", "out of range for type i32"),
+        ("rv64.li 18446744073709551616 : !riscv.reg", "out of range for type i64"),
     ],
 )
 def test_riscv_parse_immediate_value(prog: str, message: str):
     ctx = Context()
-    ctx.load_dialect(riscv.RISCV)
+    for dialect in (riscv.RISCV, rv32.RV32, rv64.RV64):
+        ctx.load_dialect(dialect)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match=message):
