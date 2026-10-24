@@ -44,7 +44,9 @@ from xdsl.traits import (
     MemoryWriteEffect,
     Pure,
     RegionBranchOpTrait,
+    RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
+    RegionSuccessor,
     SymbolOpInterface,
 )
 
@@ -369,12 +371,30 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
         )
 
 
+class TestRegionBranchOpTrait(RegionBranchOpTrait):
+    """
+    Enters the first region, if any. Every region branches back to the parent
+    operation.
+
+    TODO: encode the successors in the IR, so that filecheck tests can describe
+    any control flow between the regions.
+    """
+
+    @classmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        if point.is_parent() and op.regions:
+            return [RegionSuccessor(op.regions[0])]
+        return [RegionSuccessor(op)]
+
+
 @irdl_op_definition
 class TestRegionBranchOp(IRDLOperation):
     """
     This operation can take an arbitrary number of operands, results and regions.
-    It satisfies the RegionBranchOpTrait trait, and is used in filecheck testing
-    of the trait's verifier.
+    It satisfies the RegionBranchOpTrait trait through TestRegionBranchOpTrait,
+    and is used in filecheck testing of the trait's verifier.
     """
 
     name = "test.region_branch_op"
@@ -383,7 +403,7 @@ class TestRegionBranchOp(IRDLOperation):
     ops = var_operand_def()
     regs = var_region_def()
 
-    traits = traits_def(RegionBranchOpTrait())
+    traits = traits_def(TestRegionBranchOpTrait())
 
 
 @irdl_op_definition
