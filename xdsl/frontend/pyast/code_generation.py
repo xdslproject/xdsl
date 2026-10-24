@@ -79,6 +79,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
 
+    def location(self, node: ast.expr | ast.stmt | ast.arg) -> builtin.FileLineColLoc:
+        """The location of `node` in the source, with a one-based column."""
+        return builtin.FileLineColLoc(
+            builtin.StringAttr(self.file or "<unknown>"),
+            builtin.IntAttr(node.lineno),
+            builtin.IntAttr(node.col_offset + 1),
+        )
+
+    def insert_op(self, op: Operation, node: ast.expr | ast.stmt | ast.arg) -> None:
+        """Insert an operation generated from `node`."""
+        op.location = self.location(node)
+        self.inserter.insert_op(op)
+
     def get_symbol(self, node: ast.Name) -> Attribute:
         assert self.symbol_table is not None
         if node.id not in self.symbol_table:
@@ -134,8 +147,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"'ast.{type(node.msg).__qualname__}'",
                 )
             msg = str(node.msg.value)
-        op = cf.AssertOp(self.inserter.get_operand(), msg)
-        self.inserter.insert_op(op)
+        self.insert_op(cf.AssertOp(self.inserter.get_operand(), msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
@@ -150,7 +162,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         assert self.symbol_table is not None
         if name not in self.symbol_table:
             self.symbol_table[name] = value.type
-            self.inserter.insert_op(symref.DeclareOp(name))
+            self.insert_op(symref.DeclareOp(name), node)
         elif self.symbol_table[name] != value.type:
             raise CodeGenerationException(
                 self.file,
@@ -158,7 +170,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 f"Cannot change the type of variable '{name}'.",
             )
-        self.inserter.insert_op(symref.UpdateOp(name, value))
+        self.insert_op(symref.UpdateOp(name, value), node)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -223,7 +235,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             args=(lhs, rhs),
         )
         if op is not None:
-            self.inserter.insert_op(op)
+            self.insert_op(op, node)
             return
 
         overload_name = python_AST_operator_to_python_overload[op_name]
@@ -273,7 +285,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 )
             kwargs[keyword.arg] = self.visit_single_value(keyword.value)
 
-        self.inserter.insert_op(ir_op(*args, **kwargs))
+        self.insert_op(ir_op(*args, **kwargs), node)
 
     # Get called function for a call expression.
     def _call_source_function(self, node: ast.Call) -> tuple[Callable[..., Any], str]:
@@ -394,7 +406,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             args=(lhs, rhs),
         )
         if op is not None:
-            self.inserter.insert_op(op)
+            self.insert_op(op, node)
             return
 
         python_op = python_AST_cmpop_to_python_overload[op_name]
@@ -413,7 +425,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.value
             )
         ) is not None:
-            self.inserter.insert_op(literal_op)
+            self.insert_op(literal_op, node)
             return
 
         raise CodeGenerationException(
@@ -498,8 +510,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             symbol_name = str(arg.arg)
             value.name_hint = symbol_name
             self.symbol_table[symbol_name] = value.type
-            entry_block.add_op(symref.DeclareOp(symbol_name))
-            entry_block.add_op(symref.UpdateOp(symbol_name, value))
+            self.insert_op(symref.DeclareOp(symbol_name), arg)
+            self.insert_op(symref.UpdateOp(symbol_name, value), arg)
 
         function_op = self.function_definition_constructor(
             node.name,
@@ -533,8 +545,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_block(parent_block)
 
     def visit_Name(self, node: ast.Name) -> None:
-        fetch_op = symref.FetchOp(node.id, self.get_symbol(node))
-        self.inserter.insert_op(fetch_op)
+        self.insert_op(symref.FetchOp(node.id, self.get_symbol(node)), node)
 
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
