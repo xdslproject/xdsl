@@ -16,6 +16,7 @@ builtin.module {
     %11 = py.call "f"(%0, %1)
     %12 = py.call "MyClass.method"(%0, %1, %2) keywords ["b", "c"]
     %13 = py.call "g"()
+    %14 = py.compare "lt" %0 %1
 }
 
 // CHECK:       builtin.module {
@@ -33,6 +34,7 @@ builtin.module {
 // CHECK-NEXT:    %11 = py.call "f"(%0, %1)
 // CHECK-NEXT:    %12 = py.call "MyClass.method"(%0, %1, %2) keywords ["b", "c"]
 // CHECK-NEXT:    %13 = py.call "g"()
+// CHECK-NEXT:    %14 = py.compare "lt" %0 %1
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC:       "builtin.module"() ({
@@ -50,4 +52,5 @@ builtin.module {
 // CHECK-GENERIC-NEXT:    %11 = "py.call"(%0, %1) <{callee = "f"}> : (!py.object, !py.object) -> !py.object
 // CHECK-GENERIC-NEXT:    %12 = "py.call"(%0, %1, %2) <{callee = "MyClass.method", keywords = ["b", "c"]}> : (!py.object, !py.object, !py.object) -> !py.object
 // CHECK-GENERIC-NEXT:    %13 = "py.call"() <{callee = "g"}> : () -> !py.object
+// CHECK-GENERIC-NEXT:    %14 = "py.compare"(%0, %1) <{op = "lt"}> : (!py.object, !py.object) -> !py.object
 // CHECK-GENERIC-NEXT:  }) : () -> ()

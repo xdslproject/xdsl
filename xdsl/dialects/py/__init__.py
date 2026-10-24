@@ -227,11 +227,34 @@ class PyCallOp(PyOperation):
             )
 
 
+@irdl_op_definition
+class PyCompareOp(PyOperation):
+    """
+    x CMPOP y
+
+    The operator is named as in Python's `ast` module, in lowercase, for example
+    "lt" or "noteq".
+    """
+
+    name = "py.compare"
+    lhs = operand_def(PyObjectType())
+    rhs = operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    op = prop_def(StringAttr)
+    assembly_format = "$op $lhs $rhs attr-dict"
+
+    def __init__(self, op: StringAttr, lhs: Operand, rhs: Operand):
+        super().__init__(
+            operands=[lhs, rhs], properties={"op": op}, result_types=[PyObjectType()]
+        )
+
+
 Py = Dialect(
     "py",
     [
         PyBinOp,
         PyCallOp,
+        PyCompareOp,
         PyConstOp,
     ],
     [
