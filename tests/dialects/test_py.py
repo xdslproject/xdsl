@@ -10,7 +10,7 @@ def test_custom_inits():
     b1 = py.PyBinOp(op=StringAttr("add"), lhs=c1.results[0], rhs=c2.results[0])
     assert b1.operands[0] is c1.results[0]
     assert b1.operands[1] is c2.results[0]
-    cmp = py.PyCompareOp(op=StringAttr("lt"), lhs=c1.results[0], rhs=c2.results[0])
+    cmp = py.PyCompareOp(op=py.CmpOp.LT, lhs=c1.results[0], rhs=c2.results[0])
     assert cmp.operands[0] is c1.results[0]
     assert cmp.operands[1] is c2.results[0]
 

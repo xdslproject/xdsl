@@ -22,10 +22,12 @@ from xdsl.dialects.builtin import (
     StringAttr,
     f64,
 )
+from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -46,6 +48,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition
@@ -227,25 +230,46 @@ class PyCallOp(PyOperation):
             )
 
 
+class CmpOp(StrEnum):
+    """
+    A Python comparison operator, named as in Python's `ast` module, in lowercase.
+    """
+
+    EQ = "eq"
+    NOT_EQ = "noteq"
+    LT = "lt"
+    LTE = "lte"
+    GT = "gt"
+    GTE = "gte"
+    IS = "is"
+    IS_NOT = "isnot"
+    IN = "in"
+    NOT_IN = "notin"
+
+
+@irdl_attr_definition
+class CmpOpAttr(EnumAttribute[CmpOp], SpacedOpaqueSyntaxAttribute):
+    name = "py.cmpop"
+
+
 @irdl_op_definition
 class PyCompareOp(PyOperation):
     """
     x CMPOP y
-
-    The operator is named as in Python's `ast` module, in lowercase, for example
-    "lt" or "noteq".
     """
 
     name = "py.compare"
     lhs = operand_def(PyObjectType())
     rhs = operand_def(PyObjectType())
     res = result_def(PyObjectType())
-    op = prop_def(StringAttr)
-    assembly_format = "$op $lhs $rhs attr-dict"
+    op = prop_def(CmpOpAttr)
+    assembly_format = "$op `,` $lhs `,` $rhs attr-dict"
 
-    def __init__(self, op: StringAttr, lhs: Operand, rhs: Operand):
+    def __init__(self, op: CmpOp | CmpOpAttr, lhs: Operand, rhs: Operand):
         super().__init__(
-            operands=[lhs, rhs], properties={"op": op}, result_types=[PyObjectType()]
+            operands=[lhs, rhs],
+            properties={"op": CmpOpAttr.get(op)},
+            result_types=[PyObjectType()],
         )
 
 
@@ -258,6 +282,7 @@ Py = Dialect(
         PyConstOp,
     ],
     [
+        CmpOpAttr,
         PyObjectType,
     ],
 )
