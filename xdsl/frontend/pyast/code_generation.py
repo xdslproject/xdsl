@@ -55,12 +55,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     last_return: ast.Return | None = field(default=None)
     """The most recently visited return in the function being generated."""
 
-    function_body: Block | None = field(default=None)
-    """
-    The entry block of the function being generated. Statements in nested regions,
-    such as the branches of an `if`, are inserted into other blocks.
-    """
-
     file: str | None
     """Path of the file containing the program being processed."""
 
@@ -154,7 +148,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         # Desymrefication cannot yet carry an updated value out of a nested region,
         # so an assignment inside an `if` would silently keep the old value.
-        if self.inserter.insertion_point is not self.function_body:
+        if isinstance(self.inserter.insertion_point.parent_op(), scf.IfOp):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -506,7 +500,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         entry_block = Block(arg_types=argument_types)
         body = Region(entry_block)
-        self.function_body = entry_block
         parent_block = self.inserter.insertion_point
         self.inserter.set_insertion_point_from_block(entry_block)
 
@@ -547,7 +540,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
         self.symbol_table = None
-        self.function_body = None
         self.inserter.set_insertion_point_from_block(parent_block)
 
     def visit_If(self, node: ast.If) -> None:
@@ -556,27 +548,28 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         cond = self.inserter.get_operand()
         cond_block = self.inserter.insertion_point
 
-        def visit_region(stmts: list[ast.stmt]) -> Region:
-            region = Region([Block()])
+        # Insert the operation first, so that the branches are already nested in it
+        # while their statements are visited.
+        op = scf.IfOp(cond, [], Region(Block()), Region(Block()))
+        self.inserter.insert_op(op)
+
+        def visit_region(region: Region, stmts: list[ast.stmt]) -> None:
             self.inserter.set_insertion_point_from_region(region)
             for stmt in stmts:
                 self.visit(stmt)
-            return region
 
         # Generate code for both branches.
-        true_region = visit_region(node.body)
-        false_region = visit_region(node.orelse)
+        visit_region(op.true_region, node.body)
+        visit_region(op.false_region, node.orelse)
 
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        true_region.blocks[-1].add_op(scf.YieldOp())
-        false_region.blocks[-1].add_op(scf.YieldOp())
-        op = scf.IfOp(cond, [], true_region, false_region)
+        op.true_region.blocks[-1].add_op(scf.YieldOp())
+        op.false_region.blocks[-1].add_op(scf.YieldOp())
 
-        # Reset insertion point and insert a new operation.
+        # Reset insertion point.
         self.inserter.set_insertion_point_from_block(cond_block)
-        self.inserter.insert_op(op)
 
     def visit_IfExp(self, node: ast.IfExp) -> None:
         self.visit(node.test)
