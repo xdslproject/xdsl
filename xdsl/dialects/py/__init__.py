@@ -205,7 +205,7 @@ class PyCallOp(PyOperation):
         self,
         callee: str | StringAttr,
         args: Sequence[SSAValue],
-        keywords: Sequence[str] = (),
+        keywords: Sequence[str | StringAttr] = (),
     ):
         if isinstance(callee, str):
             callee = StringAttr(callee)
