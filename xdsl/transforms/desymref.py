@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, symref
+from xdsl.dialects import builtin, scf, symref
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.traits import IsolatedFromAbove
 
 # Background
 # ==========
@@ -92,8 +93,10 @@ from xdsl.rewriter import Rewriter
 # non-CFGs at the moment (i.e. single block regions). We observe that in general
 # every symbol can be simplified within a block to have at most one fetch (start
 # of the block) at most one update (end of the block). This means that using
-# specification of an operation we can promote these symbols outside.
-# TODO: Add op promotion.
+# specification of an operation we can promote these symbols outside. For
+# example, an `scf.if` reads its symbols before it, and yields the values it
+# writes so that they can be written after it.
+# TODO: Promote symbols out of other operations, such as loops.
 
 
 def has_symbol(op: Operation) -> bool:
@@ -175,8 +178,84 @@ class Desymrefier:
         Promotes an operation. This method guarantees that the operation does
         not have any symbols.
         """
-        # TODO: Add promoters in the next patch.
-        pass
+        if isinstance(op, scf.IfOp):
+            self.promote_if(op)
+            return
+
+        # Symbols cannot be used across isolated operations, so any left inside
+        # them are uses without definitions, which are kept.
+        if op.has_trait(IsolatedFromAbove):
+            return
+        for region in op.regions:
+            for nested_op in region.walk():
+                if (symbol := get_symbol(nested_op)) is not None:
+                    raise FrontendProgramException(
+                        f"Cannot promote symbol '{symbol}' out of '{op.name}'."
+                    )
+
+    def promote_if(self, op: scf.IfOp):
+        """
+        Promotes the symbols of an `scf.if` by reading them before it, and by
+        yielding the values written in either branch and writing them after it.
+        """
+        branches = (op.true_region.block, op.false_region.block)
+
+        reads: dict[str, SSAValue] = {}
+
+        def read(symbol: str, type: Attribute) -> SSAValue:
+            """Returns the value of a symbol before the `scf.if`."""
+            if symbol not in reads:
+                fetch = symref.FetchOp(symbol, type)
+                Rewriter.insert_op(fetch, InsertPoint.before(op))
+                reads[symbol] = fetch.value
+            return reads[symbol]
+
+        # After preparation, each branch reads a symbol at most once and before
+        # writing it, so every read sees the value from before the `scf.if`.
+        writes: dict[str, list[symref.UpdateOp | None]] = {}
+        for index, block in enumerate(branches):
+            for nested_op in block.ops:
+                if (symbol := get_symbol(nested_op)) is None:
+                    continue
+                if isinstance(nested_op, symref.FetchOp):
+                    value = read(symbol, nested_op.value.type)
+                    Rewriter.replace_op(nested_op, [], [value])
+                elif isinstance(nested_op, symref.UpdateOp):
+                    writes.setdefault(symbol, [None, None])[index] = nested_op
+
+        if not writes:
+            return
+
+        # Each branch yields the value it wrote, or the value from before.
+        types = [
+            next(update for update in updates if update is not None).value.type
+            for updates in writes.values()
+        ]
+        for index, block in enumerate(branches):
+            values: list[SSAValue] = []
+            for (symbol, updates), type in zip(writes.items(), types):
+                update = updates[index]
+                if update is None:
+                    values.append(read(symbol, type))
+                else:
+                    values.append(update.value)
+                    Rewriter.erase_op(update)
+            terminator = block.last_op
+            assert isinstance(terminator, scf.YieldOp)
+            Rewriter.replace_op(terminator, scf.YieldOp(*terminator.arguments, *values))
+
+        new_op = scf.IfOp(
+            op.cond,
+            [*op.result_types, *types],
+            Rewriter.move_region_contents_to_new_regions(op.true_region),
+            Rewriter.move_region_contents_to_new_regions(op.false_region),
+        )
+        new_op.location = op.location
+        results = new_op.results[len(op.results) :]
+        updates = [
+            symref.UpdateOp(symbol, value) for symbol, value in zip(writes, results)
+        ]
+        Rewriter.replace_op(op, [new_op, *updates], new_op.results[: len(op.results)])
 
     def prepare_op(self, op: Operation):
         """

@@ -146,15 +146,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 "Only assignment to a single variable is supported.",
             )
-        # Desymrefication cannot yet carry an updated value out of a nested region,
-        # so an assignment inside an `if` would silently keep the old value.
-        if isinstance(self.inserter.insertion_point.parent_op(), scf.IfOp):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Assignments are only supported directly in the function body.",
-            )
         value = self.visit_single_value(node.value)
         name = node.targets[0].id
         assert self.symbol_table is not None
@@ -554,9 +545,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
         def visit_region(region: Region, stmts: list[ast.stmt]) -> None:
+            # Variables first assigned in a branch are only defined in it, like
+            # their symref declarations.
+            assert self.symbol_table is not None
+            symbol_table = dict(self.symbol_table)
             self.inserter.set_insertion_point_from_region(region)
             for stmt in stmts:
                 self.visit(stmt)
+            self.symbol_table = symbol_table
 
         # Generate code for both branches.
         visit_region(op.true_region, node.body)
