@@ -79,6 +79,98 @@ print(unused.module)
 
 
 @ctx.parse_program
+def inside_if(x: int, flag: bool) -> int:
+    y = x
+    if flag:
+        y = add(x, x)
+    return y
+
+
+print(inside_if.module)
+# CHECK:       func.func @inside_if(%x: i32, %flag: i1) -> i32 {
+# CHECK-NEXT:    %0 = scf.if %flag -> (i32) {
+# CHECK-NEXT:      %1 = arith.addi %x, %x : i32
+# CHECK-NEXT:      scf.yield %1 : i32
+# CHECK-NEXT:    } else {
+# CHECK-NEXT:      scf.yield %x : i32
+# CHECK-NEXT:    }
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
+# Variables first assigned in a branch can be used in that branch.
+@ctx.parse_program
+def both_branches(x: int, flag: bool) -> int:
+    y = x
+    if flag:
+        y = add(y, x)
+    else:
+        z = add(x, x)
+        y = add(z, z)
+    return y
+
+
+print(both_branches.module)
+# CHECK:       func.func @both_branches(%x: i32, %flag: i1) -> i32 {
+# CHECK-NEXT:    %0 = scf.if %flag -> (i32) {
+# CHECK-NEXT:      %1 = arith.addi %x, %x : i32
+# CHECK-NEXT:      scf.yield %1 : i32
+# CHECK-NEXT:    } else {
+# CHECK-NEXT:      %2 = arith.addi %x, %x : i32
+# CHECK-NEXT:      %3 = arith.addi %2, %2 : i32
+# CHECK-NEXT:      scf.yield %3 : i32
+# CHECK-NEXT:    }
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def elif_chain(x: int, a: bool, b: bool) -> int:
+    y = x
+    if a:
+        y = add(y, y)
+    elif b:
+        x = add(x, y)
+    return add(x, y)
+
+
+print(elif_chain.module)
+# CHECK:       func.func @elif_chain(%x: i32, %a: i1, %b: i1) -> i32 {
+# CHECK-NEXT:    %0, %1 = scf.if %a -> (i32, i32) {
+# CHECK-NEXT:      %2 = arith.addi %x, %x : i32
+# CHECK-NEXT:      scf.yield %2, %x : i32, i32
+# CHECK-NEXT:    } else {
+# CHECK-NEXT:      %3 = scf.if %b -> (i32) {
+# CHECK-NEXT:        %4 = arith.addi %x, %x : i32
+# CHECK-NEXT:        scf.yield %4 : i32
+# CHECK-NEXT:      } else {
+# CHECK-NEXT:        scf.yield %x : i32
+# CHECK-NEXT:      }
+# CHECK-NEXT:      scf.yield %x, %3 : i32, i32
+# CHECK-NEXT:    }
+# CHECK-NEXT:    %5 = arith.addi %1, %0 : i32
+# CHECK-NEXT:    func.return %5 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def read_inside_if(x: int, flag: bool) -> int:
+    return x if flag else add(x, x)
+
+
+print(read_inside_if.module)
+# CHECK:       func.func @read_inside_if(%x: i32, %flag: i1) -> i32 {
+# CHECK-NEXT:    %0 = scf.if %flag -> (i32) {
+# CHECK-NEXT:      scf.yield %x : i32
+# CHECK-NEXT:    } else {
+# CHECK-NEXT:      %1 = arith.addi %x, %x : i32
+# CHECK-NEXT:      scf.yield %1 : i32
+# CHECK-NEXT:    }
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
 def chained(x: int) -> int:
     y = _z = x
     return y
@@ -130,16 +222,16 @@ except CodeGenerationException as error:
 # CHECK: Expected an expression with exactly one result.
 
 
+# The variable has no value when the branch is not taken.
 @ctx.parse_program
-def inside_if(x: int, flag: bool) -> int:
-    y = x
+def only_in_branch(x: int, flag: bool) -> int:
     if flag:
         y = add(x, x)
-    return y
+    return y  # pyright: ignore[reportPossiblyUnboundVariable]
 
 
 try:
-    inside_if.module
+    only_in_branch.module
 except CodeGenerationException as error:
     print(error.msg)
-# CHECK: Assignments are only supported directly in the function body.
+# CHECK: Symbol 'y' is not defined.

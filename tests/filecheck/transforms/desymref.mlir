@@ -175,4 +175,177 @@ builtin.module {
   symref.update @c = %47 : i32
 }
 
+
+// Reads inside an scf.if see the value from before it.
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   %cond = "test.op"() : () -> i1
+// CHECK-NEXT:   %one = arith.constant 1 : i32
+// CHECK-NEXT:   %r = scf.if %cond -> (i32) {
+// CHECK-NEXT:     scf.yield %one : i32
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     %sum = arith.addi %one, %one : i32
+// CHECK-NEXT:     scf.yield %sum : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%r) : (i32) -> ()
+// CHECK-NEXT: }
+builtin.module {
+  %cond = "test.op"() : () -> i1
+  symref.declare "a"
+  %one = arith.constant 1 : i32
+  symref.update @a = %one : i32
+  %r = scf.if %cond -> (i32) {
+    %a1 = symref.fetch @a : i32
+    scf.yield %a1 : i32
+  } else {
+    %a2 = symref.fetch @a : i32
+    %sum = arith.addi %a2, %a2 : i32
+    scf.yield %sum : i32
+  }
+  "test.op"(%r) : (i32) -> ()
+}
+
+
+// A value written in one branch is yielded, and the other branch yields the
+// value from before.
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   %cond = "test.op"() : () -> i1
+// CHECK-NEXT:   %one = arith.constant 1 : i32
+// CHECK-NEXT:   %a2 = scf.if %cond -> (i32) {
+// CHECK-NEXT:     %two = arith.addi %one, %one : i32
+// CHECK-NEXT:     scf.yield %two : i32
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     scf.yield %one : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%a2) : (i32) -> ()
+// CHECK-NEXT: }
+builtin.module {
+  %cond = "test.op"() : () -> i1
+  symref.declare "a"
+  %one = arith.constant 1 : i32
+  symref.update @a = %one : i32
+  scf.if %cond {
+    %a1 = symref.fetch @a : i32
+    %two = arith.addi %a1, %a1 : i32
+    symref.update @a = %two : i32
+    scf.yield
+  } else {
+    scf.yield
+  }
+  %a2 = symref.fetch @a : i32
+  "test.op"(%a2) : (i32) -> ()
+}
+
+
+// Written values are yielded after the existing results.
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   %cond = "test.op"() : () -> i1
+// CHECK-NEXT:   %one = arith.constant 1 : i32
+// CHECK-NEXT:   %r, %r_1, %r_2 = scf.if %cond -> (i32, i32, i32) {
+// CHECK-NEXT:     %two = arith.constant 2 : i32
+// CHECK-NEXT:     scf.yield %two, %two, %one : i32, i32, i32
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     %three = arith.constant 3 : i32
+// CHECK-NEXT:     scf.yield %three, %three, %three : i32, i32, i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   %b = scf.if %cond -> (i32) {
+// CHECK-NEXT:     %four = arith.constant 4 : i32
+// CHECK-NEXT:     scf.yield %four : i32
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     scf.yield %r_2 : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%r, %r_1, %b) : (i32, i32, i32) -> ()
+// CHECK-NEXT: }
+builtin.module {
+  %cond = "test.op"() : () -> i1
+  symref.declare "a"
+  symref.declare "b"
+  %one = arith.constant 1 : i32
+  symref.update @a = %one : i32
+  symref.update @b = %one : i32
+  %r = scf.if %cond -> (i32) {
+    %two = arith.constant 2 : i32
+    symref.update @a = %two : i32
+    scf.yield %two : i32
+  } else {
+    %three = arith.constant 3 : i32
+    symref.update @a = %three : i32
+    symref.update @b = %three : i32
+    scf.yield %three : i32
+  }
+  scf.if %cond {
+    %four = arith.constant 4 : i32
+    symref.update @b = %four : i32
+    scf.yield
+  } else {
+    scf.yield
+  }
+  %a = symref.fetch @a : i32
+  %b = symref.fetch @b : i32
+  "test.op"(%r, %a, %b) : (i32, i32, i32) -> ()
+}
+
+
+// Nested scf.if operations are promoted from the inside out, and symbols
+// declared in a branch stay in it.
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   %cond = "test.op"() : () -> i1
+// CHECK-NEXT:   %one = arith.constant 1 : i32
+// CHECK-NEXT:   %a2 = scf.if %cond -> (i32) {
+// CHECK-NEXT:     %0 = scf.if %cond -> (i32) {
+// CHECK-NEXT:       %two = arith.addi %one, %one : i32
+// CHECK-NEXT:       scf.yield %two : i32
+// CHECK-NEXT:     } else {
+// CHECK-NEXT:       scf.yield %one : i32
+// CHECK-NEXT:     }
+// CHECK-NEXT:     scf.yield %0 : i32
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     scf.yield %one : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "test.op"(%a2) : (i32) -> ()
+// CHECK-NEXT: }
+builtin.module {
+  %cond = "test.op"() : () -> i1
+  symref.declare "a"
+  %one = arith.constant 1 : i32
+  symref.update @a = %one : i32
+  scf.if %cond {
+    symref.declare "b"
+    %a1 = symref.fetch @a : i32
+    symref.update @b = %a1 : i32
+    scf.if %cond {
+      %b = symref.fetch @b : i32
+      %two = arith.addi %b, %b : i32
+      symref.update @a = %two : i32
+      scf.yield
+    } else {
+      scf.yield
+    }
+    scf.yield
+  } else {
+    scf.yield
+  }
+  %a2 = symref.fetch @a : i32
+  "test.op"(%a2) : (i32) -> ()
+}
+
+
+// Other operations with regions are kept when they have no symbols.
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   "test.op"() ({
+// CHECK-NEXT:     %zero = arith.constant 0 : i32
+// CHECK-NEXT:     "test.termop"() : () -> ()
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT: }
+builtin.module {
+  "test.op"() ({
+    %zero = arith.constant 0 : i32
+    "test.termop"() : () -> ()
+  }) : () -> ()
+}
+
 // CHECK-NEXT: }
