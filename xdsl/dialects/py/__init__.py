@@ -207,8 +207,7 @@ class PyCallOp(PyOperation):
         args: Sequence[SSAValue],
         keywords: Sequence[str | StringAttr] = (),
     ):
-        if isinstance(callee, str):
-            callee = StringAttr(callee)
+        callee = StringAttr.get(callee)
         properties: dict[str, Attribute] = {"callee": callee}
         if keywords:
             properties["keywords"] = ArrayAttr(StringAttr.get(k) for k in keywords)
