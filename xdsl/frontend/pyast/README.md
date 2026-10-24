@@ -66,7 +66,7 @@ builtin.module {
 │   └── type_conversion.py    : Map between Python objects, Python AST nodes,
 │                               and xDSL IR for the types and functions
 ├── code_generation.py        : Walk AST to generate xDSL from nodes. Simple
-│                               operands and control flow supported. Explicitly
+│                               operands supported, no control flow. Explicitly
 │                               no support for assignment. Implicitly no support
 │                               for complex structures such as classes
 ├── context.py                : Configure mappings and transformations, and
@@ -93,7 +93,7 @@ builtin.module {
    - [x] `Compare`
    - [ ] `For`
    - [x] `FunctionDef`
-   - [x] `If`/`IfExp`
+   - [ ] `If`/`IfExp`
    - [x] `Pass`
    - [x] `Return`
    - [ ] `While`
