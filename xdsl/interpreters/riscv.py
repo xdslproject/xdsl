@@ -55,8 +55,9 @@ STACK_KEY = "stack"
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
     """
-    Floating registers carry `FloatAttr[f64]`, preserving the existing Python double
-    arithmetic, including for F-extension ops.
+    Numeric integer registers carry `IntegerAttr` at the interpreter's index
+    bitwidth; address registers carry `RawPtr`. Floating registers carry `FloatAttr[f64]`,
+    preserving the existing Python double arithmetic, including for F-extension ops.
     """
 
     custom_instructions: dict[str, CustomInstructionFn]
@@ -110,7 +111,7 @@ class RiscvFunctions(InterpreterFunctions):
 
         if name == riscv.Registers.ZERO.register_name:
             # Values assigned to ZERO are erased
-            return 0
+            return IntegerAttr(0, interpreter.index_bitwidth)
 
         registers = RiscvFunctions.registers(interpreter)
 
@@ -164,7 +165,9 @@ class RiscvFunctions(InterpreterFunctions):
             RiscvFunctions,
             REGISTERS_KEY,
             lambda: {
-                riscv.Registers.ZERO.register_name: 0,
+                riscv.Registers.ZERO.register_name: IntegerAttr(
+                    0, interpreter.index_bitwidth
+                ),
                 riscv.Registers.SP.register_name: RiscvFunctions.stack(interpreter),
             },
         )
@@ -223,10 +226,12 @@ class RiscvFunctions(InterpreterFunctions):
     @staticmethod
     def get_immediate_value(
         interpreter: Interpreter, imm: IntegerAttr | StringAttr
-    ) -> int | ptr.RawPtr:
+    ) -> IntegerAttr[IntegerType] | ptr.RawPtr:
         match imm:
             case IntegerAttr():
-                return imm.value.data
+                return IntegerAttr(
+                    imm.value, interpreter.index_bitwidth, truncate_bits=True
+                )
             case StringAttr():
                 data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
@@ -250,12 +255,14 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
+        unsigned_lhs = to_unsigned(args[0].value.data, self.bitwidth)
         imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         if isinstance(imm, ptr.RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
-        unsigned_imm = to_unsigned(imm, self.bitwidth)
-        results = (int(unsigned_lhs < unsigned_imm),)
+        unsigned_imm = to_unsigned(imm.value.data, self.bitwidth)
+        results = (
+            IntegerAttr(int(unsigned_lhs < unsigned_imm), interpreter.index_bitwidth),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SltOp)
@@ -265,9 +272,9 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SltOp,
         args: tuple[Any, ...],
     ):
-        signed_lhs = to_signed(args[0], self.bitwidth)
-        signed_rhs = to_signed(args[1], self.bitwidth)
-        return (int(signed_lhs < signed_rhs),)
+        signed_lhs = to_signed(args[0].value.data, self.bitwidth)
+        signed_rhs = to_signed(args[1].value.data, self.bitwidth)
+        return (IntegerAttr(int(signed_lhs < signed_rhs), interpreter.index_bitwidth),)
 
     @impl(riscv.AddOp)
     def run_add(
@@ -277,7 +284,16 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] + args[1],)
+        if isinstance(args[0], ptr.RawPtr):
+            results = (args[0] + args[1].value.data,)
+        else:
+            results = (
+                IntegerAttr(
+                    args[0].value.data + args[1].value.data,
+                    interpreter.index_bitwidth,
+                    truncate_bits=True,
+                ),
+            )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.AddiOp)
@@ -289,7 +305,16 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         immediate = cast(IntegerAttr[IntegerType | IndexType], op.immediate).value.data
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] + immediate,)
+        if isinstance(args[0], ptr.RawPtr):
+            results = (args[0] + immediate,)
+        else:
+            results = (
+                IntegerAttr(
+                    args[0].value.data + immediate,
+                    interpreter.index_bitwidth,
+                    truncate_bits=True,
+                ),
+            )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SubOp)
@@ -300,7 +325,13 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] - args[1],)
+        results = (
+            IntegerAttr(
+                args[0].value.data - args[1].value.data,
+                interpreter.index_bitwidth,
+                truncate_bits=True,
+            ),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SllOp)
@@ -311,7 +342,13 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (args[0] << args[1],)
+        results = (
+            IntegerAttr(
+                args[0].value.data << args[1].value.data,
+                interpreter.index_bitwidth,
+                truncate_bits=True,
+            ),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.MulOp)
@@ -322,10 +359,12 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        lhs = to_signed(args[0], self.bitwidth)
-        rhs = to_signed(args[1], self.bitwidth)
+        lhs = to_signed(args[0].value.data, self.bitwidth)
+        rhs = to_signed(args[1].value.data, self.bitwidth)
 
-        results = (lhs * rhs,)
+        results = (
+            IntegerAttr(lhs * rhs, interpreter.index_bitwidth, truncate_bits=True),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.DivOp)
@@ -336,8 +375,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        lhs = to_signed(args[0], self.bitwidth)
-        rhs = to_signed(args[1], self.bitwidth)
+        lhs = to_signed(args[0].value.data, self.bitwidth)
+        rhs = to_signed(args[1].value.data, self.bitwidth)
 
         if rhs == 0:
             # Division by zero sets all bits of the result
@@ -350,7 +389,7 @@ class RiscvFunctions(InterpreterFunctions):
             # Signed overflow (MIN_SIGNED / -1) wraps back to MIN_SIGNED
             result = to_signed(result, self.bitwidth)
 
-        results = (result,)
+        results = (IntegerAttr(result, interpreter.index_bitwidth, truncate_bits=True),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
@@ -361,7 +400,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        (args[0] + op.immediate.value.data).int32[0] = args[1]
+        (args[0] + op.immediate.value.data).int32[0] = args[1].value.data
         return ()
 
     @impl(riscv.LwOp)
@@ -373,8 +412,12 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(offset, int)
-        results = ((args[0] + offset).int32[0],)
+        assert isa(offset, IntegerAttr)
+        results = (
+            IntegerAttr(
+                (args[0] + offset.value.data).int32[0], interpreter.index_bitwidth
+            ),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.LabelOp)
@@ -407,7 +450,11 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (FloatAttr(convert_u32_to_f32(args[0]), builtin.f64),)
+        results = (
+            FloatAttr(
+                convert_u32_to_f32(to_unsigned(args[0].value.data, 32)), builtin.f64
+            ),
+        )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSwOp)
@@ -430,8 +477,8 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(offset, int)
-        results = (FloatAttr((args[0] + offset).float32[0], builtin.f64),)
+        assert isa(offset, IntegerAttr)
+        results = (FloatAttr((args[0] + offset.value.data).float32[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMVOp)
@@ -539,7 +586,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        results = (FloatAttr(float(args[0]), builtin.f64),)
+        results = (FloatAttr(float(args[0].value.data), builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSdOp)
@@ -563,8 +610,8 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(offset, int)
-        results = (FloatAttr((args[0] + offset).float64[0], builtin.f64),)
+        assert isa(offset, IntegerAttr)
+        results = (FloatAttr((args[0] + offset.value.data).float64[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMvDOp)
@@ -628,7 +675,7 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> Any:
         match attr:
             case IntegerAttr():
-                return attr.value.data
+                return self.get_immediate_value(interpreter, attr)
             case builtin.DenseIntOrFPElementsAttr():
                 assert isa(attr, DenseIntOrFPElementsAttr)
                 data = attr.get_values()

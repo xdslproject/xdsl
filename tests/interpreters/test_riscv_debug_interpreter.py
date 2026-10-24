@@ -1,7 +1,7 @@
 from io import StringIO
 
 from xdsl.dialects import riscv, riscv_debug
-from xdsl.dialects.builtin import FloatAttr, ModuleOp, f64
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr, ModuleOp, f64, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
@@ -14,7 +14,7 @@ def test_riscv_interpreter():
     riscv_functions = RiscvFunctions()
     riscv_debug_functions = RiscvDebugFunctions()
     file = StringIO()
-    interpreter = Interpreter(module_op, file=file)
+    interpreter = Interpreter(module_op, file=file, index_bitwidth=32)
     interpreter.register_implementations(riscv_functions)
     interpreter.register_implementations(riscv_debug_functions)
 
@@ -29,7 +29,12 @@ def test_riscv_interpreter():
                     create_ssa_value(riscv.Registers.UNALLOCATED_FLOAT),
                 ),
             ),
-            (1, -1, FloatAttr(2.0, f64), FloatAttr(-2.0, f64)),
+            (
+                IntegerAttr(1, i32),
+                IntegerAttr(-1, i32),
+                FloatAttr(2.0, f64),
+                FloatAttr(-2.0, f64),
+            ),
         )
         == ()
     )
