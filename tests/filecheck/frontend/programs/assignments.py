@@ -1,10 +1,7 @@
 # RUN: python %s | filecheck %s
 
-from typing import Any
-
 from xdsl.dialects import arith, builtin, test
 from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.frontend.pyast.program import PyASTProgram
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.ir import SSAValue
 
@@ -44,6 +41,13 @@ def assign_and_use(x: int) -> int:
     return y
 
 
+print(assign_and_use.module)
+# CHECK:       func.func @assign_and_use(%x: i32) -> i32 {
+# CHECK-NEXT:    %0 = arith.addi %x, %x : i32
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
 @ctx.parse_program
 def reassign(x: int) -> int:
     y = add(x, x)
@@ -52,20 +56,7 @@ def reassign(x: int) -> int:
     return x
 
 
-# The call is kept even though its result is never read.
-@ctx.parse_program
-def unused(x: int) -> None:
-    _result = effect(x)
-
-
-for program in (assign_and_use, reassign, unused):
-    print(program.module)
-
-# CHECK:       func.func @assign_and_use(%x: i32) -> i32 {
-# CHECK-NEXT:    %0 = arith.addi %x, %x : i32
-# CHECK-NEXT:    func.return %0 : i32
-# CHECK-NEXT:  }
-
+print(reassign.module)
 # CHECK:       func.func @reassign(%x: i32) -> i32 {
 # CHECK-NEXT:    %0 = arith.addi %x, %x : i32
 # CHECK-NEXT:    %1 = arith.addi %0, %x : i32
@@ -73,17 +64,18 @@ for program in (assign_and_use, reassign, unused):
 # CHECK-NEXT:    func.return %2 : i32
 # CHECK-NEXT:  }
 
+
+# The call is kept even though its result is never read.
+@ctx.parse_program
+def unused(x: int) -> None:
+    _result = effect(x)
+
+
+print(unused.module)
 # CHECK:       func.func @unused(%x: i32) {
 # CHECK-NEXT:    %0 = "test.op"(%x) : (i32) -> i32
 # CHECK-NEXT:    func.return
 # CHECK-NEXT:  }
-
-
-def print_error(program: PyASTProgram[..., Any]) -> None:
-    try:
-        program.module
-    except CodeGenerationException as error:
-        print(f"{program.name}: {error.msg}")
 
 
 @ctx.parse_program
@@ -92,10 +84,24 @@ def chained(x: int) -> int:
     return y
 
 
+try:
+    chained.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Only assignment to a single variable is supported.
+
+
 @ctx.parse_program
 def unpacked(x: int) -> int:
     y, _z = pair(x, x)
     return y
+
+
+try:
+    unpacked.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Only assignment to a single variable is supported.
 
 
 @ctx.parse_program
@@ -105,9 +111,23 @@ def changed_type(x: int, flag: bool) -> int:
     return y
 
 
+try:
+    changed_type.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Cannot change the type of variable 'y'.
+
+
 @ctx.parse_program
 def no_value(x: int) -> None:
     _result = consume(x)
+
+
+try:
+    no_value.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Expected an expression with exactly one result.
 
 
 @ctx.parse_program
@@ -118,11 +138,8 @@ def inside_if(x: int, flag: bool) -> int:
     return y
 
 
-for program in (chained, unpacked, changed_type, no_value, inside_if):
-    print_error(program)
-
-# CHECK:      chained: Only assignment to a single variable is supported.
-# CHECK-NEXT: unpacked: Only assignment to a single variable is supported.
-# CHECK-NEXT: changed_type: Cannot change the type of variable 'y'.
-# CHECK-NEXT: no_value: Expected an expression with exactly one result.
-# CHECK-NEXT: inside_if: Assignments are only supported directly in the function body.
+try:
+    inside_if.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Assignments are only supported directly in the function body.
