@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable
 from typing import ClassVar, Literal, TypeAlias
 
@@ -89,7 +90,7 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | StringAttr)
 
 
 @irdl_custom_directive
-class _Immediate(CustomDirective):
+class _Immediate(CustomDirective, abc.ABC):
     """A bare integer of a fixed type, or a quoted label."""
 
     immediate: AttributeVariable
