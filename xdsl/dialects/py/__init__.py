@@ -11,11 +11,16 @@ The Python dialect is under heavy development, and the definitions are not yet s
 """
 
 from xdsl.dialects.builtin import (
-    I64,
+    BoolAttr,
+    Float64Type,
+    FloatAttr,
+    IntAttr,
     IntegerAttr,
     StringAttr,
+    f64,
 )
 from xdsl.ir import (
+    Attribute,
     Dialect,
     ParametrizedAttribute,
     TypeAttribute,
@@ -29,7 +34,11 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import Pure
 
 
 @irdl_attr_definition
@@ -73,21 +82,75 @@ class PyModuleOp(PyOperation):
     body = region_def()
 
 
+PyConstValue = IntAttr | BoolAttr | FloatAttr[Float64Type] | StringAttr
+"""The attribute kinds a `py.const` can hold, one per Python literal type."""
+
+
 @irdl_op_definition
 class PyConstOp(PyOperation):
     """
     x = CONST
+
+    Holds a Python `int` (of any size), `bool`, `float` or `str` literal.
     """
 
     name = "py.const"
-    assembly_format = "$const attr-dict"
 
-    # We can expand this to other types later.
-    const = prop_def(IntegerAttr[I64])
+    const = prop_def(PyConstValue)
     res = result_def(PyObjectType())
 
-    def __init__(self, const: IntegerAttr[I64]):
+    traits = traits_def(Pure())
+
+    def __init__(self, const: Attribute):
         super().__init__(properties={"const": const}, result_types=[PyObjectType()])
+
+    @staticmethod
+    def from_value(value: int | bool | float | str) -> "PyConstOp":
+        """Build the constant for a Python literal."""
+        match value:
+            case bool():
+                return PyConstOp(IntegerAttr.from_bool(value))
+            case int():
+                return PyConstOp(IntAttr(value))
+            case float():
+                return PyConstOp(FloatAttr(value, f64))
+            case str():
+                return PyConstOp(StringAttr(value))
+
+    @property
+    def value(self) -> int | bool | float | str:
+        """The Python literal this constant holds."""
+        const = self.const
+        if isinstance(const, IntAttr):
+            return const.data
+        if isinstance(const, StringAttr):
+            return const.data
+        if isinstance(const, FloatAttr):
+            return const.value.data
+        return bool(const.value.data)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "PyConstOp":
+        if (string := parser.parse_optional_str_literal()) is not None:
+            op = cls.from_value(string)
+        elif (boolean := parser.parse_optional_boolean()) is not None:
+            op = cls.from_value(boolean)
+        else:
+            op = cls.from_value(parser.parse_number())
+        op.attributes.update(parser.parse_optional_attr_dict())
+        return op
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        value = self.value
+        match value:
+            case bool():
+                printer.print_string("true" if value else "false")
+            case str():
+                printer.print_string_literal(value)
+            case _:
+                printer.print_string(repr(value))
+        printer.print_op_attributes(self.attributes)
 
 
 @irdl_op_definition
