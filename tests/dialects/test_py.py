@@ -17,3 +17,11 @@ def test_const_from_value(value: int | bool | float | str):
     const = py.PyConstOp.from_value(value)
     assert const.value == value
     assert type(const.value) is type(value)
+
+
+def test_call_keyword_names():
+    c1 = py.PyConstOp.from_value(1)
+    c2 = py.PyConstOp.from_value(2)
+    args = (c1.results[0], c2.results[0])
+    assert py.PyCallOp("f", args).keyword_names == ()
+    assert py.PyCallOp("f", args, ("b",)).keyword_names == ("b",)

@@ -10,7 +10,10 @@ The Python dialect is under heavy development, and the definitions are not yet s
         1. We assume no exceptions are raised in the code.
 """
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     BoolAttr,
     Float64Type,
     FloatAttr,
@@ -23,6 +26,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -31,14 +35,17 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
     traits_def,
+    var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -177,10 +184,55 @@ class PyBinOp(PyOperation):
         )
 
 
+@irdl_op_definition
+class PyCallOp(PyOperation):
+    """
+    CALLEE(ARGS, KEYWORD=ARG, ...)
+
+    Call the Python object named `callee`, as written in the source, for example
+    "f" or "MyClass.method". The callee is not resolved here. The last
+    `len(keywords)` arguments are passed by keyword, with these names.
+    """
+
+    name = "py.call"
+    callee = prop_def(StringAttr)
+    keywords = opt_prop_def(ArrayAttr[StringAttr])
+    args = var_operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    assembly_format = "$callee `(` $args `)` (`keywords` $keywords^)? attr-dict"
+
+    def __init__(
+        self,
+        callee: str | StringAttr,
+        args: Sequence[SSAValue],
+        keywords: Sequence[str] = (),
+    ):
+        if isinstance(callee, str):
+            callee = StringAttr(callee)
+        properties: dict[str, Attribute] = {"callee": callee}
+        if keywords:
+            properties["keywords"] = ArrayAttr(StringAttr(k) for k in keywords)
+        super().__init__(
+            operands=[args], properties=properties, result_types=[PyObjectType()]
+        )
+
+    @property
+    def keyword_names(self) -> tuple[str, ...]:
+        return () if self.keywords is None else tuple(k.data for k in self.keywords)
+
+    def verify_(self) -> None:
+        if len(self.keyword_names) > len(self.args):
+            raise VerifyException(
+                f"Expected at most {len(self.args)} keyword names, "
+                f"got {len(self.keyword_names)}"
+            )
+
+
 Py = Dialect(
     "py",
     [
         PyBinOp,
+        PyCallOp,
         PyConstOp,
     ],
     [
