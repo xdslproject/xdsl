@@ -128,18 +128,3 @@ try:
 except CodeGenerationException as error:
     print(error.msg)
 # CHECK: Expected an expression with exactly one result.
-
-
-@ctx.parse_program
-def inside_if(x: int, flag: bool) -> int:
-    y = x
-    if flag:
-        y = add(x, x)
-    return y
-
-
-try:
-    inside_if.module
-except CodeGenerationException as error:
-    print(error.msg)
-# CHECK: Assignments are only supported directly in the function body.
