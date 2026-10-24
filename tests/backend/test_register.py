@@ -3,9 +3,11 @@ import re
 import pytest
 
 from xdsl.backend.register_type import RegisterType
+from xdsl.context import Context
 from xdsl.dialects.builtin import IntAttr, NoneAttr, StringAttr
-from xdsl.dialects.test import TestRegisterType
+from xdsl.dialects.test import Test, TestRegisterType
 from xdsl.irdl import irdl_attr_definition
+from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -37,10 +39,16 @@ def test_unallocated_register():
 
 def test_register_from_string():
     # Register with valid ABI name is fine
-    assert TestRegisterType.from_name("x0").register_name == StringAttr("x0")
+    assert TestRegisterType.from_name("x0").register_name == StringAttr("a0")
     assert TestRegisterType.from_name("x0").index == IntAttr(0)
-    assert TestRegisterType.from_name("x1").register_name == StringAttr("x1")
+    assert TestRegisterType.from_name("x1").register_name == StringAttr("a1")
     assert TestRegisterType.from_name("x1").index == IntAttr(1)
+    assert TestRegisterType.from_name(StringAttr("x1")) == TestRegisterType.from_name(
+        "a1"
+    )
+    assert (
+        len({TestRegisterType.from_name("x0"), TestRegisterType.from_name("a0")}) == 1
+    )
 
     # Register with infinite ABI name is fine
     assert TestRegisterType.from_name("y0").register_name == StringAttr("y0")
@@ -48,49 +56,49 @@ def test_register_from_string():
     assert TestRegisterType.from_name("y1").register_name == StringAttr("y1")
     assert TestRegisterType.from_name("y1").index == IntAttr(-2)
 
-    # Infinite prefix but not a number
-    with pytest.raises(
-        VerifyException,
-        match=re.escape("Invalid register name yy for register type test.reg"),
-    ):
-        TestRegisterType.from_name("yy")
 
-    # Incorrect name
+@pytest.mark.parametrize("name", ["foo", "yy", "y", "y01", "y+1", "y-1"])
+def test_invalid_register_name(name: str):
     with pytest.raises(
-        VerifyException,
-        match=re.escape("Invalid register name z0 for register type test.reg"),
+        ValueError,
+        match=re.escape(f"Invalid register name {name} for register type test.reg."),
     ):
-        TestRegisterType.from_name("z0")
+        TestRegisterType.from_name(name)
 
 
-def test_invalid_register_name():
-    with pytest.raises(
-        VerifyException,
-        match=re.escape("Invalid register name foo for register type test.reg."),
-    ):
-        TestRegisterType.from_name("foo")
+@pytest.mark.parametrize(
+    "index, name",
+    [(NoneAttr(), ""), (IntAttr(0), "a0"), (IntAttr(-1), "y0"), (IntAttr(-4), "y3")],
+)
+def test_register_roundtrip(index: IntAttr | NoneAttr, name: str):
+    register = TestRegisterType(index)
+    assert register.parameters == (index,)
+    assert register.register_name == StringAttr(name)
+    assert register.is_allocated == bool(name)
+    assert register == TestRegisterType.from_name(name)
+    assert register == TestRegisterType.new((index,))
+    expected = f"!test.reg<{name}>" if name else "!test.reg"
+    assert str(register) == expected
+    ctx = Context()
+    ctx.load_dialect(Test)
+    assert Parser(ctx, expected).parse_type() == register
 
 
 def test_invalid_index():
     with pytest.raises(
-        AssertionError, match=re.escape("Infinite index must be positive, got -1.")
+        ValueError, match=re.escape("Infinite index must be nonnegative, got -1.")
     ):
         TestRegisterType.infinite_register(-1)
 
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid index 1 for unallocated register.")
+        VerifyException, match=re.escape("Invalid index 2 for register type test.reg.")
     ):
-        TestRegisterType(IntAttr(1), StringAttr(""))
+        TestRegisterType(IntAttr(2))
 
     with pytest.raises(
-        VerifyException, match=re.escape("Missing index for register x1, expected 1.")
+        VerifyException, match=re.escape("Invalid index 2 for register type test.reg.")
     ):
-        TestRegisterType(NoneAttr(), StringAttr("x1"))
-
-    with pytest.raises(
-        VerifyException, match=re.escape("Invalid index 2 for register x1, expected 1.")
-    ):
-        TestRegisterType(IntAttr(2), StringAttr("x1"))
+        TestRegisterType.new((IntAttr(2),))
 
 
 def test_name_by_index():
