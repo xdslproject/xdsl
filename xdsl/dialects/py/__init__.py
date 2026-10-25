@@ -44,7 +44,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
@@ -53,9 +53,30 @@ from xdsl.utils.str_enum import StrEnum
 
 @irdl_attr_definition
 class PyObjectType(ParametrizedAttribute, TypeAttribute):
-    """Python opaque type"""
+    """
+    Python opaque type, with the annotation it was declared with as written in the
+    source, or an empty string if it has none.
+    """
 
     name = "py.object"
+
+    annotation: StringAttr
+
+    def __init__(self, annotation: str | StringAttr = ""):
+        super().__init__(StringAttr.get(annotation))
+
+    def print_parameters(self, printer: Printer) -> None:
+        if self.annotation.data:
+            with printer.in_angle_brackets():
+                printer.print_string_literal(self.annotation.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr]:
+        if parser.parse_optional_characters("<") is None:
+            return (StringAttr(""),)
+        annotation = parser.parse_str_literal()
+        parser.parse_characters(">", " to end py.object parameters")
+        return (StringAttr(annotation),)
 
 
 ##==------------------------------------------------------------------------==##
