@@ -1,12 +1,12 @@
 import ast
 import itertools
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
-import xdsl.dialects.func as func
+import xdsl.dialects.py as py
 import xdsl.dialects.symref as symref
 from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
@@ -14,30 +14,15 @@ from xdsl.frontend.pyast.utils.exceptions import (
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
-from xdsl.utils.lexer import Location
-
-FunctionDefinitionConstructor = Callable[
-    [str, builtin.FunctionType, Region, Location], Operation
-]
-"""Wrap a function region containing argument bindings, before visiting statements."""
-
-ReturnConstructor = Callable[[Sequence[SSAValue], Location], Operation | None]
-"""Construct a return operation, or return None when no terminator is needed."""
-
-
-def build_func(
-    name: str, signature: builtin.FunctionType, body: Region, location: Location
-) -> func.FuncOp:
-    return func.FuncOp(name, signature, body)
-
-
-def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnOp:
-    return func.ReturnOp(*values)
 
 
 @dataclass(init=False)
 class CodeGenerationVisitor(ast.NodeVisitor):
-    """Visitor that generates xDSL from the Python AST."""
+    """
+    Visitor that generates xDSL from the Python AST. Functions and returns are
+    generated as `py.func` and `py.return`, for the registered constructors to be
+    applied when lowering.
+    """
 
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
@@ -57,24 +42,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    function_definition_constructor: FunctionDefinitionConstructor
-    """Construct an enclosing operation before visiting the function statements."""
-
-    return_constructor: ReturnConstructor
-    """Construct return operations, optionally omitting the terminator."""
-
     def __init__(
         self,
         type_converter: TypeConverter,
         module: builtin.ModuleOp,
         file: str | None,
-        function_definition_constructor: FunctionDefinitionConstructor = build_func,
-        return_constructor: ReturnConstructor = build_return,
     ) -> None:
         self.type_converter = type_converter
         self.file = file
-        self.function_definition_constructor = function_definition_constructor
-        self.return_constructor = return_constructor
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
@@ -452,8 +427,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.symbol_table = dict()
         self.last_return = None
 
-        # Then, convert types in the function signature.
+        # Then, keep the annotations in the function signature, to be resolved when
+        # lowering. The argument types are also needed now, for their variables.
         argument_types: list[Attribute] = []
+        annotated_types: list[Attribute] = []
         for arg in node.args.args:
             if arg.annotation is None:
                 raise CodeGenerationException(
@@ -462,17 +439,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     arg.col_offset,
                     "Function arguments must be type hinted",
                 )
+            annotation = ast.unparse(arg.annotation)
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(arg.annotation), self.type_converter.globals
+                annotation, self.type_converter.globals
             )
             if xdsl_type is None:
                 raise CodeGenerationException(
                     self.file,
                     arg.lineno,
                     arg.col_offset,
-                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
+                    f"Unsupported function argument type: '{annotation}'",
                 )
             argument_types.append(xdsl_type)
+            annotated_types.append(py.PyObjectType(annotation))
 
         returns = node.returns
         if returns is None:
@@ -482,40 +461,30 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 "Function return type must be annotated.",
             )
-        return_types: list[Attribute] = []
-        if not (isinstance(returns, ast.Constant) and returns.value is None):
-            xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(returns), self.type_converter.globals
-            )
-            if xdsl_type is None:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Unsupported function return type: '{ast.unparse(returns)}'",
-                )
-            return_types.append(xdsl_type)
-
-        entry_block = Block(arg_types=argument_types)
-        body = Region(entry_block)
+        function_op = py.PyFuncOp(
+            node.name,
+            builtin.FunctionType.from_lists(
+                annotated_types, [py.PyObjectType(ast.unparse(returns))]
+            ),
+            Region(Block(arg_types=annotated_types)),
+        )
+        self.insert_op(function_op, node)
+        entry_block = function_op.body.block
         parent_block = self.inserter.insertion_point
         self.inserter.set_insertion_point_from_block(entry_block)
 
         # All arguments are declared using symref.
-        for arg, value in zip(node.args.args, entry_block.args, strict=True):
+        for arg, value, xdsl_type in zip(
+            node.args.args, entry_block.args, argument_types, strict=True
+        ):
             symbol_name = str(arg.arg)
             value.name_hint = symbol_name
-            self.symbol_table[symbol_name] = value.type
+            self.symbol_table[symbol_name] = xdsl_type
             self.insert_op(symref.DeclareOp(symbol_name), arg)
-            self.insert_op(symref.UpdateOp(symbol_name, value), arg)
-
-        function_op = self.function_definition_constructor(
-            node.name,
-            builtin.FunctionType.from_lists(argument_types, return_types),
-            body,
-            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
-        )
-        parent_block.add_op(function_op)
+            # In the body, arguments are plain objects whatever their annotation.
+            plain = py.PyCastOp(value, py.PyObjectType())
+            self.insert_op(plain, arg)
+            self.insert_op(symref.UpdateOp(symbol_name, plain.res), arg)
 
         # Parse function body.
         has_docstring = ast.get_docstring(node, clean=False) is not None
@@ -559,13 +528,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         value = node.value
         if value is None or (isinstance(value, ast.Constant) and value.value is None):
-            operands = ()
+            # A bare return returns None, which is constructed first, as in bytecode.
+            none = py.PyConstOp.from_value(None)
+            self.insert_op(none, node)
+            result = none.res
         else:
             # TODO: Support multiple return values if we allow multiple assignments.
-            operands = (self.visit_single_value(value),)
-        op = self.return_constructor(
-            operands,
-            Location(self.file or "<unknown>", node.lineno, node.col_offset + 1),
-        )
-        if op is not None:
-            self.inserter.insert_op(op)
+            result = self.visit_single_value(value)
+
+        # The returned value has the function's annotated result type.
+        function_op = self.inserter.insertion_point.parent_op()
+        assert isinstance(function_op, py.PyFuncOp)
+        (result_type,) = function_op.function_type.outputs.data
+        assert isinstance(result_type, py.PyObjectType)
+        typed = py.PyCastOp(result, result_type)
+        self.insert_op(typed, node)
+        self.insert_op(py.PyReturnOp(typed.res), node)
