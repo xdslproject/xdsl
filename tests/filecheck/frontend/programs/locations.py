@@ -19,7 +19,7 @@ def located(x: int) -> int:
 Printer(print_debuginfo=True).print_op(located.module)
 print()
 # CHECK:      builtin.module {
-# CHECK-NEXT:   func.func @located(%x: i32 loc(unknown)) -> i32 {
+# CHECK-NEXT:   func.func @located(%x: i32 loc("{{.*}}locations.py":[[# @LINE - 8]]:13)) -> i32 {
 # CHECK-NEXT:     symref.declare "x" loc("{{.*}}locations.py":[[# @LINE - 9]]:13)
 # CHECK-NEXT:     symref.update @x = %x : i32 loc("{{.*}}locations.py":[[# @LINE - 10]]:13)
 # CHECK-NEXT:     %0 = symref.fetch @x : i32 loc("{{.*}}locations.py":[[# @LINE - 10]]:13)
@@ -44,7 +44,7 @@ def outer() -> None:
 
 outer()
 # CHECK:      builtin.module {
-# CHECK-NEXT:   func.func @nested(%x: i32 loc(unknown)) -> i32 {
+# CHECK-NEXT:   func.func @nested(%x: i32 loc("{{.*}}locations.py":[[# @LINE - 9]]:16)) -> i32 {
 # CHECK-NEXT:     symref.declare "x" loc("{{.*}}locations.py":[[# @LINE - 10]]:16)
 # CHECK-NEXT:     symref.update @x = %x : i32 loc("{{.*}}locations.py":[[# @LINE - 11]]:16)
 # CHECK-NEXT:     %0 = symref.fetch @x : i32 loc("{{.*}}locations.py":[[# @LINE - 11]]:20)
