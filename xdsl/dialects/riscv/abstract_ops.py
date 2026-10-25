@@ -74,7 +74,6 @@ from .attrs import (
     si12,
     si20,
     ui5,
-    ui12,
 )
 from .registers import (
     FloatRegisterType,
@@ -1085,7 +1084,7 @@ class NullaryOperation(RISCVInstruction, ABC):
         return ()
 
 
-class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class CsrReadWriteOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -1103,6 +1102,11 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(IntRegisterType)
     csr = attr_def(IntegerAttr[UI12])
     writeonly = opt_attr_def(UnitAttr)
+
+    assembly_format = (
+        "$rs1 `,` $csr (`writeonly` $writeonly^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
@@ -1139,26 +1143,8 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            ui12,
-        )
-        if parser.parse_optional_keyword("writeonly") is not None:
-            attributes["writeonly"] = UnitAttr()
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        self.csr.print_without_type(printer)
-        if self.writeonly is not None:
-            printer.print_string(" writeonly")
-        return {"csr", "writeonly"}
-
-
-class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class CsrBitwiseOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -1175,6 +1161,11 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(IntRegisterType)
     csr = attr_def(IntegerAttr[UI12])
     readonly = opt_attr_def(UnitAttr)
+
+    assembly_format = (
+        "$rs1 `,` $csr (`readonly` $readonly^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     # Conservatively set the write effect, in the future we should be conditional on
     # the `readonly` flag.
@@ -1214,26 +1205,8 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            ui12,
-        )
-        if parser.parse_optional_keyword("readonly") is not None:
-            attributes["readonly"] = UnitAttr()
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        self.csr.print_without_type(printer)
-        if self.readonly is not None:
-            printer.print_string(" readonly")
-        return {"csr", "readonly"}
-
-
-class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class CsrReadWriteImmOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -1249,6 +1222,11 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     immediate = attr_def(IntegerAttr[UI5])
     """Unsigned five-bit value, zero-extended to XLEN before writing the CSR."""
     writeonly = opt_attr_def(UnitAttr)
+
+    assembly_format = (
+        "$csr `,` $immediate (`writeonly` $writeonly^)? attr-dict `:` "
+        "`(` `)` `->` type($rd)"
+    )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
@@ -1285,30 +1263,8 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.csr, self.immediate
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            ui12,
-        )
-        parser.parse_punctuation(",")
-        attributes["immediate"] = IntegerAttr.parse_with_type(parser, ui5)
-        if parser.parse_optional_keyword("writeonly") is not None:
-            attributes["writeonly"] = UnitAttr()
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        self.csr.print_without_type(printer)
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.writeonly is not None:
-            printer.print_string(" writeonly")
-        return {"csr", "immediate", "writeonly"}
-
-
-class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class CsrBitwiseImmOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -1324,6 +1280,8 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     csr = attr_def(IntegerAttr[UI12])
     immediate = attr_def(IntegerAttr[UI5])
+
+    assembly_format = "$csr `,` $immediate attr-dict `:` `(` `)` `->` type($rd)"
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
@@ -1348,24 +1306,6 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            ui12,
-        )
-        parser.parse_punctuation(",")
-        attributes["immediate"] = IntegerAttr.parse_with_type(parser, ui5)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        self.csr.print_without_type(printer)
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"csr", "immediate"}
 
 
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
