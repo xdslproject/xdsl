@@ -118,6 +118,10 @@ class ImmediateI20(_Immediate):
     INTEGER_TYPE = i20
 
 
+class ImmediateSI20(_Immediate):
+    INTEGER_TYPE = si20
+
+
 class ImmediateUI5(_Immediate):
     INTEGER_TYPE = ui5
 

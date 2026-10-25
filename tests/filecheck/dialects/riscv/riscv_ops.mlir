@@ -90,11 +90,17 @@
     // CHECK-NEXT: riscv.jal 1, !riscv.reg
     riscv.jal "label"
     // CHECK-NEXT: riscv.jal "label"
+    riscv.jal -524288 {comment = "tail call"}
+    // CHECK-NEXT: riscv.jal -524288 {comment = "tail call"}
+    riscv.jal 524287, !riscv.reg<ra> {comment = "call"}
+    // CHECK-NEXT: riscv.jal 524287, !riscv.reg<ra> {comment = "call"}
 
     riscv.j 1
     // CHECK-NEXT: riscv.j 1
     riscv.j "label"
     // CHECK-NEXT: riscv.j "label"
+    riscv.j "label", !riscv.reg<zero> {extra = "metadata"}
+    // CHECK-NEXT: riscv.j "label", !riscv.reg<zero> {extra = "metadata"}
 
     riscv.jalr %0, 1: (!riscv.reg) -> ()
     // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg) -> ()
@@ -102,6 +108,8 @@
     // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg : (!riscv.reg) -> ()
     riscv.jalr %0, "label" : (!riscv.reg) -> ()
     // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg) -> ()
+    riscv.jalr %0, -2048, !riscv.reg<ra> {comment = "indirect call"} : (!riscv.reg) -> ()
+    // CHECK-NEXT: riscv.jalr %0, -2048, !riscv.reg<ra> {comment = "indirect call"} : (!riscv.reg) -> ()
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
@@ -507,11 +515,15 @@
 // CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = 1 : si20} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = 1 : si20, rd = !riscv.reg} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = "label"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = -524288 : si20, comment = "tail call"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = 524287 : si20, rd = !riscv.reg<ra>, comment = "call"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.j"() {immediate = 1 : si20} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.j"() {immediate = "label"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.j"() {immediate = "label", rd = !riscv.reg<zero>, extra = "metadata"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12, rd = !riscv.reg} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = "label"} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = -2048 : si12, rd = !riscv.reg<ra>, comment = "indirect call"} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ret"() : () -> ()
 // CHECK-GENERIC-NEXT:    ^bb1(%2: !riscv.reg, %3: !riscv.reg):
 // CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
