@@ -1015,6 +1015,9 @@ class TaskOp(_FuncBase):
             task_kind=kind,
             id=id,
         )
+        task.attributes |= {
+            k: v for k, v in extra_attrs.data.items() if k not in ("kind", "id")
+        }
         return task
 
     def print(self, printer: Printer):

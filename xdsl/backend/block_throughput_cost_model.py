@@ -109,7 +109,7 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
             self.src_path = tmp_file.name
-            printer = AssemblyPrinter(stream=tmp_file)
+            printer = AssemblyPrinter(tmp_file.file)
             for op in block.walk():
                 assert isinstance(op, AssemblyPrintable), (
                     f"Block operation {op} should be an assembly instruction"

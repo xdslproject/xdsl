@@ -32,6 +32,9 @@ csl.task @control_task_args(%a: i32) attributes {kind = #csl<task_kind control>,
 csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
   csl.return
 }
+csl.task @task_extra_attrs() attributes {kind = #csl<task_kind local>, id = 3 : ui5, extra} {
+  csl.return
+}
 
 
 csl.func @initialize() {
@@ -368,6 +371,9 @@ csl.func @builtins() {
 // CHECK-NEXT:     csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
+// CHECK-NEXT:     csl.task @task_extra_attrs() attributes {extra, kind = #csl<task_kind local>, id = 3 : ui5} {
+// CHECK-NEXT:       csl.return
+// CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @initialize() {
 // CHECK-NEXT:       %lb, %ub = "test.op"() : () -> (i16, i16)
 // CHECK-NEXT:       "csl.member_call"(%thing, %lb, %ub) <{field = "some_func"}> : (!csl.imported_module, i16, i16) -> ()
@@ -619,6 +625,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "runtime_bound_local_task", function_type = () -> (), kind = #csl<task_kind local>}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
+// CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "task_extra_attrs", function_type = () -> (), kind = #csl<task_kind local>, id = 3 : ui5}> ({
+// CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
+// CHECK-GENERIC-NEXT:     }) {extra} : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "initialize", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       %lb, %ub = "test.op"() : () -> (i16, i16)
 // CHECK-GENERIC-NEXT:       "csl.member_call"(%thing, %lb, %ub) <{field = "some_func"}> : (!csl.imported_module, i16, i16) -> ()
