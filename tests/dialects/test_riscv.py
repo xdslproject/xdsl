@@ -259,6 +259,12 @@ def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
             "riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()",
             "Expected immediate",
         ),
+        ("riscv.jal -524289", "out of range for type si20"),
+        ("riscv.jal 524288", "out of range for type si20"),
+        (
+            "riscv.jalr %0, 2048 : (!riscv.reg) -> ()",
+            "out of range for type si12",
+        ),
         ("riscv.addi %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
         ("riscv.flw %0 17 : (!riscv.reg) -> !riscv.freg", "Expected ','"),
         ("riscv.roriw %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),

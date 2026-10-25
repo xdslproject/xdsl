@@ -66,6 +66,7 @@ from .attrs import (
     ImmediateI12,
     ImmediateI20,
     ImmediateSI12,
+    ImmediateSI20,
     ImmediateUI5,
     i12,
     i20,
@@ -589,7 +590,7 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
         return self.rd, self.immediate
 
 
-class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdImmJumpOperation(RISCVInstruction, ABC):
     """
     In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
     is neither an operand, because the stored value is overwritten, nor a result value,
@@ -603,6 +604,11 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     the program counter is stored before jumping.
     """
     immediate = attr_def(IntegerAttr[SI20] | StringAttr)
+
+    assembly_format = (
+        "custom<ImmediateSI20>($immediate) (`,` qualified($rd)^)? attr-dict"
+    )
+    custom_directives = (ImmediateSI20,)
 
     def __init__(
         self,
@@ -627,31 +633,6 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si20)
-        if parser.parse_optional_punctuation(","):
-            attributes["rd"] = parser.parse_attribute()
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        if self.rd is not None:
-            printer.print_string(", ")
-            printer.print_attribute(self.rd)
-        return {"immediate", "rd"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 class RdRsImmIntegerOperation(RISCVInstruction, ABC):
@@ -846,7 +827,7 @@ class RdRsImmBitManipOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
 
-class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmJumpOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -866,6 +847,12 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     the program counter is stored before jumping.
     """
     immediate = attr_def(IntegerAttr[SI12] | StringAttr)
+
+    assembly_format = (
+        "$rs1 `,` custom<ImmediateSI12>($immediate) (`,` qualified($rd)^)? "
+        "attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+    )
+    custom_directives = (ImmediateSI12,)
 
     def __init__(
         self,
@@ -894,22 +881,6 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
-        if parser.parse_optional_punctuation(","):
-            attributes["rd"] = parser.parse_attribute()
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.rd is not None:
-            printer.print_string(", ")
-            printer.print_attribute(self.rd)
-        return {"immediate", "rd"}
 
 
 class RdRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RSInvT]):
