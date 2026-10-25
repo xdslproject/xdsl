@@ -14,8 +14,8 @@ def test_custom_inits():
     assert cmp.operands[1] is c2.results[0]
 
 
-@pytest.mark.parametrize("value", [0, -(2**100), True, False, 1.5, "s"])
-def test_const_from_value(value: int | bool | float | str):
+@pytest.mark.parametrize("value", [0, -(2**100), True, False, 1.5, "s", None])
+def test_const_from_value(value: int | bool | float | str | None):
     const = py.PyConstOp.from_value(value)
     assert const.value == value
     assert type(const.value) is type(value)

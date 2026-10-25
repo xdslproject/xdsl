@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IntAttr,
     IntegerAttr,
+    NoneType,
     StringAttr,
     f64,
 )
@@ -114,7 +115,7 @@ class PyModuleOp(PyOperation):
     body = region_def()
 
 
-PyConstValue = IntAttr | BoolAttr | FloatAttr[Float64Type] | StringAttr
+PyConstValue = IntAttr | BoolAttr | FloatAttr[Float64Type] | StringAttr | NoneType
 """The attribute kinds a `py.const` can hold, one per Python literal type."""
 
 
@@ -123,7 +124,7 @@ class PyConstOp(PyOperation):
     """
     x = CONST
 
-    Holds a Python `int` (of any size), `bool`, `float` or `str` literal.
+    Holds a Python `int` (of any size), `bool`, `float`, `str` or `None` literal.
     """
 
     name = "py.const"
@@ -137,9 +138,11 @@ class PyConstOp(PyOperation):
         super().__init__(properties={"const": const}, result_types=[PyObjectType()])
 
     @staticmethod
-    def from_value(value: int | bool | float | str) -> "PyConstOp":
+    def from_value(value: int | bool | float | str | None) -> "PyConstOp":
         """Build the constant for a Python literal."""
         match value:
+            case None:
+                return PyConstOp(NoneType())
             case bool():
                 return PyConstOp(IntegerAttr.from_bool(value))
             case int():
@@ -150,9 +153,11 @@ class PyConstOp(PyOperation):
                 return PyConstOp(StringAttr(value))
 
     @property
-    def value(self) -> int | bool | float | str:
+    def value(self) -> int | bool | float | str | None:
         """The Python literal this constant holds."""
         const = self.const
+        if isinstance(const, NoneType):
+            return None
         if isinstance(const, IntAttr):
             return const.data
         if isinstance(const, StringAttr):
@@ -167,6 +172,8 @@ class PyConstOp(PyOperation):
             op = cls.from_value(string)
         elif (boolean := parser.parse_optional_boolean()) is not None:
             op = cls.from_value(boolean)
+        elif parser.parse_optional_keyword("None") is not None:
+            op = cls.from_value(None)
         else:
             op = cls.from_value(parser.parse_number())
         op.attributes.update(parser.parse_optional_attr_dict())
@@ -176,6 +183,8 @@ class PyConstOp(PyOperation):
         printer.print_string(" ")
         value = self.value
         match value:
+            case None:
+                printer.print_string("None")
             case bool():
                 printer.print_string("true" if value else "false")
             case str():
