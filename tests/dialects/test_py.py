@@ -54,3 +54,9 @@ def test_func_init():
     func.verify()
     assert func.func_name.data == "f"
     assert func.body.block.args[0].type == int_type
+
+
+def test_cast_fold():
+    value = py.PyConstOp.from_value(1).res
+    assert py.PyCastOp(value, py.PyObjectType()).fold() == (value,)
+    assert py.PyCastOp(value, py.PyObjectType("int")).fold() is None
