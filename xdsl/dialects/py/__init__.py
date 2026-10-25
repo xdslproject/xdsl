@@ -306,8 +306,8 @@ class PyUnpackOp(PyOperation):
     res = var_result_def(PyObjectType())
     assembly_format = "$value attr-dict `:` type($res)"
 
-    def __init__(self, value: SSAValue, count: int):
-        super().__init__(operands=[value], result_types=[[PyObjectType()] * count])
+    def __init__(self, value: SSAValue, result_types: Sequence[Attribute]):
+        super().__init__(operands=[value], result_types=[result_types])
 
 
 class CmpOp(StrEnum):
