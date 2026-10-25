@@ -39,9 +39,9 @@ def test_unallocated_register():
 
 def test_register_from_string():
     # Register with valid ABI name is fine
-    assert TestRegisterType.from_name("x0").register_name == StringAttr("a0")
+    assert TestRegisterType.from_name("x0").register_name == "a0"
     assert TestRegisterType.from_name("x0").index == IntAttr(0)
-    assert TestRegisterType.from_name("x1").register_name == StringAttr("a1")
+    assert TestRegisterType.from_name("x1").register_name == "a1"
     assert TestRegisterType.from_name("x1").index == IntAttr(1)
     assert TestRegisterType.from_name(StringAttr("x1")) == TestRegisterType.from_name(
         "a1"
@@ -51,9 +51,9 @@ def test_register_from_string():
     )
 
     # Register with infinite ABI name is fine
-    assert TestRegisterType.from_name("y0").register_name == StringAttr("y0")
+    assert TestRegisterType.from_name("y0").register_name == "y0"
     assert TestRegisterType.from_name("y0").index == IntAttr(-1)
-    assert TestRegisterType.from_name("y1").register_name == StringAttr("y1")
+    assert TestRegisterType.from_name("y1").register_name == "y1"
     assert TestRegisterType.from_name("y1").index == IntAttr(-2)
 
 
@@ -73,7 +73,7 @@ def test_invalid_register_name(name: str):
 def test_register_roundtrip(index: IntAttr | NoneAttr, name: str):
     register = TestRegisterType(index)
     assert register.parameters == (index,)
-    assert register.register_name == StringAttr(name)
+    assert register.register_name == name
     assert register.is_allocated == bool(name)
     assert register == TestRegisterType.from_name(name)
     assert register == TestRegisterType.new((index,))

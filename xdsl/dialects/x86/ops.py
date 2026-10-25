@@ -3948,7 +3948,7 @@ class DK_KMovBOp(DK_Operation):
         if isinstance(dest.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         dest_32 = Reg32Type.from_index(dest.index.data)
-        return dest_32.register_name.data, reg(self.source)
+        return dest_32.register_name, reg(self.source)
 
 
 @irdl_op_definition
@@ -3969,7 +3969,7 @@ class KS_KMovBOp(KS_Operation):
         if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         source_32 = Reg32Type.from_index(source.index.data)
-        return reg(self.destination), source_32.register_name.data
+        return reg(self.destination), source_32.register_name
 
 
 @irdl_op_definition
@@ -3989,7 +3989,7 @@ class DK_KMovWOp(DK_Operation):
         if isinstance(dest.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         dest_32 = Reg32Type.from_index(dest.index.data)
-        return dest_32.register_name.data, reg(self.source)
+        return dest_32.register_name, reg(self.source)
 
 
 @irdl_op_definition
@@ -4010,7 +4010,7 @@ class KS_KMovWOp(KS_Operation):
         if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         source_32 = Reg32Type.from_index(source.index.data)
-        return reg(self.destination), source_32.register_name.data
+        return reg(self.destination), source_32.register_name
 
 
 @irdl_op_definition
@@ -4030,7 +4030,7 @@ class DK_KMovDOp(DK_Operation):
         if isinstance(dest.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         dest_32 = Reg32Type.from_index(dest.index.data)
-        return dest_32.register_name.data, reg(self.source)
+        return dest_32.register_name, reg(self.source)
 
 
 @irdl_op_definition
@@ -4051,7 +4051,7 @@ class KS_KMovDOp(KS_Operation):
         if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
         source_32 = Reg32Type.from_index(source.index.data)
-        return reg(self.destination), source_32.register_name.data
+        return reg(self.destination), source_32.register_name
 
 
 @irdl_op_definition

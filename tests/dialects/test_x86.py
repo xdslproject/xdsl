@@ -70,7 +70,7 @@ def test_register(
     register: x86.registers.Reg64Type | x86.registers.Reg32Type, name: str
 ):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 def test_register_widths_are_distinct():
@@ -87,7 +87,7 @@ def test_register_widths_are_distinct():
 def test_rflags_register():
     rflags = x86.registers.RFLAGS
     assert rflags.is_allocated
-    assert rflags.register_name.data == "rflags"
+    assert rflags.register_name == "rflags"
 
 
 @pytest.mark.parametrize(
@@ -129,7 +129,7 @@ def test_rflags_register():
 )
 def test_avx512_register(register: x86.registers.AVX512RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(
@@ -155,7 +155,7 @@ def test_avx512_register(register: x86.registers.AVX512RegisterType, name: str):
 )
 def test_avx2_register(register: x86.registers.AVX2RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(
@@ -181,7 +181,7 @@ def test_avx2_register(register: x86.registers.AVX2RegisterType, name: str):
 )
 def test_sse_register(register: x86.registers.SSERegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(

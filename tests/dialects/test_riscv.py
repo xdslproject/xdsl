@@ -37,11 +37,11 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.register_name.data == "a0"
+    assert a0.type.register_name == "a0"
     assert a0.type.index == IntAttr(10)
-    assert a1.type.register_name.data == "a1"
+    assert a1.type.register_name == "a1"
     assert a1.type.index == IntAttr(11)
-    assert a2.type.register_name.data == "a2"
+    assert a2.type.register_name == "a2"
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.

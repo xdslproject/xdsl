@@ -119,7 +119,7 @@ class RegisterStack:
 
         assert isinstance(reg.index, IntAttr)
         assert reg.index.data not in reserved_registers, (
-            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
+            f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         )
         return reg
 
