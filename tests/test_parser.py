@@ -1312,6 +1312,9 @@ def test_parse_location():
         NameLoc(StringAttr("caller"), NoneAttr()),
     )
 
+    with pytest.raises(ParseError, match="Expected 'at'"):
+        Parser(ctx, 'loc(callsite("callee" not_at "caller"))').parse_optional_location()
+
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 

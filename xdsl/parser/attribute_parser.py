@@ -1406,7 +1406,7 @@ class AttrParser(BaseParser):
                 case "callsite":
                     with self.in_parens():
                         callee = self._parse_location()
-                        self.parse_identifier("at")
+                        self.parse_keyword("at")
                         caller = self._parse_location()
                         return CallSiteLoc(callee, caller)
                 case "fused":
