@@ -20,6 +20,7 @@ builtin.module {
     %15 = py.compare notin, %0, %1
     %16 = py.build_tuple()
     %17 = py.build_tuple(%3, %2, %16)
+    %18 = "test.op"() : () -> !py.object<"int">
 }
 
 // CHECK:       builtin.module {
@@ -41,6 +42,7 @@ builtin.module {
 // CHECK-NEXT:    %15 = py.compare notin, %0, %1
 // CHECK-NEXT:    %16 = py.build_tuple()
 // CHECK-NEXT:    %17 = py.build_tuple(%3, %2, %16)
+// CHECK-NEXT:    %18 = "test.op"() : () -> !py.object<"int">
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC:       "builtin.module"() ({
@@ -62,4 +64,5 @@ builtin.module {
 // CHECK-GENERIC-NEXT:    %15 = "py.compare"(%0, %1) <{op = #py<cmpop notin>}> : (!py.object, !py.object) -> !py.object
 // CHECK-GENERIC-NEXT:    %16 = "py.build_tuple"() : () -> !py.object
 // CHECK-GENERIC-NEXT:    %17 = "py.build_tuple"(%3, %2, %16) : (!py.object, !py.object, !py.object) -> !py.object
+// CHECK-GENERIC-NEXT:    %18 = "test.op"() : () -> !py.object<"int">
 // CHECK-GENERIC-NEXT:  }) : () -> ()

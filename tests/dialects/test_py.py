@@ -33,3 +33,8 @@ def test_call_keyword_names():
 def test_build_tuple_init():
     elements = (py.PyConstOp.from_value(1).res, py.PyConstOp.from_value("s").res)
     assert tuple(py.PyBuildTupleOp(elements).elements) == elements
+
+
+def test_object_annotation():
+    assert py.PyObjectType() == py.PyObjectType("")
+    assert py.PyObjectType("int").annotation.data == "int"
