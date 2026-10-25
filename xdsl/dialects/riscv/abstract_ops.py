@@ -1146,9 +1146,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
             ui12,
         )
-        if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
-                parser.raise_error(f"Expected 'w' flag, got '{flag}'")
+        if parser.parse_optional_keyword("writeonly") is not None:
             attributes["writeonly"] = UnitAttr()
         return attributes
 
@@ -1156,7 +1154,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         self.csr.print_without_type(printer)
         if self.writeonly is not None:
-            printer.print_string(', "w"')
+            printer.print_string(" writeonly")
         return {"csr", "writeonly"}
 
 
@@ -1223,9 +1221,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
             ui12,
         )
-        if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'r' flag")) != "r":
-                parser.raise_error(f"Expected 'r' flag, got '{flag}'")
+        if parser.parse_optional_keyword("readonly") is not None:
             attributes["readonly"] = UnitAttr()
         return attributes
 
@@ -1233,7 +1229,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         self.csr.print_without_type(printer)
         if self.readonly is not None:
-            printer.print_string(', "r"')
+            printer.print_string(" readonly")
         return {"csr", "readonly"}
 
 
@@ -1298,9 +1294,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         )
         parser.parse_punctuation(",")
         attributes["immediate"] = IntegerAttr.parse_with_type(parser, ui5)
-        if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
-                parser.raise_error(f"Expected 'w' flag, got '{flag}'")
+        if parser.parse_optional_keyword("writeonly") is not None:
             attributes["writeonly"] = UnitAttr()
         return attributes
 
@@ -1310,7 +1304,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
-            printer.print_string(', "w"')
+            printer.print_string(" writeonly")
         return {"csr", "immediate", "writeonly"}
 
 

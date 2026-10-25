@@ -155,16 +155,16 @@
 
     %csrrw_rw = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrw_w = riscv.csrrw %0, 1024, "w" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024, "w" : (!riscv.reg) -> !riscv.reg
+    %csrrw_w = riscv.csrrw %0, 1024 writeonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 writeonly : (!riscv.reg) -> !riscv.reg
     %csrrs_rw = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrs_r = riscv.csrrs %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
+    %csrrs_r = riscv.csrrs %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
     %csrrc_rw = riscv.csrrc %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
+    %csrrc_r = riscv.csrrc %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
     %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 8 : () -> !riscv.reg
     %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg
@@ -175,8 +175,8 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : () -> !riscv.reg
     %csrrwi_rw = riscv.csrrwi 0, 0 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrwi 0, 0 : () -> !riscv.reg
-    %csrrwi_w = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg
+    %csrrwi_w = riscv.csrrwi 4095, 31 writeonly : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 4095, 31 writeonly : () -> !riscv.reg
 
     // Machine Mode Privileged Instructions
     riscv.wfi
