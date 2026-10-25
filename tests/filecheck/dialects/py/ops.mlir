@@ -30,6 +30,7 @@ builtin.module {
         py.return %21 : !py.object
     }
     %21 = py.const None
+    %22 = py.cast %18 : !py.object<"int"> to !py.object
 }
 
 // CHECK:       builtin.module {
@@ -61,6 +62,7 @@ builtin.module {
 // CHECK-NEXT:      py.return %21 : !py.object
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %21 = py.const None
+// CHECK-NEXT:    %22 = py.cast %18 : !py.object<"int"> to !py.object
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC:       "builtin.module"() ({
@@ -93,4 +95,5 @@ builtin.module {
 // CHECK-GENERIC-NEXT:      "py.return"(%21) : (!py.object) -> ()
 // CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:    %21 = "py.const"() <{const = none}> : () -> !py.object
+// CHECK-GENERIC-NEXT:    %22 = "py.cast"(%18) : (!py.object<"int">) -> !py.object
 // CHECK-GENERIC-NEXT:  }) : () -> ()

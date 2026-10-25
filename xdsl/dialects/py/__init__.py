@@ -31,6 +31,7 @@ from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -327,6 +328,29 @@ class PyUnpackOp(PyOperation):
         super().__init__(operands=[value], result_types=[result_types])
 
 
+@irdl_op_definition
+class PyCastOp(PyOperation, HasFolderInterface):
+    """
+    Cast a Python object to another `!py.object` type, for example to or from an
+    annotated one. Casts to the same type fold away.
+    """
+
+    name = "py.cast"
+    value = operand_def(PyObjectType)
+    res = result_def(PyObjectType)
+    assembly_format = "$value attr-dict `:` type($value) `to` type($res)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, value: SSAValue, result_type: PyObjectType):
+        super().__init__(operands=[value], result_types=[result_type])
+
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        if self.value.type == self.res.type:
+            return (self.value,)
+        return None
+
+
 class CmpOp(StrEnum):
     """
     A Python comparison operator, named as in Python's `ast` module, in lowercase.
@@ -472,6 +496,7 @@ Py = Dialect(
         PyBinOp,
         PyBuildTupleOp,
         PyCallOp,
+        PyCastOp,
         PyCompareOp,
         PyConstOp,
         PyFuncOp,
