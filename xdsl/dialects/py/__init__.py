@@ -348,7 +348,6 @@ class PyCastOp(PyOperation, HasFolderInterface):
     def fold(self) -> Sequence[SSAValue | Attribute] | None:
         if self.value.type == self.res.type:
             return (self.value,)
-        return None
 
 
 class CmpOp(StrEnum):
