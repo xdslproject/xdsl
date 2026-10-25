@@ -41,4 +41,4 @@ def test_object_annotation():
 
 def test_unpack_init():
     unpack = py.PyUnpackOp(py.PyConstOp.from_value(1).res, [py.PyObjectType()] * 3)
-    assert [r.type for r in unpack.res] == [py.PyObjectType()] * 3
+    assert unpack.res.types == (py.PyObjectType(),) * 3
