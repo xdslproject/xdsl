@@ -90,7 +90,7 @@ class StridePattern(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            parser.parse_identifier("ub")
+            parser.parse_keyword("ub")
             parser.parse_punctuation("=")
             ub = ArrayAttr(
                 IntAttr(i)
@@ -99,7 +99,7 @@ class StridePattern(ParametrizedAttribute):
                 )
             )
             parser.parse_punctuation(",")
-            parser.parse_identifier("strides")
+            parser.parse_keyword("strides")
             parser.parse_punctuation("=")
             strides = ArrayAttr(
                 IntAttr(i)
@@ -108,7 +108,7 @@ class StridePattern(ParametrizedAttribute):
                 )
             )
             if parser.parse_optional_punctuation(","):
-                parser.parse_identifier("repeat")
+                parser.parse_keyword("repeat")
                 parser.parse_punctuation("=")
                 repeat = parser.parse_integer(allow_boolean=False, allow_negative=False)
             else:
@@ -318,7 +318,7 @@ class StreamingRegionOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> StreamingRegionOp:
         parser.parse_punctuation("{")
-        parser.parse_identifier("stride_patterns")
+        parser.parse_keyword("stride_patterns")
         parser.parse_punctuation("=")
 
         patterns = parser.parse_attribute()

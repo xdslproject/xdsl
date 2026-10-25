@@ -999,7 +999,7 @@ class AttrParser(BaseParser):
     def _parse_dialect_resource_handle(
         self, dialect_name: str, interface: OpAsmDialectInterface
     ) -> str:
-        key = self.parse_identifier(" for resource handle")
+        key = self.parse_identifier(error_message=" for resource handle")
 
         if (dialect_name, key) not in self.dialect_resources:
             key = interface.declare_resource(key)

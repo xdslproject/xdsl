@@ -230,13 +230,13 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             return token.text
         return None
 
-    def parse_identifier(self, context_msg: str = "") -> str:
+    def parse_identifier(self, *, error_message: str = "") -> str:
         """
         Parse an identifier, if present, with syntax:
             ident ::= (letter|[_]) (letter|digit|[_$.])*
         """
         return self.expect(
-            self.parse_optional_identifier, "identifier expected" + context_msg
+            self.parse_optional_identifier, "identifier expected" + error_message
         )
 
     def parse_optional_identifier_or_str_literal(self) -> str | None:
