@@ -436,7 +436,7 @@ class FormatParser(BaseParser):
             return None
         self._consume_token()
         end_pos = self._current_token.span.end
-        variable_name = self.parse_identifier(" after '$'")
+        variable_name = self.parse_identifier(context_msg=" after '$'")
 
         # Check if the variable is an operand
         if (
@@ -484,7 +484,7 @@ class FormatParser(BaseParser):
         start_pos = self.pos
         self._consume_token()
         end_pos = self._current_token.span.end
-        variable_name = self.parse_identifier(" after '$'")
+        variable_name = self.parse_identifier(context_msg=" after '$'")
 
         # Check if the variable is an operand
         if (

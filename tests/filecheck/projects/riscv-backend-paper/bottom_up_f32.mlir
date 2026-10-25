@@ -164,7 +164,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       %zero_float = riscv.fcvt.d.w %zero : (!riscv.reg<zero>) -> !riscv.freg
       %zero_vector = riscv_snitch.vfcpka.s.s %zero_float, %zero_float : (!riscv.freg, !riscv.freg) -> !riscv.freg
       snitch_stream.streaming_region {
-        patterns = [
+        stride_patterns = [
           #snitch_stream.stride_pattern<ub = [128], strides = [8]>
         ]
       } ins(%X_1 : !riscv.reg) outs(%Y_1 : !riscv.reg) {

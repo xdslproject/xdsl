@@ -230,7 +230,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             return token.text
         return None
 
-    def parse_identifier(self, context_msg: str = "") -> str:
+    def parse_identifier(self, *, context_msg: str = "") -> str:
         """
         Parse an identifier, if present, with syntax:
             ident ::= (letter|[_]) (letter|digit|[_$.])*
