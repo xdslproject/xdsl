@@ -22,7 +22,7 @@ builtin.module {
     %17 = py.build_tuple(%3, %2, %16)
     %18 = "test.op"() : () -> !py.object<"int">
     %19, %20 = py.unpack %2 : !py.object, !py.object
-    %21 = py.const none
+    %21 = py.const None
 }
 
 // CHECK:       builtin.module {
@@ -46,7 +46,7 @@ builtin.module {
 // CHECK-NEXT:    %17 = py.build_tuple(%3, %2, %16)
 // CHECK-NEXT:    %18 = "test.op"() : () -> !py.object<"int">
 // CHECK-NEXT:    %19, %20 = py.unpack %2 : !py.object, !py.object
-// CHECK-NEXT:    %21 = py.const none
+// CHECK-NEXT:    %21 = py.const None
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC:       "builtin.module"() ({

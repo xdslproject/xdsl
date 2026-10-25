@@ -172,7 +172,7 @@ class PyConstOp(PyOperation):
             op = cls.from_value(string)
         elif (boolean := parser.parse_optional_boolean()) is not None:
             op = cls.from_value(boolean)
-        elif parser.parse_optional_keyword("none") is not None:
+        elif parser.parse_optional_keyword("None") is not None:
             op = cls.from_value(None)
         else:
             op = cls.from_value(parser.parse_number())
@@ -184,7 +184,7 @@ class PyConstOp(PyOperation):
         value = self.value
         match value:
             case None:
-                printer.print_string("none")
+                printer.print_string("None")
             case bool():
                 printer.print_string("true" if value else "false")
             case str():
