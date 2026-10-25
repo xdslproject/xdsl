@@ -7,7 +7,6 @@ from typing import Any, cast
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
-import xdsl.dialects.scf as scf
 import xdsl.dialects.symref as symref
 from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
@@ -145,15 +144,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.lineno,
                 node.col_offset,
                 "Only assignment to a single variable is supported.",
-            )
-        # Desymrefication cannot yet carry an updated value out of a nested region,
-        # so an assignment inside an `if` would silently keep the old value.
-        if isinstance(self.inserter.insertion_point.parent_op(), scf.IfOp):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Assignments are only supported directly in the function body.",
             )
         value = self.visit_single_value(node.value)
         name = node.targets[0].id
@@ -541,67 +531,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # the insertion point.
         self.symbol_table = None
         self.inserter.set_insertion_point_from_block(parent_block)
-
-    def visit_If(self, node: ast.If) -> None:
-        # Get the condition.
-        self.visit(node.test)
-        cond = self.inserter.get_operand()
-        cond_block = self.inserter.insertion_point
-
-        # Insert the operation first, so that the branches are already nested in it
-        # while their statements are visited.
-        op = scf.IfOp(cond, [], Region(Block()), Region(Block()))
-        self.inserter.insert_op(op)
-
-        def visit_region(region: Region, stmts: list[ast.stmt]) -> None:
-            self.inserter.set_insertion_point_from_region(region)
-            for stmt in stmts:
-                self.visit(stmt)
-
-        # Generate code for both branches.
-        visit_region(op.true_region, node.body)
-        visit_region(op.false_region, node.orelse)
-
-        # In our case, if statement never returns a value and therefore we can
-        # simply yield nothing. It is the responsibility of subsequent passes to
-        # ensure SSA-form of IR and that values are yielded correctly.
-        op.true_region.blocks[-1].add_op(scf.YieldOp())
-        op.false_region.blocks[-1].add_op(scf.YieldOp())
-
-        # Reset insertion point.
-        self.inserter.set_insertion_point_from_block(cond_block)
-
-    def visit_IfExp(self, node: ast.IfExp) -> None:
-        self.visit(node.test)
-        cond = self.inserter.get_operand()
-        cond_block = self.inserter.insertion_point
-
-        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]:
-            region = Region([Block()])
-            self.inserter.set_insertion_point_from_region(region)
-            self.visit(expr)
-            result = self.inserter.get_operand()
-            self.inserter.insert_op(scf.YieldOp(result))
-            return result.type, region
-
-        # Generate code for both branches.
-        true_type, true_region = visit_expr(node.body)
-        false_type, false_region = visit_expr(node.orelse)
-
-        # Check types are the same for this to be a valid if statement.
-        if true_type != false_type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Expected the same types for if expression,"
-                f" but got {true_type} and {false_type}.",
-            )
-        op = scf.IfOp(cond, [true_type], true_region, false_region)
-
-        # Reset insertion point to add scf.if.
-        self.inserter.set_insertion_point_from_block(cond_block)
-        self.inserter.insert_op(op)
 
     def visit_Name(self, node: ast.Name) -> None:
         fetch_op = symref.FetchOp(node.id, self.get_symbol(node))

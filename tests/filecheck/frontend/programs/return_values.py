@@ -1,11 +1,9 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects.builtin import i1
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
 ctx = PyASTContext()
-ctx.register_type(bool, i1)
 
 
 @ctx.parse_program
@@ -29,19 +27,6 @@ def test_early_return() -> None:
 
 try:
     test_early_return.module
-except CodeGenerationException as error:
-    print(error.msg)
-# CHECK: Return statement must be the final statement directly in the function body.
-
-
-@ctx.parse_program
-def test_nested_return(cond: bool) -> None:
-    if cond:
-        return
-
-
-try:
-    test_nested_return.module
 except CodeGenerationException as error:
     print(error.msg)
 # CHECK: Return statement must be the final statement directly in the function body.
