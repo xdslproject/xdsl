@@ -41,6 +41,19 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
+# CHECK: Unsupported Python AST node {{(<ast\.)?AnnAssign}}
+@ctx.parse_program
+def test_annotated_assignment_unsupported(end: c_size_t) -> c_size_t:
+    x: c_size_t = end
+    return x
+
+
+try:
+    test_annotated_assignment_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
 # CHECK: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:

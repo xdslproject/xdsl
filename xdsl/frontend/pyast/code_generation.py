@@ -127,10 +127,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"Unsupported Python AST node {node!s}",
         )
 
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
-
     def visit_Assert(self, node: ast.Assert) -> None:
         self.visit(node.test)
         if node.msg is None:
