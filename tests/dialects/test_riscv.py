@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
+from xdsl.dialects.riscv.attrs import ui5, ui12
 from xdsl.parser import Parser
 from xdsl.traits import (
     MemoryEffect,
@@ -67,7 +68,7 @@ def test_is_non_zero():
 def test_csr_op():
     a1 = create_ssa_value(riscv.Registers.A1)
     zero = create_ssa_value(riscv.Registers.ZERO)
-    csr = IntegerAttr(16, i32)
+    csr = IntegerAttr(16, ui12)
     # CsrrwOp
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.ZERO).verify()
@@ -88,35 +89,59 @@ def test_csr_op():
         riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     # CsrrwiOp
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.ZERO
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.ZERO
     ).verify()
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), writeonly=True, rd=riscv.Registers.ZERO
+        csr=csr, immediate=IntegerAttr(0, ui5), writeonly=True, rd=riscv.Registers.ZERO
     ).verify()
     with pytest.raises(VerifyException):
         riscv.CsrrwiOp(
             csr=csr,
-            immediate=IntegerAttr(0, i32),
+            immediate=IntegerAttr(0, ui5),
             writeonly=True,
             rd=riscv.Registers.A2,
         ).verify()
     # CsrrsiOp
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
     # CsrrciOp
     riscv.CsrrciOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
+
+
+@pytest.mark.parametrize("name, expected_type", [("csr", "ui12"), ("immediate", "ui5")])
+def test_csr_attribute_types(name: str, expected_type: str):
+    op = riscv.CsrrwiOp(IntegerAttr(1, ui12), IntegerAttr(1, ui5))
+    op.attributes[name] = IntegerAttr(1, i32)
+    with pytest.raises(VerifyException, match=expected_type):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    "source, expected_type",
+    [
+        ("riscv.csrrw %0, -1 : (!riscv.reg) -> !riscv.reg", "ui12"),
+        ("riscv.csrrs %0, 4096 : (!riscv.reg) -> !riscv.reg", "ui12"),
+        ("riscv.csrrwi 0, -1 : () -> !riscv.reg", "ui5"),
+        ("riscv.csrrsi 0, 32 : () -> !riscv.reg", "ui5"),
+    ],
+)
+def test_csr_immediate_out_of_range(source: str, expected_type: str):
+    ctx = Context()
+    ctx.load_dialect(riscv.RISCV)
+    with pytest.raises(VerifyException, match=f"out of range for type {expected_type}"):
+        Parser(ctx, source).parse_operation()
 
 
 def test_comment_op():
@@ -258,6 +283,16 @@ def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
         (
             "riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()",
             "Expected immediate",
+        ),
+        ("riscv.jal -524289", "out of range for type si20"),
+        ("riscv.jal 524288", "out of range for type si20"),
+        (
+            "riscv.jalr %0, 2048 : (!riscv.reg) -> ()",
+            "out of range for type si12",
+        ),
+        (
+            "riscv.jalr %0, -2049 : (!riscv.reg) -> ()",
+            "out of range for type si12",
         ),
         ("riscv.addi %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
         ("riscv.flw %0 17 : (!riscv.reg) -> !riscv.freg", "Expected ','"),
