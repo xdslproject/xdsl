@@ -70,7 +70,6 @@ from .attrs import (
     ImmediateUI5,
     i12,
     i20,
-    parse_immediate_value,
     print_immediate_value,
     si12,
     si20,
