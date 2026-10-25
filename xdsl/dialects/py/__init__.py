@@ -26,7 +26,11 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     f64,
 )
-from xdsl.dialects.utils import EnumAttribute
+from xdsl.dialects.utils import (
+    EnumAttribute,
+    parse_func_op_like,
+    print_func_op_like,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -380,7 +384,6 @@ class PyFuncOp(PyOperation):
     func_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     body = region_def("single_block")
-    assembly_format = "$func_name `:` $function_type attr-dict-with-keyword $body"
 
     traits = traits_def(IsolatedFromAbove())
 
@@ -393,6 +396,33 @@ class PyFuncOp(PyOperation):
                 "function_type": function_type,
             },
             regions=[body],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "PyFuncOp":
+        pos = parser.pos
+        name, inputs, outputs, body, extra_attrs, arg_attrs, res_attrs = (
+            parse_func_op_like(
+                parser, reserved_attr_names=("func_name", "function_type")
+            )
+        )
+        if arg_attrs is not None or res_attrs is not None:
+            parser.raise_error(
+                "py.func does not take argument or result attributes", pos, parser.pos
+            )
+        op = cls(name, FunctionType.from_lists(inputs, outputs), body)
+        if extra_attrs is not None:
+            op.attributes |= extra_attrs.data
+        return op
+
+    def print(self, printer: Printer) -> None:
+        print_func_op_like(
+            printer,
+            self.func_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            reserved_attr_names=("func_name", "function_type"),
         )
 
     def verify_(self) -> None:
