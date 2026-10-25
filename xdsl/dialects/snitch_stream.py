@@ -291,7 +291,7 @@ class StreamingRegionOp(IRDLOperation):
                         )
                 printer.print_string("\n]")
             else:
-                printer.print_string("\npatterns = []")
+                printer.print_string("\nstride_patterns = []")
         printer.print_string("\n}")
 
         if self.inputs:
