@@ -259,10 +259,9 @@ class Parser(AttrParser):
                 )
             self.forward_block_references.pop(name)
 
-        # Don't set name_hint for blocks that match the default pattern
-        if not Block.is_default_block_name(name):
+        # Numeric identifiers and default block names are not name hints.
+        if Block.is_valid_name(name) and not Block.is_default_block_name(name):
             block.name_hint = name  # setter verifies validity
-        # If it matches pattern "bb" followed by digits, leave name_hint as None
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
@@ -1020,7 +1019,7 @@ class Parser(AttrParser):
         if name not in self.blocks:
             self.forward_block_references[name].append(block_token.span)
             block = Block()
-            if not Block.is_default_block_name(name):
+            if Block.is_valid_name(name) and not Block.is_default_block_name(name):
                 block.name_hint = name  # setter verifies validity
             self.blocks[name] = (block, None)
         return self.blocks[name][0]
