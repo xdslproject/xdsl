@@ -426,9 +426,7 @@ class PyReturnOp(PyOperation):
         super().__init__(operands=[value])
 
     def verify_(self) -> None:
-        func = self.parent_op()
-        if not isinstance(func, PyFuncOp):
-            return
+        func = cast(PyFuncOp, self.parent_op())
         outputs = func.function_type.outputs.data
         if len(outputs) == 1 and self.value.type != outputs[0]:
             raise VerifyException(
