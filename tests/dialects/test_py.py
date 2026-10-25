@@ -1,6 +1,8 @@
 import pytest
 
 import xdsl.dialects.py as py
+from xdsl.dialects.builtin import FunctionType
+from xdsl.ir import Block, Region
 
 
 def test_custom_inits():
@@ -42,3 +44,13 @@ def test_object_annotation():
 def test_unpack_init():
     unpack = py.PyUnpackOp(py.PyConstOp.from_value(1).res, [py.PyObjectType()] * 3)
     assert unpack.res.types == (py.PyObjectType(),) * 3
+
+
+def test_func_init():
+    int_type = py.PyObjectType("int")
+    body = Region(Block(arg_types=[int_type]))
+    body.block.add_op(py.PyReturnOp())
+    func = py.PyFuncOp("f", FunctionType.from_lists([int_type], [int_type]), body)
+    func.verify()
+    assert func.func_name.data == "f"
+    assert func.body.block.args[0].type == int_type

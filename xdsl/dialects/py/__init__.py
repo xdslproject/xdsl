@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     Float64Type,
     FloatAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     NoneType,
@@ -28,6 +29,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
+    Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
@@ -38,6 +40,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -48,7 +51,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -362,6 +365,65 @@ class PyCompareOp(PyOperation):
         )
 
 
+@irdl_op_definition
+class PyFuncOp(PyOperation):
+    """
+    def NAME(ARG: ANNOTATION, ...) -> RETURN_ANNOTATION: BODY
+
+    The name is kept as written in the source, like a `py.call` callee, rather than
+    as a symbol. The annotations are kept on the types of the arguments and result.
+    """
+
+    name = "py.func"
+    func_name = prop_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    body = region_def("single_block")
+    assembly_format = "$func_name `:` $function_type attr-dict-with-keyword $body"
+
+    traits = traits_def(IsolatedFromAbove())
+
+    def __init__(
+        self, name: str | StringAttr, function_type: FunctionType, body: Region
+    ):
+        super().__init__(
+            properties={
+                "func_name": StringAttr.get(name),
+                "function_type": function_type,
+            },
+            regions=[body],
+        )
+
+    def verify_(self) -> None:
+        inputs = self.function_type.inputs.data
+        outputs = self.function_type.outputs.data
+        if len(outputs) != 1:
+            raise VerifyException(f"Expected a single result type, got {len(outputs)}")
+        if not all(isinstance(t, PyObjectType) for t in (*inputs, *outputs)):
+            raise VerifyException("Expected a function type of !py.object types")
+        if tuple(arg.type for arg in self.body.block.args) != inputs:
+            raise VerifyException(
+                "Expected the block arguments to match the function type inputs"
+            )
+
+
+@irdl_op_definition
+class PyReturnOp(PyOperation):
+    """
+    return VALUE
+
+    Without a value, returns `None`.
+    """
+
+    name = "py.return"
+    value = opt_operand_def(PyObjectType())
+    assembly_format = "($value^)? attr-dict"
+
+    traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
+
+    def __init__(self, value: SSAValue | None = None):
+        super().__init__(operands=[value])
+
+
 Py = Dialect(
     "py",
     [
@@ -370,6 +432,8 @@ Py = Dialect(
         PyCallOp,
         PyCompareOp,
         PyConstOp,
+        PyFuncOp,
+        PyReturnOp,
         PyUnpackOp,
     ],
     [
