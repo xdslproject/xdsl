@@ -4,7 +4,7 @@
 builtin.module {
     %0 = py.const 0
     %1 = py.const 1
-    %2 = py.binop "add" %0 %1
+    %2 = py.binop add, %0, %1
     %3 = py.const "linalg.matmul"
     %4 = py.const 1267650600228229401496703205376
     %5 = py.const -1267650600228229401496703205376
@@ -23,7 +23,7 @@ builtin.module {
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0 = py.const 0
 // CHECK-NEXT:    %1 = py.const 1
-// CHECK-NEXT:    %2 = py.binop "add" %0 %1
+// CHECK-NEXT:    %2 = py.binop add, %0, %1
 // CHECK-NEXT:    %3 = py.const "linalg.matmul"
 // CHECK-NEXT:    %4 = py.const 1267650600228229401496703205376
 // CHECK-NEXT:    %5 = py.const -1267650600228229401496703205376
@@ -42,7 +42,7 @@ builtin.module {
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    %0 = "py.const"() <{const = #builtin.int<0>}> : () -> !py.object
 // CHECK-GENERIC-NEXT:    %1 = "py.const"() <{const = #builtin.int<1>}> : () -> !py.object
-// CHECK-GENERIC-NEXT:    %2 = "py.binop"(%0, %1) <{op = "add"}> : (!py.object, !py.object) -> !py.object
+// CHECK-GENERIC-NEXT:    %2 = "py.binop"(%0, %1) <{op = #py<operator add>}> : (!py.object, !py.object) -> !py.object
 // CHECK-GENERIC-NEXT:    %3 = "py.const"() <{const = "linalg.matmul"}> : () -> !py.object
 // CHECK-GENERIC-NEXT:    %4 = "py.const"() <{const = #builtin.int<1267650600228229401496703205376>}> : () -> !py.object
 // CHECK-GENERIC-NEXT:    %5 = "py.const"() <{const = #builtin.int<-1267650600228229401496703205376>}> : () -> !py.object

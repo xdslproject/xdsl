@@ -1,13 +1,12 @@
 import pytest
 
 import xdsl.dialects.py as py
-from xdsl.dialects.builtin import StringAttr
 
 
 def test_custom_inits():
     c1 = py.PyConstOp.from_value(1)
     c2 = py.PyConstOp.from_value(2)
-    b1 = py.PyBinOp(op=StringAttr("add"), lhs=c1.results[0], rhs=c2.results[0])
+    b1 = py.PyBinOp(op=py.Operator.ADD, lhs=c1.results[0], rhs=c2.results[0])
     assert b1.operands[0] is c1.results[0]
     assert b1.operands[1] is c2.results[0]
     cmp = py.PyCompareOp(op=py.CmpOp.LT, lhs=c1.results[0], rhs=c2.results[0])
