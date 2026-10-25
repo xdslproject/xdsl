@@ -43,6 +43,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -292,6 +293,23 @@ class PyBuildTupleOp(PyOperation):
         super().__init__(operands=[elements], result_types=[PyObjectType()])
 
 
+@irdl_op_definition
+class PyUnpackOp(PyOperation):
+    """
+    x, y, ... = VALUE
+
+    Unpack a Python iterable into a fixed number of values.
+    """
+
+    name = "py.unpack"
+    value = operand_def(PyObjectType())
+    res = var_result_def(PyObjectType())
+    assembly_format = "$value attr-dict `:` type($res)"
+
+    def __init__(self, value: SSAValue, result_types: Sequence[Attribute]):
+        super().__init__(operands=[value], result_types=[result_types])
+
+
 class CmpOp(StrEnum):
     """
     A Python comparison operator, named as in Python's `ast` module, in lowercase.
@@ -343,6 +361,7 @@ Py = Dialect(
         PyCallOp,
         PyCompareOp,
         PyConstOp,
+        PyUnpackOp,
     ],
     [
         CmpOpAttr,
