@@ -132,11 +132,20 @@ class PyASTContext:
 
         # Remove leading indentation from the source code to avoid parsing errors
         source = getsource(func.__code__)
-        source = textwrap.dedent(source)
+        dedented = textwrap.dedent(source)
+        indent = len(source.splitlines()[0]) - len(dedented.splitlines()[0])
 
         # Retrieve the AST for the function body, without the decorator
-        func_ast = ast.parse(source).body[0]
+        func_ast = ast.parse(dedented).body[0]
         assert isinstance(func_ast, ast.FunctionDef)
+
+        # Count positions from the start of the file, not of the function source
+        ast.increment_lineno(func_ast, func.__code__.co_firstlineno - 1)
+        for node in ast.walk(func_ast):
+            if isinstance(node, ast.expr | ast.stmt | ast.arg | ast.keyword):
+                node.col_offset += indent
+                if node.end_col_offset is not None:
+                    node.end_col_offset += indent
         assert func_ast.name == func.__name__
         assert len(func_ast.decorator_list) == 1
         func_ast.decorator_list = []

@@ -142,7 +142,7 @@ try:
     invalid_function.module
 except CodeGenerationException as error:
     print(error)
-# CHECK: Code generation exception at "{{.*}}custom_function.py", line 2 column 1: Rejected function 'invalid_function'.
+# CHECK: Code generation exception at "{{.*}}custom_function.py", line [[# @LINE - 8]] column 1: Rejected function 'invalid_function'.
 
 
 def reject_return(values: Sequence[SSAValue], location: Location) -> None:
@@ -164,4 +164,4 @@ try:
     invalid_return.module
 except CodeGenerationException as error:
     print(error)
-# CHECK: Code generation exception at "{{.*}}custom_function.py", line 3 column 5: Rejected return value.
+# CHECK: Code generation exception at "{{.*}}custom_function.py", line [[# @LINE - 7]] column 5: Rejected return value.
