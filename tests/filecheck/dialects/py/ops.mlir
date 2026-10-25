@@ -27,8 +27,9 @@ builtin.module {
         %21 = py.const 1
         py.return %21
     }
-    py.func "nothing" : () -> !py.object<"None"> {
-        py.return
+    py.func "zero" : () -> !py.object<"int"> {
+        %19 = py.const 0
+        py.return %19
     }
     %21 = py.const None
 }
@@ -59,8 +60,9 @@ builtin.module {
 // CHECK-NEXT:      %21 = py.const 1
 // CHECK-NEXT:      py.return %21
 // CHECK-NEXT:    }
-// CHECK-NEXT:    py.func "nothing" : () -> !py.object<"None"> {
-// CHECK-NEXT:      py.return
+// CHECK-NEXT:    py.func "zero" : () -> !py.object<"int"> {
+// CHECK-NEXT:      %19 = py.const 0
+// CHECK-NEXT:      py.return %19
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %21 = py.const None
 // CHECK-NEXT:  }
@@ -91,8 +93,9 @@ builtin.module {
 // CHECK-GENERIC-NEXT:      %21 = "py.const"() <{const = #builtin.int<1>}> : () -> !py.object
 // CHECK-GENERIC-NEXT:      "py.return"(%21) : (!py.object) -> ()
 // CHECK-GENERIC-NEXT:    }) : () -> ()
-// CHECK-GENERIC-NEXT:    "py.func"() <{func_name = "nothing", function_type = () -> !py.object<"None">}> ({
-// CHECK-GENERIC-NEXT:      "py.return"() : () -> ()
+// CHECK-GENERIC-NEXT:    "py.func"() <{func_name = "zero", function_type = () -> !py.object<"int">}> ({
+// CHECK-GENERIC-NEXT:      %19 = "py.const"() <{const = #builtin.int<0>}> : () -> !py.object
+// CHECK-GENERIC-NEXT:      "py.return"(%19) : (!py.object) -> ()
 // CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:    %21 = "py.const"() <{const = none}> : () -> !py.object
 // CHECK-GENERIC-NEXT:  }) : () -> ()

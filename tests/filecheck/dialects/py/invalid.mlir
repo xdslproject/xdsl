@@ -8,7 +8,8 @@
 
 // CHECK: Expected a single result type, got 0
 py.func "f" : () -> () {
-  py.return
+  %0 = py.const 0
+  py.return %0
 }
 
 // -----
@@ -16,7 +17,8 @@ py.func "f" : () -> () {
 // CHECK: Expected a function type of !py.object types
 py.func "f" : (i32) -> !py.object {
 ^bb0(%x : i32):
-  py.return
+  %0 = py.const 0
+  py.return %0
 }
 
 // -----
@@ -24,7 +26,7 @@ py.func "f" : (i32) -> !py.object {
 // CHECK: Expected the block arguments to match the function type inputs
 py.func "f" : (!py.object<"int">) -> !py.object {
 ^bb0(%x : !py.object):
-  py.return
+  py.return %x
 }
 
 // -----

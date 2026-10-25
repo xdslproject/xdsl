@@ -49,7 +49,8 @@ def test_unpack_init():
 def test_func_init():
     int_type = py.PyObjectType("int")
     body = Region(Block(arg_types=[int_type]))
-    body.block.add_op(py.PyReturnOp())
+    zero = py.PyConstOp.from_value(0)
+    body.block.add_ops([zero, py.PyReturnOp(zero.res)])
     func = py.PyFuncOp("f", FunctionType.from_lists([int_type], [int_type]), body)
     func.verify()
     assert func.func_name.data == "f"

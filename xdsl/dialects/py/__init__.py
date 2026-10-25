@@ -40,7 +40,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -411,16 +410,16 @@ class PyReturnOp(PyOperation):
     """
     return VALUE
 
-    Without a value, returns `None`.
+    A bare `return` returns `None`, which is constructed first, as in bytecode.
     """
 
     name = "py.return"
-    value = opt_operand_def(PyObjectType())
-    assembly_format = "($value^)? attr-dict"
+    value = operand_def(PyObjectType())
+    assembly_format = "$value attr-dict"
 
     traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
 
-    def __init__(self, value: SSAValue | None = None):
+    def __init__(self, value: SSAValue):
         super().__init__(operands=[value])
 
 
