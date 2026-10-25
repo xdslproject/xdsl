@@ -144,6 +144,21 @@ def test_csr_immediate_out_of_range(source: str, expected_type: str):
         Parser(ctx, source).parse_operation()
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        'riscv.csrrw %0, 16, "w" : (!riscv.reg) -> !riscv.reg',
+        'riscv.csrrs %0, 16, "r" : (!riscv.reg) -> !riscv.reg',
+        'riscv.csrrwi 16, 1, "w" : () -> !riscv.reg',
+    ],
+)
+def test_csr_reject_legacy_flags(source: str):
+    ctx = Context()
+    ctx.load_dialect(riscv.RISCV)
+    with pytest.raises(ParseError, match="Expected ':'"):
+        Parser(ctx, source).parse_operation()
+
+
 def test_comment_op():
     comment_op = riscv.CommentOp("my comment")
 

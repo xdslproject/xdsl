@@ -12,7 +12,7 @@
 
 // Invalid CSR operation with a1
 %a1 = "test.op"() : () -> !riscv.reg<a1>
-%2 = riscv.csrrw %a1, 16, "w" : (!riscv.reg<a1>) -> !riscv.reg<a1>
+%2 = riscv.csrrw %a1, 16 writeonly : (!riscv.reg<a1>) -> !riscv.reg<a1>
 
 // CHECK: Operation does not verify: When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), not 'a1'
 
@@ -20,7 +20,7 @@
 
 // Invalid CSR operation with t0
 %t0 = "test.op"() : () -> !riscv.reg<t0>
-%3 = riscv.csrrs %t0, 16, "r" : (!riscv.reg<t0>) -> !riscv.reg
+%3 = riscv.csrrs %t0, 16 readonly : (!riscv.reg<t0>) -> !riscv.reg
 
 // CHECK: Operation does not verify: When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), not 't0'
 
@@ -28,7 +28,7 @@
 
 // Invalid CSR operation with t1
 %t1 = "test.op"() : () -> !riscv.reg<t1>
-%4 = riscv.csrrc %t1, 16, "r" : (!riscv.reg<t1>) -> !riscv.reg
+%4 = riscv.csrrc %t1, 16 readonly : (!riscv.reg<t1>) -> !riscv.reg
 
 // CHECK: Operation does not verify: When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), not 't1'
 
@@ -36,14 +36,14 @@
 
 // Invalid CSR operation with wrong flag
 %a2 = "test.op"() : () -> !riscv.reg<a2>
-%5 = riscv.csrrw %a2, 16, "x" : (!riscv.reg<a2>) -> !riscv.reg
+%5 = riscv.csrrw %a2, 16 readonly : (!riscv.reg<a2>) -> !riscv.reg
 
-// CHECK: Expected 'w' flag, got 'x'
+// CHECK: Expected ':'
 
 // -----
 
 // Invalid CSR operation with wrong flag
 %a3 = "test.op"() : () -> !riscv.reg<a3>
-%6 = riscv.csrrs %a3, 16, "x" : (!riscv.reg<a3>) -> !riscv.reg
+%6 = riscv.csrrs %a3, 16 writeonly : (!riscv.reg<a3>) -> !riscv.reg
 
-// CHECK: Expected 'r' flag, got 'x'
+// CHECK: Expected ':'
