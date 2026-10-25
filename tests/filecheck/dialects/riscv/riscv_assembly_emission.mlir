@@ -145,10 +145,10 @@
     // CHECK-NEXT: csrrci j_0, 1024, 8
     %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg<j_1>
     // CHECK-NEXT: csrrci j_1, 1024, 0
-    %csrrwi_rw = riscv.csrrwi 1024, 8 : () -> !riscv.reg<j_0>
-    // CHECK-NEXT: csrrwi j_0, 1024, 8
-    %csrrwi_w = riscv.csrrwi 1024, 8, "w" : () -> !riscv.reg<zero>
-    // CHECK-NEXT: csrrwi zero, 1024, 8
+    %csrrwi_rw = riscv.csrrwi 0, 0 : () -> !riscv.reg<j_0>
+    // CHECK-NEXT: csrrwi j_0, 0, 0
+    %csrrwi_w = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg<zero>
+    // CHECK-NEXT: csrrwi zero, 4095, 31
 
     // Environment Call and Breakpoints
     riscv.ecall

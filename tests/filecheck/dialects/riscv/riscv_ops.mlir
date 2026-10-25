@@ -173,10 +173,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 8 : () -> !riscv.reg
     %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : () -> !riscv.reg
-    %csrrwi_rw = riscv.csrrwi 1024, 1 : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1 : () -> !riscv.reg
-    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg
+    %csrrwi_rw = riscv.csrrwi 0, 0 : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 0, 0 : () -> !riscv.reg
+    %csrrwi_w = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg
 
     // Machine Mode Privileged Instructions
     riscv.wfi
@@ -541,18 +541,18 @@
 // CHECK-GENERIC-NEXT:      "riscv.sb"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.sh"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.sw"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      %csrrw_rw = "riscv.csrrw"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrw_w = "riscv.csrrw"(%0) {csr = 1024 : i32, writeonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrs_rw = "riscv.csrrs"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrs_r = "riscv.csrrs"(%0) {csr = 1024 : i32, readonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrc_rw = "riscv.csrrc"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrc_r = "riscv.csrrc"(%0) {csr = 1024 : i32, readonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrsi_rw = "riscv.csrrsi"() {csr = 1024 : i32, immediate = 8 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrsi_r = "riscv.csrrsi"() {csr = 1024 : i32, immediate = 0 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrci_rw = "riscv.csrrci"() {csr = 1024 : i32, immediate = 8 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrci_r = "riscv.csrrci"() {csr = 1024 : i32, immediate = 0 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrwi_rw = "riscv.csrrwi"() {csr = 1024 : i32, immediate = 1 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrwi_w = "riscv.csrrwi"() {csr = 1024 : i32, immediate = 1 : i32, writeonly} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrw_rw = "riscv.csrrw"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrw_w = "riscv.csrrw"(%0) {csr = 1024 : ui12, writeonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrs_rw = "riscv.csrrs"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrs_r = "riscv.csrrs"(%0) {csr = 1024 : ui12, readonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrc_rw = "riscv.csrrc"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrc_r = "riscv.csrrc"(%0) {csr = 1024 : ui12, readonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrsi_rw = "riscv.csrrsi"() {csr = 1024 : ui12, immediate = 8 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrsi_r = "riscv.csrrsi"() {csr = 1024 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrci_rw = "riscv.csrrci"() {csr = 1024 : ui12, immediate = 8 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrci_r = "riscv.csrrci"() {csr = 1024 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrwi_rw = "riscv.csrrwi"() {csr = 0 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrwi_w = "riscv.csrrwi"() {csr = 4095 : ui12, immediate = 31 : ui5, writeonly} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.wfi"() : () -> ()
 // CHECK-GENERIC-NEXT:      %mul = "riscv.mul"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mulh = "riscv.mulh"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
