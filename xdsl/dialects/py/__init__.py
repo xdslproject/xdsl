@@ -252,6 +252,25 @@ class PyCallOp(PyOperation):
             )
 
 
+@irdl_op_definition
+class PyBuildTupleOp(PyOperation):
+    """
+    (ELEMENT, ...)
+
+    Build a Python tuple from its elements, in order.
+    """
+
+    name = "py.build_tuple"
+    elements = var_operand_def(PyObjectType())
+    res = result_def(PyObjectType())
+    assembly_format = "`(` $elements `)` attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, elements: Sequence[SSAValue]):
+        super().__init__(operands=[elements], result_types=[PyObjectType()])
+
+
 class CmpOp(StrEnum):
     """
     A Python comparison operator, named as in Python's `ast` module, in lowercase.
@@ -299,6 +318,7 @@ Py = Dialect(
     "py",
     [
         PyBinOp,
+        PyBuildTupleOp,
         PyCallOp,
         PyCompareOp,
         PyConstOp,

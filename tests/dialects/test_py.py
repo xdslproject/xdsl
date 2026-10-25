@@ -27,3 +27,8 @@ def test_call_keyword_names():
     args = (c1.results[0], c2.results[0])
     assert py.PyCallOp("f", args).keyword_names == ()
     assert py.PyCallOp("f", args, ("b",)).keyword_names == ("b",)
+
+
+def test_build_tuple_init():
+    elements = (py.PyConstOp.from_value(1).res, py.PyConstOp.from_value("s").res)
+    assert tuple(py.PyBuildTupleOp(elements).elements) == elements
