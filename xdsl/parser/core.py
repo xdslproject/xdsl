@@ -732,8 +732,11 @@ class Parser(AttrParser):
         """
         if self.parse_optional_keyword("attributes") is None:
             return None
-        return self.parse_optional_attr_dict_with_reserved_attr_names(
-            reserved_attr_names
+        return self.expect(
+            lambda: self.parse_optional_attr_dict_with_reserved_attr_names(
+                reserved_attr_names
+            ),
+            "Expected attribute dictionary after 'attributes'",
         )
 
     def parse_optional_attr_dict_with_reserved_attr_names(
@@ -747,7 +750,9 @@ class Parser(AttrParser):
         already passed through the operation custom assembly format.
         """
         begin_pos = self.lexer.pos
-        attr = self._parse_builtin_dict_attr()
+        attr = self._parse_optional_builtin_dict_attr()
+        if attr is None:
+            return None
 
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:

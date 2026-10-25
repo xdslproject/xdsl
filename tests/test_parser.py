@@ -308,11 +308,14 @@ def test_dictionary_attr(data: dict[str, Attribute]):
 
     attr1 = Parser(ctx, text).parse_attribute()
     attr2 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    attr3 = Parser(ctx, text).parse_optional_attr_dict_with_reserved_attr_names()
     assert isinstance(attr1, DictionaryAttr)
     assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
     assert attr1.data == data
     assert attr2.data == data
+    assert attr3.data == data
 
 
 @pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
@@ -320,7 +323,24 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
-    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
+    parser = Parser(ctx, text)
+    pos = parser.pos
+    assert parser.parse_optional_attr_dict_with_keyword() is None
+    assert parser.pos == pos
+
+
+@pytest.mark.parametrize("text", ["", ":", "next"])
+def test_dictionary_attr_with_reserved_names_missing(text: str):
+    parser = Parser(Context(), text)
+    pos = parser.pos
+    assert parser.parse_optional_attr_dict_with_reserved_attr_names(("value",)) is None
+    assert parser.pos == pos
+
+
+@pytest.mark.parametrize("text", ["attributes", "attributes :", "attributes {"])
+def test_dictionary_attr_with_keyword_incomplete(text: str):
+    with pytest.raises(ParseError):
+        Parser(Context(), text).parse_optional_attr_dict_with_keyword()
 
 
 @pytest.mark.parametrize(
