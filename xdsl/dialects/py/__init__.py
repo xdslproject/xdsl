@@ -80,7 +80,7 @@ class PyModuleOp(PyOperation):
 
     %0 = py.const 0
     %1 = py.const 1
-    %2 = py.binop "add" %0 %1
+    %2 = py.binop add, %0, %1
 
     We mean the following Python code:
     _0 = 1
@@ -163,6 +163,31 @@ class PyConstOp(PyOperation):
         printer.print_op_attributes(self.attributes)
 
 
+class Operator(StrEnum):
+    """
+    A Python binary operator, named as in Python's `ast` module, in lowercase.
+    """
+
+    ADD = "add"
+    SUB = "sub"
+    MULT = "mult"
+    MAT_MULT = "matmult"
+    DIV = "div"
+    MOD = "mod"
+    POW = "pow"
+    L_SHIFT = "lshift"
+    R_SHIFT = "rshift"
+    BIT_OR = "bitor"
+    BIT_XOR = "bitxor"
+    BIT_AND = "bitand"
+    FLOOR_DIV = "floordiv"
+
+
+@irdl_attr_definition
+class OperatorAttr(EnumAttribute[Operator], SpacedOpaqueSyntaxAttribute):
+    name = "py.operator"
+
+
 @irdl_op_definition
 class PyBinOp(PyOperation):
     """
@@ -173,17 +198,14 @@ class PyBinOp(PyOperation):
     lhs = operand_def(PyObjectType())
     rhs = operand_def(PyObjectType())
     res = result_def(PyObjectType())
-    op = prop_def(StringAttr)
-    assembly_format = "$op $lhs $rhs attr-dict"
+    op = prop_def(OperatorAttr)
+    assembly_format = "$op `,` $lhs `,` $rhs attr-dict"
 
-    def __init__(
-        self,
-        op: StringAttr,
-        lhs: Operand,
-        rhs: Operand,
-    ):
+    def __init__(self, op: Operator | OperatorAttr, lhs: Operand, rhs: Operand):
         super().__init__(
-            operands=[lhs, rhs], properties={"op": op}, result_types=[PyObjectType()]
+            operands=[lhs, rhs],
+            properties={"op": OperatorAttr.get(op)},
+            result_types=[PyObjectType()],
         )
 
 
@@ -303,6 +325,7 @@ Py = Dialect(
     ],
     [
         CmpOpAttr,
+        OperatorAttr,
         PyObjectType,
     ],
 )
