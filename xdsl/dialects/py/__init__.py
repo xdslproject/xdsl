@@ -11,6 +11,7 @@ The Python dialect is under heavy development, and the definitions are not yet s
 """
 
 from collections.abc import Sequence
+from typing import cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
