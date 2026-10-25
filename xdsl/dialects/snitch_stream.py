@@ -280,7 +280,7 @@ class StreamingRegionOp(IRDLOperation):
         with printer.indented():
             printer.print_string(" {")
             if self.stride_patterns.data:
-                printer.print_string("\npatterns = [")
+                printer.print_string("\nstride_patterns = [")
                 with printer.indented():
                     if self.stride_patterns.data:
                         printer.print_string("\n")
