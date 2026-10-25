@@ -11,23 +11,31 @@ The Python dialect is under heavy development, and the definitions are not yet s
 """
 
 from collections.abc import Sequence
+from typing import cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     Float64Type,
     FloatAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     NoneType,
     StringAttr,
+    SymbolNameConstraint,
     f64,
 )
-from xdsl.dialects.utils import EnumAttribute
+from xdsl.dialects.utils import (
+    EnumAttribute,
+    parse_func_op_like,
+    print_func_op_like,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
+    Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
@@ -48,7 +56,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -362,6 +370,102 @@ class PyCompareOp(PyOperation):
         )
 
 
+@irdl_op_definition
+class PyFuncOp(PyOperation):
+    """
+    def NAME(ARG: ANNOTATION, ...) -> RETURN_ANNOTATION: BODY
+
+    The name is printed like a symbol, but is not resolved through a symbol table,
+    like a `py.call` callee. The annotations are kept on the types of the arguments
+    and result.
+    """
+
+    name = "py.func"
+    func_name = prop_def(SymbolNameConstraint())
+    function_type = prop_def(FunctionType)
+    body = region_def("single_block")
+
+    traits = traits_def(IsolatedFromAbove())
+
+    def __init__(
+        self, name: str | StringAttr, function_type: FunctionType, body: Region
+    ):
+        super().__init__(
+            properties={
+                "func_name": StringAttr.get(name),
+                "function_type": function_type,
+            },
+            regions=[body],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "PyFuncOp":
+        pos = parser.pos
+        name, inputs, outputs, body, extra_attrs, arg_attrs, res_attrs = (
+            parse_func_op_like(
+                parser, reserved_attr_names=("func_name", "function_type")
+            )
+        )
+        if arg_attrs is not None or res_attrs is not None:
+            parser.raise_error(
+                "py.func does not take argument or result attributes", pos, parser.pos
+            )
+        op = cls(name, FunctionType.from_lists(inputs, outputs), body)
+        if extra_attrs is not None:
+            op.attributes |= extra_attrs.data
+        return op
+
+    def print(self, printer: Printer) -> None:
+        print_func_op_like(
+            printer,
+            self.func_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            reserved_attr_names=("func_name", "function_type"),
+        )
+
+    def verify_(self) -> None:
+        inputs = self.function_type.inputs.data
+        outputs = self.function_type.outputs.data
+        if len(outputs) != 1:
+            raise VerifyException(f"Expected a single result type, got {len(outputs)}")
+        if not all(isinstance(t, PyObjectType) for t in (*inputs, *outputs)):
+            raise VerifyException("Expected a function type of !py.object types")
+        if tuple(arg.type for arg in self.body.block.args) != inputs:
+            raise VerifyException(
+                "Expected the block arguments to match the function type inputs"
+            )
+
+
+@irdl_op_definition
+class PyReturnOp(PyOperation):
+    """
+    return VALUE
+
+    The value must have the function's result type. A bare `return` returns `None`,
+    which is constructed first, as in bytecode.
+    """
+
+    name = "py.return"
+    value = operand_def(PyObjectType)
+    assembly_format = "$value attr-dict `:` type($value)"
+
+    traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
+
+    def __init__(self, value: SSAValue):
+        super().__init__(operands=[value])
+
+    def verify_(self) -> None:
+        func = cast(PyFuncOp, self.parent_op())
+        outputs = func.function_type.outputs.data
+        if len(outputs) == 1 and self.value.type != outputs[0]:
+            raise VerifyException(
+                "Expected the returned value to have the function's result type "
+                f"{outputs[0]}, got {self.value.type}"
+            )
+
+
 Py = Dialect(
     "py",
     [
@@ -370,6 +474,8 @@ Py = Dialect(
         PyCallOp,
         PyCompareOp,
         PyConstOp,
+        PyFuncOp,
+        PyReturnOp,
         PyUnpackOp,
     ],
     [
