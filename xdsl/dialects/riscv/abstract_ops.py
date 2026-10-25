@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     I32,
     I64,
     IntegerAttr,
-    IntegerType,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -62,6 +61,7 @@ from .attrs import (
     SI20,
     UI5,
     UI6,
+    UI12,
     FastMathFlagsAttr,
     ImmediateI12,
     ImmediateI20,
@@ -74,6 +74,7 @@ from .attrs import (
     si12,
     si20,
     ui5,
+    ui12,
 )
 from .registers import (
     FloatRegisterType,
@@ -1123,11 +1124,14 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
       in this case rd *must* be allocated to x0
     * when False, a proper atomic swap is performed and the previous CSR value is
       returned in rd
+
+    CSR addresses are 12-bit unsigned values, independent of XLEN:
+    https://docs.riscv.org/reference/isa/unpriv/zicsr.html
     """
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    csr = attr_def(IntegerAttr)
+    csr = attr_def(IntegerAttr[UI12])
     writeonly = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
@@ -1135,7 +1139,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        csr: IntegerAttr,
+        csr: IntegerAttr[UI12],
         *,
         writeonly: bool = False,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -1170,7 +1174,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            IntegerType(32),
+            ui12,
         )
         if parser.parse_optional_punctuation(",") is not None:
             if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
@@ -1201,7 +1205,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    csr = attr_def(IntegerAttr)
+    csr = attr_def(IntegerAttr[UI12])
     readonly = opt_attr_def(UnitAttr)
 
     # Conservatively set the write effect, in the future we should be conditional on
@@ -1211,7 +1215,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        csr: IntegerAttr,
+        csr: IntegerAttr[UI12],
         *,
         readonly: bool = False,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -1247,7 +1251,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            IntegerType(32),
+            ui12,
         )
         if parser.parse_optional_punctuation(",") is not None:
             if (flag := parser.parse_str_literal("Expected 'r' flag")) != "r":
@@ -1275,16 +1279,17 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     """
 
     rd = result_def(IntRegisterType)
-    csr = attr_def(IntegerAttr)
-    immediate = attr_def(IntegerAttr)
+    csr = attr_def(IntegerAttr[UI12])
+    immediate = attr_def(IntegerAttr[UI5])
+    """Unsigned five-bit value, zero-extended to XLEN before writing the CSR."""
     writeonly = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
-        csr: IntegerAttr,
-        immediate: IntegerAttr,
+        csr: IntegerAttr[UI12],
+        immediate: IntegerAttr[UI5],
         *,
         writeonly: bool = False,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -1319,10 +1324,10 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            IntegerType(32),
+            ui12,
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = IntegerAttr.parse_with_type(parser, ui5)
         if parser.parse_optional_punctuation(",") is not None:
             if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
                 parser.raise_error(f"Expected 'w' flag, got '{flag}'")
@@ -1353,15 +1358,15 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    csr = attr_def(IntegerAttr)
-    immediate = attr_def(IntegerAttr)
+    csr = attr_def(IntegerAttr[UI12])
+    immediate = attr_def(IntegerAttr[UI5])
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
-        csr: IntegerAttr,
-        immediate: IntegerAttr,
+        csr: IntegerAttr[UI12],
+        immediate: IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -1385,10 +1390,10 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
-            IntegerType(32),
+            ui12,
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = IntegerAttr.parse_with_type(parser, ui5)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:

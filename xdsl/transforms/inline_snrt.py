@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, rv32, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.riscv.attrs import ui5, ui12
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -61,7 +62,7 @@ class LowerClusterHWBarrier(RewritePattern):
                 riscv.CsrrsOp(
                     rd=riscv.Registers.ZERO,
                     rs1=zero,
-                    csr=IntegerAttr(0x7C2, 12),
+                    csr=IntegerAttr(0x7C2, ui12),
                 ),
             ],
             [],
@@ -91,7 +92,9 @@ class LowerSSRDisable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrciOp(csr=IntegerAttr(0x7C0, 12), immediate=IntegerAttr(1, 4)),
+                riscv.CsrrciOp(
+                    csr=IntegerAttr(0x7C0, ui12), immediate=IntegerAttr(1, ui5)
+                ),
             ],
             [],
         )
@@ -645,7 +648,7 @@ class LowerGlobalCoreIdx(RewritePattern):
             op,
             [
                 zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
-                hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
+                hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, ui12), readonly=True),
                 hartid_i32 := builtin.UnrealizedConversionCastOp.get(
                     [hartid], [builtin.i32]
                 ),
