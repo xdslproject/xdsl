@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     NoneType,
     StringAttr,
+    SymbolNameConstraint,
     f64,
 )
 from xdsl.dialects.utils import EnumAttribute
@@ -369,12 +370,13 @@ class PyFuncOp(PyOperation):
     """
     def NAME(ARG: ANNOTATION, ...) -> RETURN_ANNOTATION: BODY
 
-    The name is kept as written in the source, like a `py.call` callee, rather than
-    as a symbol. The annotations are kept on the types of the arguments and result.
+    The name is printed like a symbol, but is not resolved through a symbol table,
+    like a `py.call` callee. The annotations are kept on the types of the arguments
+    and result.
     """
 
     name = "py.func"
-    func_name = prop_def(StringAttr)
+    func_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     body = region_def("single_block")
     assembly_format = "$func_name `:` $function_type attr-dict-with-keyword $body"
