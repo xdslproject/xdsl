@@ -24,12 +24,11 @@ builtin.module {
     %19, %20 = py.unpack %2 : !py.object, !py.object
     py.func @one : (!py.object<"int">) -> !py.object<"int"> {
     ^bb0(%x : !py.object<"int">):
-        %21 = py.const 1
-        py.return %21
+        py.return %x : !py.object<"int">
     }
-    py.func @zero : () -> !py.object<"int"> {
+    py.func @zero : () -> !py.object {
         %21 = py.const 0
-        py.return %21
+        py.return %21 : !py.object
     }
     %21 = py.const None
 }
@@ -57,12 +56,11 @@ builtin.module {
 // CHECK-NEXT:    %19, %20 = py.unpack %2 : !py.object, !py.object
 // CHECK-NEXT:    py.func @one : (!py.object<"int">) -> !py.object<"int"> {
 // CHECK-NEXT:    ^bb0(%x: !py.object<"int">):
-// CHECK-NEXT:      %21 = py.const 1
-// CHECK-NEXT:      py.return %21
+// CHECK-NEXT:      py.return %x : !py.object<"int">
 // CHECK-NEXT:    }
-// CHECK-NEXT:    py.func @zero : () -> !py.object<"int"> {
+// CHECK-NEXT:    py.func @zero : () -> !py.object {
 // CHECK-NEXT:      %21 = py.const 0
-// CHECK-NEXT:      py.return %21
+// CHECK-NEXT:      py.return %21 : !py.object
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %21 = py.const None
 // CHECK-NEXT:  }
@@ -90,10 +88,9 @@ builtin.module {
 // CHECK-GENERIC-NEXT:    %19, %20 = "py.unpack"(%2) : (!py.object) -> (!py.object, !py.object)
 // CHECK-GENERIC-NEXT:    "py.func"() <{func_name = "one", function_type = (!py.object<"int">) -> !py.object<"int">}> ({
 // CHECK-GENERIC-NEXT:    ^bb0(%x: !py.object<"int">):
-// CHECK-GENERIC-NEXT:      %21 = "py.const"() <{const = #builtin.int<1>}> : () -> !py.object
-// CHECK-GENERIC-NEXT:      "py.return"(%21) : (!py.object) -> ()
+// CHECK-GENERIC-NEXT:      "py.return"(%x) : (!py.object<"int">) -> ()
 // CHECK-GENERIC-NEXT:    }) : () -> ()
-// CHECK-GENERIC-NEXT:    "py.func"() <{func_name = "zero", function_type = () -> !py.object<"int">}> ({
+// CHECK-GENERIC-NEXT:    "py.func"() <{func_name = "zero", function_type = () -> !py.object}> ({
 // CHECK-GENERIC-NEXT:      %21 = "py.const"() <{const = #builtin.int<0>}> : () -> !py.object
 // CHECK-GENERIC-NEXT:      "py.return"(%21) : (!py.object) -> ()
 // CHECK-GENERIC-NEXT:    }) : () -> ()

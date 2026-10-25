@@ -412,17 +412,29 @@ class PyReturnOp(PyOperation):
     """
     return VALUE
 
-    A bare `return` returns `None`, which is constructed first, as in bytecode.
+    The value must have the function's result type. A bare `return` returns `None`,
+    which is constructed first, as in bytecode.
     """
 
     name = "py.return"
-    value = operand_def(PyObjectType())
-    assembly_format = "$value attr-dict"
+    value = operand_def(PyObjectType)
+    assembly_format = "$value attr-dict `:` type($value)"
 
     traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
 
     def __init__(self, value: SSAValue):
         super().__init__(operands=[value])
+
+    def verify_(self) -> None:
+        func = self.parent_op()
+        if not isinstance(func, PyFuncOp):
+            return
+        outputs = func.function_type.outputs.data
+        if len(outputs) == 1 and self.value.type != outputs[0]:
+            raise VerifyException(
+                "Expected the returned value to have the function's result type "
+                f"{outputs[0]}, got {self.value.type}"
+            )
 
 
 Py = Dialect(

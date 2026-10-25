@@ -9,7 +9,7 @@
 // CHECK: Expected a single result type, got 0
 py.func @f : () -> () {
   %0 = py.const 0
-  py.return %0
+  py.return %0 : !py.object
 }
 
 // -----
@@ -18,7 +18,7 @@ py.func @f : () -> () {
 py.func @f : (i32) -> !py.object {
 ^bb0(%x : i32):
   %0 = py.const 0
-  py.return %0
+  py.return %0 : !py.object
 }
 
 // -----
@@ -26,11 +26,19 @@ py.func @f : (i32) -> !py.object {
 // CHECK: Expected the block arguments to match the function type inputs
 py.func @f : (!py.object<"int">) -> !py.object {
 ^bb0(%x : !py.object):
-  py.return %x
+  py.return %x : !py.object
 }
 
 // -----
 
 %0 = py.const 0
 // CHECK: 'py.return' expects parent op 'py.func'
-py.return %0
+py.return %0 : !py.object
+
+// -----
+
+// CHECK: Expected the returned value to have the function's result type !py.object<"int">, got !py.object
+py.func @f : () -> !py.object<"int"> {
+  %0 = py.const 0
+  py.return %0 : !py.object
+}
