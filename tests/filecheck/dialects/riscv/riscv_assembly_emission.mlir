@@ -127,15 +127,15 @@
     // RV32I/RV64I: Control and Status Register Instructions (Section 2.8)
     %csrrw_rw = riscv.csrrw %2, 1024 : (!riscv.reg<j_2>) -> !riscv.reg<j_1>
     // CHECK-NEXT: csrrw j_1, 1024, j_2
-    %csrrw_w = riscv.csrrw %2, 1024, "w" : (!riscv.reg<j_2>) -> !riscv.reg<zero>
+    %csrrw_w = riscv.csrrw %2, 1024 writeonly : (!riscv.reg<j_2>) -> !riscv.reg<zero>
     // CHECK-NEXT: csrrw zero, 1024, j_2
     %csrrs_rw = riscv.csrrs %2, 1024 : (!riscv.reg<j_2>) -> !riscv.reg<zero>
     // CHECK-NEXT: csrrs zero, 1024, j_2
-    %csrrs_r = riscv.csrrs %0, 1024, "r" : (!riscv.reg<zero>) -> !riscv.reg<j_2>
+    %csrrs_r = riscv.csrrs %0, 1024 readonly : (!riscv.reg<zero>) -> !riscv.reg<j_2>
     // CHECK-NEXT: csrrs j_2, 1024, zero
     %csrrc_rw = riscv.csrrc %2, 1024 : (!riscv.reg<j_2>) -> !riscv.reg<j_0>
     // CHECK-NEXT: csrrc j_0, 1024, j_2
-    %csrrc_r = riscv.csrrc %0, 1024, "r": (!riscv.reg<zero>) -> !riscv.reg<j_0>
+    %csrrc_r = riscv.csrrc %0, 1024 readonly : (!riscv.reg<zero>) -> !riscv.reg<j_0>
     // CHECK-NEXT: csrrc j_0, 1024, zero
     %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg<j_1>
     // CHECK-NEXT: csrrsi j_1, 1024, 8
@@ -147,7 +147,7 @@
     // CHECK-NEXT: csrrci j_1, 1024, 0
     %csrrwi_rw = riscv.csrrwi 0, 0 : () -> !riscv.reg<j_0>
     // CHECK-NEXT: csrrwi j_0, 0, 0
-    %csrrwi_w = riscv.csrrwi 4095, 31, "w" : () -> !riscv.reg<zero>
+    %csrrwi_w = riscv.csrrwi 4095, 31 writeonly : () -> !riscv.reg<zero>
     // CHECK-NEXT: csrrwi zero, 4095, 31
 
     // Environment Call and Breakpoints
