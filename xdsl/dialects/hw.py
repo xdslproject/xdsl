@@ -162,7 +162,7 @@ class InnerRefAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_symbol_name(self.module_ref.root_reference.data)
+            printer.print_attribute(self.module_ref)
             printer.print_string("::")
             printer.print_symbol_name(self.sym_name.data)
 

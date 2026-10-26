@@ -56,7 +56,7 @@ class ParamAttribute(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string_literal(self.key.data)
+            printer.print_attribute(self.key)
             if not isinstance(self.value, NoneAttr):
                 printer.print_string(" default=")
                 printer.print_attribute(self.value)

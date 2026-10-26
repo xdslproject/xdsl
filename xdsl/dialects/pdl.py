@@ -238,7 +238,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print_string_literal(self.constraint_name.data)
+        printer.print_attribute(self.constraint_name)
         with printer.in_parens():
             print_operands_with_types(printer, self.operands)
         if len(self.results) != 0:

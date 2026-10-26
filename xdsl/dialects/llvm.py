@@ -162,7 +162,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             if self.struct_name.data:
-                printer.print_string_literal(self.struct_name.data)
+                printer.print_attribute(self.struct_name)
                 printer.print_string(", ")
             with printer.in_parens():
                 printer.print_list(self.types.data, printer.print_attribute)
@@ -1453,9 +1453,9 @@ class InlineAsmOp(IRDLOperation):
         if (tck := self.tail_call_kind.data) != TailCallKind.NONE:
             printer.print_string(f" tail_call_kind = <{tck.value}>")
         printer.print_string(" ")
-        printer.print_string_literal(self.asm_string.data)
+        printer.print_attribute(self.asm_string)
         printer.print_string(", ")
-        printer.print_string_literal(self.constraints.data)
+        printer.print_attribute(self.constraints)
         if self.operands_:
             printer.print_string(" ")
             printer.print_list(self.operands_, printer.print_ssa_value)

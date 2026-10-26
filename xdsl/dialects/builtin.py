@@ -960,7 +960,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
 
     def print_builtin(self, printer: Printer) -> None:
         with printer.in_location():
-            printer.print_string_literal(self.filename.data)
+            printer.print_attribute(self.filename)
             printer.print_string(":")
             printer.print_int(self.line.data)
             printer.print_string(":")

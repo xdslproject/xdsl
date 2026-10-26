@@ -2112,7 +2112,7 @@ class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     def assembly_line(self) -> str | None:
         if self.value.data:
-            arg_str = assembly_arg_str(self.value.data)
+            arg_str = assembly_arg_str(self.value)
         else:
             arg_str = ""
 
@@ -2173,7 +2173,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print_string_literal(self.directive.data)
+        printer.print_attribute(self.directive)
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("directive",), print_keyword=True
         )

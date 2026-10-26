@@ -2690,7 +2690,7 @@ class DirectiveOp(X86AsmOperation, X86HasRegisterConstraints):
 
     def assembly_line(self) -> str | None:
         if self.value.data:
-            arg_str = assembly_arg_str(self.value.data)
+            arg_str = assembly_arg_str(self.value)
         else:
             arg_str = ""
 
