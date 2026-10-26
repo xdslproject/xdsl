@@ -134,7 +134,7 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:     %0 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:     "riscv_snitch.scfgwi"(%0) {immediate = 42 : si12} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.scfgwi"(%0) <{immediate = 42 : si12}> : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    "riscv_snitch.frep_outer"(%{{.*}}) ({
 // CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"() : () -> ()
@@ -178,8 +178,8 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:       %vfadd_s = "riscv_snitch.vfadd.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfsub_s = "riscv_snitch.vfsub.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfcpka_s_s = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmac_s = "riscv_snitch.vfmac.s"(%v1, %v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmac_flags = "riscv_snitch.vfmac.s"(%vfmac_s, %v, %v1) {fastmath = #riscv.fastmath<nnan,contract>, comment = "accumulate"} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmac_s = "riscv_snitch.vfmac.s"(%v1, %v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmac_flags = "riscv_snitch.vfmac.s"(%vfmac_s, %v, %v1) <{fastmath = #riscv.fastmath<nnan,contract>}> {comment = "accumulate"} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfsum_s = "riscv_snitch.vfsum.s"(%vfmac_s, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfadd_h = "riscv_snitch.vfadd.h"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfsub_h = "riscv_snitch.vfsub.h"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
