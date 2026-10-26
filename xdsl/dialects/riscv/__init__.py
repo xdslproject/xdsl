@@ -25,9 +25,6 @@ from .abstract_ops import (
     RISCVAsmOperation as RISCVAsmOperation,
 )
 from .abstract_ops import (
-    RISCVCustomFormatOperation as RISCVCustomFormatOperation,
-)
-from .abstract_ops import (
     RISCVInstruction as RISCVInstruction,
 )
 from .abstract_ops import (
