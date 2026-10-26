@@ -354,7 +354,9 @@ def test_cast():
     interpreter.register_implementations(riscv_functions)
 
     value = FloatAttr(42.0, f64)
-    assert interpreter.cast_value(riscv.Registers.UNALLOCATED_FLOAT, f64, value) == 42.0
+    assert (
+        interpreter.cast_value(riscv.Registers.UNALLOCATED_FLOAT, f64, value) == value
+    )
 
 
 def test_register_contents():

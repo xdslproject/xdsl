@@ -2,7 +2,7 @@ from typing import Any
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import affine, arith, func, memref
-from xdsl.dialects.builtin import AffineMapAttr, IndexType, ModuleOp
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, ModuleOp, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
@@ -100,5 +100,5 @@ def test_apply():
             (create_ssa_value(index), create_ssa_value(index)),
             AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0 + d1,))),
         ),
-        (1, 2),
-    ) == (3,)
+        (IntegerAttr(1, i64), IntegerAttr(2, i64)),
+    ) == (IntegerAttr(3, i64),)

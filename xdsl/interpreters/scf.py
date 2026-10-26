@@ -9,6 +9,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 
 
 @register_impls
@@ -27,9 +28,11 @@ class ScfFunctions(InterpreterFunctions):
         lb, ub, step, *packed_args = args
         loop_args = tuple(packed_args)
 
-        for i in range(lb, ub, step):
+        for i in range(lb.value.data, ub.value.data, step.value.data):
             loop_args = interpreter.run_ssacfg_region(
-                op.body, (i, *loop_args), "for_loop"
+                op.body,
+                (scalar_attr(i, op.lb.type, interpreter.index_bitwidth), *loop_args),
+                "for_loop",
             )
 
         return loop_args
@@ -70,7 +73,7 @@ class ScfFunctions(InterpreterFunctions):
     def run_index_switch(
         self, interpreter: Interpreter, op: scf.IndexSwitchOp, args: PythonValues
     ) -> PythonValues:
-        index = args[0]
+        index = args[0].value.data
         cases: tuple[int, ...] = op.cases.get_values()
         try:
             case = cases.index(index)

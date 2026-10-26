@@ -662,9 +662,9 @@ class RiscvFunctions(InterpreterFunctions):
         input_type: riscv.FloatRegisterType,
         output_type: builtin.Float64Type,
         value: Any,
-    ) -> float:
+    ) -> FloatAttr[builtin.Float64Type]:
         assert isa(value, FloatAttr[builtin.Float64Type])
-        return value.value.data
+        return value
 
     @impl_attr(riscv.IntRegisterType)
     def register_value(

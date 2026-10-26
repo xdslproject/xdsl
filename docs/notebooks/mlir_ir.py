@@ -670,7 +670,12 @@ def _(Any, builtin):
         interpreter.register_implementations(arith.ArithFunctions)
         interpreter.register_implementations(func.FuncFunctions)
 
-        res = interpreter.call_op(name, args)
+        res = tuple(
+            value.value.data
+            for value in interpreter.call_op(
+                name, tuple(builtin.IntegerAttr(arg, builtin.i32) for arg in args)
+            )
+        )
 
         if len(res) == 1:
             res = res[0]
