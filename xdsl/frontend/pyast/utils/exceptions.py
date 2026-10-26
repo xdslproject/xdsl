@@ -27,6 +27,7 @@ class CodeGenerationException(FrontendProgramException):
     file: str | None
     line: int
     col: int
+    """The one-based column, as in source locations."""
 
     def __init__(
         self,

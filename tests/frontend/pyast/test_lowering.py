@@ -157,7 +157,7 @@ def test_lowering_error():
             %1 = py.binop add, %0, %0 loc("test.py":2:3)
             """)
     assert str(error.value) == (
-        'Code generation exception at "test.py", line 2 column 2: '
+        'Code generation exception at "test.py", line 2 column 3: '
         "IR type 'i1' is not registered with a source type."
     )
 

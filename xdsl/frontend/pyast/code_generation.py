@@ -76,7 +76,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 "Expected an expression with exactly one result.",
             )
         return self.inserter.get_operand()
@@ -85,7 +85,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         raise CodeGenerationException(
             self.file,
             getattr(node, "lineno"),
-            getattr(node, "col_offset"),
+            getattr(node, "col_offset") + 1,
             f"Unsupported Python AST node {node!s}",
         )
 
@@ -100,7 +100,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
-                    node.col_offset,
+                    node.col_offset + 1,
                     "Expected a string constant for assertion message, found "
                     f"'ast.{type(node.msg).__qualname__}'",
                 )
@@ -112,7 +112,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 "Only assignment to a single variable is supported.",
             )
         value = self.visit_single_value(node.value)
@@ -141,7 +141,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
-                    node.col_offset,
+                    node.col_offset + 1,
                     "Unsupported call expression.",
                 )
 
@@ -152,7 +152,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
-                    node.col_offset,
+                    node.col_offset + 1,
                     "Unpacking keyword arguments is not supported.",
                 )
             keywords.append(keyword.arg)
@@ -166,7 +166,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 f"Expected a single comparator, but found {len(node.comparators)}.",
             )
         comp = node.comparators[0]
@@ -190,7 +190,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         raise CodeGenerationException(
             self.file,
             node.lineno,
-            node.col_offset,
+            node.col_offset + 1,
             f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
         )
 
@@ -209,7 +209,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 f"Cannot have an inner function '{node.name}' inside another function.",
             )
         self.symbol_table = set()
@@ -223,7 +223,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file,
                     arg.lineno,
-                    arg.col_offset,
+                    arg.col_offset + 1,
                     "Function arguments must be type hinted",
                 )
             annotated_types.append(py.PyObjectType(ast.unparse(arg.annotation)))
@@ -233,7 +233,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 "Function return type must be annotated.",
             )
         function_op = py.PyFuncOp(
@@ -270,7 +270,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 self.last_return.lineno,
-                self.last_return.col_offset,
+                self.last_return.col_offset + 1,
                 "Return statement must be the final statement directly "
                 "in the function body.",
             )
@@ -289,7 +289,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
-                node.col_offset,
+                node.col_offset + 1,
                 f"Symbol '{node.id}' is not defined.",
             )
         self.insert_op(symref.FetchOp(node.id, py.PyObjectType()), node)
@@ -302,7 +302,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 self.file,
                 self.last_return.lineno,
-                self.last_return.col_offset,
+                self.last_return.col_offset + 1,
                 "Return statement must be the final statement directly "
                 "in the function body.",
             )

@@ -362,5 +362,4 @@ class PyLowering:
         self, ir: Operation | BlockArgument, msg: str
     ) -> CodeGenerationException:
         line, column = self._position(ir)
-        # Errors report the zero-based column of the Python AST.
-        return CodeGenerationException(self.file, line, max(column - 1, 0), msg)
+        return CodeGenerationException(self.file, line, column, msg)
