@@ -49,13 +49,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: IntAttr | NoneAttr
 
     @property
-    def register_name(self) -> StringAttr:
+    def register_name(self) -> str:
         """The canonical assembly name, or an empty string if unallocated."""
         if isinstance(self.index, NoneAttr):
-            return StringAttr("")
+            return ""
         if self.index.data < 0:
-            return StringAttr(self.infinite_register_prefix() + str(~self.index.data))
-        return StringAttr(self.abi_name_by_index()[self.index.data])
+            return self.infinite_register_prefix() + str(~self.index.data)
+        return self.abi_name_by_index()[self.index.data]
 
     def __init_subclass__(cls) -> None:
         # Detect register names clashing with the infinite register prefix
@@ -137,7 +137,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     def print_parameters(self, printer: Printer) -> None:
         if self.is_allocated:
             with printer.in_angle_brackets():
-                printer.print_string(self.register_name.data)
+                printer.print_string(self.register_name)
 
     def verify(self) -> None:
         if (

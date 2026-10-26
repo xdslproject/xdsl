@@ -103,7 +103,7 @@ def reg(value: SSAValue, spec: RegisterNameSpec | None = None) -> str:
 
     assert isinstance(value.type, RegisterType)
     if spec is None:
-        name = value.type.register_name.data
+        name = value.type.register_name
     else:
         index = value.type.index
         assert isinstance(index, IntAttr)

@@ -146,12 +146,12 @@ def vector_with_arrangement(
         reg = reg.type
     if index is None:
         return (
-            f"{reg.register_name.data}."
+            f"{reg.register_name}."
             f"{arrangement.data.num_elements}"
             f"{arrangement.data.name}"
         )
     else:
-        return f"{reg.register_name.data}.{arrangement.data.name}[{index}]"
+        return f"{reg.register_name}.{arrangement.data.name}[{index}]"
 
 
 def variadic_neon_reg_arg(

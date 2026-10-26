@@ -62,7 +62,7 @@ class Rv64Functions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name.data}")
+            raise InterpretationError(f"Value not found for register name {name}")
 
         stored_value = registers[name]
 

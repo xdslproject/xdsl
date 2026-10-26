@@ -238,13 +238,13 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isinstance(arg, SSAValue):
         if not isinstance(t := arg.type, RegisterType):
             raise ValueError(f"Unexpected register type {t}")
-        return t.register_name.data
+        return t.register_name
     elif isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
     elif isinstance(arg, StringAttr):
         return arg.data
     elif isinstance(arg, RegisterType):
-        return arg.register_name.data
+        return arg.register_name
 
     return arg
 
@@ -1133,7 +1133,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.register_name.data}'"
+                f"not '{self.rd.type.register_name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1208,7 +1208,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if is_non_zero(self.rs1.type):
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.register_name.data}'"
+                f"not '{self.rs1.type.register_name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1279,7 +1279,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.register_name.data}'"
+                f"not '{self.rd.type.register_name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
