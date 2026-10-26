@@ -598,7 +598,7 @@ class Parser(AttrParser):
         return arg
 
     def parse_optional_region(
-        self, arguments: Iterable[Argument] | None = None
+        self, arguments: Sequence[Argument] | None = None
     ) -> Region | None:
         """
         Parse a region, if present, with format:
@@ -690,7 +690,7 @@ class Parser(AttrParser):
 
         return region
 
-    def parse_region(self, arguments: Iterable[Argument] | None = None) -> Region:
+    def parse_region(self, arguments: Sequence[Argument] | None = None) -> Region:
         """
         Parse a region with format:
           region ::= `{` entry-block? block* `}`
