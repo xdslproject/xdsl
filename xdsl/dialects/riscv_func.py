@@ -24,9 +24,9 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
     opt_attr_def,
+    opt_prop_def,
     opt_result_def,
     prop_def,
     region_def,
@@ -120,7 +120,7 @@ class CallOp(riscv.RISCVInstruction):
 
     name = "riscv_func.call"
     args = var_operand_def(riscv.RISCVRegisterType)
-    callee = attr_def(SymbolRefAttr)
+    callee = prop_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
     assembly_format = (
@@ -147,8 +147,8 @@ class CallOp(riscv.RISCVInstruction):
         super().__init__(
             operands=[args],
             result_types=[result_types],
+            properties={"callee": SymbolRefAttr.get(callee)},
             attributes={
-                "callee": SymbolRefAttr.get(callee),
                 "comment": comment,
             },
         )
@@ -193,10 +193,10 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    sym_visibility = opt_prop_def(StringAttr)
     p2align = opt_attr_def(IntegerAttr[I8])
 
     traits = traits_def(
@@ -220,14 +220,15 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             visibility = StringAttr(visibility)
         if isinstance(p2align, int):
             p2align = IntegerAttr(p2align, i8)
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr.get(name),
             "function_type": function_type,
             "sym_visibility": visibility,
-            "p2align": p2align,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(
+            properties=properties, attributes={"p2align": p2align}, regions=[region]
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:

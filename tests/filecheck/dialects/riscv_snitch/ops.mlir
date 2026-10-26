@@ -130,7 +130,7 @@ riscv_func.func @simd() {
 
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "xfrep", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:     %0 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg, !riscv.reg) -> ()
@@ -158,8 +158,8 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"(%res) : (!riscv.freg<ft3>) -> ()
 // CHECK-GENERIC-NEXT:    }) {stagger_mask = 0 : i4, stagger_count = 0 : i3} : (!riscv.reg, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "xfrep", function_type = () -> ()} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "xdma", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:     %reg = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmsrc"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
@@ -170,8 +170,8 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmcpyi"(%reg) <{config = 0 : ui5}> : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmstati"() <{status = 0 : ui5}> : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "xdma", function_type = () -> ()} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "simd", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       %v = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %v1 = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfmul_s = "riscv_snitch.vfmul.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
@@ -186,7 +186,7 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:       %vfmul_h = "riscv_snitch.vfmul.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfmax_s = "riscv_snitch.vfmax.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:     }) {sym_name = "simd", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
 
 // -----
