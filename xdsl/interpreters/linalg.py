@@ -2,7 +2,7 @@ from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import linalg
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr, TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -12,13 +12,15 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.utils.hints import isa
 
 
 def run_linalg_structured_op(
     interpreter: Interpreter,
     op: linalg.abstract_ops.LinalgStructuredOperation,
-    args: tuple[ShapedArray[float] | float, ...],
+    args: tuple[ShapedArray[float] | FloatAttr | IntegerAttr, ...],
 ):
     """
     Helper function for interpreting ops inheriting from
@@ -60,16 +62,22 @@ def run_linalg_structured_op(
     for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
         loop_scalar_args = tuple(
             (
-                i.load(indexing_map.eval(indices, ()))
+                scalar_attr(
+                    i.load(indexing_map.eval(indices, ())),
+                    block_arg.type,
+                    interpreter.index_bitwidth,
+                )
                 if isinstance(i, ShapedArray)
                 else i
             )
-            for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
+            for i, indexing_map, block_arg in zip(
+                loop_shaped_args, indexing_maps, body.block.args, strict=True
+            )
         )
         loop_results = interpreter.run_ssacfg_region(body, loop_scalar_args, "for_loop")
         for res, indexing_map in zip(loop_results, output_indexing_maps, strict=True):
             result_indices = indexing_map.eval(indices, ())
-            outputs[0].store(result_indices, res)
+            outputs[0].store(result_indices, res.value.data)
 
     return outputs if results else ()
 
@@ -121,13 +129,13 @@ class LinalgFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: linalg.ops.FillOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         operand, res = args[0], args[1]
-        assert isinstance(operand, int | float)
+        assert isa(operand, FloatAttr | IntegerAttr)
         assert isinstance(res, ShapedArray)
         res = cast(ShapedArray[float], res)
         if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
             raise NotImplementedError()
         for i in range(len(res.data)):
-            res.data_ptr[i] = operand
+            res.data_ptr[i] = operand.value.data
         if len(op.results) > 0:
             return (res,)
         return ()

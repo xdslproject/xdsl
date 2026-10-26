@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     TensorType,
@@ -28,11 +29,17 @@ interpreter.register_implementations(BuiltinFunctions())
 
 
 def test_values():
-    assert interpreter.value_for_attribute(IntegerAttr(1, i32), i32) == 1
-    assert interpreter.value_for_attribute(IntegerAttr(2, i64), i64) == 2
-    assert interpreter.value_for_attribute(IntegerAttr(0, i1), i1) == 0
+    assert interpreter.value_for_attribute(IntegerAttr(1, i32), i32) == IntegerAttr(
+        1, i32
+    )
+    assert interpreter.value_for_attribute(IntegerAttr(2, i64), i64) == IntegerAttr(
+        2, i64
+    )
+    assert interpreter.value_for_attribute(IntegerAttr(0, i1), i1) == IntegerAttr(0, i1)
 
-    assert interpreter.value_for_attribute(FloatAttr(3.0, f32), f32) == 3.0
+    assert interpreter.value_for_attribute(FloatAttr(3.0, f32), f32) == FloatAttr(
+        3.0, f32
+    )
 
     assert interpreter.value_for_attribute(
         DenseIntOrFPElementsAttr.from_list(TensorType(i32, [2, 3]), list(range(6))),
@@ -60,12 +67,13 @@ def test_index_values(index_bitwidth: Literal[32, 64], value: int, expected: int
     constant = ConstantOp(attr)
     constant.verify()
 
-    assert interpreter.value_for_attribute(attr, attr.type) == expected
-    assert interpreter.run_op(constant, ()) == (expected,)
+    expected_attr = IntegerAttr(expected, IntegerType(index_bitwidth))
+    assert interpreter.value_for_attribute(attr, attr.type) == expected_attr
+    assert interpreter.run_op(constant, ()) == (expected_attr,)
 
 
 @pytest.mark.parametrize("value_type", [t() for t in get_args(AnyFloat)])
 def test_float_values(value_type: AnyFloat):
-    value = interpreter.value_for_attribute(FloatAttr(2.0, value_type), value_type)
-    assert isinstance(value, float)
-    assert value == 2.0
+    attr = FloatAttr(2.0, value_type)
+    value = interpreter.value_for_attribute(attr, value_type)
+    assert value == attr

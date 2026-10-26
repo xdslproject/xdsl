@@ -9,6 +9,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
@@ -24,10 +25,10 @@ class AffineFunctions(InterpreterFunctions):
 
         assert affine_map is not None
         memref = cast(ShapedArray[Any], memref)
-        indices = affine_map.data.eval(affine_dims, [])
+        indices = affine_map.data.eval([d.value.data for d in affine_dims], [])
 
         indices = tuple(indices)
-        memref.store(indices, value)
+        memref.store(indices, value.value.data)
 
         return ()
 
@@ -41,11 +42,11 @@ class AffineFunctions(InterpreterFunctions):
 
         assert affine_map is not None
         memref = cast(ShapedArray[Any], memref)
-        indices = affine_map.data.eval(affine_dims, [])
+        indices = affine_map.data.eval([d.value.data for d in affine_dims], [])
         indices = tuple(indices)
         value = memref.load(indices)
 
-        return (value,)
+        return (scalar_attr(value, op.results[0].type, interpreter.index_bitwidth),)
 
     @impl(affine.ForOp)
     def run_for(
@@ -64,7 +65,14 @@ class AffineFunctions(InterpreterFunctions):
         step = op.step.value.data
 
         for i in range(lower_bound, upper_bound, step):
-            for_results = interpreter.run_ssacfg_region(op.body, (i,))
+            for_results = interpreter.run_ssacfg_region(
+                op.body,
+                (
+                    scalar_attr(
+                        i, op.body.block.args[0].type, interpreter.index_bitwidth
+                    ),
+                ),
+            )
             if for_results:
                 raise NotImplementedError("affine block results not supported yet")
 
@@ -74,7 +82,11 @@ class AffineFunctions(InterpreterFunctions):
     def run_apply(
         self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]
     ):
-        return op.map.data.eval(args, ())
+        values = op.map.data.eval(tuple(arg.value.data for arg in args), ())
+        return tuple(
+            scalar_attr(value, result.type, interpreter.index_bitwidth)
+            for value, result in zip(values, op.results, strict=True)
+        )
 
     @impl_terminator(affine.YieldOp)
     def run_yield(
