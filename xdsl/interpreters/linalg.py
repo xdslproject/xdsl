@@ -121,14 +121,13 @@ class LinalgFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: linalg.ops.FillOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         operand, res = args[0], args[1]
-        assert isinstance(operand, ShapedArray)
+        assert isinstance(operand, int | float)
         assert isinstance(res, ShapedArray)
-        operand = cast(ShapedArray[float], operand)
         res = cast(ShapedArray[float], res)
         if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
             raise NotImplementedError()
         for i in range(len(res.data)):
-            res.data_ptr[i] = operand.data_ptr[0]
+            res.data_ptr[i] = operand
         if len(op.results) > 0:
             return (res,)
         return ()
