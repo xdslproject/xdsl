@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from xdsl.dialects import arith, builtin
+from xdsl.dialects import arith
+from xdsl.dialects.builtin import IntegerType, StringAttr, i8
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
     operand_def,
+    prop_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-
-i8 = builtin.IntegerType(8)
 
 
 @irdl_op_definition
@@ -29,12 +28,12 @@ class PrintFormatOp(IRDLOperation):
 
     name = "printf.print_format"
 
-    format_str = attr_def(builtin.StringAttr)
+    format_str = prop_def(StringAttr)
     format_vals = var_operand_def()
 
-    def __init__(self, format_str: str, *vals: SSAValue | Operation):
+    def __init__(self, format_str: str | StringAttr, *vals: SSAValue | Operation):
         super().__init__(
-            operands=[vals], attributes={"format_str": builtin.StringAttr(format_str)}
+            operands=[vals], properties={"format_str": StringAttr.get(format_str)}
         )
 
     def verify_(self) -> None:
@@ -57,27 +56,19 @@ class PrintFormatOp(IRDLOperation):
             printer.print_string(", ")
             printer.print_list(self.operands, print_val_and_type)
 
-        if len(self.attributes) > 1:
-            attrs = self.attributes.copy()
-            attrs.pop("format_str")
-            printer.print_op_attributes(attrs)
+        printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls: type[PrintFormatOp], parser: Parser) -> PrintFormatOp:
         format_str = parser.parse_str_literal()
         args: list[SSAValue] = []
-        while parser.parse_optional_characters(",") is not None:
+        while parser.parse_optional_punctuation(",") is not None:
             arg = parser.parse_unresolved_operand()
-            parser.parse_characters(":", " - all arguments must have a type")
+            parser.parse_punctuation(":", " - all arguments must have a type")
             arg_type = parser.parse_type()
             args.append(parser.resolve_operand(arg, arg_type))
 
         attr_dict = parser.parse_optional_attr_dict()
-
-        if "format_str" in attr_dict:
-            parser.raise_error(
-                "format_str keyword is a reserved attribute for printf.print_format!"
-            )
 
         op = PrintFormatOp(format_str, *args)
 
@@ -127,7 +118,7 @@ class PrintIntOp(IRDLOperation):
     """
 
     name = "printf.print_int"
-    int = operand_def(builtin.IntegerType)
+    int = operand_def(IntegerType)
 
     def __init__(self, integer: SSAValue | Operation):
         super().__init__(
