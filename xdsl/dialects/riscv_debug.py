@@ -1,17 +1,14 @@
 from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.ir import Dialect, SSAValue
 from xdsl.irdl import attr_def, irdl_op_definition, traits_def, var_operand_def
-from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.traits import MemoryWriteEffect
 
 
 @irdl_op_definition
-class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
+class PrintfOp(riscv.RISCVInstruction):
     """
     An instruction to print the contents of registers when emulating riscv code.
 
@@ -34,6 +31,8 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     inputs = var_operand_def()
     traits = traits_def(MemoryWriteEffect())
 
+    assembly_format = "$format_str (` ` `(` $inputs^ `:` type($inputs) `)`)? attr-dict"
+
     def __init__(
         self,
         format_str: str | StringAttr,
@@ -53,19 +52,6 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
                 "comment": comment,
             },
         )
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["format_str"] = StringAttr(
-            parser.parse_str_literal("format string.")
-        )
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", " if self.inputs else " ")
-        printer.print_attribute(self.format_str)
-        return {"format_str"}
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg, ...]:
         return f'"{self.format_str.data}"', *self.operands
