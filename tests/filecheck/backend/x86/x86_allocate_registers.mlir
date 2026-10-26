@@ -7,18 +7,14 @@ x86_func.func @external() -> ()
 // CHECK-LABEL:    @main_avx2
 x86_func.func @main_avx2() {
 
-// CHECK-NEXT:      %ymm0, %ymm1, %ymm2, %ymm3 = "test.op"() : () -> (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>, !x86.avx2reg<ymm3>)
-  %ymm0, %ymm1, %ymm2, %ymm3 = "test.op"() : () -> (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>, !x86.avx2reg<ymm3>)
-
-// inout is allocated to same register
-// CHECK-NEXT:      %r0 = x86.rss.vfmadd231pd %ymm0, %ymm1, %ymm2 : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm0>
-  %r0 = x86.rss.vfmadd231pd %ymm0, %ymm1, %ymm2 : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>) -> !x86.avx2reg
+// CHECK-NEXT:      %ymm2, %ymm3 = "test.op"() : () -> (!x86.avx2reg<ymm2>, !x86.avx2reg<ymm3>)
+  %ymm2, %ymm3 = "test.op"() : () -> (!x86.avx2reg<ymm2>, !x86.avx2reg<ymm3>)
 
 // read-only is allocated to new register
-// CHECK-NEXT:      %u0 = "test.op"() : () -> !x86.avx2reg<ymm4>
-// CHECK-NEXT:      %r1 = x86.rss.vfmadd231pd %ymm3, %u0, %ymm2 : (!x86.avx2reg<ymm3>, !x86.avx2reg<ymm4>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm3>
+// CHECK-NEXT:      %u0 = "test.op"() : () -> !x86.avx2reg<ymm0>
+// CHECK-NEXT:      %r1 = x86.rss.vfmadd231pd %ymm3, %u0, %ymm2 : (!x86.avx2reg<ymm3>, !x86.avx2reg<ymm0>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm3>
   %u0 = "test.op"() : () -> !x86.avx2reg
-  %r1 = x86.rss.vfmadd231pd %ymm3, %u0, %ymm2 : (!x86.avx2reg<ymm3>, !x86.avx2reg, !x86.avx2reg<ymm2>) -> !x86.avx2reg
+  %r1 = x86.rss.vfmadd231pd %ymm3, %u0, %ymm2 : (!x86.avx2reg<ymm3>, !x86.avx2reg, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm3>
 
 // CHECK-NEXT:      x86_func.ret
   x86_func.ret
@@ -26,18 +22,14 @@ x86_func.func @main_avx2() {
 
 // CHECK-LABEL:    @main_avx512
 x86_func.func @main_avx512() {
-// CHECK-NEXT:      %zmm0, %zmm1, %zmm2, %zmm3 = "test.op"() : () -> (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>, !x86.avx512reg<zmm3>)
-  %zmm0, %zmm1, %zmm2, %zmm3 = "test.op"() : () -> (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>, !x86.avx512reg<zmm3>)
-
-// inout is allocated to same register
-// CHECK-NEXT:      %r0 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
-  %r0 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg
+// CHECK-NEXT:      %zmm2, %zmm3 = "test.op"() : () -> (!x86.avx512reg<zmm2>, !x86.avx512reg<zmm3>)
+  %zmm2, %zmm3 = "test.op"() : () -> (!x86.avx512reg<zmm2>, !x86.avx512reg<zmm3>)
 
 // read-only is allocated to new register
-// CHECK-NEXT:      %u0 = "test.op"() : () -> !x86.avx512reg<zmm4>
-// CHECK-NEXT:      %r1 = x86.rss.vfmadd231pd %zmm3, %u0, %zmm2 : (!x86.avx512reg<zmm3>, !x86.avx512reg<zmm4>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm3>
+// CHECK-NEXT:      %u0 = "test.op"() : () -> !x86.avx512reg<zmm0>
+// CHECK-NEXT:      %r1 = x86.rss.vfmadd231pd %zmm3, %u0, %zmm2 : (!x86.avx512reg<zmm3>, !x86.avx512reg<zmm0>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm3>
   %u0 = "test.op"() : () -> !x86.avx512reg
-  %r1 = x86.rss.vfmadd231pd %zmm3, %u0, %zmm2 : (!x86.avx512reg<zmm3>, !x86.avx512reg, !x86.avx512reg<zmm2>) -> !x86.avx512reg
+  %r1 = x86.rss.vfmadd231pd %zmm3, %u0, %zmm2 : (!x86.avx512reg<zmm3>, !x86.avx512reg, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm3>
 
 // CHECK-NEXT:      x86_func.ret
   x86_func.ret
