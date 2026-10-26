@@ -12,9 +12,9 @@ from xdsl.dialects.x86.ops import X86Instruction
 from xdsl.ir import Attribute, Dialect, Operation, Region
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     traits_def,
 )
@@ -52,10 +52,10 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """x86 function definition operation"""
 
     name = "x86_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    sym_visibility = opt_prop_def(StringAttr)
 
     traits = traits_def(
         SymbolOpInterface(),
@@ -75,13 +75,13 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr.get(name),
             "function_type": function_type,
             "sym_visibility": visibility,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(properties=properties, regions=[region])
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
