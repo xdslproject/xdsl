@@ -1360,65 +1360,6 @@ class DSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         return reg(self.destination), reg(self.source), memory_access
 
 
-class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
-    """
-    A base class for x86 operations that have one register that is read and written to,
-    one source register and one memory source operand.
-    """
-
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
-    source1 = operand_def(R2InvT)
-    memory = operand_def(R4InvT)
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
-
-    traits = traits_def(MemoryReadEffect())
-
-    assembly_format = (
-        "$register_in `,` $source1 `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($register_in) `,` type($source1) `,` type($memory) `)` "
-        "`->` type($register_out)"
-    )
-
-    def __init__(
-        self,
-        register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr[SI64],
-        *,
-        comment: str | StringAttr | None = None,
-        register_out: R1InvT | None = None,
-    ):
-        if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, si64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        if register_out is None:
-            register_out = register_in.type
-
-        super().__init__(
-            operands=[register_in, source1, memory],
-            attributes={
-                "memory_offset": memory_offset,
-                "comment": comment,
-            },
-            result_types=[register_out],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.memory, self.memory_offset)
-        src1 = reg(self.source1)
-        destination = reg(self.register_in)
-        return destination, src1, memory_access
-
-    def get_register_constraints(self) -> RegisterConstraints:
-        return RegisterConstraints(
-            (self.source1, self.memory), (), ((self.register_in, self.register_out),)
-        )
-
-
 class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     """
     A base class for x86 operations that have one register that is read and written to,
