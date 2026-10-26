@@ -71,6 +71,7 @@ from xdsl.irdl import (
     attr_def,
     base,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_attr_def,
     opt_prop_def,
@@ -212,8 +213,12 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     and one source register.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
 
     source = operand_def(R2InvT)
 
@@ -407,8 +412,12 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     A base class for x86 operations that have one register that is read and written to.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
 
     assembly_format = (
         "$register_in attr-dict `:` `(` type($register_in) `)` `->` type($register_out)"
@@ -446,8 +455,12 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     memory access with an optional offset.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
 
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
@@ -647,8 +660,12 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     and an immediate value.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
 
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
@@ -1165,8 +1182,12 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     and two source registers.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
@@ -1367,8 +1388,12 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     set, the memory operand uses EVEX broadcast encoding.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out: OpResult[R1InvT] = result_def(R1InvT)
+    T: ClassVar = VarConstraint(
+        "T", irdl_to_attr_constraint(R1InvT, allow_type_var=True)
+    )
+
+    register_in = operand_def(T)
+    register_out: OpResult[R1InvT] = result_def(T)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))

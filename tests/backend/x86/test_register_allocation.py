@@ -29,6 +29,7 @@ from xdsl.dialects.x86.registers import (
     AVX512RegisterType,
     X86VectorRegisterType,
 )
+from xdsl.ir import Block
 from xdsl.irdl import irdl_op_definition
 from xdsl.utils import test_value
 
@@ -369,3 +370,29 @@ def test_allocate_tied_registers(register_type: type[X86VectorRegisterType]):
     assert op.register_in.type == op.register_out.type == register_type.from_index(0)
     assert op.source1.type == register_type.from_index(1)
     assert op.source2.type == register_type.from_index(2)
+
+
+def test_allocate_tied_register_chain():
+    acc, lhs, rhs = (
+        test_value.create_ssa_value(AVX512RegisterType.unallocated()) for _ in range(3)
+    )
+    first = RSS_Vfmadd231pdOp(acc, lhs, rhs)
+    second = RSS_Vfmadd231pdOp(first.register_out, lhs, rhs)
+    block = Block([acc.owner, lhs.owner, rhs.owner, first, second])
+
+    # Allocating the second FMA temporarily changes the first result's type before
+    # its input. The whole chain must end up sharing one allocated accumulator.
+    X86RegisterAllocator(X86RegisterStack.get()).allocate_block(block)
+
+    assert (
+        first.register_in.type
+        == first.register_out.type
+        == second.register_in.type
+        == second.register_out.type
+    )
+    registers = (first.register_in.type, first.source1.type, first.source2.type)
+    assert all(
+        isinstance(register, AVX512RegisterType) and register.is_allocated
+        for register in registers
+    )
+    assert len(set(registers)) == 3
