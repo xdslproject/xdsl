@@ -5,6 +5,7 @@ from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
+    FloatAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -129,7 +130,7 @@ def test_memref_stream_generic_scalar():
     op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = 2
+    b = IntegerAttr(2, i32)
     c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
@@ -269,7 +270,7 @@ def test_memref_stream_generic_reduction_with_initial_value():
     b = ShapedArray(TypedPtr.new_float32([4.0, 3.0, 5.0, 1.0, 2.0, 8.0]), [2, 3])
     c = ShapedArray(TypedPtr.new_float32([0.0] * 9), [3, 3])
 
-    interpreter.run_op(op, (a, b, c, 0.5))
+    interpreter.run_op(op, (a, b, c, FloatAttr(0.5, f32)))
     assert c == ShapedArray(
         TypedPtr.new_float32([6.5, 7.5, 21.5, 16.5, 17.5, 47.5, 26.5, 27.5, 73.5]),
         [3, 3],
@@ -350,7 +351,7 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
         NotImplementedError,
         match="Interpreter for interleaved operations not yet implemented",
     ):
-        interpreter.run_op(op, (a, b, c, 0.5))
+        interpreter.run_op(op, (a, b, c, FloatAttr(0.5, f32)))
     # assert c == ShapedArray(
     #     TypedPtr.new_float32([ 2.9 ,  3.  ,  3.1 ,  3.2 ,  3.3 ,  3.4 ,  3.5 ,  3.6 ,  6.9 ,
     #     7.25,  7.6 ,  7.95,  8.3 ,  8.65,  9.  ,  9.35, 10.9 , 11.5 ,

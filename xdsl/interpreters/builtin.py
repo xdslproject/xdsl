@@ -19,8 +19,20 @@ from xdsl.interpreter import (
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute
-from xdsl.utils.comparisons import to_signed
 from xdsl.utils.hints import isa
+
+
+def scalar_attr(
+    value: int | float, value_type: Attribute, index_bitwidth: Literal[32, 64]
+) -> IntegerAttr[IntegerType] | FloatAttr:
+    """Wrap a numeric storage value or computation result as a runtime scalar."""
+    if isinstance(value_type, builtin.IndexType):
+        value_type = IntegerType(index_bitwidth)
+    if isa(value_type, IntegerType):
+        assert isinstance(value, int)
+        return IntegerAttr(value, value_type, truncate_bits=True)
+    assert isinstance(value_type, builtin.AnyFloat)
+    return FloatAttr(float(value), value_type)
 
 
 def xtype_for_el_type(
@@ -56,26 +68,26 @@ class BuiltinFunctions(InterpreterFunctions):
     @impl_attr(AnyFloat)
     def float_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: AnyFloat
-    ) -> float:
+    ) -> FloatAttr:
         interpreter.interpreter_assert(isa(attr, FloatAttr))
         attr = cast(FloatAttr, attr)
-        return attr.value.data
+        return attr
 
     @impl_attr(IntegerType)
     def integer_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
-    ) -> int:
+    ) -> IntegerAttr:
         interpreter.interpreter_assert(isa(attr, IntegerAttr))
         attr = cast(IntegerAttr, attr)
-        return attr.value.data
+        return attr
 
     @impl_attr(builtin.IndexType)
     def index_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: builtin.IndexType
-    ) -> int:
+    ) -> IntegerAttr[IntegerType]:
         interpreter.interpreter_assert(isa(attr, IntegerAttr))
         attr = cast(IntegerAttr, attr)
-        return to_signed(attr.value.data, interpreter.index_bitwidth)
+        return IntegerAttr(attr.value, interpreter.index_bitwidth, truncate_bits=True)
 
     @impl_attr(builtin.MemRefType)
     def dense_int_or_fp_elements_value(

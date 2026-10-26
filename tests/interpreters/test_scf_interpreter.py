@@ -4,7 +4,15 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
-from xdsl.dialects.builtin import DenseArrayBase, IndexType, ModuleOp, i1, i32, i64
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    IndexType,
+    IntegerAttr,
+    ModuleOp,
+    i1,
+    i32,
+    i64,
+)
 from xdsl.interpreter import Interpreter, OpCounter, OpImplResult, ReturnedValues
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
@@ -47,13 +55,17 @@ def test_for(ub: int, body_args: tuple[tuple[int, int], ...], expected_result: i
     for_op = scf.ForOp(lb, upper_bound, step, (initial,), body)
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(side_effect=[(20,), (30,), (40,)])
-
-    assert ScfFunctions().run_for(interpreter, for_op, (1, ub, 3, 10)) == OpImplResult(
-        (expected_result,), None
+    interpreter.index_bitwidth = 64
+    interpreter.run_ssacfg_region = Mock(
+        side_effect=[(IntegerAttr(v, i64),) for v in (20, 30, 40)]
     )
+
+    assert ScfFunctions().run_for(
+        interpreter, for_op, tuple(IntegerAttr(v, i64) for v in (1, ub, 3, 10))
+    ) == OpImplResult((IntegerAttr(expected_result, i64),), None)
     assert interpreter.run_ssacfg_region.call_args_list == [
-        call(body, args, "for_loop") for args in body_args
+        call(body, tuple(IntegerAttr(v, i64) for v in args), "for_loop")
+        for args in body_args
     ]
 
 
@@ -64,11 +76,11 @@ def test_if(cond_value: bool):
     if_op = scf.IfOp(create_ssa_value(i1), (i32,), true_region, false_region)
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(return_value=(42,))
+    interpreter.run_ssacfg_region = Mock(return_value=(IntegerAttr(42, i32),))
 
-    assert ScfFunctions().run_if(interpreter, if_op, (cond_value,)) == OpImplResult(
-        (42,), None
-    )
+    assert ScfFunctions().run_if(
+        interpreter, if_op, (IntegerAttr.from_bool(cond_value),)
+    ) == OpImplResult((IntegerAttr(42, i32),), None)
     expected_region = true_region if cond_value else false_region
     interpreter.run_ssacfg_region.assert_called_once_with(expected_region, ())
 
@@ -79,9 +91,9 @@ def test_tracer():
     interpreter.register_implementations(ScfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op("sum_to", (5,))
+    (result,) = interpreter.call_op("sum_to", (IntegerAttr(5, i64),))
 
-    assert result == 10
+    assert result == IntegerAttr(10, i64)
     assert dict(tracer.ops) == {
         "arith.constant": 3,
         "scf.for": 1,
@@ -103,12 +115,13 @@ def test_condition_op(cond_value: bool):
 
     condition_op = scf.ConditionOp(cond, a, b)
 
-    res = scf_functions.run_condition(interpreter, condition_op, (cond_value, 1, 2))
+    args = (IntegerAttr.from_bool(cond_value), IntegerAttr(1, i32), IntegerAttr(2, i32))
+    res = scf_functions.run_condition(interpreter, condition_op, args)
 
     assert res.values == ()
     assert res.terminator_value is not None
     assert isinstance(res.terminator_value, ReturnedValues)
-    assert res.terminator_value.values == (cond_value, 1, 2)
+    assert res.terminator_value.values == args
 
 
 @pytest.mark.parametrize(
@@ -161,17 +174,25 @@ def test_while(
     )
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(side_effect=region_results)
+    interpreter.run_ssacfg_region = Mock(
+        side_effect=[
+            tuple(IntegerAttr(v, i1 if isinstance(v, bool) else i32) for v in values)
+            for values in region_results
+        ]
+    )
 
     assert ScfFunctions().run_while(
-        interpreter, while_op, initial_args
-    ) == OpImplResult(expected_result, None)
+        interpreter, while_op, tuple(IntegerAttr(v, i32) for v in initial_args)
+    ) == OpImplResult(tuple(IntegerAttr(v, i32) for v in expected_result), None)
     regions = {
         "before": (before, "while.before_region"),
         "after": (after, "while.after_region"),
     }
     assert interpreter.run_ssacfg_region.call_args_list == [
-        call(regions[name][0], args, regions[name][1]) for name, args in expected_calls
+        call(
+            regions[name][0], tuple(IntegerAttr(v, i32) for v in args), regions[name][1]
+        )
+        for name, args in expected_calls
     ]
 
 
@@ -189,11 +210,11 @@ def test_index_switch(value: int, expected_case: int | None):
     )
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(return_value=(42,))
+    interpreter.run_ssacfg_region = Mock(return_value=(IntegerAttr(42, i32),))
 
     assert ScfFunctions().run_index_switch(
-        interpreter, switch_op, (value,)
-    ) == OpImplResult((42,), None)
+        interpreter, switch_op, (IntegerAttr(value, i64),)
+    ) == OpImplResult((IntegerAttr(42, i32),), None)
     if expected_case is None:
         interpreter.run_ssacfg_region.assert_called_once_with(
             default_region, (), "index_switch.case default"

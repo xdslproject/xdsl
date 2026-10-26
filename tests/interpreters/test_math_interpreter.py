@@ -3,7 +3,7 @@ from math import exp, log, sqrt
 import pytest
 
 from xdsl.dialects import test
-from xdsl.dialects.builtin import ModuleOp, f64
+from xdsl.dialects.builtin import FloatAttr, ModuleOp, f64
 from xdsl.dialects.math import ExpOp, LogOp, SqrtOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.math import MathFunctions
@@ -25,27 +25,27 @@ def interpreter() -> Interpreter:
 def test_exp(interpreter: Interpreter, operand_op: test.TestOp, value: float):
     op = ExpOp(operand_op)
 
-    ret = interpreter.run_op(op, (value,))
+    ret = interpreter.run_op(op, (FloatAttr(value, f64),))
 
     assert len(ret) == 1
-    assert ret[0] == exp(value)
+    assert ret[0] == FloatAttr(exp(value), f64)
 
 
 @pytest.mark.parametrize("value", [0.0, 1.0, 4.0, 2.25])
 def test_sqrt(interpreter: Interpreter, operand_op: test.TestOp, value: float):
     op = SqrtOp(operand_op)
 
-    ret = interpreter.run_op(op, (value,))
+    ret = interpreter.run_op(op, (FloatAttr(value, f64),))
 
     assert len(ret) == 1
-    assert ret[0] == sqrt(value)
+    assert ret[0] == FloatAttr(sqrt(value), f64)
 
 
 @pytest.mark.parametrize("value", [1.0, 2.718281828, 10.0, 0.5])
 def test_log(interpreter: Interpreter, operand_op: test.TestOp, value: float):
     op = LogOp(operand_op)
 
-    ret = interpreter.run_op(op, (value,))
+    ret = interpreter.run_op(op, (FloatAttr(value, f64),))
 
     assert len(ret) == 1
-    assert ret[0] == log(value)
+    assert ret[0] == FloatAttr(log(value), f64)
