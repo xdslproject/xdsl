@@ -334,16 +334,14 @@ class CallOp(IRDLOperation):
 
     def __init__(
         self,
-        callee: str | SymbolRefAttr,
+        callee: str | StringAttr | SymbolRefAttr,
         arguments: Sequence[SSAValue | Operation],
         return_types: Sequence[Attribute],
     ):
-        if isinstance(callee, str):
-            callee = SymbolRefAttr(callee)
         super().__init__(
             operands=[arguments],
             result_types=[return_types],
-            properties={"callee": callee},
+            properties={"callee": SymbolRefAttr.get(callee)},
         )
 
 

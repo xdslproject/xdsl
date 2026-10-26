@@ -1350,7 +1350,7 @@ class SymbolNameAttributeVariable(AttributeVariable):
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, StringAttr)
-        return printer.print_symbol_name(attr.data)
+        return printer.print_symbol_name(attr)
 
 
 class OptionalUnitAttrVariable(AttributeVariable):

@@ -35,6 +35,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StaticShapeArrayConstr,
     StridedLayoutAttr,
+    StringAttr,
     SymbolRefAttr,
     TensorType,
     UnrealizedConversionCastOp,
@@ -1035,8 +1036,9 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
-def test_symbol_ref_attr_get_from_string():
-    assert SymbolRefAttr.get("test") == SymbolRefAttr("test")
+@pytest.mark.parametrize("name_type", [str, StringAttr])
+def test_symbol_ref_attr_get_from_string(name_type: type[str | StringAttr]):
+    assert SymbolRefAttr.get(name_type("root::leaf")) == SymbolRefAttr("root::leaf")
 
 
 def test_symbol_ref_attr_get_from_symbol_ref_attr():

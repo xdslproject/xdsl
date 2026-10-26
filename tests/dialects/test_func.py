@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
     SymbolNameConstraint,
+    SymbolRefAttr,
     i32,
     i64,
 )
@@ -180,6 +181,14 @@ def test_callable_interface():
     assert trait.get_callable_region(func) is region
     assert trait.get_argument_types(func) == (i32, i64)
     assert trait.get_result_types(func) == (i64, i32)
+
+
+@pytest.mark.parametrize("callee_type", [str, StringAttr, SymbolRefAttr])
+def test_call_callee(callee_type: type[str | StringAttr | SymbolRefAttr]):
+    call = CallOp(callee_type("callee"), [], [])
+    module = ModuleOp([FuncOp.external("callee", [], []), call])
+    module.verify()
+    assert call.callee == SymbolRefAttr("callee")
 
 
 def test_call_not_function():

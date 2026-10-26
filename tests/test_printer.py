@@ -1264,16 +1264,26 @@ def test_delimiters():
     assert "test<testing>" == printer.stream.getvalue()
 
 
-def test_symbol_printing():
+@pytest.mark.parametrize("name_type", [str, StringAttr])
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("symbol", "symbol"),
+        ("@symbol", '"@symbol"'),
+        ("", '""'),
+        ('a"\\\né', r'"a\22\\\0A\C3\A9"'),
+    ],
+)
+def test_symbol_printing(name_type: type[str | StringAttr], name: str, expected: str):
     printer = Printer()
 
     printer.stream = StringIO()
-    printer.print_symbol_name("symbol")
-    assert "@symbol" == printer.stream.getvalue()
+    printer.print_identifier_or_string_literal(name_type(name))
+    assert expected == printer.stream.getvalue()
 
     printer.stream = StringIO()
-    printer.print_symbol_name("@symbol")
-    assert '@"@symbol"' == printer.stream.getvalue()
+    printer.print_symbol_name(name_type(name))
+    assert "@" + expected == printer.stream.getvalue()
 
 
 def test_color_printing():

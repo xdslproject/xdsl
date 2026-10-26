@@ -345,8 +345,8 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         super().__init__(root, nested)
 
     @staticmethod
-    def get(value: str | SymbolRefAttr) -> SymbolRefAttr:
-        if isinstance(value, str):
+    def get(value: str | StringAttr | SymbolRefAttr) -> SymbolRefAttr:
+        if isinstance(value, str | StringAttr):
             return SymbolRefAttr(value)
         return value
 
@@ -357,10 +357,10 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         return root
 
     def print_builtin(self, printer: Printer):
-        printer.print_symbol_name(self.root_reference.data)
+        printer.print_symbol_name(self.root_reference)
         for ref in self.nested_references.data:
             printer.print_string("::")
-            printer.print_symbol_name(ref.data)
+            printer.print_symbol_name(ref)
 
 
 class EmptyArrayAttrConstraint(AttrConstraint):
@@ -3006,7 +3006,7 @@ class ModuleOp(IRDLOperation):
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
             printer.print_string(" ")
-            printer.print_symbol_name(self.sym_name.data)
+            printer.print_symbol_name(self.sym_name)
 
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
