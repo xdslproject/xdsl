@@ -79,7 +79,7 @@ class PyObjectType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         if self.annotation.data:
             with printer.in_angle_brackets():
-                printer.print_string_literal(self.annotation.data)
+                printer.print_attribute(self.annotation)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr]:

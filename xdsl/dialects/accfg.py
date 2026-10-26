@@ -278,7 +278,7 @@ class SetupOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print_string(" ")
-        printer.print_string_literal(self.accelerator.data)
+        printer.print_attribute(self.accelerator)
 
         if self.in_state:
             printer.print_string(" from ")
@@ -287,7 +287,7 @@ class SetupOp(IRDLOperation):
         printer.print_string(" to (")
 
         for i, (name, val) in enumerate(zip(self.param_names, self.values)):
-            printer.print_string_literal(name.data)
+            printer.print_attribute(name)
             printer.print_string(" = ")
             printer.print_ssa_value(val)
             printer.print_string(" : ")

@@ -33,7 +33,7 @@ class FuncOpToPdlRewritePattern(RewritePattern):
 
         pdl_pattern = pdl.PatternOp(
             benefit=1,
-            sym_name=op.sym_name.data,
+            sym_name=op.sym_name,
             body=Region(
                 Block([pdl_root, pdl.RewriteOp(root=rewrite_root, body=func_body)])
             ),

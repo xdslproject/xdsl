@@ -88,7 +88,7 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | StringAttr)
         case IntegerAttr():
             immediate.print_without_type(printer)
         case StringAttr():
-            printer.print_string_literal(immediate.data)
+            printer.print_attribute(immediate)
 
 
 @irdl_custom_directive

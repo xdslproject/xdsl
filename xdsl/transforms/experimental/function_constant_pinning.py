@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
@@ -70,7 +71,7 @@ class FunctionConstantPinning(RewritePattern):
                     [
                         # if we are equal to the specialized value, call the function:
                         call_op := func.CallOp(
-                            new_func.sym_name.data,
+                            SymbolRefAttr(new_func.sym_name),
                             func_op.body.block.args,
                             return_types,
                         ),
