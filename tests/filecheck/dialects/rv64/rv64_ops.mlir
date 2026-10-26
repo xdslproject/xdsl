@@ -40,7 +40,7 @@ riscv_func.func @main() {
 }
 
 // CHECK-GENERIC:       "builtin.module"() ({
-// CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:    "riscv_func.func"() <{sym_name = "main", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:      %0 = "rv64.li"() {immediate = 5 : i64} : () -> !riscv.reg<j_1>
 // CHECK-GENERIC-NEXT:      %li_lo = "rv64.li"() {immediate = "%lo(label)"} : () -> !riscv.reg<a0>
 // CHECK-GENERIC-NEXT:      %slli = "rv64.slli"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
@@ -56,7 +56,7 @@ riscv_func.func @main() {
 // CHECK-GENERIC-NEXT:      %bexti = "rv64.bexti"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
 
 // CHECK-ASM:       .text

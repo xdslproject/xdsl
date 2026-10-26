@@ -475,7 +475,7 @@
 }) : () -> ()
 
 // CHECK-GENERIC:       "builtin.module"() ({
-// CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:    "riscv_func.func"() <{sym_name = "main", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:      %0 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
@@ -676,5 +676,5 @@
 // CHECK-GENERIC-NEXT:      %fcvt_d_wu = "riscv.fcvt.d.wu"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) <{input_widths = array<i32: 64, 32, 64, 32>}> : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
