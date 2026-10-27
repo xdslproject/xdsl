@@ -2,18 +2,24 @@ import ast
 import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.py as py
 import xdsl.dialects.symref as symref
+from xdsl.frontend.pyast.lowering import (
+    BINARY_OPERATOR_OVERLOADS,
+    UNSUPPORTED_COMPARISON_OPERATORS,
+    resolve_binary_operator,
+    resolve_callee,
+    resolve_comparison_operator,
+)
 from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
 @dataclass(init=False)
@@ -66,6 +72,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         """Insert an operation generated from `node`."""
         op.location = self.location(node)
         self.inserter.insert_op(op)
+
+    def _error_at(self, node: ast.expr) -> Callable[[str], CodeGenerationException]:
+        """Construct errors located at `node`."""
+        return lambda msg: CodeGenerationException(
+            self.file, node.lineno, node.col_offset, msg
+        )
 
     def get_symbol(self, node: ast.Name) -> Attribute:
         assert self.symbol_table is not None
@@ -145,25 +157,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
-
-        # Table with mappings of Python AST operator to Python methods.
-        python_AST_operator_to_python_overload = {
-            "Add": "__add__",
-            "Sub": "__sub__",
-            "Mult": "__mul__",
-            "Div": "__truediv__",
-            "FloorDiv": "__floordiv__",
-            "Mod": "__mod__",
-            "Pow": "__pow__",
-            "LShift": "__lshift__",
-            "RShift": "__rshift__",
-            "BitOr": "__or__",
-            "BitXor": "__xor__",
-            "BitAnd": "__and__",
-            "MatMult": "__matmul__",
-        }
-
-        if op_name not in python_AST_operator_to_python_overload:
+        if op_name not in BINARY_OPERATOR_OVERLOADS:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -171,62 +165,21 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Unexpected binary operation {op_name}.",
             )
 
-        # Check that the types of the operands are the same.
-        # This is a (temporary?) restriction over Python for implementation simplicity.
-        # This also means that we do not need to support reflected operations
-        # (__radd__, __rsub__, etc.) which only exist for operations between different types.
         self.visit(node.right)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.type != rhs.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Expected the same types for binary operation '{op_name}', "
-                f"but got {lhs.type} and {rhs.type}.",
-            )
-
-        ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.type_registry.get_annotation(ir_type)
-        if source_type is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"IR type '{ir_type}' is not registered with a source type.",
-            )
-
-        method_name = python_AST_operator_to_python_overload[op_name]
-        function_name = f"{source_type.__qualname__}.{method_name}"
-        op = self.type_converter.function_registry.resolve_operation(
-            module_name=source_type.__module__,
-            method_name=function_name,
-            args=(lhs, rhs),
+        op = resolve_binary_operator(
+            self.type_converter, op_name, lhs, rhs, self._error_at(node)
         )
-        if op is not None:
-            self.insert_op(op, node)
-            return
-
-        overload_name = python_AST_operator_to_python_overload[op_name]
-        raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
-            f"Binary operation '{op_name}' "
-            f"is not supported by type '{source_type.__qualname__}' "
-            f"which does not overload '{overload_name}'.",
-        )
+        self.insert_op(op, node)
 
     def visit_Call(self, node: ast.Call) -> None:
         match node.func:
             case ast.Name():
-                source_kind = "function"
-                source, source_name = self._call_source_function(node)
-            case ast.Attribute():
-                source_kind = "classmethod"
-                source, source_name = self._call_source_classmethod(node)
+                callee = node.func.id
+            case ast.Attribute(value=ast.Name(id=class_name), attr=method_name):
+                callee = f"{class_name}.{method_name}"
             case _:
                 raise CodeGenerationException(
                     self.file,
@@ -234,15 +187,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     "Unsupported call expression.",
                 )
-
-        ir_op = self.type_converter.function_registry.get_operation_constructor(source)
-        if ir_op is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"{source_kind.capitalize()} '{source_name}' is not registered.",
-            )
+        ir_op = resolve_callee(self.type_converter, callee, self._error_at(node))
 
         args = [self.visit_single_value(arg) for arg in node.args]
         kwargs: dict[str, SSAValue] = {}
@@ -258,50 +203,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         self.insert_op(ir_op(*args, **kwargs), node)
 
-    # Get called function for a call expression.
-    def _call_source_function(self, node: ast.Call) -> tuple[Callable[..., Any], str]:
-        assert isinstance(node.func, ast.Name)
-
-        func_name = node.func.id
-        func = self.type_converter.globals.get(func_name, None)
-        if func is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Function '{func_name}' is not defined in scope.",
-            )
-        return func, func_name
-
-    # Get called classmethod for a call expression.
-    def _call_source_classmethod(
-        self, node: ast.Call
-    ) -> tuple[Callable[..., Any], str]:
-        assert isinstance(node.func, ast.Attribute)
-        assert isinstance(node.func.value, ast.Name)
-
-        class_name = node.func.value.id
-        method_name = node.func.attr
-        classmethod_name = f"{class_name}.{method_name}"
-
-        source_class = self.type_converter.globals.get(class_name, None)
-        if source_class is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Class '{class_name}' is not defined in scope.",
-            )
-        classmethod_ = getattr(source_class, method_name, None)
-        if classmethod_ is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Method '{method_name}' is not defined on class '{class_name}'.",
-            )
-        return classmethod_, classmethod_name
-
     def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
@@ -313,28 +214,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__qualname__
-
-        # Table with mappings of Python AST cmpop to Python method.
-        python_AST_cmpop_to_python_overload = {
-            "Eq": "__eq__",
-            "Gt": "__gt__",
-            "GtE": "__ge__",
-            "Lt": "__lt__",
-            "LtE": "__le__",
-            "NotEq": "__ne__",
-            "In": "__contains__",
-            "NotIn": "__contains__",
-        }
-
-        # Table with currently unsupported Python AST cmpops.
-        # The "is" and "is not" operators are (currently) not supported,
-        # since the frontend does not consider/preserve object identity.
-        # Finally, "not in" does not directly correspond to a special method
-        # and is instead simply implemented as the negation of __contains__
-        # which the current mapping framework cannot handle.
-        unsupported_python_AST_cmpop = {"Is", "IsNot", "NotIn"}
-
-        if op_name in unsupported_python_AST_cmpop:
+        if op_name in UNSUPPORTED_COMPARISON_OPERATORS:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -342,53 +222,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Unsupported comparison operation '{op_name}'.",
             )
 
-        # Check that the types of the operands are the same.
-        # This is a (temporary?) restriction over Python for implementation simplicity.
-        # This also means that we do not need to consider swapping arguments
-        # (__eq__ and __ne__ are their own reflection, __lt__ <-> __gt__  and __le__ <-> __ge__).
         self.visit(comp)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.type != rhs.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Expected the same types for comparison operator '{op_name}',"
-                f" but got {lhs.type} and {rhs.type}.",
-            )
-
-        ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.type_registry.get_annotation(ir_type)
-        if source_type is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"IR type '{ir_type}' is not registered with a source type.",
-            )
-
-        method_name = python_AST_cmpop_to_python_overload[op_name]
-        function_name = f"{source_type.__qualname__}.{method_name}"
-        op = self.type_converter.function_registry.resolve_operation(
-            module_name=source_type.__module__,
-            method_name=function_name,
-            args=(lhs, rhs),
+        op = resolve_comparison_operator(
+            self.type_converter, op_name, lhs, rhs, self._error_at(node)
         )
-        if op is not None:
-            self.insert_op(op, node)
-            return
-
-        python_op = python_AST_cmpop_to_python_overload[op_name]
-        raise CodeGenerationException(
-            self.file,
-            node.lineno,
-            node.col_offset,
-            f"Comparison operation '{op_name}' "
-            f"is not supported by type '{ir_type.name}' "
-            f"which does not overload '{python_op}'.",
-        )
+        self.insert_op(op, node)
 
     def visit_Constant(self, node: ast.Constant) -> None:
         if (

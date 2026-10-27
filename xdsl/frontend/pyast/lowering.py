@@ -7,7 +7,7 @@ import xdsl.dialects.py as py
 from xdsl.dialects.builtin import FileLineColLoc, FunctionType
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
 from xdsl.rewriter import Rewriter
 from xdsl.utils.lexer import Location
 
@@ -28,6 +28,162 @@ def build_func(
 
 def build_return(values: Sequence[SSAValue], location: Location) -> func.ReturnOp:
     return func.ReturnOp(*values)
+
+
+BINARY_OPERATOR_OVERLOADS = {
+    "Add": "__add__",
+    "Sub": "__sub__",
+    "Mult": "__mul__",
+    "Div": "__truediv__",
+    "FloorDiv": "__floordiv__",
+    "Mod": "__mod__",
+    "Pow": "__pow__",
+    "LShift": "__lshift__",
+    "RShift": "__rshift__",
+    "BitOr": "__or__",
+    "BitXor": "__xor__",
+    "BitAnd": "__and__",
+    "MatMult": "__matmul__",
+}
+"""The method overloading each binary operator, by the name of its `ast` class."""
+
+COMPARISON_OPERATOR_OVERLOADS = {
+    "Eq": "__eq__",
+    "Gt": "__gt__",
+    "GtE": "__ge__",
+    "Lt": "__lt__",
+    "LtE": "__le__",
+    "NotEq": "__ne__",
+    "In": "__contains__",
+}
+"""The method overloading each comparison operator, by the name of its `ast` class."""
+
+UNSUPPORTED_COMPARISON_OPERATORS = ("Is", "IsNot", "NotIn")
+"""
+The comparison operators without an overload: "is" and "is not" compare object
+identity, which is not preserved, and "not in" is the negation of `__contains__`
+rather than a method of its own.
+"""
+
+ErrorConstructor = Callable[[str], Exception]
+"""Construct the error to raise from its message, located by the caller."""
+
+
+def resolve_callee(
+    type_converter: TypeConverter, callee: str, error: ErrorConstructor
+) -> Callable[..., Operation]:
+    """
+    The constructor of the operation registered for `callee`, the name of a function
+    or of a class method in the program's globals.
+    """
+    if "." in callee:
+        kind = "classmethod"
+        class_name, method_name = callee.split(".", maxsplit=1)
+        source_class = type_converter.globals.get(class_name, None)
+        if source_class is None:
+            raise error(f"Class '{class_name}' is not defined in scope.")
+        source = getattr(source_class, method_name, None)
+        if source is None:
+            raise error(
+                f"Method '{method_name}' is not defined on class '{class_name}'."
+            )
+    else:
+        kind = "function"
+        source = type_converter.globals.get(callee, None)
+        if source is None:
+            raise error(f"Function '{callee}' is not defined in scope.")
+
+    ir_op = type_converter.function_registry.get_operation_constructor(source)
+    if ir_op is None:
+        raise error(f"{kind.capitalize()} '{callee}' is not registered.")
+    return ir_op
+
+
+def resolve_binary_operator(
+    type_converter: TypeConverter,
+    op_name: str,
+    lhs: SSAValue,
+    rhs: SSAValue,
+    error: ErrorConstructor,
+) -> Operation:
+    """The registered operation for the binary operator `op_name` on two values."""
+    # Check that the types of the operands are the same.
+    # This is a (temporary?) restriction over Python for implementation simplicity.
+    # This also means that we do not need to support reflected operations
+    # (__radd__, __rsub__, etc.) which only exist for operations between different types.
+    if lhs.type != rhs.type:
+        raise error(
+            f"Expected the same types for binary operation '{op_name}', "
+            f"but got {lhs.type} and {rhs.type}."
+        )
+
+    source_type = _source_type(type_converter, lhs.type, error)
+    overload = BINARY_OPERATOR_OVERLOADS[op_name]
+    op = _resolve_method(type_converter, source_type, overload, lhs, rhs)
+    if op is None:
+        raise error(
+            f"Binary operation '{op_name}' "
+            f"is not supported by type '{source_type.__qualname__}' "
+            f"which does not overload '{overload}'."
+        )
+    return op
+
+
+def resolve_comparison_operator(
+    type_converter: TypeConverter,
+    op_name: str,
+    lhs: SSAValue,
+    rhs: SSAValue,
+    error: ErrorConstructor,
+) -> Operation:
+    """
+    The registered operation for the comparison operator `op_name` on two values,
+    which must not be one of `UNSUPPORTED_COMPARISON_OPERATORS`.
+    """
+    # Check that the types of the operands are the same.
+    # This is a (temporary?) restriction over Python for implementation simplicity.
+    # This also means that we do not need to consider swapping arguments
+    # (__eq__ and __ne__ are their own reflection, __lt__ <-> __gt__  and __le__ <-> __ge__).
+    if lhs.type != rhs.type:
+        raise error(
+            f"Expected the same types for comparison operator '{op_name}',"
+            f" but got {lhs.type} and {rhs.type}."
+        )
+
+    source_type = _source_type(type_converter, lhs.type, error)
+    overload = COMPARISON_OPERATOR_OVERLOADS[op_name]
+    op = _resolve_method(type_converter, source_type, overload, lhs, rhs)
+    if op is None:
+        raise error(
+            f"Comparison operation '{op_name}' "
+            f"is not supported by type '{cast(TypeAttribute, lhs.type).name}' "
+            f"which does not overload '{overload}'."
+        )
+    return op
+
+
+def _source_type(
+    type_converter: TypeConverter, ir_type: Attribute, error: ErrorConstructor
+) -> type:
+    source_type = type_converter.type_registry.get_annotation(
+        cast(TypeAttribute, ir_type)
+    )
+    if source_type is None:
+        raise error(f"IR type '{ir_type}' is not registered with a source type.")
+    return source_type
+
+
+def _resolve_method(
+    type_converter: TypeConverter,
+    source_type: type,
+    method_name: str,
+    *args: SSAValue,
+) -> Operation | None:
+    return type_converter.function_registry.resolve_operation(
+        module_name=source_type.__module__,
+        method_name=f"{source_type.__qualname__}.{method_name}",
+        args=args,
+    )
 
 
 @dataclass
