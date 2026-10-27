@@ -714,3 +714,23 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vshufi64x2 zmm8, zmm6, zmm7, 68
 %bf16_ins = x86.dssi.vinserti32x8 %bf16_shuf, %bf16_a_masked, 1 : (!x86.avx512reg<zmm8>, !x86.avx2reg<ymm4>) -> !x86.avx512reg<zmm9>
 // CHECK-NEXT: vinserti32x8 zmm9, zmm8, ymm4, 1
+
+%r14 = x86.get_register : !x86.reg64<r14>
+x86.m.sttilecfg [%rsp] : (!x86.reg64<rsp>) -> ()
+// CHECK-NEXT: sttilecfg [rsp]
+x86.l.ldtilecfg ".Ltileconfig"
+// CHECK-NEXT: ldtilecfg [rip+.Ltileconfig]
+%tile_c = x86.dmx.tileloadd [%1 + %r14 * 4 + 64] : (!x86.reg64<rdx>, !x86.reg64<r14>) -> !x86.amxtilereg<tmm0>
+// CHECK-NEXT: tileloadd tmm0, [rdx+r14*4+64]
+%tile_a = x86.dmx.tileloaddt1 [%1 + %r14 * 1] : (!x86.reg64<rdx>, !x86.reg64<r14>) -> !x86.amxtilereg<tmm4>
+// CHECK-NEXT: tileloaddt1 tmm4, [rdx+r14*1]
+%tile_b = x86.d.tilezero : () -> !x86.amxtilereg<tmm6>
+// CHECK-NEXT: tilezero tmm6
+%tile_acc = x86.rss.tdpbf16ps %tile_c, %tile_b, %tile_a : (!x86.amxtilereg<tmm0>, !x86.amxtilereg<tmm6>, !x86.amxtilereg<tmm4>) -> !x86.amxtilereg<tmm0>
+// CHECK-NEXT: tdpbf16ps tmm0, tmm6, tmm4
+x86.mxs.tilestored [%1 + %r14 * 4 + -64], %tile_acc : (!x86.reg64<rdx>, !x86.reg64<r14>, !x86.amxtilereg<tmm0>) -> ()
+// CHECK-NEXT: tilestored [rdx+r14*4-64], tmm0
+x86.m.ldtilecfg [%rsp] : (!x86.reg64<rsp>) -> ()
+// CHECK-NEXT: ldtilecfg [rsp]
+x86.tilerelease
+// CHECK-NEXT: tilerelease

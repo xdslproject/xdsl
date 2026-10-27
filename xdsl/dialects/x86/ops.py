@@ -20,6 +20,8 @@ Here are the possible mnemonic values and what they stand for:
 - `r`: Register used both as a source and destination
 - `i`: Immediate value
 - `m`: Memory
+- `x`: Index register of the preceding memory operand, `[m + x * scale + offset]`
+- `l`: Memory at a label, addressed relative to the instruction pointer
 - `c`: Condition
 
 This dialect is structured into abstract base classes, which are prefixed with the
@@ -101,6 +103,8 @@ from .assembly import (
     AssemblyInstructionArg,
     assembly_arg_str,
     broadcast_memory_access_str,
+    indexed_memory_access_str,
+    label_memory_access_str,
     masked_memory_access_str,
     masked_source_str,
     memory_access_str,
@@ -112,6 +116,7 @@ from .registers import (
     RDX,
     RFLAGS,
     RSP,
+    AMXTileRegisterType,
     AVX2RegisterType,
     AVX512MaskRegisterType,
     AVX512RegisterType,
@@ -1630,6 +1635,123 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
             reg(self.source1),
             self.immediate,
         )
+
+
+def _verify_scale(scale: IntegerAttr[I64]) -> None:
+    if scale.value.data not in (1, 2, 4, 8):
+        raise VerifyException(f"scale must be 1, 2, 4 or 8, got {scale.value.data}")
+
+
+class DMX_Operation(X86Instruction, ABC, Generic[R1InvT]):
+    """
+    A base class for x86 operations that load from an indexed memory operand,
+    `[memory + index * scale + offset]`, into a destination register. The scale is
+    1, 2, 4 or 8.
+    """
+
+    destination: OpResult[R1InvT] = result_def(R1InvT)
+    memory = operand_def(GeneralRegisterType)
+    index = operand_def(GeneralRegisterType)
+    scale = attr_def(IntegerAttr[I64])
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+
+    traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory `+` $index `*` $scale (`+` $memory_offset^)? `]` attr-dict "
+        "`:` `(` type($memory) `,` type($index) `)` `->` type($destination)"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        index: Operation | SSAValue,
+        memory_offset: int | IntegerAttr[I64],
+        *,
+        scale: int | IntegerAttr[I64] = 1,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(scale, int):
+            scale = IntegerAttr(scale, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[memory, index],
+            attributes={
+                "scale": scale,
+                "memory_offset": memory_offset,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def verify_(self) -> None:
+        _verify_scale(self.scale)
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = indexed_memory_access_str(
+            self.memory, self.index, self.scale, self.memory_offset
+        )
+        return reg(self.destination), memory_access
+
+
+class MXS_Operation(X86Instruction, ABC, Generic[R1InvT]):
+    """
+    A base class for x86 operations that store one source register to an indexed
+    memory operand, `[memory + index * scale + offset]`. The scale is 1, 2, 4 or 8.
+    """
+
+    memory = operand_def(GeneralRegisterType)
+    index = operand_def(GeneralRegisterType)
+    scale = attr_def(IntegerAttr[I64])
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    source = operand_def(R1InvT)
+
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "` ` `[` $memory `+` $index `*` $scale (`+` $memory_offset^)? `]` `,` "
+        "$source attr-dict `:` "
+        "`(` type($memory) `,` type($index) `,` type($source) `)` `->` `(` `)`"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        index: Operation | SSAValue,
+        source: Operation | SSAValue,
+        memory_offset: int | IntegerAttr[I64],
+        *,
+        scale: int | IntegerAttr[I64] = 1,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(scale, int):
+            scale = IntegerAttr(scale, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[memory, index, source],
+            attributes={
+                "scale": scale,
+                "memory_offset": memory_offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def verify_(self) -> None:
+        _verify_scale(self.scale)
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = indexed_memory_access_str(
+            self.memory, self.index, self.scale, self.memory_offset
+        )
+        return memory_access, reg(self.source)
 
 
 # endregion
@@ -4349,6 +4471,180 @@ class DSSI_Vinserti32x8Op(
     name = "x86.dssi.vinserti32x8"
 
 
+# region: AMX
+
+
+@irdl_op_definition
+class M_LdtilecfgOp(M_Operation[GeneralRegisterType]):
+    """
+    Load the 64-byte tile configuration at the specified memory location, which
+    sets the rows and bytes per row of every tile register and zeroes all tiles.
+
+    See external [documentation](https://www.felixcloutier.com/x86/ldtilecfg).
+    """
+
+    name = "x86.m.ldtilecfg"
+
+
+@irdl_op_definition
+class L_LdtilecfgOp(X86Instruction):
+    """
+    Load the 64-byte tile configuration at a label, addressed relative to the
+    instruction pointer, which sets the rows and bytes per row of every tile
+    register and zeroes all tiles.
+
+    See external [documentation](https://www.felixcloutier.com/x86/ldtilecfg).
+    """
+
+    name = "x86.l.ldtilecfg"
+
+    label = attr_def(StringAttr)
+
+    # The tile configuration is not an SSA value, so the effect on it is modelled
+    # as a write to memory: no tile operation may move across it.
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
+    assembly_format = "$label attr-dict"
+
+    def __init__(
+        self,
+        label: str | StringAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = StringAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(attributes={"label": label, "comment": comment})
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (label_memory_access_str(self.label),)
+
+
+@irdl_op_definition
+class M_SttilecfgOp(M_Operation[GeneralRegisterType]):
+    """
+    Store the current tile configuration to the 64 bytes at the specified memory
+    location, or 64 zero bytes if no configuration is loaded.
+
+    See external [documentation](https://www.felixcloutier.com/x86/sttilecfg).
+    """
+
+    name = "x86.m.sttilecfg"
+
+
+@irdl_op_definition
+class TilereleaseOp(X86Instruction):
+    """
+    Return the tile configuration and all tiles to their initial, unconfigured state.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tilerelease).
+    """
+
+    name = "x86.tilerelease"
+
+    # As for `ldtilecfg`, the effect on the tile configuration is modelled as a
+    # write to memory.
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = "attr-dict"
+
+    def __init__(self, *, comment: str | StringAttr | None = None):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(attributes={"comment": comment})
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return ()
+
+
+@irdl_op_definition
+class DMX_TileloaddOp(DMX_Operation[AMXTileRegisterType]):
+    """
+    Load a tile whose consecutive rows are `index * scale` bytes apart, starting at
+    the specified memory location. The tile configuration sets how many rows, and
+    how many bytes of each, are loaded.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tileloadd:tileloaddt1).
+    """
+
+    name = "x86.dmx.tileloadd"
+
+
+@irdl_op_definition
+class DMX_Tileloaddt1Op(DMX_Operation[AMXTileRegisterType]):
+    """
+    Load a tile like `tileloadd`, with a hint that the data will not be reused.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tileloadd:tileloaddt1).
+    """
+
+    name = "x86.dmx.tileloaddt1"
+
+
+@irdl_op_definition
+class MXS_TilestoredOp(MXS_Operation[AMXTileRegisterType]):
+    """
+    Store a tile so that its consecutive rows are `index * scale` bytes apart,
+    starting at the specified memory location.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tilestored).
+    """
+
+    name = "x86.mxs.tilestored"
+
+
+@irdl_op_definition
+class D_TilezeroOp(X86Instruction):
+    """
+    Zero every byte of a tile.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tilezero).
+    """
+
+    name = "x86.d.tilezero"
+
+    destination = result_def(AMXTileRegisterType)
+
+    assembly_format = "attr-dict `:` `(` `)` `->` type($destination)"
+
+    def __init__(
+        self,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: AMXTileRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            attributes={"comment": comment},
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (reg(self.destination),)
+
+
+@irdl_op_definition
+class RSS_Tdpbf16psOp(
+    RSS_Operation[AMXTileRegisterType, AMXTileRegisterType, AMXTileRegisterType]
+):
+    """
+    Multiply the BF16 pairs in each row of s1 by the BF16 pairs in the matching row
+    of s2, and add both products of each pair to the single-precision element of r
+    at s1's row and s2's pair: r[m][n] += s1[m][2k] * s2[k][2n] +
+    s1[m][2k+1] * s2[k][2n+1], summed over the pairs k of a row of s1.
+
+    See external [documentation](https://www.felixcloutier.com/x86/tdpbf16ps).
+    """
+
+    name = "x86.rss.tdpbf16ps"
+
+
+# endregion
+
+
 class GetAnyRegisterOperation(
     X86AsmOperation,
     X86HasRegisterConstraints,
@@ -4388,6 +4684,11 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
 @irdl_op_definition
 class GetMaskRegisterOp(GetAnyRegisterOperation[AVX512MaskRegisterType]):
     name = "x86.get_mask_register"
+
+
+@irdl_op_definition
+class GetTileRegisterOp(GetAnyRegisterOperation[AMXTileRegisterType]):
+    name = "x86.get_tile_register"
 
 
 @irdl_op_definition

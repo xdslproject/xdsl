@@ -22,3 +22,8 @@
 
 // CHECK: Invalid register name foo for register type x86.avx512maskreg.
 "test.op"() { reg = !x86.avx512maskreg<foo> } : () -> ()
+
+// -----
+
+// CHECK: Invalid register name foo for register type x86.amxtilereg.
+"test.op"() { reg = !x86.amxtilereg<foo> } : () -> ()

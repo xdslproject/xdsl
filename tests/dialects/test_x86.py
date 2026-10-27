@@ -445,7 +445,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 155
+    assert len(effects_ops) == 165
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -476,7 +476,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 151
+    assert len(register_effects_ops) == 160
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,
@@ -494,14 +494,19 @@ def test_effect_traits():
         x86.ops.DMK_VmovapsOp,
         x86.ops.DMK_VmovupdOp,
         x86.ops.DMK_VmovupsOp,
+        x86.ops.DMX_TileloaddOp,
+        x86.ops.DMX_Tileloaddt1Op,
         x86.ops.DSM_VaddsdOp,
         x86.ops.DSM_VmulpdOp,
+        x86.ops.L_LdtilecfgOp,
         x86.ops.M_DecOp,
         x86.ops.M_IDivOp,
         x86.ops.M_ImulOp,
         x86.ops.M_IncOp,
+        x86.ops.M_LdtilecfgOp,
         x86.ops.M_NegOp,
         x86.ops.M_NotOp,
+        x86.ops.M_SttilecfgOp,
         x86.ops.MI_AddOp,
         x86.ops.MI_AndOp,
         x86.ops.MI_CmpOp,
@@ -527,12 +532,15 @@ def test_effect_traits():
         x86.ops.SM_CmpOp,
     }
     assert memory_write_effects_ops == {
+        x86.ops.L_LdtilecfgOp,
         x86.ops.M_DecOp,
         x86.ops.M_IncOp,
+        x86.ops.M_LdtilecfgOp,
         x86.ops.M_NegOp,
         x86.ops.M_NotOp,
         x86.ops.M_PopOp,
         x86.ops.M_PushOp,
+        x86.ops.M_SttilecfgOp,
         x86.ops.MI_AddOp,
         x86.ops.MI_AndOp,
         x86.ops.MI_MovOp,
@@ -556,10 +564,13 @@ def test_effect_traits():
         x86.ops.MSK_VmovapsOp,
         x86.ops.MSK_VmovupdOp,
         x86.ops.MSK_VmovupsOp,
+        x86.ops.MXS_TilestoredOp,
+        x86.ops.TilereleaseOp,
     }
     assert no_effects_ops == {
         x86.ops.FallthroughOp,
         x86.ops.GetAVXRegisterOp,
         x86.ops.GetMaskRegisterOp,
         x86.ops.GetRegisterOp,
+        x86.ops.GetTileRegisterOp,
     }

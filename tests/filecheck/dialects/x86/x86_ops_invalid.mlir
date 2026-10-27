@@ -78,3 +78,9 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 %result = "x86.dsi.vextractf128"(%ymm) {immediate = 1 : i32} : (!x86.avx2reg) -> !x86.ssereg
 
 // CHECK: Expected attribute ui8 but got i32
+
+// -----
+
+%base, %stride = "test.op"() : () -> (!x86.reg64, !x86.reg64)
+// CHECK: scale must be 1, 2, 4 or 8, got 3
+%tile = x86.dmx.tileloadd [%base + %stride * 3] : (!x86.reg64, !x86.reg64) -> !x86.amxtilereg

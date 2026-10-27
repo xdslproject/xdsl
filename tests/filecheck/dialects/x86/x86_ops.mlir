@@ -676,6 +676,29 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 %bf16_ins = x86.dssi.vinserti32x8 %bf16_lo, %bf16_a_masked, 1 : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg
 // CHECK-NEXT: %bf16_ins = x86.dssi.vinserti32x8 %bf16_lo, %bf16_a_masked, 1 : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg
 
+// ---- AMX tiles ----
+
+x86.m.sttilecfg [%rsp] : (!x86.reg64<rsp>) -> ()
+// CHECK-NEXT: x86.m.sttilecfg [%rsp] : (!x86.reg64<rsp>) -> ()
+x86.l.ldtilecfg ".Ltileconfig"
+// CHECK-NEXT: x86.l.ldtilecfg ".Ltileconfig"
+%tile_c = x86.dmx.tileloadd [%1 + %0 * 4 + 64] : (!x86.reg64, !x86.reg64) -> !x86.amxtilereg
+// CHECK-NEXT: %tile_c = x86.dmx.tileloadd [%1 + %0 * 4 + 64] : (!x86.reg64, !x86.reg64) -> !x86.amxtilereg
+%tile_a = x86.dmx.tileloaddt1 [%1 + %0 * 1] : (!x86.reg64, !x86.reg64) -> !x86.amxtilereg
+// CHECK-NEXT: %tile_a = x86.dmx.tileloaddt1 [%1 + %0 * 1] : (!x86.reg64, !x86.reg64) -> !x86.amxtilereg
+%tile_zero = x86.d.tilezero : () -> !x86.amxtilereg
+// CHECK-NEXT: %tile_zero = x86.d.tilezero : () -> !x86.amxtilereg
+%tile_acc = x86.rss.tdpbf16ps %tile_c, %tile_a, %tile_zero : (!x86.amxtilereg, !x86.amxtilereg, !x86.amxtilereg) -> !x86.amxtilereg
+// CHECK-NEXT: %tile_acc = x86.rss.tdpbf16ps %tile_c, %tile_a, %tile_zero : (!x86.amxtilereg, !x86.amxtilereg, !x86.amxtilereg) -> !x86.amxtilereg
+x86.mxs.tilestored [%1 + %0 * 2], %tile_acc : (!x86.reg64, !x86.reg64, !x86.amxtilereg) -> ()
+// CHECK-NEXT: x86.mxs.tilestored [%1 + %0 * 2], %tile_acc : (!x86.reg64, !x86.reg64, !x86.amxtilereg) -> ()
+x86.m.ldtilecfg [%rsp + 8] : (!x86.reg64<rsp>) -> ()
+// CHECK-NEXT: x86.m.ldtilecfg [%rsp + 8] : (!x86.reg64<rsp>) -> ()
+x86.tilerelease
+// CHECK-NEXT: x86.tilerelease
+%tmm3 = x86.get_tile_register : !x86.amxtilereg<tmm3>
+// CHECK-NEXT: %tmm3 = x86.get_tile_register : !x86.amxtilereg<tmm3>
+
 // ---- pmov ----
 
 %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)

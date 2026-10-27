@@ -593,3 +593,46 @@ K = tuple(AVX512MaskRegisterType.from_name(f"k{i}") for i in range(8))
     K6,
     K7,
 ) = K
+
+
+X86_AMX_TILE_INDEX_BY_NAME = {f"tmm{i}": i for i in range(8)}
+
+
+@irdl_attr_definition
+class AMXTileRegisterType(X86RegisterType):
+    """
+    An x86 AMX tile register type.
+
+    How many rows a tile holds and how many bytes each row has is not part of
+    the type: the tile configuration `ldtilecfg` loads fixes it for each tile
+    register by index. Code that loads a configuration therefore names the tiles
+    it describes, and no target makes them available to the register allocator.
+    """
+
+    name = "x86.amxtilereg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return X86_AMX_TILE_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_amx_tile_"
+
+    @classmethod
+    def allocatable_registers(cls):
+        return TMM
+
+
+UNALLOCATED_AMX_TILE = AMXTileRegisterType.unallocated()
+TMM = tuple(AMXTileRegisterType.from_name(f"tmm{i}") for i in range(8))
+(
+    TMM0,
+    TMM1,
+    TMM2,
+    TMM3,
+    TMM4,
+    TMM5,
+    TMM6,
+    TMM7,
+) = TMM

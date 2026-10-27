@@ -29,6 +29,26 @@ def memory_access_str(register: SSAValue, offset: IntegerAttr) -> str:
     return mem_acc_str
 
 
+def indexed_memory_access_str(
+    register: SSAValue, index: SSAValue, scale: IntegerAttr, offset: IntegerAttr
+) -> str:
+    """
+    e.g. ``[rdx+r14*4+64]``
+    """
+    mem_acc_str = f"{reg(register)}+{reg(index)}*{scale.value.data}"
+    if offset.value.data:
+        mem_acc_str += f"{offset.value.data:+d}"
+    return f"[{mem_acc_str}]"
+
+
+def label_memory_access_str(label: StringAttr) -> str:
+    """
+    A memory operand at a label, addressed relative to the instruction pointer,
+    e.g. ``[rip+.Ltileconfig]``.
+    """
+    return f"[rip+{label.data}]"
+
+
 def broadcast_memory_access_str(
     register: SSAValue,
     offset: IntegerAttr,
