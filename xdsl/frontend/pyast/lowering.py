@@ -7,7 +7,15 @@ import xdsl.dialects.py as py
 from xdsl.dialects.builtin import FileLineColLoc, FunctionType
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.rewriter import Rewriter
 from xdsl.utils.lexer import Location
 
@@ -231,21 +239,24 @@ class PyLowering:
                 self._lower_regions(op)
 
     def _lower_func(self, op: py.PyFuncOp) -> None:
-        function_type = op.function_type
+        block = op.body.block
         arg_types = [
-            self._resolve_annotation(op, arg_type, "argument")
-            for arg_type in function_type.inputs.data
+            self._resolve_annotation(arg, arg_type, "argument")
+            for arg, arg_type in zip(
+                block.args, op.function_type.inputs.data, strict=True
+            )
         ]
-        (result_type,) = function_type.outputs.data
+        (result_type,) = op.function_type.outputs.data
         return_types = (
             []
             if self._annotation(result_type) == "None"
             else [self._resolve_annotation(op, result_type, "return")]
         )
 
-        block = op.body.block
         for arg, arg_type in zip(block.args, arg_types, strict=True):
+            location = arg.location
             Rewriter.replace_value_with_new_type(arg, arg_type)
+            block.args[arg.index].location = location
         self._lower_block(block)
 
         function_op = self.function_definition_constructor(
@@ -277,27 +288,29 @@ class PyLowering:
         return cast(py.PyObjectType, object_type).annotation.data
 
     def _resolve_annotation(
-        self, op: Operation, object_type: Attribute, kind: str
+        self, ir: Operation | BlockArgument, object_type: Attribute, kind: str
     ) -> Attribute:
         annotation = self._annotation(object_type)
         ir_type = self.type_converter.type_registry.resolve_attribute(
             annotation, self.type_converter.globals
         )
         if ir_type is None:
-            raise self._error(op, f"Unsupported function {kind} type: '{annotation}'")
+            raise self._error(ir, f"Unsupported function {kind} type: '{annotation}'")
         return ir_type
 
     @staticmethod
-    def _position(op: Operation) -> tuple[int, int]:
-        """The line and one-based column of an operation, or zeros."""
-        if isinstance(location := op.location, FileLineColLoc):
+    def _position(ir: Operation | BlockArgument) -> tuple[int, int]:
+        """The line and one-based column of an operation or argument, or zeros."""
+        if isinstance(location := ir.location, FileLineColLoc):
             return location.line.data, location.column.data
         return 0, 0
 
     def _location(self, op: Operation) -> Location:
         return Location(self.file or "<unknown>", *self._position(op))
 
-    def _error(self, op: Operation, msg: str) -> CodeGenerationException:
-        line, column = self._position(op)
+    def _error(
+        self, ir: Operation | BlockArgument, msg: str
+    ) -> CodeGenerationException:
+        line, column = self._position(ir)
         # Errors report the zero-based column of the Python AST.
         return CodeGenerationException(self.file, line, max(column - 1, 0), msg)

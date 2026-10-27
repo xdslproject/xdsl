@@ -21,11 +21,11 @@ def test_unsupported_argument_annotation(location: str, position: str):
     module = Parser(
         ctx,
         f"""
-        py.func @f(%x : !py.object<"float">) -> !py.object<"None"> {{
+        py.func @f(%x : !py.object<"float"> {location}) -> !py.object<"None"> {{
           %none = py.const None
           %result = py.cast %none : !py.object to !py.object<"None">
           py.return %result : !py.object<"None">
-        }} {location}
+        }}
         """,
     ).parse_module()
     type_converter = TypeConverter(globals())

@@ -320,6 +320,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         ):
             symbol_name = str(arg.arg)
             value.name_hint = symbol_name
+            value.location = self.location(arg)
             self.symbol_table[symbol_name] = xdsl_type
             self.insert_op(symref.DeclareOp(symbol_name), arg)
             # In the body, arguments are plain objects whatever their annotation.
