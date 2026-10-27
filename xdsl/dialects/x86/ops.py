@@ -3623,6 +3623,25 @@ class RSS_Vdpbf16psOp(
 
 
 @irdl_op_definition
+class RSM_Vdpbf16psOp(
+    RSMB_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
+):
+    """
+    Multiply the pairs of BF16 elements in s1 and at the specified memory location,
+    and add both products of each pair to the corresponding single-precision element
+    of r. With broadcast, one BF16 pair from memory multiplies every pair of s1.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vdpbf16ps).
+    """
+
+    name = "x86.rsm.vdpbf16ps"
+
+    @classmethod
+    def lane_bitwidth(cls) -> int:
+        return 32
+
+
+@irdl_op_definition
 class RSM_Vfmadd231psOp(
     RSMB_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
 ):

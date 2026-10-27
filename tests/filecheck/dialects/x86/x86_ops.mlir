@@ -669,6 +669,8 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 // CHECK-NEXT: %bf16_hi = x86.dss.vpunpckhwd %bf16_a, %bf16_b : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 %bf16_acc = x86.rss.vdpbf16ps %bf16_lo, %bf16_hi, %bf16_b : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK-NEXT: %bf16_acc = x86.rss.vdpbf16ps %bf16_lo, %bf16_hi, %bf16_b : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%bf16_acc_bcst = x86.rsm.vdpbf16ps %bf16_acc, %bf16_hi, [%1 + 8] {broadcast} : (!x86.avx512reg, !x86.avx512reg, !x86.reg64) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_acc_bcst = x86.rsm.vdpbf16ps %bf16_acc, %bf16_hi, [%1 + 8] {broadcast} : (!x86.avx512reg, !x86.avx512reg, !x86.reg64) -> !x86.avx512reg
 %bf16_shuf = x86.dssi.vshufi64x2 %bf16_lo, %bf16_hi, 68 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK-NEXT: %bf16_shuf = x86.dssi.vshufi64x2 %bf16_lo, %bf16_hi, 68 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 %bf16_ins = x86.dssi.vinserti32x8 %bf16_lo, %bf16_a_masked, 1 : (!x86.avx512reg, !x86.avx2reg) -> !x86.avx512reg

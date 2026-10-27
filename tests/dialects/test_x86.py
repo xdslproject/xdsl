@@ -445,7 +445,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 154
+    assert len(effects_ops) == 155
     assert unknown_effects_ops == {
         x86.ops.LabelOp,
         x86.ops.DirectiveOp,
@@ -476,7 +476,7 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 150
+    assert len(register_effects_ops) == 151
     assert memory_read_effects_ops == {
         x86.ops.DM_LeaOp,
         x86.ops.DM_MovOp,
@@ -522,6 +522,7 @@ def test_effect_traits():
         x86.ops.RM_SubOp,
         x86.ops.RM_XorOp,
         x86.ops.RSM_Vfmadd231pdOp,
+        x86.ops.RSM_Vdpbf16psOp,
         x86.ops.RSM_Vfmadd231psOp,
         x86.ops.SM_CmpOp,
     }
