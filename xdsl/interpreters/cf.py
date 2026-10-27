@@ -1,6 +1,7 @@
 from typing import Any
 
 from xdsl.dialects import cf
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -23,7 +24,7 @@ class CfFunctions(InterpreterFunctions):
         op: cf.ConditionalBranchOp,
         args: tuple[Any, ...],
     ):
-        cond: int = args[0]
+        cond: IntegerAttr = args[0]
         if cond:
             block_args = interpreter.get_values(op.then_arguments)
             return Successor(op.then_block, block_args), ()

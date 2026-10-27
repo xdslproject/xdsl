@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import copysign, isnan
+from math import isnan
 from typing import Literal
 
 import pytest
@@ -28,7 +28,9 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    FloatAttr,
     IndexType,
+    IntegerAttr,
     IntegerType,
     ModuleOp,
     VectorType,
@@ -36,6 +38,7 @@ from xdsl.dialects.builtin import (
     i1,
     i8,
     i32,
+    i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
@@ -69,7 +72,9 @@ def test_constant(value: int, value_type: int | IndexType | IntegerType):
     ret = interpreter.run_op(constant, ())
 
     assert len(ret) == 1
-    assert ret[0] == value
+    assert ret[0] == IntegerAttr(
+        value, i64 if isinstance(value_type, IndexType) else value_type
+    )
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -77,10 +82,12 @@ def test_constant(value: int, value_type: int | IndexType | IntegerType):
 def test_subi(lhs_value: int, rhs_value: int):
     subi = SubiOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(subi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        subi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value - rhs_value
+    assert ret[0] == IntegerAttr(lhs_value - rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -88,10 +95,12 @@ def test_subi(lhs_value: int, rhs_value: int):
 def test_addi(lhs_value: int, rhs_value: int):
     addi = AddiOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(addi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        addi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value + rhs_value
+    assert ret[0] == IntegerAttr(lhs_value + rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -99,10 +108,12 @@ def test_addi(lhs_value: int, rhs_value: int):
 def test_muli(lhs_value: int, rhs_value: int):
     muli = MuliOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(muli, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        muli, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value * rhs_value
+    assert ret[0] == IntegerAttr(lhs_value * rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -110,10 +121,12 @@ def test_muli(lhs_value: int, rhs_value: int):
 def test_andi(lhs_value: int, rhs_value: int):
     andi = AndIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(andi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        andi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value & rhs_value
+    assert ret[0] == IntegerAttr(lhs_value & rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -121,10 +134,12 @@ def test_andi(lhs_value: int, rhs_value: int):
 def test_ori(lhs_value: int, rhs_value: int):
     ori = OrIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(ori, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        ori, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value | rhs_value
+    assert ret[0] == IntegerAttr(lhs_value | rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -132,10 +147,12 @@ def test_ori(lhs_value: int, rhs_value: int):
 def test_xori(lhs_value: int, rhs_value: int):
     xori = XOrIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        xori, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value ^ rhs_value
+    assert ret[0] == IntegerAttr(lhs_value ^ rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1])
@@ -145,10 +162,12 @@ def test_xori_i1(lhs_value: int, rhs_value: int):
     rhs_op = test.TestOp(result_types=[builtin.i1])
     xori = XOrIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        xori, (IntegerAttr(lhs_value, i1), IntegerAttr(rhs_value, i1))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == -(abs(lhs_value) ^ abs(rhs_value))
+    assert ret[0] == IntegerAttr(-(abs(lhs_value) ^ abs(rhs_value)), i1)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -157,10 +176,12 @@ def test_subf(lhs_value: float, rhs_value: float):
     subf = SubfOp(lhs_f64_op, rhs_f64_op)
     subf.verify()
 
-    ret = interpreter.run_op(subf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        subf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value - rhs_value
+    assert ret[0] == FloatAttr(lhs_value - rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -169,10 +190,12 @@ def test_addf(lhs_value: float, rhs_value: float):
     addf = AddfOp(lhs_f64_op, rhs_f64_op)
     addf.verify()
 
-    ret = interpreter.run_op(addf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        addf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value + rhs_value
+    assert ret[0] == FloatAttr(lhs_value + rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -181,10 +204,12 @@ def test_mulf(lhs_value: float, rhs_value: float):
     mulf = MulfOp(lhs_f64_op, rhs_f64_op)
     mulf.verify()
 
-    ret = interpreter.run_op(mulf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        mulf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value * rhs_value
+    assert ret[0] == FloatAttr(lhs_value * rhs_value, f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -193,10 +218,12 @@ def test_minf(lhs_value: float, rhs_value: float):
     minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
     minf.verify()
 
-    ret = interpreter.run_op(minf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        minf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == min(lhs_value, rhs_value)
+    assert ret[0] == FloatAttr(min(lhs_value, rhs_value), f64)
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
@@ -205,32 +232,37 @@ def test_maximumf(lhs_value: float, rhs_value: float):
     maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
     maxf.verify()
 
-    ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        maxf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == max(lhs_value, rhs_value)
+    assert ret[0] == FloatAttr(max(lhs_value, rhs_value), f64)
 
 
 def test_minmax_corner():
     maxf = arith.MaximumfOp(lhs_f64_op, rhs_f64_op)
     maxf.verify()
 
-    assert copysign(1.0, interpreter.run_op(maxf, (0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (0.0, -0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, -0.0))[0]) == -1.0
-    assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
-    assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
+    zero = FloatAttr(0.0, f64)
+    negative_zero = FloatAttr(-0.0, f64)
+    nan = FloatAttr(float("NaN"), f64)
+    assert interpreter.run_op(maxf, (zero, zero)) == (zero,)
+    assert interpreter.run_op(maxf, (negative_zero, zero)) == (zero,)
+    assert interpreter.run_op(maxf, (zero, negative_zero)) == (zero,)
+    assert interpreter.run_op(maxf, (negative_zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(maxf, (nan, zero)) == (nan,)
+    assert interpreter.run_op(maxf, (zero, nan)) == (nan,)
 
     minf = arith.MinimumfOp(lhs_f64_op, rhs_f64_op)
     minf.verify()
 
-    assert copysign(1.0, interpreter.run_op(minf, (0.0, 0.0))[0]) == 1.0
-    assert copysign(1.0, interpreter.run_op(minf, (-0.0, 0.0))[0]) == -1.0
-    assert copysign(1.0, interpreter.run_op(minf, (0.0, -0.0))[0]) == -1.0
-    assert copysign(1.0, interpreter.run_op(minf, (-0.0, -0.0))[0]) == -1.0
-    assert isnan(interpreter.run_op(minf, (float("NaN"), 0.0))[0])
-    assert isnan(interpreter.run_op(minf, (0.0, float("NaN")))[0])
+    assert interpreter.run_op(minf, (zero, zero)) == (zero,)
+    assert interpreter.run_op(minf, (negative_zero, zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (negative_zero, negative_zero)) == (negative_zero,)
+    assert interpreter.run_op(minf, (nan, zero)) == (nan,)
+    assert interpreter.run_op(minf, (zero, nan)) == (nan,)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -256,14 +288,16 @@ def test_cmpi(
     arg, fn = pred
     cmpi = CmpiOp(lhs_op, rhs_op, arg)
 
-    ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        cmpi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     if arg.startswith("u"):
         mask = (1 << interpreter.index_bitwidth) - 1
         lhs_value &= mask
         rhs_value &= mask
     assert len(ret) == 1
-    assert ret[0] == fn(lhs_value, rhs_value)
+    assert ret[0] == IntegerAttr(fn(lhs_value, rhs_value), i1)
 
 
 @pytest.mark.parametrize(
@@ -307,10 +341,19 @@ def test_cmpi_high_bit(
 
     # The sign bit alone is the minimum signed value, above all positive signed
     # values when interpreted as unsigned. Both encodings denote the same bits.
-    assert interpreter.run_op(cmpi, (value, value - 1)) == (expected_value_minus_one,)
-    assert interpreter.run_op(cmpi, (-value, value - 1)) == (expected_value_minus_one,)
+    runtime_type = (
+        IntegerType(index_bitwidth) if isinstance(value_type, IndexType) else value_type
+    )
+    assert interpreter.run_op(
+        cmpi, (IntegerAttr(value, runtime_type), IntegerAttr(value - 1, runtime_type))
+    ) == (IntegerAttr.from_bool(expected_value_minus_one),)
+    assert interpreter.run_op(
+        cmpi, (IntegerAttr(-value, runtime_type), IntegerAttr(value - 1, runtime_type))
+    ) == (IntegerAttr.from_bool(expected_value_minus_one),)
 
-    assert interpreter.run_op(cmpi, (-value, value)) == (expected_value,)
+    assert interpreter.run_op(
+        cmpi, (IntegerAttr(-value, runtime_type), IntegerAttr(value, runtime_type))
+    ) == (IntegerAttr.from_bool(expected_value),)
 
 
 @pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
@@ -382,10 +425,13 @@ def test_cmpf(lhs_value: float, rhs_value: float, pred: str):
     cmpf = CmpfOp(lhs_f64_op, rhs_f64_op, pred)
     cmpf.verify()
 
-    ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        cmpf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == expectation
+    assert expectation is not None
+    assert ret[0] == IntegerAttr.from_bool(expectation)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -393,10 +439,12 @@ def test_cmpf(lhs_value: float, rhs_value: float, pred: str):
 def test_shlsi(lhs_value: int, rhs_value: int):
     shlsi = ShLIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(shlsi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        shlsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value << rhs_value
+    assert ret[0] == IntegerAttr(lhs_value << rhs_value, i64)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -404,10 +452,12 @@ def test_shlsi(lhs_value: int, rhs_value: int):
 def test_shrsi(lhs_value: int, rhs_value: int):
     shrsi = ShRSIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(shrsi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        shrsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == lhs_value >> rhs_value
+    assert ret[0] == IntegerAttr(lhs_value >> rhs_value, i64)
 
 
 @pytest.mark.parametrize(
@@ -433,10 +483,22 @@ def test_shifts_bitwidth(
     shl.verify()
     shr.verify()
 
-    assert interpreter.run_op(shl, (sign_bit // 2, 1)) == (-sign_bit,)
-    assert interpreter.run_op(shl, (-sign_bit, 1)) == (0,)
-    assert interpreter.run_op(shr, (sign_bit, 1)) == (-sign_bit // 2,)
-    assert interpreter.run_op(shr, (-sign_bit, 1)) == (-sign_bit // 2,)
+    runtime_type = (
+        IntegerType(index_bitwidth) if isinstance(value_type, IndexType) else value_type
+    )
+    one = IntegerAttr(1, runtime_type)
+    assert interpreter.run_op(shl, (IntegerAttr(sign_bit // 2, runtime_type), one)) == (
+        IntegerAttr(-sign_bit, runtime_type),
+    )
+    assert interpreter.run_op(shl, (IntegerAttr(-sign_bit, runtime_type), one)) == (
+        IntegerAttr(0, runtime_type),
+    )
+    assert interpreter.run_op(shr, (IntegerAttr(sign_bit, runtime_type), one)) == (
+        IntegerAttr(-sign_bit // 2, runtime_type),
+    )
+    assert interpreter.run_op(shr, (IntegerAttr(-sign_bit, runtime_type), one)) == (
+        IntegerAttr(-sign_bit // 2, runtime_type),
+    )
 
 
 @pytest.mark.parametrize(
@@ -445,10 +507,12 @@ def test_shifts_bitwidth(
 def test_divsi(lhs_value: int, rhs_value: int, result: int):
     divsi = DivSIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(divsi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        divsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == result
+    assert ret[0] == IntegerAttr(result, i64)
 
 
 @pytest.mark.parametrize(
@@ -457,10 +521,12 @@ def test_divsi(lhs_value: int, rhs_value: int, result: int):
 def test_remsi(lhs_value: int, rhs_value: int, result: int):
     remsi = RemSIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(remsi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        remsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == result
+    assert ret[0] == IntegerAttr(result, i64)
 
 
 @pytest.mark.parametrize(
@@ -469,10 +535,12 @@ def test_remsi(lhs_value: int, rhs_value: int, result: int):
 def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
     floordivsi = FloorDivSIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(floordivsi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(
+        floordivsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == result
+    assert ret[0] == IntegerAttr(result, i64)
 
 
 @pytest.mark.parametrize(
@@ -503,10 +571,21 @@ def test_signed_division_bitwidth(
     op = op_type(lhs, rhs)
     op.verify()
 
-    assert interpreter.run_op(op, (modulus - 5, 3)) == (negative_lhs_result,)
-    assert interpreter.run_op(op, (-5, 3)) == (negative_lhs_result,)
-    assert interpreter.run_op(op, (5, modulus - 3)) == (negative_rhs_result,)
-    assert interpreter.run_op(op, (5, -3)) == (negative_rhs_result,)
+    runtime_type = (
+        IntegerType(index_bitwidth) if isinstance(value_type, IndexType) else value_type
+    )
+    assert interpreter.run_op(
+        op, (IntegerAttr(modulus - 5, runtime_type), IntegerAttr(3, runtime_type))
+    ) == (IntegerAttr(negative_lhs_result, runtime_type),)
+    assert interpreter.run_op(
+        op, (IntegerAttr(-5, runtime_type), IntegerAttr(3, runtime_type))
+    ) == (IntegerAttr(negative_lhs_result, runtime_type),)
+    assert interpreter.run_op(
+        op, (IntegerAttr(5, runtime_type), IntegerAttr(modulus - 3, runtime_type))
+    ) == (IntegerAttr(negative_rhs_result, runtime_type),)
+    assert interpreter.run_op(
+        op, (IntegerAttr(5, runtime_type), IntegerAttr(-3, runtime_type))
+    ) == (IntegerAttr(negative_rhs_result, runtime_type),)
 
 
 @pytest.mark.parametrize("cond_value", [1, 0])
@@ -514,10 +593,12 @@ def test_select(cond_value: int):
     cond_op = test.TestOp(result_types=[i1])
     select = SelectOp(cond_op, lhs_op, rhs_op)
 
-    ret = interpreter.run_op(select, (cond_value, 1, 2))
+    ret = interpreter.run_op(
+        select, (IntegerAttr(cond_value, i1), IntegerAttr(1, i64), IntegerAttr(2, i64))
+    )
 
     assert len(ret) == 1
-    assert ret[0] == (1 if cond_value else 2)
+    assert ret[0] == IntegerAttr(1 if cond_value else 2, i64)
 
 
 @pytest.mark.parametrize("cond_value", [1, 0])
@@ -531,7 +612,7 @@ def test_select_scalar_cond_shaped_operands(cond_value: int):
     lhs = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [2, 2])
     rhs = ShapedArray(TypedPtr.new_int32([5, 6, 7, 8]), [2, 2])
 
-    ret = interpreter.run_op(select, (cond_value, lhs, rhs))
+    ret = interpreter.run_op(select, (IntegerAttr(cond_value, i1), lhs, rhs))
 
     assert len(ret) == 1
     assert ret[0] == (lhs if cond_value else rhs)
@@ -573,10 +654,10 @@ def test_indexcast_to_i32(x: int):
     x_op = test.TestOp(result_types=[IndexType()])
     indexcast = IndexCastOp(x_op, i32)
 
-    ret = interpreter.run_op(indexcast, (x,))
+    ret = interpreter.run_op(indexcast, (IntegerAttr(x, i64),))
 
     assert len(ret) == 1
-    assert ret[0] == x
+    assert ret[0] == IntegerAttr(x, i32)
 
 
 @pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
@@ -584,10 +665,10 @@ def test_indexcast_from_i32(x: int):
     x_op = test.TestOp(result_types=[i32])
     indexcast = IndexCastOp(x_op, IndexType())
 
-    ret = interpreter.run_op(indexcast, (x,))
+    ret = interpreter.run_op(indexcast, (IntegerAttr(x, i32),))
 
     assert len(ret) == 1
-    assert ret[0] == x
+    assert ret[0] == IntegerAttr(x, i64)
 
 
 @pytest.mark.parametrize(
@@ -597,10 +678,10 @@ def test_indexcast_to_i8(x: int, expected: int):
     x_op = test.TestOp(result_types=[IndexType()])
     indexcast = IndexCastOp(x_op, i8)
 
-    ret = interpreter.run_op(indexcast, (x,))
+    ret = interpreter.run_op(indexcast, (IntegerAttr(x, i64),))
 
     assert len(ret) == 1
-    assert ret[0] == expected
+    assert ret[0] == IntegerAttr(expected, i8)
 
 
 @pytest.mark.parametrize(
@@ -610,10 +691,10 @@ def test_indexcast_from_i8(x: int, expected: int):
     x_op = test.TestOp(result_types=[i8])
     indexcast = IndexCastOp(x_op, IndexType())
 
-    ret = interpreter.run_op(indexcast, (x,))
+    ret = interpreter.run_op(indexcast, (IntegerAttr(x, i8),))
 
     assert len(ret) == 1
-    assert ret[0] == expected
+    assert ret[0] == IntegerAttr(expected, i64)
 
 
 @pytest.mark.parametrize("index_bitwidth", [32, 64])
@@ -625,5 +706,9 @@ def test_indexcast_same_width(index_bitwidth: Literal[32, 64]):
     for input_type, output_type in ((int_type, index_type), (index_type, int_type)):
         op = IndexCastOp(test.TestOp(result_types=[input_type]), output_type)
         op.verify()
-        assert interpreter.run_op(op, ((1 << index_bitwidth) - 1,)) == (-1,)
-        assert interpreter.run_op(op, (-1,)) == (-1,)
+        assert interpreter.run_op(
+            op, (IntegerAttr((1 << index_bitwidth) - 1, int_type),)
+        ) == (IntegerAttr(-1, int_type),)
+        assert interpreter.run_op(op, (IntegerAttr(-1, int_type),)) == (
+            IntegerAttr(-1, int_type),
+        )

@@ -22,13 +22,13 @@ module {
     }
 }
 
-// CHECK-ONE:      result: 1
+// CHECK-ONE:      result: 1 : i32
 
-// CHECK-TWO:      result: 2
+// CHECK-TWO:      result: 2 : i32
 
 // CHECK-VOID:     result: ()
 
 // CHECK-TUPLE:       result: (
-// CHECK-TUPLE-NEXT:      1,
-// CHECK-TUPLE-NEXT:      2
+// CHECK-TUPLE-NEXT:      1 : i32,
+// CHECK-TUPLE-NEXT:      2 : i32
 // CHECK-TUPLE-NEXT:  )

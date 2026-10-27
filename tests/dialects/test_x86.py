@@ -217,14 +217,14 @@ def test_rrr_vops(
     param1 = create_ssa_value(operand1)
     param2 = create_ssa_value(operand2)
     op = OpClass(
-        source2=output,
-        register_in=param1,
-        source1=param2,
+        register_in=output,
+        source1=param1,
+        source2=param2,
         register_out=dest,
     )
-    assert op.register_in.type == operand1
-    assert op.source1.type == operand2
-    assert op.source2.type == dest
+    assert op.register_in.type == op.register_out.type == dest
+    assert op.source1.type == operand1
+    assert op.source2.type == operand2
 
 
 @pytest.mark.parametrize(
