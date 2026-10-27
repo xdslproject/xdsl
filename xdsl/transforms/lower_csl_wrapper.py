@@ -280,7 +280,7 @@ class LowerImport(RewritePattern):
         ops.append(op)
         return ops
 
-    def _make_import_struct(self, import_op: csl_wrapper.ImportOp):
+    def _make_import_struct(self, import_op: csl_wrapper.ImportOp) -> list[Operation]:
         """
         Create the struct to be passed to `@import_module`
 
