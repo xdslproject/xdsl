@@ -1288,14 +1288,16 @@ class InstanceOp(IRDLOperation):
             printer.print_string(" ")
         printer.print_attribute(self.module_name)
 
-        def print_input_port(name: StringAttr, operand: SSAValue):
+        def print_input_port(port: tuple[StringAttr, SSAValue]):
+            name, operand = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_operand(operand)
             printer.print_string(": ")
             printer.print_attribute(operand.type)
 
-        def print_output_port(name: StringAttr, port_type: Attribute):
+        def print_output_port(port: tuple[StringAttr, Attribute]):
+            name, port_type = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_attribute(port_type)
@@ -1303,13 +1305,13 @@ class InstanceOp(IRDLOperation):
         with printer.in_parens():
             printer.print_list(
                 zip(self.arg_names, self.operands),
-                lambda x: print_input_port(*x),
+                print_input_port,
             )
         printer.print_string(" -> ")
         with printer.in_parens():
             printer.print_list(
                 zip(self.result_names, self.result_types),
-                lambda x: print_output_port(*x),
+                print_output_port,
             )
         printer.print_op_attributes(
             self.attributes,
