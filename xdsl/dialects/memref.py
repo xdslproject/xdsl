@@ -317,6 +317,7 @@ class AllocaScopeReturnOp(IRDLOperation):
     ops = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
+    assembly_format = "attr-dict ($ops^ `:` type($ops))?"
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
@@ -1230,6 +1231,8 @@ class DmaWaitOp(IRDLOperation):
     num_elements = operand_def(IndexType)
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
+    assembly_format = "$tag `[` $tag_indices `]` `,` $num_elements attr-dict `:` type($tag)"
 
     @staticmethod
     def get(
