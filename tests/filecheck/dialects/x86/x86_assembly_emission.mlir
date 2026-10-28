@@ -734,3 +734,18 @@ x86.m.ldtilecfg [%rsp] : (!x86.reg64<rsp>) -> ()
 // CHECK-NEXT: ldtilecfg [rsp]
 x86.tilerelease
 // CHECK-NEXT: tilerelease
+
+// ---- BF16 conversions and the stores of BF16 vectors ----
+
+%bf16_wide = x86.ds.vpmovsxwd %ymm1 : (!x86.avx2reg<ymm1>) -> !x86.avx512reg<zmm2>
+// CHECK-NEXT: vpmovsxwd zmm2, ymm1
+%bf16_f32 = x86.dsi.vpslld %bf16_wide, 16 : (!x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm2>
+// CHECK-NEXT: vpslld zmm2, zmm2, 16
+%bf16_pair = x86.dsm.vcvtne2ps2bf16 %bf16_f32, [%1 + 64] : (!x86.avx512reg<zmm2>, !x86.reg64<rdx>) -> !x86.avx512reg<zmm2>
+// CHECK-NEXT: vcvtne2ps2bf16 zmm2, zmm2, [rdx+64]
+%bf16_half = x86.ds.vcvtneps2bf16 %bf16_f32 : (!x86.avx512reg<zmm2>) -> !x86.avx2reg<ymm3>
+// CHECK-NEXT: vcvtneps2bf16 ymm3, zmm2
+x86.ms.vmovdqu16 [%1 + 128], %bf16_pair : (!x86.reg64<rdx>, !x86.avx512reg<zmm2>) -> ()
+// CHECK-NEXT: vmovdqu16 [rdx+128], zmm2
+x86.msk.vmovdqu16 [%1], %bf16_half, %k1 : (!x86.reg64<rdx>, !x86.avx2reg<ymm3>, !x86.avx512maskreg<k1>) -> ()
+// CHECK-NEXT: vmovdqu16 [rdx] {k1}, ymm3

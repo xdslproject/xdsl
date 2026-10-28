@@ -1947,6 +1947,30 @@ class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]
 
 
 @irdl_op_definition
+class DS_VpmovsxwdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Sign-extend the words of s, a vector half the width of d, into the doublewords
+    of d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/pmovsx).
+    """
+
+    name = "x86.ds.vpmovsxwd"
+
+
+@irdl_op_definition
+class DS_Vcvtneps2bf16Op(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Convert the single-precision elements of s to BF16, rounding to nearest even,
+    into d, a vector half the width of s.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vcvtneps2bf16).
+    """
+
+    name = "x86.ds.vcvtneps2bf16"
+
+
+@irdl_op_definition
 class S_PushOp(X86Instruction):
     """
     Decreases %rsp and places s at the new memory location pointed to by %rsp.
@@ -3855,6 +3879,24 @@ class DSM_VaddsdOp(
 
 
 @irdl_op_definition
+class DSM_Vcvtne2ps2bf16Op(
+    DSM_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
+):
+    """
+    Convert the single-precision elements at the specified memory location to BF16
+    into the low half of d, and those of s into its high half, rounding to nearest
+    even.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vcvtne2ps2bf16).
+    """
+
+    name = "x86.dsm.vcvtne2ps2bf16"
+
+    def verify_(self) -> None:
+        _verify_same_vector_width(self.destination, self.source)
+
+
+@irdl_op_definition
 class DSS_VaddpsOp(
     DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
@@ -4024,6 +4066,17 @@ class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
 
     name = "x86.ms.vmovups"
+
+
+@irdl_op_definition
+class MS_Vmovdqu16Op(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move unaligned packed word integer values from vector register to memory.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movdqu:vmovdqu8:vmovdqu16:vmovdqu32:vmovdqu64).
+    """
+
+    name = "x86.ms.vmovdqu16"
 
 
 @irdl_op_definition
@@ -4202,6 +4255,18 @@ class MSK_VmovupsOp(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
 
     name = "x86.msk.vmovups"
+
+
+@irdl_op_definition
+class MSK_Vmovdqu16Op(MSK_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move unaligned packed word integer values from vector register to memory using
+    writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movdqu:vmovdqu8:vmovdqu16:vmovdqu32:vmovdqu64).
+    """
+
+    name = "x86.msk.vmovdqu16"
 
 
 @irdl_op_definition
@@ -4419,6 +4484,17 @@ class DSI_Vextractf128Op(DSI8_Operation[SSERegisterType, AVX2RegisterType]):
     """
 
     name = "x86.dsi.vextractf128"
+
+
+@irdl_op_definition
+class DSI_VpslldOp(DSI8_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Shift the doublewords of s left by the immediate, shifting in zeros, into d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/psllw:pslld:psllq).
+    """
+
+    name = "x86.dsi.vpslld"
 
 
 @irdl_op_definition

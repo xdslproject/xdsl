@@ -699,6 +699,21 @@ x86.tilerelease
 %tmm3 = x86.get_tile_register : !x86.amxtilereg<tmm3>
 // CHECK-NEXT: %tmm3 = x86.get_tile_register : !x86.amxtilereg<tmm3>
 
+// ---- BF16 conversions and the stores of BF16 vectors ----
+
+%bf16_wide = x86.ds.vpmovsxwd %ymm1 : (!x86.avx2reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_wide = x86.ds.vpmovsxwd %ymm1 : (!x86.avx2reg) -> !x86.avx512reg
+%bf16_f32 = x86.dsi.vpslld %bf16_wide, 16 : (!x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_f32 = x86.dsi.vpslld %bf16_wide, 16 : (!x86.avx512reg) -> !x86.avx512reg
+%bf16_pair = x86.dsm.vcvtne2ps2bf16 %bf16_f32, [%1 + 64] : (!x86.avx512reg, !x86.reg64) -> !x86.avx512reg
+// CHECK-NEXT: %bf16_pair = x86.dsm.vcvtne2ps2bf16 %bf16_f32, [%1 + 64] : (!x86.avx512reg, !x86.reg64) -> !x86.avx512reg
+%bf16_half = x86.ds.vcvtneps2bf16 %bf16_f32 : (!x86.avx512reg) -> !x86.avx2reg
+// CHECK-NEXT: %bf16_half = x86.ds.vcvtneps2bf16 %bf16_f32 : (!x86.avx512reg) -> !x86.avx2reg
+x86.ms.vmovdqu16 [%1 + 128], %bf16_pair : (!x86.reg64, !x86.avx512reg) -> ()
+// CHECK-NEXT: x86.ms.vmovdqu16 [%1 + 128], %bf16_pair : (!x86.reg64, !x86.avx512reg) -> ()
+x86.msk.vmovdqu16 [%1], %bf16_half, %k1 : (!x86.reg64, !x86.avx2reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovdqu16[%1], %bf16_half, %k1 : (!x86.reg64, !x86.avx2reg, !x86.avx512maskreg) -> ()
+
 // ---- pmov ----
 
 %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)
