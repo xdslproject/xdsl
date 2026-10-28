@@ -15,9 +15,11 @@ class MLIRFrontend(Frontend):
 
     no_implicit_module: bool = False
 
-    def parse(self, ctx: Context, input: IO[bytes]) -> ModuleOp:
+    def parse(
+        self, ctx: Context, input: IO[bytes], input_name: str = "input"
+    ) -> ModuleOp:
         return Parser(
             ctx,
             input.read(),
-            "input",
+            input_name,
         ).parse_module(not self.no_implicit_module)

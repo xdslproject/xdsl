@@ -8,7 +8,6 @@ from typing import IO, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.parser import Parser
 from xdsl.utils.arg_spec import parse_spec
 from xdsl.utils.frontend import Frontend
 
@@ -96,14 +95,12 @@ class CommandLineTool:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_mlir(io: IO[bytes]):
-            return Parser(
-                self.ctx,
-                io.read(),
-                self.get_input_name(),
-            ).parse_module(not self.args.no_implicit_module)
+        def get_mlir_frontend():
+            from xdsl.frontend.mlir import MLIRFrontend
 
-        self.available_frontends["mlir"] = parse_mlir
+            return MLIRFrontend
+
+        self.available_frontends["mlir"] = get_mlir_frontend
 
     def parse_chunk(
         self, chunk: IO[bytes], file_extension: str, start_offset: int = 0
@@ -132,7 +129,7 @@ class CommandLineTool:
                     no_implicit_module=self.args.no_implicit_module,
                 )
 
-            return frontend.parse(self.ctx, chunk)
+            return frontend.parse(self.ctx, chunk, self.get_input_name())
         else:
             # Legacy: function (IO[bytes]) -> ModuleOp (spec args silently ignored)
             legacy = cast(Callable[[IO[bytes]], ModuleOp], frontend_entry)
