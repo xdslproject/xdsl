@@ -1189,3 +1189,25 @@ def test_region_branch_interfaces():
     )
     assert terminator.has_trait(RegionBranchTerminatorOpTrait)
     assert terminator.has_trait(IsTerminator)
+
+
+def test_region_branch_op_successor_regions():
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    region = Region(Block([terminator]))
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[region]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.successor_regions(op, RegionBranchPoint.PARENT)) == [
+        RegionSuccessor(region)
+    ]
+    assert list(trait.successor_regions(op, RegionBranchPoint(terminator))) == [
+        RegionSuccessor(op)
+    ]
+
+    no_regions = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[]])
+    assert list(trait.successor_regions(no_regions, RegionBranchPoint.PARENT)) == [
+        RegionSuccessor(no_regions)
+    ]
