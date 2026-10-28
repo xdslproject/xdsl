@@ -1114,6 +1114,26 @@ class RegionBranchOpTrait(OpTrait):
     operand.
     """
 
+    @classmethod
+    @abc.abstractmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from `point`. These are the
+        regions that may be selected during the flow of control.
+
+        When `point = RegionBranchPoint.PARENT`, this method returns the region successors when
+        entering the operation. Otherwise, this method returns the successor regions when branching
+        from the region indicated by `point`.
+
+        Example: In the above example, this method returns the region of the `scf.for` and the
+        `scf.for` op itself for either region branch point. An implementation may choose to filter
+        out region successors when it is statically known (e.g., by examining the operands of this
+        op) that those successors are not branched to.
+        """
+        raise NotImplementedError()
+
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 

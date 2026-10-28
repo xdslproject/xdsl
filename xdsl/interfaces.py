@@ -20,7 +20,9 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasFolder,
     RegionBranchOpTrait,
+    RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
+    RegionSuccessor,
 )
 
 
@@ -135,14 +137,25 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     `RegionBranchOpInterface`.
     """
 
+    @classmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        return cast(RegionBranchOpInterface, op).successor_regions(point)
+
 
 class RegionBranchOpInterface(Operation, abc.ABC):
     """
-    An operation subclassing this interface models branching between its regions.
-    Wraps `RegionBranchOpTrait`.
+    An operation subclassing this interface must implement `successor_regions`, whose
+    semantics are documented on `RegionBranchOpTrait`. Wraps `RegionBranchOpTrait`.
     """
 
     traits = traits_def(_RegionBranchOpInterfaceTrait())
+
+    @abc.abstractmethod
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        """See `RegionBranchOpTrait.successor_regions`."""
+        raise NotImplementedError()
 
 
 class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
