@@ -1232,7 +1232,9 @@ class DmaWaitOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    assembly_format = "$tag `[` $tag_indices `]` `,` $num_elements attr-dict `:` type($tag)"
+    assembly_format = (
+        "$tag `[` $tag_indices `]` `,` $num_elements attr-dict `:` type($tag)"
+    )
 
     @staticmethod
     def get(
