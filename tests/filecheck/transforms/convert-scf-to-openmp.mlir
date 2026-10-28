@@ -24,7 +24,7 @@ builtin.module {
 // CHECK-NEXT:          ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
 // CHECK-NEXT:            "memref.alloca_scope"() ({
 // CHECK-NEXT:              "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// CHECK-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// CHECK-NEXT:              memref.alloca_scope.return
 // CHECK-NEXT:            }) : () -> ()
 // CHECK-NEXT:            omp.yield
 // CHECK-NEXT:          }) : (index, index, index, index, index, index) -> ()
@@ -47,7 +47,7 @@ builtin.module {
 // COLLAPSE-NEXT:                "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
 // COLLAPSE-NEXT:                scf.reduce
 // COLLAPSE-NEXT:              }) : (index, index, index) -> ()
-// COLLAPSE-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// COLLAPSE-NEXT:              memref.alloca_scope.return
 // COLLAPSE-NEXT:            }) : () -> ()
 // COLLAPSE-NEXT:            omp.yield
 // COLLAPSE-NEXT:          }) : (index, index, index) -> ()
@@ -65,7 +65,7 @@ builtin.module {
 // DYNAMIC-NEXT:          ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
 // DYNAMIC-NEXT:            "memref.alloca_scope"() ({
 // DYNAMIC-NEXT:              "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// DYNAMIC-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// DYNAMIC-NEXT:              memref.alloca_scope.return
 // DYNAMIC-NEXT:            }) : () -> ()
 // DYNAMIC-NEXT:            omp.yield
 // DYNAMIC-NEXT:          }) : (index, index, index, index, index, index) -> ()
@@ -86,7 +86,7 @@ builtin.module {
 // CHUNK-NEXT:          ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
 // CHUNK-NEXT:            "memref.alloca_scope"() ({
 // CHUNK-NEXT:              "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// CHUNK-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// CHUNK-NEXT:              memref.alloca_scope.return
 // CHUNK-NEXT:            }) : () -> ()
 // CHUNK-NEXT:            omp.yield
 // CHUNK-NEXT:          }) : (index, index, index, index, index, index) -> ()
@@ -121,7 +121,7 @@ builtin.module {
 // CHECK-NEXT:                "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
 // CHECK-NEXT:                scf.reduce
 // CHECK-NEXT:              }) : (index, index, index) -> ()
-// CHECK-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// CHECK-NEXT:              memref.alloca_scope.return
 // CHECK-NEXT:            }) : () -> ()
 // CHECK-NEXT:            omp.yield
 // CHECK-NEXT:          }) : (index, index, index) -> ()
@@ -144,14 +144,14 @@ builtin.module {
 // NESTED-NEXT:                  ^{{.*}}(%{{.*}}: index):
 // NESTED-NEXT:                    "memref.alloca_scope"() ({
 // NESTED-NEXT:                      "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// NESTED-NEXT:                      "memref.alloca_scope.return"() : () -> ()
+// NESTED-NEXT:                      memref.alloca_scope.return
 // NESTED-NEXT:                    }) : () -> ()
 // NESTED-NEXT:                    omp.yield
 // NESTED-NEXT:                  }) : (index, index, index) -> ()
 // NESTED-NEXT:                }) : () -> ()
 // NESTED-NEXT:                "omp.terminator"() : () -> ()
 // NESTED-NEXT:              }) : () -> ()
-// NESTED-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// NESTED-NEXT:              memref.alloca_scope.return
 // NESTED-NEXT:            }) : () -> ()
 // NESTED-NEXT:            omp.yield
 // NESTED-NEXT:          }) : (index, index, index) -> ()
@@ -183,7 +183,7 @@ builtin.module {
 // CHECK-NEXT:          ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:            "memref.alloca_scope"() ({
 // CHECK-NEXT:              "test.op"(%{{.*}}) : (index) -> ()
-// CHECK-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// CHECK-NEXT:              memref.alloca_scope.return
 // CHECK-NEXT:            }) : () -> ()
 // CHECK-NEXT:            omp.yield
 // CHECK-NEXT:          }) : (index, index, index) -> ()
@@ -196,7 +196,7 @@ builtin.module {
 // CHECK-NEXT:          ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:            "memref.alloca_scope"() ({
 // CHECK-NEXT:              "test.op"(%{{.*}}) : (index) -> ()
-// CHECK-NEXT:              "memref.alloca_scope.return"() : () -> ()
+// CHECK-NEXT:              memref.alloca_scope.return
 // CHECK-NEXT:            }) : () -> ()
 // CHECK-NEXT:            omp.yield
 // CHECK-NEXT:          }) : (index, index, index) -> ()

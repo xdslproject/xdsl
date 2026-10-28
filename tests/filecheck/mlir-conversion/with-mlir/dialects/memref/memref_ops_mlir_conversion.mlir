@@ -30,10 +30,7 @@
         index,
         memref<100xi32>, index
     ) -> ()
-    "memref.dma_wait"(%tag, %1, %3) {operandSegmentSizes = array<i32: 1, 1, 1>} : (
-        memref<100xi32>, index,
-        index
-    ) -> ()
+    memref.dma_wait %tag[%1], %3 : memref<100xi32>
     %fmemref = memref.alloc() : memref<32x32xf32>
     %e = arith.constant 1.0 : f32
     %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
@@ -68,7 +65,7 @@
 // CHECK-NEXT: "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
 
 // CHECK:      "memref.dma_start"(%10, %1, %11, %1, %3, %12, %1) {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1>} : (memref<100xi32, 10 : i64>, index, memref<100xi32, 9 : i64>, index, index, memref<100xi32>, index) -> ()
-// CHECK-NEXT: "memref.dma_wait"(%12, %1, %3) {operandSegmentSizes = array<i32: 1, 1, 1>} : (memref<100xi32>, index, index) -> ()
+// CHECK-NEXT: "memref.dma_wait"(%12, %1, %3) : (memref<100xi32>, index, index) -> ()
 // CHECK-NEXT: %13 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<32x32xf32>
 // CHECK-NEXT: %14 = "arith.constant"() <{value = 1.000000e+00 : f32}> : () -> f32
 // CHECK-NEXT: %15 = "memref.atomic_rmw"(%14, %13, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
