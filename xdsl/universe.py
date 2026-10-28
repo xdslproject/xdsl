@@ -1,7 +1,7 @@
 """
 xDSL leverages Python [plugins](https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/) for user-provided compiler infrastructure.
 
-Python packages that want to extend the passes and dialects available in `xdsl-opt` can
+Python packages that want to extend the passes, dialects, and frontends available in `xdsl-opt` can
 implement their own `Universe`, which will be discovered by `Multiverse` at runtime.
 
 To opt into this behavior first add a Universe instance somewhere in your project,
@@ -14,9 +14,13 @@ def get_dialect():
 def get_pass():
     ...
 
+def get_frontend():
+    ...
+
 YOUR_UNIVERSE = Universe(
     all_dialects={"your_dialect": get_dialect},
     all_passes={"your-pass": get_pass},
+    all_frontends={"your-frontend": get_frontend},
 )
 ```
 
@@ -27,7 +31,7 @@ Then, add the following entry in your `pyproject.toml` file:
 your_project = 'your_project.universe:YOUR_UNIVERSE'
 ```
 
-Note that any clashes in names of dialects or passes will result in an error.
+Note that any clashes in names of dialects, passes, or frontends will result in an error.
 """  # noqa: E501
 
 from __future__ import annotations
@@ -35,10 +39,12 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from xdsl.dialects import get_all_dialects
+from xdsl.frontend import get_all_frontends
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass
 from xdsl.targets import get_all_targets
 from xdsl.transforms import get_all_passes
+from xdsl.utils.frontend import Frontend
 from xdsl.utils.target import Target
 
 
@@ -54,6 +60,8 @@ class Universe:
     """Passes from all modules in the current environment."""
     all_targets: dict[str, Callable[[], type[Target]]]
     """Targets from all modules in the current environment."""
+    all_frontends: dict[str, Callable[[], type[Frontend]]]
+    """Frontends from all modules in the current environment."""
 
     def __init__(
         self,
@@ -61,10 +69,12 @@ class Universe:
         all_dialects: dict[str, Callable[[], Dialect]] | None = None,
         all_passes: dict[str, Callable[[], type[ModulePass]]] | None = None,
         all_targets: dict[str, Callable[[], type[Target]]] | None = None,
+        all_frontends: dict[str, Callable[[], type[Frontend]]] | None = None,
     ) -> None:
         self.all_dialects = {} if all_dialects is None else all_dialects
         self.all_passes = {} if all_passes is None else all_passes
         self.all_targets = {} if all_targets is None else all_targets
+        self.all_frontends = {} if all_frontends is None else all_frontends
 
     @staticmethod
     def get_multiverse() -> Universe:
@@ -81,6 +91,7 @@ class Universe:
         all_dialects: dict[str, Callable[[], Dialect]] = {}
         all_passes: dict[str, Callable[[], type[ModulePass]]] = {}
         all_targets: dict[str, Callable[[], type[Target]]] = {}
+        all_frontends: dict[str, Callable[[], type[Frontend]]] = {}
 
         for universe_name, universe in sorted_universes:
             if not isinstance(universe, Universe):
@@ -118,10 +129,23 @@ class Universe:
                     )
                 all_targets[target_name] = target
 
+            for frontend_name, frontend in universe.all_frontends.items():
+                if frontend_name in all_frontends:
+                    universes = [
+                        n
+                        for n, u in sorted_universes
+                        if frontend_name in u.all_frontends
+                    ]
+                    raise ValueError(
+                        f"Duplicate definition of {frontend_name} in {universes}."
+                    )
+                all_frontends[frontend_name] = frontend
+
         return Universe(
             all_dialects=all_dialects,
             all_passes=all_passes,
             all_targets=all_targets,
+            all_frontends=all_frontends,
         )
 
 
@@ -129,4 +153,5 @@ XDSL_UNIVERSE = Universe(
     all_dialects=get_all_dialects(),
     all_passes=get_all_passes(),
     all_targets=get_all_targets(),
+    all_frontends=get_all_frontends(),
 )

@@ -94,13 +94,12 @@ class CommandLineTool:
 
         Add other/additional frontends by overloading this function.
         """
+        from xdsl.universe import Universe
 
-        def get_mlir_frontend():
-            from xdsl.frontend.mlir import MLIRFrontend
-
-            return MLIRFrontend
-
-        self.available_frontends["mlir"] = get_mlir_frontend
+        multiverse = Universe.get_multiverse()
+        for frontend_name, frontend_factory in multiverse.all_frontends.items():
+            if frontend_name not in self.available_frontends:
+                self.available_frontends[frontend_name] = frontend_factory
 
     def parse_chunk(
         self, chunk: IO[bytes], file_extension: str, start_offset: int = 0
