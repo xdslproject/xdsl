@@ -147,7 +147,7 @@ class _FuncBase(IRDLOperation, ABC):
 
     def _props_region(
         self,
-        name: str,
+        name: str | StringAttr,
         function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         *,
@@ -162,7 +162,7 @@ class _FuncBase(IRDLOperation, ABC):
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
         properties: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
+            "sym_name": StringAttr.get(name),
             "function_type": function_type,
             "arg_attrs": arg_attrs,
             "res_attrs": res_attrs,
@@ -677,11 +677,11 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str, Operation | SSAValue]):
+    def __init__(self, *args: tuple[str | StringAttr, Operation | SSAValue]):
         operands: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for fname, op in args:
-            fields.append(StringAttr(fname))
+            fields.append(StringAttr.get(fname))
             operands.append(op)
         super().__init__(
             operands=[operands],
@@ -816,7 +816,7 @@ class MemberCallOp(IRDLOperation):
 
     def __init__(
         self,
-        fname: str,
+        fname: str | StringAttr,
         result_type: Attribute | None,
         struct: Operation,
         params: Sequence[SSAValue | Operation],
@@ -825,7 +825,7 @@ class MemberCallOp(IRDLOperation):
             operands=[struct, params],
             result_types=[result_type],
             properties={
-                "field": StringAttr(fname),
+                "field": StringAttr.get(fname),
             },
         )
 
@@ -843,7 +843,7 @@ class FuncOp(_FuncBase):
 
     def __init__(
         self,
-        name: str,
+        name: str | StringAttr,
         function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         *,
@@ -915,7 +915,7 @@ class TaskOp(_FuncBase):
 
     def __init__(
         self,
-        name: str,
+        name: str | StringAttr,
         function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         *,
@@ -1120,14 +1120,14 @@ class CallOp(IRDLOperation):
 
     def __init__(
         self,
-        callee: SymbolRefAttr,
+        callee: str | StringAttr | SymbolRefAttr,
         args: Sequence[SSAValue | Operation] | None = None,
         result: Attribute | None = None,
     ):
         super().__init__(
             operands=[args] if args else [[]],
             result_types=[result],
-            properties={"callee": callee},
+            properties={"callee": SymbolRefAttr.get(callee)},
         )
 
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
@@ -2085,14 +2085,14 @@ class ParamOp(IRDLOperation):
 
     def __init__(
         self,
-        name: str,
+        name: str | StringAttr,
         result_type: ParamOpAttr,
         init_value: SSAValue | Operation | None = None,
     ):
         super().__init__(
             operands=[init_value],
             result_types=[result_type],
-            properties={"param_name": StringAttr(name)},
+            properties={"param_name": StringAttr.get(name)},
         )
 
 

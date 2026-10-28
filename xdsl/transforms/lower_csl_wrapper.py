@@ -60,7 +60,7 @@ class ExtractCslModules(RewritePattern):
             if value and self.params_as_consts:
                 params.append(value.result)
             else:
-                p = csl.ParamOp(param.key.data, param.type, value)
+                p = csl.ParamOp(param.key, param.type, value)
                 params.append(p.res)
         return width, height, params
 
@@ -280,7 +280,7 @@ class LowerImport(RewritePattern):
         ops.append(op)
         return ops
 
-    def _make_import_struct(self, import_op: csl_wrapper.ImportOp):
+    def _make_import_struct(self, import_op: csl_wrapper.ImportOp) -> list[Operation]:
         """
         Create the struct to be passed to `@import_module`
 
@@ -292,11 +292,11 @@ class LowerImport(RewritePattern):
         Last struct in the list is to be used in `csl.import`
         """
 
-        fields = list[tuple[str, SSAValue | Operation]]()
+        fields = list[tuple[builtin.StringAttr, SSAValue | Operation]]()
         structs_to_concat = list[SSAValue | Operation]()
         for fname, op in zip(import_op.fields, import_op.ops):
             if fname.data != "":
-                fields.append((fname.data, op))
+                fields.append((fname, op))
             else:
                 structs_to_concat.append(op)
         out_structs: list[Operation] = [csl.ConstStructOp(*fields)]

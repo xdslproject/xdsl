@@ -128,7 +128,7 @@ class LowerFuncOp(RewritePattern):
             outputs_types.append(output_reg)
 
         new_func = x86_func.FuncOp(
-            op.sym_name.data,
+            op.sym_name,
             new_region,
             ((*reg_args_types, x86.registers.RSP), outputs_types),
             visibility=op.sym_visibility,

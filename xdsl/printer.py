@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerType,
+    StringAttr,
     UnitAttr,
     UnregisteredOp,
     i1,
@@ -323,11 +324,13 @@ class Printer(BasePrinter[str]):
     def print_string_literal(self, string: str):
         self.print_bytes_literal(string.encode("utf-8"))
 
-    def print_identifier_or_string_literal(self, string: str):
+    def print_identifier_or_string_literal(self, string: str | StringAttr):
         """
         Prints the provided string as an identifier if it is one,
         and as a string literal otherwise.
         """
+        if isinstance(string, StringAttr):
+            string = string.data
         if MLIRLexer.bare_identifier_regex.fullmatch(string) is None:
             self.print_string_literal(string)
             return
@@ -698,7 +701,7 @@ class Printer(BasePrinter[str]):
                     self._print_new_line()
             self._print_new_line()
 
-    def print_symbol_name(self, sym_name: str):
+    def print_symbol_name(self, sym_name: str | StringAttr):
         """
         Prints a string attribute as a symbol name, prepending it with an '@',
         and printing it as a string literal if it is not an identifier.

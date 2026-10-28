@@ -139,7 +139,7 @@ class CallOp(riscv.RISCVInstruction):
 
     def __init__(
         self,
-        callee: SymbolRefAttr,
+        callee: str | StringAttr | SymbolRefAttr,
         args: Sequence[Operation | SSAValue],
         result_types: Sequence[riscv.RISCVRegisterType],
         comment: StringAttr | None = None,
@@ -148,7 +148,7 @@ class CallOp(riscv.RISCVInstruction):
             operands=[args],
             result_types=[result_types],
             attributes={
-                "callee": callee,
+                "callee": SymbolRefAttr.get(callee),
                 "comment": comment,
             },
         )
@@ -207,7 +207,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
 
     def __init__(
         self,
-        name: str,
+        name: str | StringAttr,
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
@@ -221,7 +221,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
         if isinstance(p2align, int):
             p2align = IntegerAttr(p2align, i8)
         attributes: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
+            "sym_name": StringAttr.get(name),
             "function_type": function_type,
             "sym_visibility": visibility,
             "p2align": p2align,

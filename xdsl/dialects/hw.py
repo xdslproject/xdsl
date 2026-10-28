@@ -164,7 +164,7 @@ class InnerRefAttr(ParametrizedAttribute):
         with printer.in_angle_brackets():
             printer.print_attribute(self.module_ref)
             printer.print_string("::")
-            printer.print_symbol_name(self.sym_name.data)
+            printer.print_symbol_name(self.sym_name)
 
 
 @dataclass(frozen=True)
@@ -565,7 +565,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
         def print_port(port: ModulePort):
             port.dir.data.print(printer)
             printer.print_string(" ")
-            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print_identifier_or_string_literal(port.port_name)
             printer.print_string(" : ")
             printer.print_attribute(port.type)
 
@@ -626,7 +626,7 @@ class ParamDeclAttr(ParametrizedAttribute):
         if print_name_as_string_literal:
             printer.print_attribute(self.port_name)
         else:
-            printer.print_identifier_or_string_literal(self.port_name.data)
+            printer.print_identifier_or_string_literal(self.port_name)
         printer.print_string(": ")
         printer.print_attribute(self.type)
 
@@ -839,7 +839,7 @@ def print_module_header(
         printer.print_string(" ")
         printer.print_string(visibility.data)
     printer.print_string(" ")
-    printer.print_symbol_name(module_name.data)
+    printer.print_symbol_name(module_name)
 
     # Print parameters
     if parameters is not None and len(parameters.data) != 0:
@@ -867,9 +867,9 @@ def print_module_header(
                 used_name = ssa_arg
             if port.port_name.data != used_name:
                 printer.print_string(" ")
-                printer.print_identifier_or_string_literal(port.port_name.data)
+                printer.print_identifier_or_string_literal(port.port_name)
         else:
-            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print_identifier_or_string_literal(port.port_name)
         printer.print_string(": ")
         printer.print_attribute(port.type)
 
@@ -1288,31 +1288,30 @@ class InstanceOp(IRDLOperation):
             printer.print_string(" ")
         printer.print_attribute(self.module_name)
 
-        def print_input_port(name: str, operand: SSAValue):
+        def print_input_port(port: tuple[StringAttr, SSAValue]):
+            name, operand = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_operand(operand)
             printer.print_string(": ")
             printer.print_attribute(operand.type)
 
-        def print_output_port(name: str, port_type: Attribute):
+        def print_output_port(port: tuple[StringAttr, Attribute]):
+            name, port_type = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_attribute(port_type)
 
         with printer.in_parens():
             printer.print_list(
-                zip((name.data for name in self.arg_names), self.operands),
-                lambda x: print_input_port(*x),
+                zip(self.arg_names, self.operands),
+                print_input_port,
             )
         printer.print_string(" -> ")
         with printer.in_parens():
             printer.print_list(
-                zip(
-                    (name.data for name in self.result_names),
-                    self.result_types,
-                ),
-                lambda x: print_output_port(*x),
+                zip(self.result_names, self.result_types),
+                print_output_port,
             )
         printer.print_op_attributes(
             self.attributes,

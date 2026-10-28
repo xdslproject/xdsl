@@ -283,7 +283,7 @@ def print_func_op_like(
     print_empty_outputs: bool = True,
 ):
     printer.print_string(" ")
-    printer.print_symbol_name(sym_name.data)
+    printer.print_symbol_name(sym_name)
 
     # Non-variadic declaration
     if not body.blocks and not is_variadic:

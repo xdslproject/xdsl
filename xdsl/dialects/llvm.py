@@ -2106,7 +2106,7 @@ class GlobalOp(IRDLOperation):
         if self.constant is not None:
             printer.print_string(" constant")
         printer.print_string(" ")
-        printer.print_symbol_name(self.sym_name.data)
+        printer.print_symbol_name(self.sym_name)
         printer.print_string("(")
         if self.value is not None:
             printer.print_attribute(self.value)
@@ -2734,8 +2734,6 @@ class CallOp(IRDLOperation):
         If `var_callee_type` is not given and `variadic_args` is non-zero, the
         callee type is inferred.
         """
-        if isinstance(callee, str):
-            callee = SymbolRefAttr(callee)
         op_result_type = [return_type]
         if return_type is None:
             return_type = LLVMVoidType()
@@ -2749,7 +2747,7 @@ class CallOp(IRDLOperation):
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={
-                "callee": callee,
+                "callee": SymbolRefAttr.get(callee),
                 "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
