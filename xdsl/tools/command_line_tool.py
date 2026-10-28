@@ -33,16 +33,15 @@ class CommandLineTool:
             "input_file", type=str, nargs="?", help="path to input file"
         )
 
-        frontends = [name for name in self.available_frontends]
+        frontends = ",".join(self.available_frontends)
         arg_parser.add_argument(
             "-f",
             "--frontend",
             type=str,
             required=False,
-            choices=frontends,
-            help="Frontend to be used for the input. If not set, "
-            "the xdsl frontend or the one for the file extension "
-            "is used.",
+            help=f"Frontend to be used for the input. If not set, "
+            f"the xdsl frontend or the one for the file extension "
+            f"is used. Available frontends are: {frontends}",
         )
         arg_parser.add_argument("--disable-verify", default=False, action="store_true")
 
