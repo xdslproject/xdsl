@@ -1,7 +1,7 @@
 """
 xDSL leverages Python [plugins](https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/) for user-provided compiler infrastructure.
 
-Python packages that want to extend the passes, dialects, and frontends available in `xdsl-opt` can
+Python packages that want to extend the passes, dialects, targets, and frontends available in `xdsl-opt` can
 implement their own `Universe`, which will be discovered by `Multiverse` at runtime.
 
 To opt into this behavior first add a Universe instance somewhere in your project,
