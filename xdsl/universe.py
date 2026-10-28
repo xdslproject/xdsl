@@ -31,7 +31,7 @@ Then, add the following entry in your `pyproject.toml` file:
 your_project = 'your_project.universe:YOUR_UNIVERSE'
 ```
 
-Note that any clashes in names of dialects, passes, or frontends will result in an error.
+Note that any clashes in names of dialects, passes, targets, or frontends will result in an error.
 """  # noqa: E501
 
 from __future__ import annotations
