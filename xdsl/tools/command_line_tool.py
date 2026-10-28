@@ -1,12 +1,16 @@
 import argparse
+import dataclasses
+import inspect
 import os
 import sys
 from collections.abc import Callable
-from typing import IO
+from typing import IO, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
+from xdsl.utils.arg_spec import parse_spec
+from xdsl.utils.frontend import Frontend
 
 
 class CommandLineTool:
@@ -17,7 +21,9 @@ class CommandLineTool:
     attributes.
     """
 
-    available_frontends: dict[str, Callable[[IO[bytes]], ModuleOp]]
+    available_frontends: dict[
+        str, Callable[[IO[bytes]], ModuleOp] | Callable[[], type[Frontend]]
+    ]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -103,8 +109,31 @@ class CommandLineTool:
         self, chunk: IO[bytes], file_extension: str, start_offset: int = 0
     ) -> ModuleOp | None:
         """
-        Parse the input file by invoking the parser specified by the `parser`
-        argument. If not set, the parser registered for this file extension
-        is used.
+        Parse the input file by invoking the frontend specified.
+        Uses self.args.frontend if provided, otherwise falls back to file_extension.
         """
-        return self.available_frontends[file_extension](chunk)
+        # Determine frontend key (from -f flag or file extension)
+        frontend_key = self.args.frontend or file_extension
+
+        # Parse spec (handles both "mlir" and "mlir{arg=val}")
+        frontend_spec = parse_spec(frontend_key)
+        frontend_entry = self.available_frontends[frontend_spec.name]
+        sig = inspect.signature(frontend_entry)
+
+        if not sig.parameters:
+            # New-style: factory -> Frontend class
+            factory = cast(Callable[[], type[Frontend]], frontend_entry)
+            frontend = factory().from_spec(frontend_spec)
+
+            # Handle --no-implicit-module for MLIR frontend (backward compat, overrides spec)
+            if frontend_spec.name == "mlir":
+                frontend = dataclasses.replace(
+                    frontend,
+                    no_implicit_module=self.args.no_implicit_module,
+                )
+
+            return frontend.parse(self.ctx, chunk)
+        else:
+            # Legacy: function (IO[bytes]) -> ModuleOp (spec args silently ignored)
+            legacy = cast(Callable[[IO[bytes]], ModuleOp], frontend_entry)
+            return legacy(chunk)
