@@ -1,8 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
-
-from typing_extensions import assert_never
+from typing import assert_never, cast
 
 from xdsl.dialects import affine, arith, linalg, memref, scf, tensor
 from xdsl.dialects.builtin import (

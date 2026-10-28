@@ -1,17 +1,8 @@
-from enum import Enum
-from typing import Any
+"""
+Kept for backward compatibility of the import path: ``StrEnum`` is part of the
+standard library since Python 3.11, which xDSL now requires as a minimum.
+"""
 
+from enum import StrEnum
 
-class StrEnum(str, Enum):
-    """
-    Homemade StrEnum. StrEnum is standard in Python>=3.11.
-    """
-
-    @staticmethod
-    def _generate_next_value_(
-        name: str, start: int, count: int, last_values: list[Any]
-    ):
-        return name.lower()
-
-    def __str__(self) -> str:
-        return self.value
+__all__ = ["StrEnum"]

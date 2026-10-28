@@ -6,9 +6,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import TYPE_CHECKING
-
-from typing_extensions import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:

@@ -3,10 +3,9 @@ import re
 import warnings
 from collections.abc import Sequence
 from io import StringIO
-from typing import cast
+from typing import assert_type, cast
 
 import pytest
-from typing_extensions import assert_type
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
