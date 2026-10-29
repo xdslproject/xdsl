@@ -1213,6 +1213,20 @@ def test_region_branch_op_successor_regions():
     ]
 
 
+class _ExitOnlyTrait(RegionBranchOpTrait):
+    """
+    Implements `RegionBranchOpTrait` directly, without `RegionBranchOpInterface`, to test
+    the default methods of the trait. Ops using the interface never reach them, as the
+    interface forwards to its own defaults.
+    """
+
+    @classmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        return [RegionSuccessor(op)]
+
+
 def test_region_branch_op_entry_successor_regions():
     region = Region()
     op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[region]])
@@ -1220,12 +1234,4 @@ def test_region_branch_op_entry_successor_regions():
 
     assert trait is not None
     assert list(trait.entry_successor_regions(op, [])) == [RegionSuccessor(region)]
-
-    class ExitOnlyTrait(RegionBranchOpTrait):
-        @classmethod
-        def successor_regions(
-            cls, op: Operation, point: RegionBranchPoint
-        ) -> Sequence[RegionSuccessor]:
-            return [RegionSuccessor(op)]
-
-    assert list(ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]
+    assert list(_ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]
