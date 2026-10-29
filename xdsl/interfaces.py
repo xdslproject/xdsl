@@ -138,6 +138,12 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     """
 
     @classmethod
+    def entry_successor_regions(
+        cls, op: Operation, operands: Sequence[Attribute | None]
+    ) -> Sequence[RegionSuccessor]:
+        return cast(RegionBranchOpInterface, op).entry_successor_regions(operands)
+
+    @classmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
     ) -> Sequence[RegionSuccessor]:
@@ -146,11 +152,18 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
 
 class RegionBranchOpInterface(Operation, abc.ABC):
     """
-    An operation subclassing this interface must implement `successor_regions`, whose
-    semantics are documented on `RegionBranchOpTrait`. Wraps `RegionBranchOpTrait`.
+    An operation subclassing this interface must implement `successor_regions`, and may
+    override the other methods, whose semantics are documented on `RegionBranchOpTrait`.
+    Wraps `RegionBranchOpTrait`.
     """
 
     traits = traits_def(_RegionBranchOpInterfaceTrait())
+
+    def entry_successor_regions(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[RegionSuccessor]:
+        """See `RegionBranchOpTrait.entry_successor_regions`."""
+        return self.successor_regions(RegionBranchPoint.PARENT)
 
     @abc.abstractmethod
     def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:

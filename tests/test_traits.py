@@ -1211,3 +1211,21 @@ def test_region_branch_op_successor_regions():
     assert list(trait.successor_regions(no_regions, RegionBranchPoint.PARENT)) == [
         RegionSuccessor(no_regions)
     ]
+
+
+def test_region_branch_op_entry_successor_regions():
+    region = Region()
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[region]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.entry_successor_regions(op, [])) == [RegionSuccessor(region)]
+
+    class ExitOnlyTrait(RegionBranchOpTrait):
+        @classmethod
+        def successor_regions(
+            cls, op: Operation, point: RegionBranchPoint
+        ) -> Sequence[RegionSuccessor]:
+            return [RegionSuccessor(op)]
+
+    assert list(ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]

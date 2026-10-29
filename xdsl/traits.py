@@ -1115,6 +1115,31 @@ class RegionBranchOpTrait(OpTrait):
     """
 
     @classmethod
+    def entry_successor_regions(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when first executing the op.
+
+        Unlike `successor_regions`, this method also receives the constant operands of this op
+        (one entry per operand, `None` if the operand has no/unknown constant value). The
+        implementation may use this information to filter out successors. By default, it simply
+        dispatches to `successor_regions`.
+
+        Note: The control flow does not necessarily have to enter any region of this op.
+
+        Example: In the above example, this method may return two region successors: the single
+        region of the `scf.for` op and the `scf.for` operation (that implements this interface). If
+        `%lb`, `%ub`, `%step` are constants and it can be determined the loop does not have any
+        iterations, this method may choose to return only this operation. Similarly, if it can be
+        determined that the loop has at least one iteration, this method may choose to return only
+        the region of the loop.
+        """
+        return cls.successor_regions(op, RegionBranchPoint.PARENT)
+
+    @classmethod
     @abc.abstractmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
