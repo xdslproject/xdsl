@@ -47,6 +47,8 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    RegionBranchPoint,
+    RegionSuccessor,
     SymbolOpInterface,
 )
 
@@ -384,6 +386,15 @@ class TestRegionBranchOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     ops = var_operand_def()
     regs = var_region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        """
+        Enters the first region, if any. Every region branches back to the parent
+        operation.
+        """
+        if point.is_parent() and self.regions:
+            return [RegionSuccessor(self.regions[0])]
+        return [RegionSuccessor(self)]
 
 
 @irdl_op_definition

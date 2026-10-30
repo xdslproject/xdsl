@@ -1114,6 +1114,51 @@ class RegionBranchOpTrait(OpTrait):
     operand.
     """
 
+    @classmethod
+    def entry_successor_regions(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when first executing the op.
+
+        Unlike `successor_regions`, this method also receives the constant operands of this op
+        (one entry per operand, `None` if the operand has no/unknown constant value). The
+        implementation may use this information to filter out successors. By default, it simply
+        dispatches to `successor_regions`.
+
+        Note: The control flow does not necessarily have to enter any region of this op.
+
+        Example: In the above example, this method may return two region successors: the single
+        region of the `scf.for` op and the `scf.for` operation (that implements this interface). If
+        `%lb`, `%ub`, `%step` are constants and it can be determined the loop does not have any
+        iterations, this method may choose to return only this operation. Similarly, if it can be
+        determined that the loop has at least one iteration, this method may choose to return only
+        the region of the loop.
+        """
+        return cls.successor_regions(op, RegionBranchPoint.PARENT)
+
+    @classmethod
+    @abc.abstractmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from `point`. These are the
+        regions that may be selected during the flow of control.
+
+        When `point = RegionBranchPoint.PARENT`, this method returns the region successors when
+        entering the operation. Otherwise, this method returns the successor regions when branching
+        from the region indicated by `point`.
+
+        Example: In the above example, this method returns the region of the `scf.for` and the
+        `scf.for` op itself for either region branch point. An implementation may choose to filter
+        out region successors when it is statically known (e.g., by examining the operands of this
+        op) that those successors are not branched to.
+        """
+        raise NotImplementedError()
+
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 
