@@ -43,6 +43,6 @@
   }, {
     %2 = "arith.constant"() <{value = 0 : i32}> : () -> i32
     "scf.yield"(%2) : (i32) -> ()
-    // CHECK: region 0 returns values of types (i32) but expected (i64)
+    // CHECK: 'scf.index_switch': along control flow edge from Operation 'scf.yield' to Operation 'scf.index_switch': successor operand type #0 i32 should match successor input type #0 i64
   }) : (index) -> (i64)
 }) : () -> ()
