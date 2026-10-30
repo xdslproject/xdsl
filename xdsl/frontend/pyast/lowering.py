@@ -1,9 +1,10 @@
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 import xdsl.dialects.func as func
 import xdsl.dialects.py as py
+import xdsl.dialects.symref as symref
 from xdsl.dialects.builtin import FileLineColLoc, FunctionType
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
@@ -16,7 +17,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.lexer import Location
 
 FunctionDefinitionConstructor = Callable[
@@ -72,6 +73,12 @@ The comparison operators without an overload: "is" and "is not" compare object
 identity, which is not preserved, and "not in" is the negation of `__contains__`
 rather than a method of its own.
 """
+
+_BINARY_OPERATORS = {name.lower(): name for name in BINARY_OPERATOR_OVERLOADS}
+_COMPARISON_OPERATORS = {
+    name.lower(): name
+    for name in (*COMPARISON_OPERATOR_OVERLOADS, *UNSUPPORTED_COMPARISON_OPERATORS)
+}
 
 ErrorConstructor = Callable[[str], Exception]
 """Construct the error to raise from its message, located by the caller."""
@@ -199,6 +206,9 @@ class PyLowering:
     """
     Lowers the `py` operations generated from a Python function to the operations
     registered for them.
+
+    Operations are lowered in order, so the types of the operands of an operation are
+    known when it is lowered: every value gets the type of the operation it becomes.
     """
 
     type_converter: TypeConverter
@@ -213,9 +223,27 @@ class PyLowering:
     return_constructor: ReturnConstructor = build_return
     """Construct return operations, optionally omitting the terminator."""
 
+    variables: dict[str, Attribute] = field(
+        default_factory=dict[str, Attribute], init=False
+    )
+    """The types of the variables of the function being lowered."""
+
+    packs: dict[SSAValue, tuple[tuple[SSAValue, ...], Operation]] = field(
+        default_factory=dict[SSAValue, tuple[tuple[SSAValue, ...], Operation]],
+        init=False,
+    )
+    """
+    The `py` values that stand for a number of values other than one, such as the
+    results of a call, with the operation that produced them. These values cannot be
+    used.
+    """
+
     def lower(self, op: Operation) -> None:
         """Lower all `py` operations nested in `op`."""
         self._lower_regions(op)
+        for _, producer in self.packs.values():
+            Rewriter.erase_op(producer)
+        self.packs.clear()
 
     def _lower_regions(self, op: Operation) -> None:
         for region in op.regions:
@@ -227,6 +255,13 @@ class PyLowering:
             self._lower_op(op)
 
     def _lower_op(self, op: Operation) -> None:
+        for operand in op.operands:
+            if operand in self.packs:
+                raise self._error(
+                    self.packs[operand][1],
+                    "Expected an expression with exactly one result.",
+                )
+
         match op:
             case py.PyFuncOp():
                 self._lower_func(op)
@@ -235,6 +270,17 @@ class PyLowering:
             case py.PyCastOp():
                 # Casts only change annotations, which are resolved by now.
                 Rewriter.replace_op(op, (), (op.value,))
+            case py.PyBinOp():
+                self._lower_binop(op)
+            case py.PyCompareOp():
+                self._lower_compare(op)
+            case py.PyCallOp():
+                self._lower_call(op)
+            case symref.FetchOp():
+                name = op.symbol.root_reference.data
+                Rewriter.replace_value_with_new_type(op.value, self.variables[name])
+            case symref.UpdateOp():
+                self._lower_update(op)
             case _:
                 self._lower_regions(op)
 
@@ -257,6 +303,7 @@ class PyLowering:
             location = arg.location
             Rewriter.replace_value_with_new_type(arg, arg_type)
             block.args[arg.index].location = location
+        self.variables = {}
         self._lower_block(block)
 
         function_op = self.function_definition_constructor(
@@ -283,6 +330,46 @@ class PyLowering:
         if none and not none.res.uses:
             Rewriter.erase_op(none)
 
+    def _lower_binop(self, op: py.PyBinOp) -> None:
+        op_name = _BINARY_OPERATORS[op.op.data]
+        method_op = resolve_binary_operator(
+            self.type_converter, op_name, op.lhs, op.rhs, self._error_at(op)
+        )
+        self._replace(op, method_op)
+
+    def _lower_compare(self, op: py.PyCompareOp) -> None:
+        op_name = _COMPARISON_OPERATORS[op.op.data]
+        if op_name in UNSUPPORTED_COMPARISON_OPERATORS:
+            raise self._error(op, f"Unsupported comparison operation '{op_name}'.")
+        method_op = resolve_comparison_operator(
+            self.type_converter, op_name, op.lhs, op.rhs, self._error_at(op)
+        )
+        self._replace(op, method_op)
+
+    def _lower_call(self, op: py.PyCallOp) -> None:
+        ir_op = resolve_callee(self.type_converter, op.callee.data, self._error_at(op))
+        keywords = op.keyword_names
+        num_positional = len(op.args) - len(keywords)
+        args = op.args[:num_positional]
+        kwargs = dict(zip(keywords, op.args[num_positional:], strict=True))
+        self._replace(op, ir_op(*args, **kwargs))
+
+    def _lower_update(self, op: symref.UpdateOp) -> None:
+        name = op.symbol.root_reference.data
+        if name not in self.variables:
+            self.variables[name] = op.value.type
+        elif self.variables[name] != op.value.type:
+            raise self._error(op, f"Cannot change the type of variable '{name}'.")
+
+    def _replace(self, op: Operation, new_op: Operation) -> None:
+        """Replace a `py` operation by `new_op`, which may have any number of results."""
+        new_op.location = op.location
+        if len(new_op.results) == 1:
+            Rewriter.replace_op(op, new_op)
+        else:
+            Rewriter.insert_op(new_op, InsertPoint.before(op))
+            self.packs[op.results[0]] = (tuple(new_op.results), op)
+
     @staticmethod
     def _annotation(object_type: Attribute) -> str:
         return cast(py.PyObjectType, object_type).annotation.data
@@ -307,6 +394,10 @@ class PyLowering:
 
     def _location(self, op: Operation) -> Location:
         return Location(self.file or "<unknown>", *self._position(op))
+
+    def _error_at(self, op: Operation) -> ErrorConstructor:
+        """Construct errors located at `op`."""
+        return lambda msg: self._error(op, msg)
 
     def _error(
         self, ir: Operation | BlockArgument, msg: str
