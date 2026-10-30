@@ -11,16 +11,20 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from typing_extensions import TypeVar
 
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyTensorTypeConstr,
     AnyUnrankedMemRefTypeConstr,
     AnyUnrankedTensorTypeConstr,
+    Builtin,
     IntegerAttr,
     IntegerType,
     MemRefType,
+    ModuleOp,
     NoneAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -31,7 +35,12 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.interfaces import ConditionallySpeculatableInterface
+from xdsl.dialects.test import Test
+from xdsl.interfaces import (
+    ConditionallySpeculatableInterface,
+    RegionBranchOpInterface,
+    RegionBranchTerminatorOpInterface,
+)
 from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
@@ -48,9 +57,11 @@ from xdsl.irdl import (
     result_def,
     traits_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
     var_successor_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import (
     AlwaysSpeculatable,
     ConditionallySpeculatable,
@@ -59,6 +70,7 @@ from xdsl.traits import (
     InvocationBounds,
     IsTerminator,
     MemoryEffectKind,
+    OperandRange,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     RegionBranchOpTrait,
@@ -1100,6 +1112,267 @@ def test_return_like():
         successors.verify()
 
 
+class _ForOpTrait(RegionBranchOpTrait):
+    @classmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        if point.is_parent():
+            return [RegionSuccessor(op.regions[0])]
+        return [RegionSuccessor(op.regions[0]), RegionSuccessor(op)]
+
+    @classmethod
+    def entry_successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> OperandRange:
+        return OperandRange(op)
+
+    @classmethod
+    def successor_inputs(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Sequence[SSAValue]:
+        if successor.is_operation():
+            return op.results
+        # The first block argument is an induction variable, not fed by any operand.
+        return op.regions[0].block.args[1:]
+
+
+@irdl_op_definition
+class ForOp(IRDLOperation):
+    """
+    Enters its body, which branches back to itself or to the parent, like a do-while loop. Its
+    first block argument is not a successor input.
+    """
+
+    name = "test.for"
+    args = var_operand_def()
+    res = var_result_def()
+    body = region_def()
+    traits = traits_def(_ForOpTrait())
+
+
+class _YieldTailTrait(RegionBranchTerminatorOpTrait):
+    @classmethod
+    def successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> OperandRange:
+        return OperandRange(op, 1)
+
+
+@irdl_op_definition
+class YieldTailOp(IRDLOperation):
+    """A terminator forwarding all of its operands except the first."""
+
+    name = "test.yield_tail"
+    args = var_operand_def()
+    traits = traits_def(IsTerminator(), _YieldTailTrait())
+
+
+@irdl_op_definition
+class DummyOp(IRDLOperation, RegionBranchTerminatorOpInterface):
+    """A dummy op that is also a terminator."""
+
+    name = "test.dummy_op"
+    traits = traits_def(IsTerminator())
+
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self, 0, 0)
+
+
+@irdl_op_definition
+class LoopRegionsOp(IRDLOperation, RegionBranchOpInterface):
+    """
+    The parent enters either region. Each region branches back to itself, region 1 can also
+    branch to the parent. Unlike MLIR's test op, the parent enters the regions, so that they are
+    reachable.
+    """
+
+    name = "test.loop_regions_op"
+    res = var_result_def()
+    bodies = var_region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if (terminator := point.terminator) is None:
+            return [RegionSuccessor(region) for region in self.regions]
+        region = terminator.parent_region()
+        assert region is not None
+        successors = [RegionSuccessor(region)]
+        if region is self.regions[1]:
+            # This region also branches back to this operation.
+            successors.insert(0, RegionSuccessor(self))
+        return successors
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        return self.results if successor.is_operation() else ()
+
+
+@irdl_op_definition
+class SequentialRegionsOp(IRDLOperation, RegionBranchOpInterface):
+    """
+    Regions are executed sequentially: the parent enters region 0, which branches to region 1,
+    which branches back to the parent. Unlike MLIR's test op, the parent edges are modelled, so
+    that the regions are reachable.
+    """
+
+    name = "test.sequential_regions_op"
+    bodies = var_region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if (terminator := point.terminator) is None:
+            return [RegionSuccessor(self.regions[0])]
+        if terminator.parent_region() is self.regions[0]:
+            return [RegionSuccessor(self.regions[1])]
+        return [RegionSuccessor(self)]
+
+
+# Ops forwarding values, which MLIR's unit tests do not cover.
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation, RegionBranchTerminatorOpInterface):
+    """A terminator forwarding all of its operands (the default)."""
+
+    name = "test.yield"
+    args = var_operand_def()
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class LoopOp(IRDLOperation, RegionBranchOpInterface):
+    """Enters its body, which branches back to itself or to the parent, like a do-while loop."""
+
+    name = "test.loop"
+    args = var_operand_def()
+    res = var_result_def()
+    body = region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if point.is_parent():
+            return [RegionSuccessor(self.body)]
+        return [RegionSuccessor(self.body), RegionSuccessor(self)]
+
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self)
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        if successor.is_operation():
+            return self.results
+        return self.body.block.args
+
+
+@irdl_op_definition
+class IntegerCastOp(IRDLOperation, RegionBranchOpInterface):
+    """
+    Skips its body and forwards its operands to its results, allowing any integer types
+    along that edge.
+    """
+
+    name = "test.integer_cast"
+    args = var_operand_def()
+    res = var_result_def()
+    body = region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        return [RegionSuccessor(self)]
+
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self)
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        return self.results
+
+    def are_types_compatible(self, lhs: Attribute, rhs: Attribute) -> bool:
+        return isinstance(lhs, IntegerType) and isinstance(rhs, IntegerType)
+
+
+_TEST_OPS: tuple[type[Operation], ...] = (
+    ForOp,
+    YieldTailOp,
+    DummyOp,
+    LoopRegionsOp,
+    SequentialRegionsOp,
+    YieldOp,
+    LoopOp,
+    IntegerCastOp,
+)
+
+
+def _parse(ir: str) -> ModuleOp:
+    ctx = Context()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+    for op in _TEST_OPS:
+        ctx.load_op(op)
+    return Parser(ctx, ir).parse_module()
+
+
+def _name_to_ssa(module: ModuleOp) -> dict[str, SSAValue]:
+    """Map the name hint of every named result and block argument to its value."""
+    results: dict[str, SSAValue] = {
+        result.name_hint: result
+        for op in module.walk()
+        for result in op.results
+        if result.name_hint is not None
+    }
+    block_args: dict[str, SSAValue] = {
+        arg.name_hint: arg
+        for block in module.walk_blocks()
+        for arg in block.args
+        if arg.name_hint is not None
+    }
+    return results | block_args
+
+
+_OpT = TypeVar("_OpT", bound=Operation)
+
+
+def _find(module: ModuleOp, op_type: type[_OpT]) -> _OpT:
+    return next(op for op in module.walk() if isinstance(op, op_type))
+
+
+_TraitT = TypeVar("_TraitT", bound=OpTrait)
+
+
+def _trait(op: Operation, trait_type: type[_TraitT]) -> _TraitT:
+    trait = op.get_trait(trait_type)
+    assert trait is not None
+    return trait
+
+
+_NO_INTERFACE_IR = """
+"test.op"() ({
+  %value = "test.op"() : () -> i32
+  "test.region_branch_terminator"(%value) : (i32) -> ()
+}) : () -> ()
+"""
+
+
+_LOOP_IR = """
+%init = "test.op"() : () -> i32
+%res = "test.loop"(%init) ({
+^bb0(%arg: i32):
+  %next = "test.op"(%arg) : (i32) -> i32
+  "test.yield"(%next) : (i32) -> ()
+}) : (i32) -> i32
+"""
+
+
+@pytest.fixture
+def loop() -> tuple[LoopOp, YieldOp, dict[str, SSAValue]]:
+    module = _parse(_LOOP_IR)
+    return _find(module, LoopOp), _find(module, YieldOp), _name_to_ssa(module)
+
+
+_SEQUENTIAL_REGIONS_IR = (
+    '"test.sequential_regions_op"() ({ "test.dummy_op"() : () -> () }, '
+    '{ "test.dummy_op"() : () -> () }) : () -> ()'
+)
+
+
 def test_region_successor():
     op = test.TestOp()
     region = Region()
@@ -1235,3 +1508,429 @@ def test_region_branch_op_entry_successor_regions():
     assert trait is not None
     assert list(trait.entry_successor_regions(op, [])) == [RegionSuccessor(region)]
     assert list(_ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]
+
+
+def test_trait_defaults():
+    module = _parse('"test.op"() ({ "test.termop"() : () -> () }) : () -> ()')
+    op = _find(module, test.TestOp)
+    successor = RegionSuccessor(op)
+    assert list(_ExitOnlyTrait.entry_successor_operands(op, successor)) == []
+    assert list(_ExitOnlyTrait.successor_inputs(op, successor)) == []
+    assert list(_ExitOnlyTrait.region_invocation_bounds(op, [])) == [
+        InvocationBounds.UNKNOWN
+    ]
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, op.regions[0])) == []
+    assert _ExitOnlyTrait.are_types_compatible(op, i32, i32)
+    assert not _ExitOnlyTrait.are_types_compatible(op, i32, i64)
+    # The parent only branches out of the op, so no region is entered.
+    assert not _ExitOnlyTrait.has_loop(op)
+
+
+def test_defaults():
+    module = _parse(_SEQUENTIAL_REGIONS_IR)
+    op = _find(module, SequentialRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    successor = RegionSuccessor(op.regions[1])
+    assert list(trait.entry_successor_operands(op, successor)) == []
+    assert list(trait.successor_inputs(op, successor)) == []
+    assert (
+        list(trait.region_invocation_bounds(op, [])) == [InvocationBounds.UNKNOWN] * 2
+    )
+    assert trait.are_types_compatible(op, i32, i32)
+    assert not trait.are_types_compatible(op, i32, i64)
+
+
+def test_terminator_trait_defaults():
+    module = _parse(_NO_INTERFACE_IR)
+    op = _find(module, test.TestOp)
+    terminator = _find(module, test.TestRegionBranchTerminatorOp)
+    operands = RegionBranchTerminatorOpTrait.successor_operands(
+        terminator, RegionSuccessor(op)
+    )
+    assert list(operands) == [_name_to_ssa(module)["value"]]
+
+
+def test_sequential_regions():
+    module = _parse(_SEQUENTIAL_REGIONS_IR)
+    op = _find(module, SequentialRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    region0, region1 = op.regions
+    terminator0, terminator1 = region0.block.last_op, region1.block.last_op
+    assert terminator0 is not None
+    assert terminator1 is not None
+    exit_ = RegionSuccessor(op)
+    parent = RegionBranchPoint.PARENT
+    assert list(trait.successor_regions(op, parent)) == [RegionSuccessor(region0)]
+    assert list(trait.successor_regions_from_region(op, region0)) == [
+        RegionSuccessor(region1)
+    ]
+    assert list(trait.successor_regions_from_region(op, region1)) == [exit_]
+    from_terminator0 = RegionBranchPoint(terminator0)
+    from_terminator1 = RegionBranchPoint(terminator1)
+    assert list(trait.successor_operands(op, parent, RegionSuccessor(region0))) == []
+    assert (
+        list(trait.successor_operands(op, from_terminator0, RegionSuccessor(region1)))
+        == []
+    )
+    assert list(trait.successor_operands(op, from_terminator1, exit_)) == []
+    assert list(trait.successor_inputs(op, exit_)) == []
+
+
+def test_loop_regions():
+    module = _parse(
+        '%res = "test.loop_regions_op"() ({ "test.dummy_op"() : () -> () }, '
+        '{ "test.dummy_op"() : () -> () }) : () -> i32'
+    )
+    op = _find(module, LoopRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    region0, region1 = op.regions
+    exit_ = RegionSuccessor(op)
+    assert list(trait.successor_regions(op, RegionBranchPoint.PARENT)) == [
+        RegionSuccessor(region0),
+        RegionSuccessor(region1),
+    ]
+    assert list(trait.successor_regions_from_region(op, region0)) == [
+        RegionSuccessor(region0)
+    ]
+    assert list(trait.successor_regions_from_region(op, region1)) == [
+        exit_,
+        RegionSuccessor(region1),
+    ]
+    assert list(trait.successor_inputs(op, exit_)) == list(op.results)
+    assert list(trait.successor_inputs(op, RegionSuccessor(region0))) == []
+
+
+def test_successor_regions(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, yield_op, _ = loop
+    body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert list(trait.entry_successor_regions(op, [None])) == [body]
+    assert list(trait.successor_regions_from_region(op, op.body)) == [body, exit_]
+    assert list(trait.all_region_branch_points(op)) == [
+        RegionBranchPoint.PARENT,
+        RegionBranchPoint(yield_op),
+    ]
+    terminator_trait = _trait(yield_op, RegionBranchTerminatorOpTrait)
+    assert list(terminator_trait.successor_regions(yield_op, [None])) == [
+        body,
+        exit_,
+    ]
+
+
+def test_successor_operands(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, yield_op, ssa = loop
+    body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
+    trait = _trait(op, RegionBranchOpTrait)
+    parent, from_yield = RegionBranchPoint.PARENT, RegionBranchPoint(yield_op)
+    assert list(trait.successor_operands(op, parent, body)) == [ssa["init"]]
+    assert list(trait.successor_operands(op, from_yield, exit_)) == [ssa["next"]]
+    assert list(trait.successor_inputs(op, body)) == [ssa["arg"]]
+    assert list(trait.successor_inputs(op, exit_)) == [ssa["res"]]
+
+
+def test_branch_points_skip_terminators_without_interface():
+    # Region 0 ends in a terminator without the interface, region 1 is an empty block.
+    module = _parse("""
+    "test.loop_regions_op"() ({ "test.termop"() : () -> () }, {
+    ^bb0:
+    }) : () -> ()
+    """)
+    op = _find(module, LoopRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert list(trait.all_region_branch_points(op)) == [RegionBranchPoint.PARENT]
+    assert list(trait.successor_regions_from_region(op, op.regions[0])) == []
+    assert not trait.is_repetitive_region(op, 0)
+    assert not trait.is_repetitive_region(op, 1)
+
+
+def test_terminator_successor_regions_without_parent_interface():
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    with pytest.raises(
+        ValueError,
+        match=re.escape("'test.region_branch_terminator' has no parent op."),
+    ):
+        _trait(terminator, RegionBranchTerminatorOpTrait).successor_regions(
+            terminator, []
+        )
+    terminator = _find(_parse(_NO_INTERFACE_IR), test.TestRegionBranchTerminatorOp)
+    message = "'test.op', parent of 'test.region_branch_terminator', does not implement"
+    with pytest.raises(ValueError, match=re.escape(message)):
+        _trait(terminator, RegionBranchTerminatorOpTrait).successor_regions(
+            terminator, []
+        )
+
+
+def test_value_flow(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, yield_op, ssa = loop
+    body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
+    parent, from_yield = RegionBranchPoint.PARENT, RegionBranchPoint(yield_op)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert list(trait.predecessors(op, body)) == [parent, from_yield]
+    assert list(trait.predecessors(op, exit_)) == [from_yield]
+    # A loop-carried value has two predecessors: the entry operand and the yielded value.
+    assert list(trait.predecessor_values(op, body, 0)) == [ssa["init"], ssa["next"]]
+    assert list(trait.predecessor_values(op, exit_, 0)) == [ssa["next"]]
+
+
+def test_value_flow_from_trait():
+    # Two terminators branch to each successor. `yield_tail` forwards only its second operand, so
+    # `index` refers to the forwarded operands, not to the terminator's own operands.
+    module = _parse("""
+    %init = "test.op"() : () -> i32
+    %res = "test.for"(%init) ({
+    ^bb0(%iv: index, %arg: i32):
+      "test.region_branch_terminator"(%arg) : (i32) -> ()
+    ^bb1(%x: index, %y: i32):
+      "test.yield_tail"(%x, %y) : (index, i32) -> ()
+    }) : (i32) -> i32
+    """)
+    op, ssa = _find(module, ForOp), _name_to_ssa(module)
+    terminator = _find(module, test.TestRegionBranchTerminatorOp)
+    yield_tail = _find(module, YieldTailOp)
+    body, exit_ = RegionSuccessor(op.body), RegionSuccessor(op)
+    points = [
+        RegionBranchPoint.PARENT,
+        RegionBranchPoint(terminator),
+        RegionBranchPoint(yield_tail),
+    ]
+    trait = _trait(op, RegionBranchOpTrait)
+    assert list(trait.predecessors(op, body)) == points
+    assert list(trait.predecessors(op, exit_)) == points[1:]
+    assert list(trait.predecessor_values(op, body, 0)) == [
+        ssa["init"],
+        ssa["arg"],
+        ssa["y"],
+    ]
+    assert list(trait.predecessor_values(op, exit_, 0)) == [ssa["arg"], ssa["y"]]
+    # A successor that no branch point reaches has no predecessors.
+    unreached = RegionSuccessor(Region())
+    assert list(trait.predecessors(op, unreached)) == []
+    assert list(trait.predecessor_values(op, unreached, 0)) == []
+    with pytest.raises(IndexError):
+        trait.predecessor_values(op, exit_, 1)
+
+
+def test_non_successor_inputs():
+    module = _parse("""
+    %init = "test.op"() : () -> i32
+    %res = "test.for"(%init) ({
+    ^bb0(%iv: index, %arg: i32):
+      "test.region_branch_terminator"(%arg) : (i32) -> ()
+    }) : (i32) -> i32
+    """)
+    op, ssa = _find(module, ForOp), _name_to_ssa(module)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert list(trait.non_successor_inputs(op, RegionSuccessor(op.body))) == [ssa["iv"]]
+    assert list(trait.non_successor_inputs(op, RegionSuccessor(op))) == []
+
+
+def test_successor_mappings(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, yield_op, ssa = loop
+    trait = _trait(op, RegionBranchOpTrait)
+    assert trait.successor_operand_input_mapping(op) == {
+        (op, 0): (ssa["arg"],),
+        (yield_op, 0): (ssa["arg"], ssa["res"]),
+    }
+    assert trait.successor_operand_input_mapping(op, RegionBranchPoint(yield_op)) == {
+        (yield_op, 0): (ssa["arg"], ssa["res"]),
+    }
+    assert trait.successor_input_operand_mapping(op) == {
+        ssa["arg"]: ((op, 0), (yield_op, 0)),
+        ssa["res"]: ((yield_op, 0),),
+    }
+
+
+def test_successor_mapping_with_repeated_operand():
+    module = _parse("""
+    %init = "test.op"() : () -> i32
+    %res:2 = "test.loop"(%init, %init) ({
+    ^bb0(%a: i32, %b: i32):
+      %next = "test.op"() : () -> i32
+      "test.yield"(%next, %next) : (i32, i32) -> ()
+    }) : (i32, i32) -> (i32, i32)
+    """)
+    op, yield_op = _find(module, LoopOp), _find(module, YieldOp)
+    block_args, results = op.body.block.args, op.res
+    trait = _trait(op, RegionBranchOpTrait)
+    mapping = trait.successor_operand_input_mapping(op)
+    assert mapping[(op, 0)] == (block_args[0],)
+    assert mapping[(op, 1)] == (block_args[1],)
+    assert mapping[(yield_op, 0)] == (block_args[0], results[0])
+    assert mapping[(yield_op, 1)] == (block_args[1], results[1])
+
+
+def test_successor_mapping_with_operand_repeated_outside_range():
+    # `%a` fills both operands of `test.yield_tail`, but only the second one is forwarded.
+    module = _parse("""
+    %a = "test.op"() : () -> i32
+    "test.loop"() ({
+    ^bb0(%x: i32):
+      "test.yield_tail"(%a, %a) : (i32, i32) -> ()
+    }) : () -> i32
+    """)
+    op, yield_tail = _find(module, LoopOp), _find(module, YieldTailOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    mapping = trait.successor_operand_input_mapping(op, RegionBranchPoint(yield_tail))
+    assert mapping == {(yield_tail, 1): (op.body.block.args[0], op.results[0])}
+
+
+def test_operand_range():
+    a, b, c = create_ssa_value(i32), create_ssa_value(i32), create_ssa_value(i32)
+    op = test.TestOp(operands=[a, b, c])
+    tail = OperandRange(op, 1)
+    assert (tail.start, tail.stop) == (1, 3)
+    assert list(tail) == [b, c]
+    assert len(tail) == 2
+    assert tail[0] is b
+    assert tail[-1] is c
+    assert list(tail[1:]) == [c]
+    assert tail.op_operands == ((op, 1), (op, 2))
+    assert list(OperandRange(op)) == [a, b, c]
+    assert len(OperandRange(op, 3)) == 0
+    message = (
+        "Operand range [2, 4) is out of bounds for 'test.op', which has 3 operands."
+    )
+    with pytest.raises(ValueError, match=re.escape(message)):
+        OperandRange(op, 2, 4)
+
+
+# Ports of the `RecursiveRegions` and `NotRecursiveRegions` tests.
+
+
+def test_recursive_regions():
+    module = _parse("""
+    "test.loop_regions_op"() (
+      { "test.dummy_op"() : () -> () },
+      { "test.dummy_op"() : () -> () },
+      { "test.dummy_op"() : () -> () }
+    ) : () -> ()
+    """)
+    op = _find(module, LoopRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert all(trait.is_repetitive_region(op, index) for index in range(3))
+    # The parent enters every region, and each region branches back to itself.
+    assert trait.has_loop(op)
+
+
+def test_not_recursive_regions():
+    module = _parse("""
+    "test.sequential_regions_op"() (
+      { "test.dummy_op"() : () -> () },
+      { "test.dummy_op"() : () -> () }
+    ) : () -> ()
+    """)
+    op = _find(module, SequentialRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert not any(trait.is_repetitive_region(op, index) for index in range(2))
+    assert not trait.has_loop(op)
+
+
+def test_converging_successors():
+    # Both blocks of region 0 branch to region 1, so the traversal reaches region 1 twice.
+    module = _parse("""
+    "test.sequential_regions_op"() ({
+      "test.dummy_op"() : () -> ()
+    ^bb1:
+      "test.dummy_op"() : () -> ()
+    }, {
+      "test.dummy_op"() : () -> ()
+    }) : () -> ()
+    """)
+    op = _find(module, SequentialRegionsOp)
+    trait = _trait(op, RegionBranchOpTrait)
+    assert not trait.is_repetitive_region(op, 0)
+    # The terminators forward no values, so no operand slot is mapped.
+    assert trait.successor_operand_input_mapping(op) == {}
+
+
+def test_has_loop(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, _, _ = loop
+    trait = _trait(op, RegionBranchOpTrait)
+    assert trait.has_loop(op)
+    assert trait.is_repetitive_region(op, 0)
+
+
+def test_verify_valid(loop: tuple[LoopOp, YieldOp, dict[str, SSAValue]]):
+    op, _, _ = loop
+    op.verify()
+
+
+@pytest.mark.parametrize(
+    ("ir", "message"),
+    [
+        (
+            """
+            %init = "test.op"() : () -> i32
+            "test.loop"(%init) ({
+            ^bb0(%a: i32, %b: i32):
+              "test.yield"(%a, %b) : (i32, i32) -> ()
+            }) : (i32) -> (i32, i32)
+            """,
+            "along control flow edge from parent to Region #0: region branch point has 1 operands, "
+            "but region successor needs 2 inputs",
+        ),
+        (
+            """
+            %init = "test.op"() : () -> i32
+            "test.loop"(%init) ({
+            ^bb0(%a: i64):
+              "test.yield"(%a) : (i64) -> ()
+            }) : (i32) -> i64
+            """,
+            "along control flow edge from parent to Region #0: successor operand type #0 i32 "
+            "should match successor input type #0 i64",
+        ),
+        (
+            """
+            %init = "test.op"() : () -> i32
+            "test.loop"(%init) ({
+            ^bb0(%a: i32):
+              %next = "test.op"() : () -> i64
+              "test.yield"(%next) : (i64) -> ()
+            }) : (i32) -> i64
+            """,
+            "along control flow edge from Operation 'test.yield' to Region #0: successor "
+            "operand type #0 i64 should match successor input type #0 i32",
+        ),
+        (
+            """
+            %init = "test.op"() : () -> i32
+            "test.loop"(%init) ({
+            ^bb0(%a: i32):
+              "test.yield"(%a) : (i32) -> ()
+            }) : (i32) -> i64
+            """,
+            "along control flow edge from Operation 'test.yield' to Operation 'test.loop': "
+            "successor operand type #0 i32 should match successor input type #0 i64",
+        ),
+    ],
+)
+def test_verify_invalid_edges(ir: str, message: str):
+    op = _find(_parse(ir), LoopOp)
+    with pytest.raises(VerifyException, match=re.escape(message)):
+        op.verify()
+
+
+def test_verify_custom_type_compatibility():
+    module = _parse("""
+    %x = "test.op"() : () -> i32
+    %y = "test.integer_cast"(%x) ({ "test.termop"() : () -> () }) : (i32) -> i64
+    %z = "test.integer_cast"(%x) ({ "test.termop"() : () -> () }) : (i32) -> index
+    """)
+    valid, invalid = (op for op in module.walk() if isinstance(op, IntegerCastOp))
+    trait = _trait(valid, RegionBranchOpTrait)
+    assert trait.are_types_compatible(valid, i32, i64)
+    valid.verify()
+    message = (
+        "along control flow edge from parent to Operation 'test.integer_cast': "
+        "successor operand type #0 i32 should match successor input type #0 index"
+    )
+    with pytest.raises(VerifyException, match=re.escape(message)):
+        invalid.verify()
+
+
+def test_verify_no_regions():
+    # Variadic regions may be empty at runtime.
+    _find(_parse('"test.loop_regions_op"() : () -> ()'), LoopRegionsOp).verify()
