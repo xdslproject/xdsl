@@ -1159,6 +1159,19 @@ class RegionBranchOpTrait(OpTrait):
         """
         raise NotImplementedError()
 
+    @classmethod
+    def successor_inputs(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """
+        Return all successor inputs for the given region successor. If the given region
+        successor is a region, then the returned values are block arguments. Otherwise, if the
+        given region successor is an operation, the returned values are op results.
+        """
+        return ()
+
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 
