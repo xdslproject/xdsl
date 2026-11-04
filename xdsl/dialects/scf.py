@@ -3,9 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar, Self
 
+from xdsl.dialects.arith import AddiOp, IntegerOverflowFlag
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseArrayBase,
     IndexType,
+    IntegerAttr,
     IntegerType,
     SignlessIntegerConstraint,
     i1,
@@ -16,11 +19,16 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
+from xdsl.interfaces import (
+    RegionBranchOpInterface,
+    RegionBranchTerminatorOpInterface,
+)
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
     Operation,
+    OpResult,
     Region,
     SSAValue,
     TypeAttribute,
@@ -44,20 +52,41 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasCanonicalizationPatternsTrait,
     HasParent,
+    InvocationBounds,
     IsTerminator,
+    OperandRange,
     Pure,
     RecursivelySpeculatable,
     RecursiveMemoryEffect,
+    RegionBranchPoint,
+    RegionSuccessor,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+
+
+def _constant_bool(attr: Attribute | None) -> bool | None:
+    """Return the value of `attr` if it is an `i1` constant."""
+    if isa(attr, BoolAttr):
+        return attr.value.data != 0
+    return None
+
+
+def _constant_int(value: SSAValue) -> int | None:
+    """Return the value of `value` if it is defined by an integer constant."""
+    attr = ConstantLike.get_constant_value(value)
+    if isinstance(attr, IntegerAttr):
+        return attr.value.data
+    return None
 
 
 @irdl_op_definition
-class WhileOp(IRDLOperation):
+class WhileOp(IRDLOperation, RegionBranchOpInterface):
     name = "scf.while"
     arguments = var_operand_def()
 
@@ -80,7 +109,26 @@ class WhileOp(IRDLOperation):
             regions=[before_region, after_region],
         )
 
-    # TODO verify dependencies between scf.condition, scf.yield and the regions
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        return OperandRange(self)
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if (terminator := point.terminator) is None:
+            return [RegionSuccessor(self.before_region)]
+        # The after region always branches back to the before region.
+        if terminator.parent_region() is self.after_region:
+            return [RegionSuccessor(self.before_region)]
+        return [RegionSuccessor(self), RegionSuccessor(self.after_region)]
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        if successor.is_operation():
+            return self.results
+        if successor.region is self.before_region:
+            return self.before_region.block.args
+        return self.after_region.block.args
+
+    # TODO verify that the before region ends with scf.condition and the after region
+    # with scf.yield. The types along the edges are verified by the interface.
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
             if self.before_region.block.args[idx].type != arg.type:
@@ -169,7 +217,7 @@ class WhileOp(IRDLOperation):
 
 
 @irdl_op_definition
-class YieldOp(AbstractYieldOperation[Attribute]):
+class YieldOp(AbstractYieldOperation[Attribute], RegionBranchTerminatorOpInterface):
     name = "scf.yield"
 
     traits = lazy_traits_def(
@@ -192,7 +240,7 @@ class ExecuteRegionOpHasCanonicalizationPatternsTrait(HasCanonicalizationPattern
 
 
 @irdl_op_definition
-class ExecuteRegionOp(IRDLOperation):
+class ExecuteRegionOp(IRDLOperation, RegionBranchOpInterface):
     """
     Operation that executes its region exactly once.
     See external [documentation](https://mlir.llvm.org/docs/Dialects/SCFDialect/#scfexecute_region-scfexecuteregionop).
@@ -214,6 +262,19 @@ class ExecuteRegionOp(IRDLOperation):
         attr_dict: dict[str, Attribute] | None = None,
     ):
         super().__init__(result_types=(result_types,), regions=(region,))
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if point.is_parent():
+            return [RegionSuccessor(self.region)]
+        return [RegionSuccessor(self)]
+
+    def region_invocation_bounds(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[InvocationBounds]:
+        return [InvocationBounds(1, 1)]
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        return self.results if successor.is_operation() else ()
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -267,7 +328,7 @@ class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class IfOp(IRDLOperation):
+class IfOp(IRDLOperation, RegionBranchOpInterface):
     name = "scf.if"
     output = var_result_def()
     cond = operand_def(i1)
@@ -300,6 +361,37 @@ class IfOp(IRDLOperation):
             regions=[true_region, false_region],
             attributes=attr_dict,
         )
+
+    def _else_successor(self) -> RegionSuccessor:
+        # Without an else region, control continues after the op.
+        if self.false_region.blocks:
+            return RegionSuccessor(self.false_region)
+        return RegionSuccessor(self)
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if not point.is_parent():
+            return [RegionSuccessor(self)]
+        return [RegionSuccessor(self.true_region), self._else_successor()]
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        return self.results if successor.is_operation() else ()
+
+    def entry_successor_regions(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[RegionSuccessor]:
+        cond = _constant_bool(operands[0])
+        if cond is None:
+            return self.successor_regions(RegionBranchPoint.PARENT)
+        return [RegionSuccessor(self.true_region) if cond else self._else_successor()]
+
+    def region_invocation_bounds(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[InvocationBounds]:
+        cond = _constant_bool(operands[0])
+        if cond is None:
+            return [InvocationBounds(0, 1)] * 2
+        # MLIR keeps the lower bound at 0 even when the condition is known.
+        return [InvocationBounds(0, int(cond)), InvocationBounds(0, int(not cond))]
 
     @staticmethod
     def parse_region_with_yield(parser: Parser) -> Region:
@@ -367,6 +459,59 @@ class IfOp(IRDLOperation):
             printer.print_attr_dict(self.attributes)
 
 
+def _ub_minus_lb(lb: SSAValue, ub: SSAValue) -> int | None:
+    """Return `ub - lb` if `ub` is `arith.addi lb, c` with a constant `c` and `nsw`."""
+    if (
+        not isinstance(ub, OpResult)
+        or not isinstance(add_op := ub.owner, AddiOp)
+        or IntegerOverflowFlag.NSW not in add_op.overflow_flags.data
+        or add_op.lhs is not lb
+    ):
+        return None
+    return _constant_int(add_op.rhs)
+
+
+def _static_trip_count(lb: SSAValue, ub: SSAValue, step: SSAValue) -> int | None:
+    """
+    Return the number of iterations of the loop, or None if it is not known statically.
+
+    Port of MLIR `constantTripCount`. Unlike MLIR, the bounds are always compared as signed
+    integers, as `scf.for` has no `unsignedCmp` here, and the bitwidth check is skipped, as the
+    bounds and step are verified to have the same type.
+    """
+    if lb is ub:
+        return 0
+    lb_value = _constant_int(lb)
+    if lb_value == 0 and ub is step:
+        return 1
+
+    step_value = _constant_int(step)
+    if step_value == 0:
+        # Either zero or infinitely many iterations.
+        return None
+
+    ub_value = _constant_int(ub)
+    if lb_value is not None:
+        if ub_value is None:
+            return None
+        if ub_value <= lb_value:
+            return 0
+        diff = ub_value - lb_value
+    else:
+        if ub_value is not None:
+            return None
+        diff = _ub_minus_lb(lb, ub)
+        if diff is None:
+            return None
+
+    if diff < 0:
+        return 0
+    # A negative step may never reach the upper bound.
+    if step_value is None or step_value < 0:
+        return None
+    return -(-diff // step_value)
+
+
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -379,7 +524,7 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class ForOp(IRDLOperation):
+class ForOp(IRDLOperation, RegionBranchOpInterface):
     name = "scf.for"
 
     T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
@@ -417,6 +562,24 @@ class ForOp(IRDLOperation):
             regions=[body],
         )
 
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        # `iter_args` come after `lb`, `ub` and `step`.
+        return OperandRange(self, 3)
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        trip_count = _static_trip_count(self.lb, self.ub, self.step)
+        if point.is_parent() and trip_count is not None:
+            return [RegionSuccessor(self.body if trip_count else self)]
+        if not point.is_parent() and trip_count == 1:
+            return [RegionSuccessor(self)]
+        return [RegionSuccessor(self.body), RegionSuccessor(self)]
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        if successor.is_operation():
+            return self.results
+        # Skip the induction variable.
+        return self.body.block.args[1:]
+
     def verify_(self):
         # body block verification
         if not self.body.block.args:
@@ -424,8 +587,7 @@ class ForOp(IRDLOperation):
                 "Body block must have induction var as first block arg"
             )
 
-        indvar, *block_iter_args = self.body.block.args
-        block_iter_args_num = len(block_iter_args)
+        indvar = self.body.block.args[0]
         iter_args = self.iter_args
         iter_args_num = len(self.iter_args)
 
@@ -433,17 +595,6 @@ class ForOp(IRDLOperation):
             if opnd.type != indvar.type:
                 raise VerifyException(
                     "Expected induction var to be same type as bounds and step"
-                )
-        if iter_args_num + 1 != block_iter_args_num + 1:
-            raise VerifyException(
-                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
-                "Body block must have induction and loop-carried variables as args."
-            )
-        for i, arg in enumerate(iter_args):
-            if block_iter_args[i].type != arg.type:
-                raise VerifyException(
-                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
-                    "Block args after the induction variable must match the loop-carried variables."
                 )
         if (last_op := self.body.block.last_op) is not None and isinstance(
             last_op, YieldOp
@@ -546,7 +697,7 @@ class ForOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ParallelOp(IRDLOperation):
+class ParallelOp(IRDLOperation, RegionBranchOpInterface):
     name = "scf.parallel"
     lowerBound = var_operand_def(IndexType)
     upperBound = var_operand_def(IndexType)
@@ -578,6 +729,9 @@ class ParallelOp(IRDLOperation):
             regions=[body],
             result_types=[[SSAValue.get(a).type for a in init_vals]],
         )
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        return [RegionSuccessor(self.body), RegionSuccessor(self)]
 
     def verify_(self) -> None:
         # First check that the number of lower and upper bounds, along with the number of
@@ -654,7 +808,7 @@ class ParallelOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ReduceOp(IRDLOperation):
+class ReduceOp(IRDLOperation, RegionBranchTerminatorOpInterface):
     name = "scf.reduce"
     args = var_operand_def()
 
@@ -677,6 +831,10 @@ class ReduceOp(IRDLOperation):
         regions: Sequence[Region] = (),
     ):
         super().__init__(operands=(args,), regions=(regions,))
+
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        # The reduced values are not forwarded.
+        return OperandRange(self, 0, 0)
 
     def verify_(self) -> None:
         if len(self.args) != len(self.reductions):
@@ -730,7 +888,7 @@ class ReduceReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ConditionOp(IRDLOperation):
+class ConditionOp(IRDLOperation, RegionBranchTerminatorOpInterface):
     name = "scf.condition"
     condition = operand_def(IntegerType(1))
     args = var_operand_def()
@@ -746,9 +904,26 @@ class ConditionOp(IRDLOperation):
     ):
         super().__init__(operands=(condition, args))
 
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        # Everything but the condition is forwarded.
+        return OperandRange(self, 1)
+
+    def successor_regions(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[RegionSuccessor]:
+        while_op = self.parent_op()
+        assert isinstance(while_op, WhileOp)
+        cond = _constant_bool(operands[0])
+        regions: list[RegionSuccessor] = []
+        if cond is None or cond:
+            regions.append(RegionSuccessor(while_op.after_region))
+        if cond is None or not cond:
+            regions.append(RegionSuccessor(while_op))
+        return regions
+
 
 @irdl_op_definition
-class IndexSwitchOp(IRDLOperation):
+class IndexSwitchOp(IRDLOperation, RegionBranchOpInterface):
     name = "scf.index_switch"
 
     arg = operand_def(IndexType)
@@ -782,15 +957,40 @@ class IndexSwitchOp(IRDLOperation):
             result_types=(result_types,),
         )
 
-    def _verify_region(self, region: Region, name: str):
-        yield_op = region.block.last_op
-        assert isinstance(yield_op, YieldOp)
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        if not point.is_parent():
+            return [RegionSuccessor(self)]
+        return [RegionSuccessor(region) for region in self.regions]
 
-        if yield_op.operand_types != self.result_types:
-            raise VerifyException(
-                f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})"
-                f" but expected ({', '.join(str(x) for x in self.result_types)})"
-            )
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        return self.results if successor.is_operation() else ()
+
+    def _live_region(self, arg: Attribute | None) -> Region | None:
+        """The region entered for the constant `arg`, or None if `arg` is not constant."""
+        if not isinstance(arg, IntegerAttr):
+            return None
+        for case_value, case_region in zip(self.cases.iter_values(), self.case_regions):
+            if case_value == arg.value.data:
+                return case_region
+        return self.default_region
+
+    def entry_successor_regions(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[RegionSuccessor]:
+        if (live_region := self._live_region(operands[0])) is None:
+            return self.successor_regions(RegionBranchPoint.PARENT)
+        return [RegionSuccessor(live_region)]
+
+    def region_invocation_bounds(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[InvocationBounds]:
+        # Deviates from MLIR, which indexes the regions as [case0..caseN, default] while the
+        # default region comes first, and so marks the wrong region as live for every constant.
+        live_region = self._live_region(operands[0])
+        return [
+            InvocationBounds(0, int(live_region is None or live_region is region))
+            for region in self.regions
+        ]
 
     def verify_(self) -> None:
         if len(self.cases) != len(self.case_regions):
@@ -801,10 +1001,6 @@ class IndexSwitchOp(IRDLOperation):
         cases = self.cases
         if len(set(cases.iter_values())) != len(cases):
             raise VerifyException("has duplicate case value")
-
-        self._verify_region(self.default_region, "default")
-        for name, region in zip(cases.iter_values(), self.case_regions, strict=True):
-            self._verify_region(region, str(name))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
