@@ -1235,3 +1235,13 @@ def test_region_branch_op_entry_successor_regions():
     assert trait is not None
     assert list(trait.entry_successor_regions(op, [])) == [RegionSuccessor(region)]
     assert list(_ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]
+
+
+def test_region_branch_op_successor_inputs():
+    region = Region()
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[region]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.successor_inputs(op, RegionSuccessor(region))) == []
+    assert list(_ExitOnlyTrait.successor_inputs(op, RegionSuccessor(op))) == []

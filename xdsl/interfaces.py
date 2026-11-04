@@ -149,6 +149,12 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     ) -> Sequence[RegionSuccessor]:
         return cast(RegionBranchOpInterface, op).successor_regions(point)
 
+    @classmethod
+    def successor_inputs(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Sequence[SSAValue]:
+        return cast(RegionBranchOpInterface, op).successor_inputs(successor)
+
 
 class RegionBranchOpInterface(Operation, abc.ABC):
     """
@@ -169,6 +175,10 @@ class RegionBranchOpInterface(Operation, abc.ABC):
     def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
         """See `RegionBranchOpTrait.successor_regions`."""
         raise NotImplementedError()
+
+    def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
+        """See `RegionBranchOpTrait.successor_inputs`."""
+        return ()
 
 
 class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
