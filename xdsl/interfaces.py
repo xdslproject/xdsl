@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, Region, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
@@ -151,10 +151,22 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
         return cast(RegionBranchOpInterface, op).successor_regions(point)
 
     @classmethod
+    def successor_regions_from_region(
+        cls, op: Operation, region: Region
+    ) -> Sequence[RegionSuccessor]:
+        return cast(RegionBranchOpInterface, op).successor_regions_from_region(region)
+
+    @classmethod
     def successor_inputs(
         cls, op: Operation, successor: RegionSuccessor
     ) -> Sequence[SSAValue]:
         return cast(RegionBranchOpInterface, op).successor_inputs(successor)
+
+    @classmethod
+    def predecessors(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Sequence[RegionBranchPoint]:
+        return cast(RegionBranchOpInterface, op).predecessors(successor)
 
     @classmethod
     def region_invocation_bounds(
@@ -189,9 +201,30 @@ class RegionBranchOpInterface(Operation, abc.ABC):
         """See `RegionBranchOpTrait.successor_regions`."""
         raise NotImplementedError()
 
+    def successor_regions_from_region(
+        self, region: Region
+    ) -> Sequence[RegionSuccessor]:
+        """See `RegionBranchOpTrait.successor_regions_from_region`."""
+        regions: list[RegionSuccessor] = []
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is not None and terminator.has_trait(
+                RegionBranchTerminatorOpTrait
+            ):
+                regions.extend(self.successor_regions(RegionBranchPoint(terminator)))
+        return regions
+
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         """See `RegionBranchOpTrait.successor_inputs`."""
         return ()
+
+    def predecessors(self, successor: RegionSuccessor) -> Sequence[RegionBranchPoint]:
+        """See `RegionBranchOpTrait.predecessors`."""
+        return [
+            point
+            for point in _RegionBranchOpInterfaceTrait.all_region_branch_points(self)
+            if successor in self.successor_regions(point)
+        ]
 
     def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
