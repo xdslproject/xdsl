@@ -1,10 +1,44 @@
 import re
+import sys
+import typing
+from collections.abc import Callable
 from typing import Generic
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import NoDefault, TypeVar
 
-from xdsl.utils.hints import get_type_var_mapping, get_type_var_mapping_with_defaults
+from xdsl.utils.hints import (
+    get_type_var_default,
+    get_type_var_mapping,
+    get_type_var_mapping_with_defaults,
+)
+
+
+@pytest.mark.parametrize(
+    "factory", [typing.TypeVar, TypeVar], ids=["typing", "extensions"]
+)
+def test_type_var_without_default(factory: Callable[..., typing.TypeVar]):
+    assert get_type_var_default(factory("T")) is NoDefault
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [
+        pytest.param(
+            typing.TypeVar,
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 13),
+                reason="typing.TypeVar defaults require Python 3.13",
+            ),
+            id="typing",
+        ),
+        pytest.param(TypeVar, id="extensions"),
+    ],
+)
+@pytest.mark.parametrize("default", [int, None, NoDefault])
+def test_type_var_default(factory: Callable[..., typing.TypeVar], default: object):
+    assert get_type_var_default(factory("T", default=default)) is default
+
 
 T0 = TypeVar("T0")
 T1 = TypeVar("T1")

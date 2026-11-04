@@ -1,4 +1,5 @@
 import types
+import typing
 from collections.abc import Iterable, Sequence
 from inspect import isclass
 from typing import (
@@ -14,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import NoDefault, TypeVar
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -23,6 +24,14 @@ if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
 _T = TypeVar("_T")
+
+
+def get_type_var_default(type_var: typing.TypeVar) -> Any:
+    """Return the default, or typing_extensions.NoDefault if it is absent."""
+    # `typing.NoDefault` and `typing_extensions.NoDefault` are the same if both are
+    # defined. We still need to fallback to __default__ not being implemented as long as
+    # we support Python 3.11
+    return getattr(type_var, "__default__", NoDefault)
 
 
 def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
@@ -139,7 +148,7 @@ PropertyType = type(_Class.property)
 """The type of a property method."""
 
 
-def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
+def get_type_var_from_generic_class(cls: type[Any]) -> tuple[typing.TypeVar, ...]:
     """Return the `TypeVar` used in the class `Generic` parent."""
     cls_orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     for orig_base in cls_orig_bases:
@@ -150,7 +159,7 @@ def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
 
 def get_type_var_mapping(
     cls: type[Any],
-) -> tuple[tuple[TypeVar, ...], dict[TypeVar, Any]]:
+) -> tuple[tuple[typing.TypeVar, ...], dict[typing.TypeVar, Any]]:
     """
     Given a Generic class, return the TypeVars used to specialize it, and the mapping
     from the generic class type variables to the specialized arguments for all type
@@ -163,8 +172,8 @@ def get_type_var_mapping(
         raise ValueError(f"{cls} does not specialize a generic class.")
 
     orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
-    mapping: dict[TypeVar, Any] = {}
-    args: tuple[TypeVar, ...] = ()
+    mapping: dict[typing.TypeVar, Any] = {}
+    args: tuple[typing.TypeVar, ...] = ()
 
     for base in orig_bases:
         base_origin = get_origin(base)
@@ -206,7 +215,7 @@ def get_type_var_mapping(
     return args, mapping
 
 
-def get_type_var_mapping_with_defaults(cls: type[Any]) -> dict[TypeVar, Any]:
+def get_type_var_mapping_with_defaults(cls: type[Any]) -> dict[typing.TypeVar, Any]:
     """
     Given a Generic class, returns the mapping from the generic class type variables
     to the specialized arguments for all type variables used in ancestor classes.
@@ -216,8 +225,8 @@ def get_type_var_mapping_with_defaults(cls: type[Any]) -> dict[TypeVar, Any]:
     args, mapping = get_type_var_mapping(cls)
 
     for a in args:
-        if a.has_default():
-            mapping[a] = a.__default__
+        if (default := get_type_var_default(a)) is not NoDefault:
+            mapping[a] = default
 
     return mapping
 
