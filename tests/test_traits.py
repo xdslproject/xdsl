@@ -1245,3 +1245,30 @@ def test_region_branch_op_successor_inputs():
     assert trait is not None
     assert list(trait.successor_inputs(op, RegionSuccessor(region))) == []
     assert list(_ExitOnlyTrait.successor_inputs(op, RegionSuccessor(op))) == []
+
+
+def test_region_branch_op_region_invocation_bounds() -> None:
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[Region(), Region()]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert (
+        list(trait.region_invocation_bounds(op, [])) == [InvocationBounds.UNKNOWN] * 2
+    )
+    assert (
+        list(_ExitOnlyTrait.region_invocation_bounds(op, []))
+        == [InvocationBounds.UNKNOWN] * 2
+    )
+
+
+def test_region_branch_op_are_types_compatible() -> None:
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert trait.are_types_compatible(op, i32, i32)
+    assert not trait.are_types_compatible(op, i32, i64)
+    assert _ExitOnlyTrait.are_types_compatible(op, i32, i32)
+    assert not _ExitOnlyTrait.are_types_compatible(op, i32, i64)

@@ -1172,6 +1172,38 @@ class RegionBranchOpTrait(OpTrait):
         """
         return ()
 
+    @classmethod
+    def region_invocation_bounds(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[InvocationBounds]:
+        """
+        Returns the minimum and maximum number of times this operation will invoke the attached
+        regions (assuming the regions yield normally, i.e. do not abort or invoke an infinite
+        loop). The minimum number of invocations is at least 0. If the maximum number of
+        invocations cannot be statically determined, then it will be set to
+        `InvocationBounds.UNKNOWN`.
+
+        This method also passes along the constant operands of this op. `operands` contains an
+        entry for every operand of this op, with `None` if the operand has no constant value.
+
+        This method may be called speculatively on operations where the provided operands are not
+        necessarily the same as the operation's current operands. This may occur in analyses that
+        wish to determine "what would be the region invocations if these were the operands?"
+        """
+        return [InvocationBounds.UNKNOWN] * len(op.regions)
+
+    @classmethod
+    def are_types_compatible(
+        cls, op: Operation, lhs: Attribute, rhs: Attribute
+    ) -> bool:
+        """
+        This method is called to compare types along control-flow edges. By default, the types
+        are checked as equal.
+        """
+        return lhs == rhs
+
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 
