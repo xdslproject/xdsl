@@ -19,6 +19,7 @@ from xdsl.traits import (
     ConditionallySpeculatable,
     HasCanonicalizationPatternsTrait,
     HasFolder,
+    InvocationBounds,
     RegionBranchOpTrait,
     RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
@@ -155,6 +156,18 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     ) -> Sequence[SSAValue]:
         return cast(RegionBranchOpInterface, op).successor_inputs(successor)
 
+    @classmethod
+    def region_invocation_bounds(
+        cls, op: Operation, operands: Sequence[Attribute | None]
+    ) -> Sequence[InvocationBounds]:
+        return cast(RegionBranchOpInterface, op).region_invocation_bounds(operands)
+
+    @classmethod
+    def are_types_compatible(
+        cls, op: Operation, lhs: Attribute, rhs: Attribute
+    ) -> bool:
+        return cast(RegionBranchOpInterface, op).are_types_compatible(lhs, rhs)
+
 
 class RegionBranchOpInterface(Operation, abc.ABC):
     """
@@ -179,6 +192,16 @@ class RegionBranchOpInterface(Operation, abc.ABC):
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         """See `RegionBranchOpTrait.successor_inputs`."""
         return ()
+
+    def region_invocation_bounds(
+        self, operands: Sequence[Attribute | None]
+    ) -> Sequence[InvocationBounds]:
+        """See `RegionBranchOpTrait.region_invocation_bounds`."""
+        return [InvocationBounds.UNKNOWN] * len(self.regions)
+
+    def are_types_compatible(self, lhs: Attribute, rhs: Attribute) -> bool:
+        """See `RegionBranchOpTrait.are_types_compatible`."""
+        return lhs == rhs
 
 
 class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
