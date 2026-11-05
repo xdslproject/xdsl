@@ -11,8 +11,11 @@ from xdsl.dialects.bufferization import (
 from xdsl.dialects.builtin import (
     AnyUnrankedMemRefTypeConstr,
     IndexType,
+    IntAttr,
     IntegerType,
     MemRefType,
+    NoneAttr,
+    StridedLayoutAttr,
     TensorType,
     UnitAttr,
     UnrankedMemRefType,
@@ -65,24 +68,36 @@ class TensorFromMemRefOp(IRDLOperation):
     in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
 
 
-def test_tensor_from_memref_constraint():
+@pytest.mark.parametrize(
+    "memref_ty, tensor_ty",
+    [
+        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 30])),
+        (
+            MemRefType(IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30], NoneAttr(), IntAttr(1)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(
+                IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4), IntAttr(1)
+            ),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (UnrankedMemRefType.from_type(IndexType()), UnrankedTensorType(IndexType())),
+    ],
+)
+def test_tensor_from_memref_constraint(memref_ty: MemRefType, tensor_ty: TensorType):
     [v_memref, v_tensor] = TestOp(
         result_types=[
-            MemRefType(IndexType(), [10, 20, 30]),
-            TensorType(IndexType(), [10, 20, 30]),
+            memref_ty,
+            tensor_ty,
         ]
     ).res
     op1 = TensorFromMemRefOp(operands=(v_tensor, v_memref, v_tensor))
     op1.verify()
-
-    [v_unranked_memref, v_unranked_tensor] = TestOp(
-        result_types=[
-            UnrankedMemRefType.from_type(IndexType()),
-            UnrankedTensorType(IndexType()),
-        ]
-    ).res
-    op2 = TensorFromMemRefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
-    op2.verify()
 
 
 @pytest.mark.parametrize(
