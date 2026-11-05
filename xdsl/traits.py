@@ -1160,6 +1160,21 @@ class RegionBranchOpTrait(OpTrait):
         raise NotImplementedError()
 
     @classmethod
+    def successor_regions_from_region(
+        cls, op: Operation, region: Region
+    ) -> Iterator[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from any terminator in
+        `region`.
+        """
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is not None and terminator.has_trait(
+                RegionBranchTerminatorOpTrait
+            ):
+                yield from cls.successor_regions(op, RegionBranchPoint(terminator))
+
+    @classmethod
     def successor_inputs(
         cls,
         op: Operation,
@@ -1171,6 +1186,15 @@ class RegionBranchOpTrait(OpTrait):
         given region successor is an operation, the returned values are op results.
         """
         return ()
+
+    @classmethod
+    def predecessors(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Iterator[RegionBranchPoint]:
+        """Returns all potential branching points (predecessors) for a given region successor."""
+        for point in cls.all_region_branch_points(op):
+            if successor in cls.successor_regions(op, point):
+                yield point
 
     @classmethod
     def region_invocation_bounds(
@@ -1213,6 +1237,21 @@ class RegionBranchOpTrait(OpTrait):
             raise VerifyException(
                 f"'{op.name}' implements RegionBranchOpInterface but defines no regions."
             )
+
+    @classmethod
+    def all_region_branch_points(cls, op: Operation) -> Iterator[RegionBranchPoint]:
+        """
+        Return all possible region branch points: the region branch op itself and all region
+        branch terminators.
+        """
+        yield RegionBranchPoint.PARENT
+        for region in op.regions:
+            for block in region.blocks:
+                terminator = block.last_op
+                if terminator is not None and terminator.has_trait(
+                    RegionBranchTerminatorOpTrait
+                ):
+                    yield RegionBranchPoint(terminator)
 
 
 class RegionBranchTerminatorOpTrait(OpTrait):
