@@ -59,7 +59,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 
 
 @irdl_attr_definition
@@ -269,7 +269,7 @@ class EmitCTypeConstraint(AttrConstraint):
         EmitCArrayElementTypeConstr.verify(attr, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint:
         # No type variables to map in this constraint
         return self

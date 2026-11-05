@@ -42,6 +42,7 @@ from xdsl.utils.exceptions import (
 )
 from xdsl.utils.hints import (
     PropertyType,
+    TypeVarType,
     get_type_var_mapping_with_defaults,
     isa,
 )
@@ -917,7 +918,9 @@ class OpDef:
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
-        type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint] | None = None
+        type_var_mapping: (
+            Mapping[TypeVarType, AttrConstraint | IntConstraint] | None
+        ) = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
         # generic operation. Retrieve the mapping from `TypeVar` to pyrdl constraints.

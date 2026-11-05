@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
@@ -28,6 +26,7 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import TypeVarType
 
 _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(
     ArrayAttr[
@@ -65,7 +64,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> "ContiguousArrayOfIntArray":
         # No type variables to map in this constraint
         return self

@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     I1,
     I32,
@@ -102,7 +100,7 @@ from xdsl.traits import (
     SymbolUserOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -1933,7 +1931,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
         return VectorType(element_type, [len(mask)])
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[VectorType]:
         return ShuffleVectorResultConstraint(
             self.element_constr.mapping_type_vars(type_var_mapping),

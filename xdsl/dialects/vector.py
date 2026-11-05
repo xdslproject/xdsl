@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
@@ -78,7 +76,7 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 from xdsl.utils.lexer import Position
 from xdsl.utils.str_enum import StrEnum
 
@@ -213,7 +211,7 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
         return VectorType(element_type, ArrayAttr(shape))
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[VectorType]:
         return ShuffleResultConstraint(
             self.element_constr.mapping_type_vars(type_var_mapping),

@@ -5,8 +5,6 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     I16,
     I32,
@@ -89,7 +87,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 
 boolLike = container_of(IntegerType(1))
 signlessIntegerLike = container_of(IntegerType | IndexType)
@@ -698,7 +696,7 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
         return self.result_constr.verify(result_type, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[ValueType | RangeType[ValueType]]:
         return ValueConstrFromResultConstr(
             self.result_constr.mapping_type_vars(type_var_mapping)

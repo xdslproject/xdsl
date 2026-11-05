@@ -58,7 +58,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -498,7 +498,7 @@ def test_parameterized_attribute_verify_constraints():
             raise VerifyException("Always fails")
 
         def mapping_type_vars(
-            self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+            self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
         ) -> FailConstraint:
             return self
 
@@ -647,7 +647,7 @@ class PositiveIntConstr(AttrConstraint):
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> PositiveIntConstr:
         return self
 
@@ -915,7 +915,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> DataListAttr[AttributeInvT]:
         return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 

@@ -43,6 +43,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
+from xdsl.utils.hints import TypeVarType
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -197,7 +198,7 @@ class LessThan(AttrConstraint):
             raise VerifyException(f"{attr} should hold a value less than {self.bound}")
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 
@@ -215,7 +216,7 @@ class GreaterThan(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 

@@ -7,14 +7,16 @@ from types import GenericAlias, new_class
 from typing import Any, Generic, cast
 
 import pytest
-from typing_extensions import TypeForm, TypeVar
+from typing_extensions import NoDefault, TypeForm, TypeVar
 
 from xdsl.dialects.builtin import IndexType, IntegerType, StringAttr, i32
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
+    AttrConstraint,
     BaseAttr,
+    IntConstraint,
     IntTypeVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
@@ -27,7 +29,11 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
-from xdsl.utils.hints import get_type_var_mapping_with_defaults
+from xdsl.utils.hints import (
+    TypeVarType,
+    get_type_var_default,
+    get_type_var_mapping_with_defaults,
+)
 
 
 @pytest.fixture(params=[typing.TypeVar, TypeVar], ids=["typing", "extensions"])
@@ -101,6 +107,24 @@ def test_type_var_constraints(type_var_factory: Callable[..., typing.TypeVar]):
     assert get_int_constraint(
         cast(TypeForm[int], integer_variable)
     ) == IntTypeVarConstraint(integer_variable, AnyInt())
+
+
+def test_mixed_type_var_mapping():
+    Native = typing.TypeVar("Native", bound=Attribute)
+    Backport = TypeVar("Backport", bound=Attribute, default=IndexType)
+    mapping: dict[TypeVarType, AttrConstraint | IntConstraint] = {
+        Native: BaseAttr(IndexType),
+        Backport: BaseAttr(StringAttr),
+    }
+
+    assert TypeVarConstraint(Native, AnyAttr()).mapping_type_vars(mapping) == BaseAttr(
+        IndexType
+    )
+    assert TypeVarConstraint(Backport, AnyAttr()).mapping_type_vars(
+        mapping
+    ) == BaseAttr(StringAttr)
+    assert get_type_var_default(Native) is NoDefault
+    assert get_type_var_default(Backport) is IndexType
 
 
 def test_generic_op_without_default(type_var_factory: Callable[..., typing.TypeVar]):

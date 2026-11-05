@@ -98,7 +98,7 @@ from xdsl.utils.comparisons import (
     unsigned_value_range,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 
 if TYPE_CHECKING:
     from _typeshed import ReadableBuffer, WriteableBuffer
@@ -278,7 +278,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         return self.elem_range_constraint.variables()
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
         return ArrayOfConstraint(
             self.elem_range_constraint.mapping_type_vars(type_var_mapping)
@@ -312,7 +312,7 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
         return {StringAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[StringAttr]:
         return self
 
@@ -375,7 +375,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> EmptyArrayAttrConstraint:
         return self
 
@@ -460,7 +460,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return {IntAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ):
         return IntAttrConstraint.get(
             self.int_constraint.mapping_type_vars(type_var_mapping)
@@ -876,7 +876,7 @@ class LocationConstraint(AttrConstraint):
         raise VerifyException(f"{attr} is not a location attribute")
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint:
         # No type variables to map in this constraint
         return self
@@ -897,7 +897,7 @@ class LocationsArrayConstraint(AttrConstraint):
             self.location_constraint.verify(element, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> AttrConstraint:
         # No type variables to map in this constraint
         return self
@@ -2303,7 +2303,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> VectorRankConstraint:
         return self
 
@@ -2326,7 +2326,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeConstraint:
         return self
 
@@ -2350,7 +2350,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
         constraint.verify(attr, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeAndRankConstraint:
         return self
 

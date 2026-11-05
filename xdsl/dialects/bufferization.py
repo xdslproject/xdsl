@@ -5,8 +5,6 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     AnyUnrankedMemRefTypeConstr,
@@ -36,7 +34,7 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import TypeVarType, isa
 
 
 @dataclass(frozen=True)
@@ -91,7 +89,7 @@ class TensorFromMemRefConstraint(
         return {TensorType, UnrankedTensorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVarType, AttrConstraint | IntConstraint]
     ) -> TensorFromMemRefConstraint:
         return TensorFromMemRefConstraint(
             self.memref_constraint.mapping_type_vars(type_var_mapping)
