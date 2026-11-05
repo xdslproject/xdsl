@@ -1162,19 +1162,17 @@ class RegionBranchOpTrait(OpTrait):
     @classmethod
     def successor_regions_from_region(
         cls, op: Operation, region: Region
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """
         Returns all potential region successors when branching from any terminator in
         `region`.
         """
-        regions: list[RegionSuccessor] = []
         for block in region.blocks:
             terminator = block.last_op
             if terminator is not None and terminator.has_trait(
                 RegionBranchTerminatorOpTrait
             ):
-                regions.extend(cls.successor_regions(op, RegionBranchPoint(terminator)))
-        return regions
+                yield from cls.successor_regions(op, RegionBranchPoint(terminator))
 
     @classmethod
     def successor_inputs(
@@ -1192,13 +1190,11 @@ class RegionBranchOpTrait(OpTrait):
     @classmethod
     def predecessors(
         cls, op: Operation, successor: RegionSuccessor
-    ) -> Sequence[RegionBranchPoint]:
+    ) -> Iterator[RegionBranchPoint]:
         """Returns all potential branching points (predecessors) for a given region successor."""
-        return [
-            point
-            for point in cls.all_region_branch_points(op)
-            if successor in cls.successor_regions(op, point)
-        ]
+        for point in cls.all_region_branch_points(op):
+            if successor in cls.successor_regions(op, point):
+                yield point
 
     @classmethod
     def region_invocation_bounds(
@@ -1243,20 +1239,19 @@ class RegionBranchOpTrait(OpTrait):
             )
 
     @classmethod
-    def all_region_branch_points(cls, op: Operation) -> Sequence[RegionBranchPoint]:
+    def all_region_branch_points(cls, op: Operation) -> Iterator[RegionBranchPoint]:
         """
         Return all possible region branch points: the region branch op itself and all region
         branch terminators.
         """
-        points = [RegionBranchPoint.PARENT]
+        yield RegionBranchPoint.PARENT
         for region in op.regions:
             for block in region.blocks:
                 terminator = block.last_op
                 if terminator is not None and terminator.has_trait(
                     RegionBranchTerminatorOpTrait
                 ):
-                    points.append(RegionBranchPoint(terminator))
-        return points
+                    yield RegionBranchPoint(terminator)
 
 
 class RegionBranchTerminatorOpTrait(OpTrait):

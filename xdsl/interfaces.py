@@ -8,7 +8,7 @@ This can be more convenient than adding the traits explicitly.
 """
 
 import abc
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -153,7 +153,7 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     @classmethod
     def successor_regions_from_region(
         cls, op: Operation, region: Region
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         return cast(RegionBranchOpInterface, op).successor_regions_from_region(region)
 
     @classmethod
@@ -165,7 +165,7 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     @classmethod
     def predecessors(
         cls, op: Operation, successor: RegionSuccessor
-    ) -> Sequence[RegionBranchPoint]:
+    ) -> Iterator[RegionBranchPoint]:
         return cast(RegionBranchOpInterface, op).predecessors(successor)
 
     @classmethod
@@ -203,28 +203,24 @@ class RegionBranchOpInterface(Operation, abc.ABC):
 
     def successor_regions_from_region(
         self, region: Region
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """See `RegionBranchOpTrait.successor_regions_from_region`."""
-        regions: list[RegionSuccessor] = []
         for block in region.blocks:
             terminator = block.last_op
             if terminator is not None and terminator.has_trait(
                 RegionBranchTerminatorOpTrait
             ):
-                regions.extend(self.successor_regions(RegionBranchPoint(terminator)))
-        return regions
+                yield from self.successor_regions(RegionBranchPoint(terminator))
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         """See `RegionBranchOpTrait.successor_inputs`."""
         return ()
 
-    def predecessors(self, successor: RegionSuccessor) -> Sequence[RegionBranchPoint]:
+    def predecessors(self, successor: RegionSuccessor) -> Iterator[RegionBranchPoint]:
         """See `RegionBranchOpTrait.predecessors`."""
-        return [
-            point
-            for point in _RegionBranchOpInterfaceTrait.all_region_branch_points(self)
-            if successor in self.successor_regions(point)
-        ]
+        for point in _RegionBranchOpInterfaceTrait.all_region_branch_points(self):
+            if successor in self.successor_regions(point):
+                yield point
 
     def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
