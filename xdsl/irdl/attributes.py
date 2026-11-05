@@ -610,25 +610,20 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
         literal_args = get_args(arg)
 
         if all(isinstance(literal_arg, int) for literal_arg in literal_args):
-            if len(literal_args) == 1:
-                return EqIntConstraint(literal_args[0])
-            else:
-                ints = frozenset(literal_arg for literal_arg in literal_args)
-                return IntSetConstraint(ints)
+            return IntSetConstraint.get(*literal_args)
 
-    if get_origin(arg) is Union:
-        union_args = get_args(arg)
-        if all(
-            (get_origin(union_arg) is Literal)
-            and all(isinstance(literal_arg, int) for literal_arg in get_args(union_arg))
-            for union_arg in union_args
-        ):
-            ints = frozenset(
-                literal_arg
-                for union_arg in union_args
-                for literal_arg in get_args(union_arg)
-            )
-            return IntSetConstraint(ints)
+    if get_origin(arg) in (Union, UnionType):
+        ints: set[int] = set()
+        for member in get_args(arg):
+            constraint = get_optional_int_constraint(member)
+            match constraint:
+                case EqIntConstraint():
+                    ints.add(constraint.value)
+                case IntSetConstraint():
+                    ints.update(constraint.values)
+                case _:
+                    return None
+        return IntSetConstraint.get(*ints)
 
     if (
         isinstance(arg, TypeVar)
