@@ -25,7 +25,10 @@ if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
 TypeVarType: TypeAlias = typing.TypeVar | TypeVar
-"""Both TypeVar providers; their stubs describe distinct classes before Python 3.13."""
+"""
+Either typing.TypeVar or typing_extensions.TypeVar, which are distinct for some versions
+of Python.
+"""
 
 _T = TypeVar("_T")
 
