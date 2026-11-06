@@ -76,22 +76,24 @@ with pytest.deprecated_call():
         in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
 
 
-@pytest.mark.parametrize(
-    "memref_ty, tensor_ty",
-    [
-        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 30])),
-        (UnrankedMemRefType.from_type(IndexType()), UnrankedTensorType(IndexType())),
-    ],
-)
-def test_tensor_from_memref_constraint(memref_ty: MemRefType, tensor_ty: TensorType):
+def test_tensor_from_memref_constraint():
     [v_memref, v_tensor] = TestOp(
         result_types=[
-            memref_ty,
-            tensor_ty,
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IndexType(), [10, 20, 30]),
         ]
     ).res
     op1 = TensorFromMemRefOp(operands=(v_tensor, v_memref, v_tensor))
     op1.verify()
+
+    [v_unranked_memref, v_unranked_tensor] = TestOp(
+        result_types=[
+            UnrankedMemRefType.from_type(IndexType()),
+            UnrankedTensorType(IndexType()),
+        ]
+    ).res
+    op2 = TensorFromMemRefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
+    op2.verify()
 
 
 @pytest.mark.parametrize(
