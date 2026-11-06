@@ -185,7 +185,7 @@ def _verify_rank(*vals: SSAValue | None):
         isinstance(val.type, UnrankedTensorType | UnrankedMemRefType)
         for val in vals
         if val is not None
-    ]
+    }
     if len(is_unranked) == 1:
         # Either all ranked or all unranked
         return
