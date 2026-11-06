@@ -7,7 +7,7 @@ from enum import auto
 from typing import Any, Literal, Self
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import TypeForm, TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
@@ -519,6 +519,28 @@ def test_irdl_to_attr_constraint():
             ),
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "hint",
+    [
+        Literal[True],
+        Literal[False],
+        Literal[1, True],
+        Literal[TestEnum.A, False],
+        IntegerType | Literal[True],
+        IntAttr[Literal[True]],
+    ],
+)
+def test_boolean_literal_attribute_constraints_unsupported(hint: TypeForm[Any]):
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        irdl_to_attr_constraint(hint)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_constraint(hint)
 
 
 def test_get_constraint():
