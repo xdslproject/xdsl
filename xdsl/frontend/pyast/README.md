@@ -69,9 +69,9 @@ builtin.module {
 ├── code_generation.py        : Walk AST to generate the `py` dialect from
 │                               nodes, without the registered mappings.
 │                               Simple operands supported, no control flow.
-│                               Assignment only to single variables.
-│                               Implicitly no support for complex structures
-│                               such as classes
+│                               Assignment only to variables or tuples of
+│                               them. Implicitly no support for complex
+│                               structures such as classes
 ├── context.py                : Configure mappings and transformations, and
 │                               decorate functions with parse_program
 ├── lowering.py               : Lower `py` to the operations registered in the
@@ -92,7 +92,7 @@ builtin.module {
    each AST node:
    - [x] `Assert`
    - [ ] `AnnAssign`
-   - [x] `Assign` (single variables only)
+   - [x] `Assign` (to a variable or a tuple of variables)
    - [x] `BinOp`
    - [ ] `Break`
    - [x] `Call`
@@ -108,6 +108,6 @@ builtin.module {
    - [ ] `None`
    - [ ] `string`
    - [ ] `list`
-   - [ ] `tuple`
+   - [x] `tuple` (unpacked only)
    - [ ] `dict`
    - [ ] `set`

@@ -88,7 +88,7 @@ try:
     chained.module
 except CodeGenerationException as error:
     print(error.msg)
-# CHECK: Only assignment to a single variable is supported.
+# CHECK: Only assignment to a variable or a tuple of variables is supported.
 
 
 @ctx.parse_program
@@ -97,11 +97,77 @@ def unpacked(x: int) -> int:
     return y
 
 
+print(unpacked.module)
+# CHECK:       func.func @unpacked(%x: i32) -> i32 {
+# CHECK-NEXT:    %0, %1 = arith.addui_extended %x, %x : i32, i1
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def swapped(x: int, y: int) -> int:
+    x, y = y, x
+    return add(x, add(x, y))
+
+
+print(swapped.module)
+# CHECK:       func.func @swapped(%x: i32, %y: i32) -> i32 {
+# CHECK-NEXT:    %0 = arith.addi %y, %x : i32
+# CHECK-NEXT:    %1 = arith.addi %y, %0 : i32
+# CHECK-NEXT:    func.return %1 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def too_many(x: int) -> int:
+    y, _z, _w = pair(x, x)  # pyright: ignore[reportAssignmentType]
+    return y
+
+
 try:
-    unpacked.module
+    too_many.module
 except CodeGenerationException as error:
     print(error.msg)
-# CHECK: Only assignment to a single variable is supported.
+# CHECK: Expected 3 values to unpack, got 2.
+
+
+@ctx.parse_program
+def single(x: int) -> int:
+    y, _z = add(x, x)  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
+    return y
+
+
+try:
+    single.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Expected 2 values to unpack, got 1.
+
+
+@ctx.parse_program
+def kept_tuple(x: int) -> int:
+    _y = (x, x)
+    return x
+
+
+try:
+    kept_tuple.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Tuples are only supported when unpacked.
+
+
+@ctx.parse_program
+def nested(x: int) -> int:
+    (y, _z), _w = (x, x), x
+    return y
+
+
+try:
+    nested.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Only assignment to a variable or a tuple of variables is supported.
 
 
 @ctx.parse_program
