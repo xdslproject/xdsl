@@ -54,7 +54,7 @@ from .attributes import (  # noqa: TID251
     single_range_constr_coercion,
 )
 from .constraints import (  # noqa: TID251
-    AnyAttr,
+    AnyRange,
     AttrConstraint,
     IntConstraint,
     RangeConstraint,
@@ -412,7 +412,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
+    entry_args: RangeConstraint = field(default_factory=AnyRange)
 
 
 @dataclass
@@ -777,7 +777,7 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -792,7 +792,7 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -807,7 +807,7 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1071,7 +1071,7 @@ class OpDef:
                     if isinstance(pyrdl_constr, RangeConstraint):
                         # Pyright does not know the type of the generic range constraint
                         return cast(RangeConstraint, pyrdl_constr)
-                    return RangeOf(get_constraint(pyrdl_constr))
+                    return RangeOf.get(pyrdl_constr)
 
                 field_names.add(field_name)
 
