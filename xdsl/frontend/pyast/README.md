@@ -57,29 +57,40 @@ builtin.module {
 ```text
 .
 ├── utils
-│   ├── builder.py            : Build a module from a function AST: generate
-│   │                           it, lower its `py` operations, verify it, and
-│   │                           apply the configured transformation passes
-│   ├── exceptions.py         : Custom exceptions for the frontend and code
-│   │                           generation
-│   ├── op_inserter.py        : Helper class to add operations from a stack to
-│   │                           the end of an operation/region/block
-│   └── type_conversion.py    : Map between Python objects, Python AST nodes,
-│                               and xDSL IR for the types and functions
-├── code_generation.py        : Walk AST to generate the `py` dialect from
-│                               nodes, without the registered mappings.
-│                               Simple operands supported, no control flow.
-│                               Assignment only to variables or tuples of
-│                               them. Implicitly no support for complex
-│                               structures such as classes
-├── context.py                : Configure mappings and transformations, and
-│                               decorate functions with parse_program
-├── lowering.py               : Lower `py` to the operations registered in the
-│                               context
-├── program.py                : Callable function wrapper with lazily built
-│                               and cached IR accessible through module
+│   ├── builder.py
+│   ├── exceptions.py
+│   ├── op_inserter.py
+│   └── type_conversion.py
+├── code_generation.py
+├── context.py
+├── lowering.py
+├── program.py
 └── README.md
 ```
+
+- `utils/builder.py`:
+  Builds a module from a function AST.
+  It generates the module, lowers its `py` operations and verifies it.
+  Then it applies the configured transformation passes.
+- `utils/exceptions.py`:
+  Custom exceptions for the frontend and code generation.
+- `utils/op_inserter.py`:
+  Adds operations from a stack to the end of an operation, region or block.
+- `utils/type_conversion.py`:
+  Maps between Python objects, AST nodes and xDSL IR for types and functions.
+- `code_generation.py`:
+  Walks the AST to generate `py` from its nodes, without the registered mappings.
+  Simple operands are supported, with no control flow.
+  Assignment is only to variables or tuples of them.
+  There is implicitly no support for complex structures such as classes.
+- `context.py`:
+  Configures the mappings and transformations.
+  Decorates functions with `parse_program`.
+- `lowering.py`:
+  Lowers `py` to the operations registered in the context.
+- `program.py`:
+  Wraps a function as a callable.
+  Its IR is built lazily, cached, and accessible through `module`.
 
 ## Future development
 
