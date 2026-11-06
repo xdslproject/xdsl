@@ -181,13 +181,13 @@ class CloneOp(IRDLOperation):
 
 
 def _verify_rank(*vals: SSAValue | None):
-    is_unranked_list = [
-        isinstance(val.type, UnrankedTensorType)
-        or isinstance(val.type, UnrankedMemRefType)
+    is_unranked = {
+        isinstance(val.type, UnrankedTensorType | UnrankedMemRefType)
         for val in vals
         if val is not None
     ]
-    if all(is_unranked_list) or not any(is_unranked_list):
+    if len(is_unranked) == 1:
+        # Either all ranked or all unranked
         return
     raise VerifyException(
         "All memref and tensor types should either be ranked or unranked"
