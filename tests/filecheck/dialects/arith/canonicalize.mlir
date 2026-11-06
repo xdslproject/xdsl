@@ -34,6 +34,21 @@ func.func @test_const_const() {
     // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (f32, f32, f32, f32) -> ()
 }
 
+func.func @test_const_const_overflow() {
+    %a = arith.constant 3.0e38 : f32
+    %b = arith.constant -3.0e38 : f32
+    %1 = arith.mulf %a, %a : f32
+    %2 = arith.mulf %a, %b : f32
+    "test.op"(%1, %2) : (f32, f32) -> ()
+
+    return
+
+    // CHECK-LABEL: @test_const_const_overflow
+    // CHECK-NEXT:   %0 = arith.constant 0x7f800000 : f32
+    // CHECK-NEXT:   %1 = arith.constant 0xff800000 : f32
+    // CHECK-NEXT:   "test.op"(%0, %1) : (f32, f32) -> ()
+}
+
 func.func @test_const_var_const() {
     %0, %1 = "test.op"() : () -> (f32, f32)
     %a = arith.constant 2.9979 : f32
