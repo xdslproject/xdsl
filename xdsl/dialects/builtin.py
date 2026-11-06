@@ -1106,7 +1106,7 @@ class IntegerAttr(
 
     @staticmethod
     def from_bool(value: bool) -> BoolAttr:
-        return IntegerAttr(value, 1)
+        return IntegerAttr(value, i1)
 
     def print_builtin(self, printer: Printer) -> None:
         ty = self.type
@@ -1172,7 +1172,7 @@ class IntegerAttr(
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
-BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
+BoolAttr: TypeAlias = IntegerAttr[I1]
 
 
 class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
