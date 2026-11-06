@@ -567,6 +567,17 @@ def test_mapping_type_vars():
             AttrSetConstraint(frozenset((AttrA(), AttrC()))),
         ),
         (AttrSetConstraint.get(AttrA()), EqAttrConstraint(AttrA())),
+        (AllOf.get(), AnyAttr()),
+        (AllOf.get(AttrA), BaseAttr(AttrA)),
+        (AllOf.get(AttrA, AttrB), AllOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+        (
+            AllOf.get(AttrA, AnyAttr(), AttrB),
+            AllOf((BaseAttr(AttrA), BaseAttr(AttrB))),
+        ),
+        (
+            AllOf.get(AllOf.get(AttrA, AttrB), AttrC),
+            AllOf((BaseAttr(AttrA), BaseAttr(AttrB), BaseAttr(AttrC))),
+        ),
     ],
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
