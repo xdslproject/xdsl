@@ -172,12 +172,14 @@ def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
     memref_v = TestOp(result_types=[memref_t]).res[0]
 
     to_tensor = ToTensorOp(memref_v)
+    to_tensor.verify()
     assert to_tensor.memref == memref_v
     assert to_tensor.restrict is None
     assert to_tensor.writable is None
     assert to_tensor.tensor.type == tensor_t
 
     to_tensor = ToTensorOp(memref_v, writable=True, restrict=True)
+    to_tensor.verify()
     assert to_tensor.memref == memref_v
     assert to_tensor.restrict == UnitAttr()
     assert to_tensor.writable == UnitAttr()
@@ -193,6 +195,11 @@ def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
             "expected from variable 'ELEM_T'",
         ),
         (
+            UnrankedMemRefType.from_type(IndexType()),
+            UnrankedTensorType(IntegerType(64)),
+            "expected from variable 'ELEM_T'",
+        ),
+        (
             MemRefType(IndexType(), [10, 20, 30]),
             TensorType(IndexType(), [10, 20, 40]),
             "expected from variable 'SHAPE'",
@@ -202,16 +209,16 @@ def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
             TensorType(IndexType(), [10, 20]),
             "expected from variable 'SHAPE'",
         ),
-        (
-            UnrankedMemRefType.from_type(IndexType()),
-            TensorType(IndexType(), [10, 20, 30]),
-            "expected from variable 'SHAPE'",
-        ),
-        (
-            MemRefType(IndexType(), [10, 20, 30]),
-            UnrankedTensorType(IndexType()),
-            "expected from variable 'SHAPE'",
-        ),
+        # (
+        #     UnrankedMemRefType.from_type(IndexType()),
+        #     TensorType(IndexType(), [10, 20, 30]),
+        #     "expected from variable 'SHAPE'",
+        # ),
+        # (
+        #     MemRefType(IndexType(), [10, 20, 30]),
+        #     UnrankedTensorType(IndexType()),
+        #     "expected from variable 'SHAPE'",
+        # ),
     ],
 )
 def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType, err: str):

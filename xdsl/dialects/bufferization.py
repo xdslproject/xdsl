@@ -35,6 +35,7 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
     var_operand_def,
+    ParamAttrConstraint,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -186,8 +187,14 @@ class ToTensorOp(IRDLOperation):
     ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
     SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
 
-    memref = operand_def(MemRefType.constr(ELEM_T, shape=SHAPE))
-    tensor = result_def(TensorType.constr(ELEM_T, shape=SHAPE))
+    memref = operand_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+    )
+    tensor = result_def(
+        TensorType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
+    )
 
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
@@ -233,8 +240,14 @@ class ToBufferOp(IRDLOperation):
     ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
     SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
 
-    tensor = operand_def(TensorType.constr(ELEM_T, shape=SHAPE))
-    memref = result_def(MemRefType.constr(ELEM_T, shape=SHAPE))
+    tensor = operand_def(
+        TensorType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
+    )
+    memref = result_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+    )
 
     read_only = opt_prop_def(UnitAttr)
 
@@ -247,10 +260,16 @@ class MaterializeInDestinationOp(IRDLOperation):
 
     ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
     SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
-    TENSOR_CONSTR: ClassVar = TensorType.constr(ELEM_T, shape=SHAPE)
+    TENSOR_CONSTR: ClassVar = TensorType.constr(
+        ELEM_T, shape=SHAPE
+    ) | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
 
     source = operand_def(TENSOR_CONSTR)
-    dest = operand_def(MemRefType.constr(ELEM_T, shape=SHAPE) | TENSOR_CONSTR)
+    dest = operand_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+        | TENSOR_CONSTR
+    )
     result = opt_result_def(TENSOR_CONSTR)
 
     restrict = opt_prop_def(UnitAttr)
