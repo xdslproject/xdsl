@@ -12,6 +12,12 @@ def add(operand1: int, operand2: int) -> int: ...
 def pair(operand1: int, operand2: int) -> tuple[int, bool]: ...
 
 
+def triple(operand1: int, operand2: int) -> tuple[int, int, int]: ...
+
+
+def split(operand1: int, operand2: int) -> tuple[int, int]: ...
+
+
 def effect(value: int) -> int: ...
 
 
@@ -31,6 +37,9 @@ ctx.register_type(int, builtin.i32)
 ctx.register_type(bool, builtin.i1)
 ctx.register_function(add, arith.AddiOp)
 ctx.register_function(pair, arith.AddUIExtendedOp)
+# Registered with fewer results than the functions return, to test unpacking them.
+ctx.register_function(triple, arith.AddUIExtendedOp)
+ctx.register_function(split, arith.AddiOp)
 ctx.register_function(effect, build_effect)
 ctx.register_function(consume, build_consume)
 
@@ -120,7 +129,7 @@ print(swapped.module)
 
 @ctx.parse_program
 def too_many(x: int) -> int:
-    y, _z, _w = pair(x, x)  # pyright: ignore[reportAssignmentType]
+    y, _z, _w = triple(x, x)
     return y
 
 
@@ -133,7 +142,7 @@ except CodeGenerationException as error:
 
 @ctx.parse_program
 def single(x: int) -> int:
-    y, _z = add(x, x)  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
+    y, _z = split(x, x)
     return y
 
 
