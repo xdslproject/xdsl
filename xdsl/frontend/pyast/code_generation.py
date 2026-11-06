@@ -317,7 +317,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.last_return = node
 
         value = node.value
-        if value is None or (isinstance(value, ast.Constant) and value.value is None):
+        if value is None:
             # A bare return returns None, which is constructed first, as in bytecode.
             none = py.PyConstOp.from_value(None)
             self.insert_op(none, node)
