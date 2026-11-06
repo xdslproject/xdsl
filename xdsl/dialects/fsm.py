@@ -12,7 +12,6 @@ from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
@@ -237,7 +236,7 @@ class TransitionOp(IRDLOperation):
 
     def __init__(
         self,
-        nextState: FlatSymbolRefAttr,
+        nextState: SymbolRefAttr,
         guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
         action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
@@ -382,9 +381,7 @@ class InstanceOp(IRDLOperation):
 
     res = result_def(InstanceType)
 
-    def __init__(
-        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
-    ):
+    def __init__(self, sym_name: str, machine: SymbolRefAttr, instance: InstanceType):
         if isinstance(machine, str):
             machine = SymbolRefAttr(machine)
         properties: dict[str, Attribute] = {
@@ -476,7 +473,7 @@ class HWInstanceOp(IRDLOperation):
     def __init__(
         self,
         sym_name: str | StringAttr,
-        machine: str | FlatSymbolRefAttr,
+        machine: str | SymbolRefAttr,
         inputs: Sequence[SSAValue | Operation],
         clock: SSAValue | Operation,
         reset: SSAValue | Operation,

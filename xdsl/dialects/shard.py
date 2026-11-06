@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BytesAttr,
     DenseArrayBase,
-    FlatSymbolRefAttr,
     IndexType,
     IndexTypeConstr,
     IntegerAttr,
@@ -20,6 +19,7 @@ from xdsl.dialects.builtin import (
     i16,
     i64,
 )
+from xdsl.dialects.hw import FlatSymbolRefAttrConstr
 from xdsl.dialects.utils import DimensionList, DynamicIndexList, EnumAttribute
 from xdsl.ir import (
     Attribute,
@@ -166,7 +166,7 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
     Base class for collective communication ops.
     """
 
-    grid = prop_def(FlatSymbolRefAttr)
+    grid = prop_def(FlatSymbolRefAttrConstr)
     grid_axes = prop_def(
         ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b""))
     )
@@ -451,7 +451,7 @@ class ShardingOp(IRDLOperation):
 
     name = "shard.sharding"
 
-    grid = prop_def(FlatSymbolRefAttr)
+    grid = prop_def(FlatSymbolRefAttrConstr)
     split_axes = prop_def(ShardAxesArrayAttr)
     static_sharded_dims_offsets = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
