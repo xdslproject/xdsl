@@ -6,7 +6,7 @@ from typing import Generic
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.dialects.bufferization import TensorFromMemRefConstraint
+from xdsl.dialects.bufferization import TensorFromMemRefConstraint  # pyright: ignore[reportDeprecated]
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
@@ -315,7 +315,7 @@ def test_attr_set_constraint():
 def test_tensor_to_memref(
     input: TensorType | UnrankedTensorType, output: MemRefType | UnrankedMemRefType
 ):
-    assert TensorFromMemRefConstraint.tensor_to_memref(input) == output
+    assert TensorFromMemRefConstraint.tensor_to_memref(input) == output  # pyright: ignore[reportDeprecated]
 
 
 @pytest.mark.parametrize(
@@ -328,7 +328,7 @@ def test_tensor_to_memref(
 def test_memref_to_tensor(
     input: MemRefType | UnrankedMemRefType, output: TensorType | UnrankedTensorType
 ):
-    assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
+    assert TensorFromMemRefConstraint.memref_to_tensor(input) == output  # pyright: ignore[reportDeprecated]
 
 
 _T = TypeVar("_T")
