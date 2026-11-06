@@ -10,7 +10,8 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I32,
     I64,
-    AnyFloatConstr,
+    AnyFloat,
+    AnySignlessIntegerType,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -21,7 +22,6 @@ from xdsl.dialects.builtin import (
     MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
-    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -462,7 +462,7 @@ class AssumeAlignmentOp(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get("T", AnyFloat | AnySignlessIntegerType)
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(T))

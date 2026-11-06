@@ -8,9 +8,6 @@ from typing import ClassVar
 from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
     IndexType,
     MemRefType,
     TensorType,
@@ -139,7 +136,7 @@ class AllocTensorOp(IRDLOperation):
 
     name = "bufferization.alloc_tensor"
 
-    T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
+    T: ClassVar = VarConstraint.get("T", TensorType | UnrankedTensorType)
 
     dynamic_sizes = var_operand_def(IndexType())
     copy = opt_operand_def(T)
@@ -168,7 +165,7 @@ class AllocTensorOp(IRDLOperation):
 class CloneOp(IRDLOperation):
     name = "bufferization.clone"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
+    T: ClassVar = VarConstraint.get("T", MemRefType | UnrankedMemRefType)
 
     input = operand_def(T)
     output = result_def(T)

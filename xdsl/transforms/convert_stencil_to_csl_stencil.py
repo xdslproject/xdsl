@@ -7,7 +7,6 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl_stencil, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyTensorType,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
@@ -112,12 +111,12 @@ class ConvertAccessOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        if isa(op.temp.type, AnyTensorType):
+        if isa(op.temp.type, TensorType):
             res_type = TensorType(
                 op.temp.type.get_element_type(), op.temp.type.get_shape()[1:]
             )
         else:
-            assert isa(op.res.type, AnyTensorType)
+            assert isa(op.res.type, TensorType)
             res_type = op.res.type
         rewriter.replace(
             op,
@@ -602,7 +601,7 @@ class TransformPrefetch(RewritePattern):
         # because we are building a set of offsets, we are not retaining offset mappings
         offsets = [swap.neighbor for swap in op.swaps]
 
-        assert isa(op.result.type, AnyTensorType)
+        assert isa(op.result.type, TensorType)
         chunk_buf_t = TensorType(
             op.result.type.get_element_type(),
             (
@@ -622,7 +621,7 @@ class TransformPrefetch(RewritePattern):
                 ac_op = csl_stencil.AccessOp(
                     buf, stencil.IndexAttr.from_indices(*acc_offset), chunk_t
                 )
-                assert isa(ac_op.result.type, AnyTensorType)
+                assert isa(ac_op.result.type, TensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)
                 # where the latter offset is provided dynamically (see offsets)
                 dest = tensor.InsertSliceOp.get(

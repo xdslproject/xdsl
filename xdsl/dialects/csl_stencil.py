@@ -5,7 +5,6 @@ from typing import TypeAlias, cast
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     I64,
-    AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
     Float32Type,
@@ -123,9 +122,7 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil = operand_def(
-        stencil.StencilTypeConstr | MemRefType.constr() | AnyTensorTypeConstr
-    )
+    input_stencil = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
@@ -133,7 +130,7 @@ class PrefetchOp(IRDLOperation):
 
     num_chunks = prop_def(IntegerAttr)
 
-    result = result_def(MemRefType.constr() | AnyTensorTypeConstr)
+    result = result_def(MemRefType | TensorType)
 
     def __init__(
         self,
@@ -447,9 +444,7 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(
-        MemRefType.constr() | stencil.StencilTypeConstr | AnyTensorTypeConstr
-    )
+    op = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType | MemRefType)

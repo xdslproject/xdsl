@@ -13,7 +13,6 @@ from xdsl.dialect_interfaces.constant_materialization import (
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyFloatConstr,
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
@@ -34,13 +33,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    BaseAttr,
     EqIntConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -146,7 +143,7 @@ class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
 class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers that return a float."""
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
 
     complex = operand_def(ComplexType.constr(T))
     result = result_def(T)
@@ -295,12 +292,8 @@ class BitcastOp(IRDLOperation):
     """
 
     name = "complex.bitcast"
-    operand = operand_def(
-        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
-    )
-    result = result_def(
-        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
-    )
+    operand = operand_def(ComplexType[AnyFloat] | AnyFloat | IntegerType)
+    result = result_def(ComplexType[AnyFloat] | AnyFloat | IntegerType)
 
     traits = traits_def(Pure())
 
@@ -341,7 +334,7 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "complex.constant"
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | IntegerType)
     value = prop_def(
         ArrayOfConstraint(
             RangeOf(
@@ -390,7 +383,7 @@ class CosOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class CreateOp(IRDLOperation):
     name = "complex.create"
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
     real = operand_def(T)
     imaginary = operand_def(T)
     complex = result_def(ComplexType.constr(T))

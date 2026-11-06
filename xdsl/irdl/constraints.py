@@ -208,16 +208,18 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         return self if self == other else None
 
     def __or__(
-        self, value: AttrConstraint[_AttributeCovT], /
+        self, value: IRDLAttrConstraint[_AttributeCovT], /
     ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
         if isinstance(value, AnyAttr) or self == value:
             return value  # pyright: ignore[reportReturnType]
         return AnyOf.get(self, value)
 
-    def __and__(self, value: AttrConstraint, /) -> AttrConstraint[AttributeCovT]:
+    def __and__(
+        self, value: IRDLAttrConstraint[AttributeInvT], /
+    ) -> AttrConstraint[AttributeInvT]:
         if isinstance(value, AnyAttr) or self == value:
-            return self
-        return AllOf((self, value))  # pyright: ignore[reportReturnType]
+            return self  # pyright: ignore[reportReturnType]
+        return AllOf.get(self, value)  # pyright: ignore[reportReturnType]
 
     @abstractmethod
     def mapping_type_vars(
@@ -248,8 +250,10 @@ class AnyAttr(AttrConstraint):
     ) -> AnyAttr:
         return self
 
-    def __and__(self, value: AttrConstraint[AttributeCovT], /):
-        return value
+    def __and__(self, value: IRDLAttrConstraint[AttributeCovT], /):
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        return irdl_to_attr_constraint(value)
 
 
 @dataclass(frozen=True)
@@ -266,7 +270,9 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
     """The constraint that the variable must satisfy."""
 
     @staticmethod
-    def get(name: str, constraint: IRDLAttrConstraint[AttributeCovT] = AnyAttr()):
+    def get(
+        name: str, constraint: IRDLAttrConstraint[AttributeInvT] = AnyAttr()
+    ) -> VarConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
         return VarConstraint(name, irdl_to_attr_constraint(constraint))
@@ -698,14 +704,14 @@ class AllOf(AttrConstraint[AttributeCovT]):
                 bases &= b
         return bases
 
-    def __and__(self, value: AttrConstraint, /) -> AllOf[AttributeCovT]:
-        return AllOf((*self.attr_constrs, value))  # pyright: ignore[reportReturnType]
+    def __and__(self, value: IRDLAttrConstraint, /) -> AttrConstraint[AttributeCovT]:
+        return AllOf.get(*self.attr_constrs, value)  # pyright: ignore[reportReturnType]
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> AllOf[AttributeCovT]:
-        return AllOf(
-            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
+    ) -> AttrConstraint[AttributeCovT]:
+        return AllOf.get(
+            *(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
 
 

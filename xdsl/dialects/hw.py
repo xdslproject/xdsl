@@ -26,7 +26,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     LocationAttr,
     Signedness,
-    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -1497,9 +1496,9 @@ class BitcastOp(IRDLOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "hw.constant"
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint.get("T", AnySignlessIntegerType)
     result = result_def(_T)
-    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+    value = prop_def(IntegerAttr.constr(_T))
 
     assembly_format = "attr-dict $value"
 

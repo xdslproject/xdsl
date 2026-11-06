@@ -15,9 +15,6 @@ import pytest
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -26,6 +23,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     i1,
     i32,
@@ -639,17 +637,11 @@ class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
     ops = var_operand_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     res = var_result_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     traits = traits_def(SameOperandsAndResultType())

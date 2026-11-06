@@ -1,7 +1,6 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
     ComplexType,
     IndexType,
     IntAttr,
@@ -9,6 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneType,
     Signedness,
+    TensorType,
     f32,
 )
 from xdsl.irdl import (
@@ -141,8 +141,8 @@ ops = [
         "Test_SingleOp",
         OpDef(
             name="test.single",
-            operands=[("arg", OperandDef(AnyTensorTypeConstr))],
-            results=[("res", ResultDef(AnyTensorTypeConstr))],
+            operands=[("arg", OperandDef(BaseAttr(TensorType)))],
+            results=[("res", ResultDef(BaseAttr(TensorType)))],
             assembly_format="$arg attr-dict : type($arg) -> type($res)",
         ),
     ),

@@ -15,7 +15,6 @@ Current deviations:
 from xdsl.dialects.builtin import (
     AnyAttr,
     IndexType,
-    IntegerAttrTypeConstr,
     IntegerType,
     MemRefType,
     UnitAttr,
@@ -53,7 +52,7 @@ class PtrAddOp(IRDLOperation):
     name = "ptr_xdsl.ptradd"
 
     addr = operand_def(PtrType)
-    offset = operand_def(IntegerAttrTypeConstr)
+    offset = operand_def(IndexType | IntegerType)
     result = result_def(PtrType)
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
@@ -70,7 +69,7 @@ class TypeOffsetOp(IRDLOperation):
     name = "ptr_xdsl.type_offset"
 
     elem_type = prop_def(AnyAttr())
-    offset = result_def(IntegerAttrTypeConstr)
+    offset = result_def(IndexType | IntegerType)
 
     assembly_format = "$elem_type attr-dict `:` type($offset)"
 
