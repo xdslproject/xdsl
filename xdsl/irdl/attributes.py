@@ -567,7 +567,10 @@ def irdl_to_attr_constraint(
         return attr_data.base_constr()
 
     if origin is Literal:
-        return AnyOf.get(*get_args(irdl))
+        literal_args = get_args(irdl)
+        if any(isinstance(value, bool) for value in literal_args):
+            raise PyRDLTypeError("Boolean literals are currently not supported")
+        return AnyOf.get(*literal_args)
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
@@ -599,7 +602,11 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
     """
     If the input is an int or an int type, return the corresponding constraint,
     otherwise return None.
+    Boolean literals are currently unsupported and raise `PyRDLTypeError`.
     """
+    if isinstance(arg, bool):
+        raise PyRDLTypeError("Boolean literals are currently not supported")
+
     if isinstance(arg, int):
         return EqIntConstraint(arg)
 
@@ -608,14 +615,17 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
 
     if get_origin(arg) is Literal:
         literal_args = get_args(arg)
+        if any(isinstance(value, bool) for value in literal_args):
+            raise PyRDLTypeError("Boolean literals are currently not supported")
 
         if all(isinstance(literal_arg, int) for literal_arg in literal_args):
             return IntSetConstraint.get(*literal_args)
 
     if get_origin(arg) in (Union, UnionType):
+        # Check every member before returning None for a non-integer constraint.
+        constraints = [get_optional_int_constraint(member) for member in get_args(arg)]
         ints: set[int] = set()
-        for member in get_args(arg):
-            constraint = get_optional_int_constraint(member)
+        for constraint in constraints:
             match constraint:
                 case EqIntConstraint():
                     ints.add(constraint.value)
