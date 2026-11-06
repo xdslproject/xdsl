@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
@@ -387,14 +387,15 @@ class TestRegionBranchOp(IRDLOperation, RegionBranchOpInterface):
     ops = var_operand_def()
     regs = var_region_def()
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         """
         Enters the first region, if any. Every region branches back to the parent
         operation.
         """
         if point.is_parent() and self.regions:
-            return [RegionSuccessor(self.regions[0])]
-        return [RegionSuccessor(self)]
+            yield RegionSuccessor(self.regions[0])
+        else:
+            yield RegionSuccessor(self)
 
 
 @irdl_op_definition
