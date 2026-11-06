@@ -26,9 +26,15 @@ from xdsl.dialects.builtin import (
     f64,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir.core import Attribute
-from xdsl.irdl.constraints import EqAttrConstraint, VarConstraint, VerificationContext
-from xdsl.irdl.operations import IRDLOperation, irdl_op_definition, operand_def
+from xdsl.ir import Attribute
+from xdsl.irdl import (
+    EqAttrConstraint,
+    IRDLOperation,
+    VarConstraint,
+    VerificationContext,
+    irdl_op_definition,
+    operand_def,
+)
 from xdsl.utils.exceptions import VerifyException
 
 

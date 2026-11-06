@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
     InferenceContext,
@@ -36,7 +37,6 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.constraints import AnyAttr
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
