@@ -1334,7 +1334,7 @@ def test_vector_constr():
         constr.verify(VectorType(i64, [1]), VerificationContext())
 
     shape = ArrayAttr([IntAttr(1)])
-    scalable_dims = ArrayAttr([IntegerAttr(0, IntegerType(1))])
+    scalable_dims = ArrayAttr([IntegerAttr(0, i1)])
     constr = VectorType.constr(
         i32,
         shape=shape,
