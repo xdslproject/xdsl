@@ -612,7 +612,7 @@ class BvConstantOp(IRDLOperation, HasFolderInterface):
 
     name = "smt.bv.constant"
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     value = prop_def(BitVectorAttr.constr(T))
     result = result_def(T)
@@ -650,7 +650,7 @@ class UnaryBVOp(IRDLOperation, ABC):
     It has one operand and one result of the same bitvector type.
     """
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     input = operand_def(T)
     result = result_def(T)
@@ -689,7 +689,7 @@ class BinaryBVOp(IRDLOperation, ABC):
     It has two operands and one result of the same bitvector type.
     """
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     lhs = operand_def(T)
     rhs = operand_def(T)

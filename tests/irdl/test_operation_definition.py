@@ -41,7 +41,6 @@ from xdsl.irdl import (
     ResultDef,
     VarConstraint,
     attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -203,7 +202,7 @@ def test_attr_verify():
 class GenericConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
-    T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
+    T: ClassVar = VarConstraint.get("T", IntegerType | IndexType)
 
     operand = operand_def(T)
     result = result_def(T)

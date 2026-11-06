@@ -1234,7 +1234,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType) | base(TensorType[Attribute]))
+    base_addr = operand_def(MemRefType | TensorType[Attribute])
     tensor_access = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
@@ -1866,9 +1866,9 @@ class SymbolExportOp(IRDLOperation):
 
     value = opt_operand_def(PtrType)
 
-    var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
+    var_name = prop_def(StringAttr | SymbolRefAttr)
 
-    type = prop_def(base(PtrType) | base(FunctionType))
+    type = prop_def(PtrType | FunctionType)
 
     def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
         var_name: StringAttr | SymbolRefAttr = (

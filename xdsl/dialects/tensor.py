@@ -44,7 +44,6 @@ from xdsl.irdl import (
     Operand,
     RangeOf,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -80,10 +79,8 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
-    dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
+    dest = result_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
@@ -240,9 +237,7 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
@@ -689,7 +684,7 @@ class InsertSliceOp(IRDLOperation):
 
     # An insert_slice returns a copy of its destination, so the two share a type.
     # The syntax leaves the result type off, and takes it from the destination.
-    DEST_TYPE: ClassVar = VarConstraint("DEST_TYPE", base(TensorType))
+    DEST_TYPE: ClassVar = VarConstraint.get("DEST_TYPE", TensorType)
 
     source = operand_def(TensorType)
     dest = operand_def(DEST_TYPE)
@@ -970,7 +965,7 @@ class PadOp(IRDLOperation):
 
     name = "tensor.pad"
 
-    source = operand_def(base(TensorType[Attribute]))
+    source = operand_def(TensorType[Attribute])
     low = var_operand_def(IndexType)
     high = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase.constr(i64))

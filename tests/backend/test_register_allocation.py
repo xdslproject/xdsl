@@ -20,7 +20,6 @@ from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -396,7 +395,7 @@ def test_verify_register_constraints():
     unrelated = create_ssa_value(u)
 
     class MisconstrainedOp(HasRegisterConstraints, IRDLOperation):
-        T: ClassVar = VarConstraint("T", base(TestRegisterType))
+        T: ClassVar = VarConstraint.get("T", TestRegisterType)
 
         a = operand_def(T)
         b = result_def(T)
@@ -469,7 +468,7 @@ def test_fail_error_message():
     class InoutOp(HasRegisterConstraints, IRDLOperation):
         name = "test.inout"
 
-        T: ClassVar = VarConstraint("T", base(TestRegisterType))
+        T: ClassVar = VarConstraint.get("T", TestRegisterType)
 
         a = operand_def(T)
         b = result_def(T)

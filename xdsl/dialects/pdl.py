@@ -175,8 +175,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    res = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -206,8 +206,8 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
-    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    res = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
 
     def __init__(
         self,
@@ -352,9 +352,9 @@ class OperationOp(IRDLOperation):
     opName = opt_prop_def(StringAttr)
     attributeValueNames = prop_def(ArrayAttr[StringAttr])
 
-    operand_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
+    operand_values = var_operand_def(ValueType | RangeType[ValueType])
     attribute_values = var_operand_def(AttributeType)
-    type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
+    type_values = var_operand_def(TypeType | RangeType[TypeType])
     op = result_def(OperationType)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -596,7 +596,7 @@ class RangeOp(IRDLOperation):
     """
 
     name = "pdl.range"
-    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    arguments = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
     result = result_def(RangeType[AnyPDLType])
 
     traits = lazy_traits_def(lambda: (HasParent(RewriteOp),))
@@ -674,7 +674,7 @@ class ReplaceOp(IRDLOperation):
     name = "pdl.replace"
     op_value = operand_def(OperationType)
     repl_operation = opt_operand_def(OperationType)
-    repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
+    repl_values = var_operand_def(ValueType | RangeType[ValueType])
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -744,7 +744,7 @@ class ResultsOp(IRDLOperation):
     name = "pdl.results"
     index = opt_prop_def(IntegerAttr[I32])
     parent_ = operand_def(OperationType)
-    val = result_def(base(ValueType) | base(RangeType[ValueType]))
+    val = result_def(ValueType | RangeType[ValueType])
 
     def __init__(
         self,
