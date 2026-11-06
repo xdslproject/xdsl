@@ -1,6 +1,3 @@
-# TensorFromMemRefConstraint is deprecated
-# pyright: reportDeprecated=false
-
 from typing import ClassVar
 
 import pytest
@@ -8,7 +5,7 @@ import pytest
 from xdsl.dialects.bufferization import (
     AllocTensorOp,
     CloneOp,
-    TensorFromMemRefConstraint,
+    TensorFromMemRefConstraint,  # pyright: ignore[reportDeprecated]
     ToTensorOp,
 )
 from xdsl.dialects.builtin import (
@@ -40,16 +37,16 @@ from xdsl.utils.exceptions import VerifyException
 
 def test_tensor_from_memref_inference():
     with pytest.deprecated_call():
-        constr = TensorFromMemRefConstraint(MemRefType.constr())
+        constr = TensorFromMemRefConstraint(MemRefType.constr())  # pyright: ignore[reportDeprecated]
         assert not constr.can_infer(set())
 
-        constr2 = TensorFromMemRefConstraint(
+        constr2 = TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
             EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
         )
         assert constr2.can_infer(set())
         assert constr2.infer(VerificationContext()) == TensorType(f64, [10, 20, 30])
 
-        constr3 = TensorFromMemRefConstraint(
+        constr3 = TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
             EqAttrConstraint(UnrankedMemRefType.from_type(f64))
         )
         assert constr3.can_infer(set())
@@ -66,14 +63,14 @@ with pytest.deprecated_call():
         )
 
         in_tensor = operand_def(
-            TensorFromMemRefConstraint(
+            TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
                 MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
             )
         )
 
         in_var_memref = operand_def(T)
 
-        in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
+        in_var_tensor = operand_def(TensorFromMemRefConstraint(T))  # pyright: ignore[reportDeprecated]
 
 
 def test_tensor_from_memref_constraint():
