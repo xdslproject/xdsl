@@ -1,6 +1,7 @@
 import ast
 import itertools
 from dataclasses import dataclass, field
+from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -97,15 +98,33 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(cf.AssertOp(self.inserter.get_operand(), msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Only assignment to a single variable is supported.",
-            )
+        match node.targets:
+            case [ast.Name(id=name)]:
+                value = self.visit_single_value(node.value)
+                self._assign(name, value, node)
+                return
+            case [ast.Tuple(elts=elements)] if all(
+                isinstance(element, ast.Name) for element in elements
+            ):
+                names = [cast(ast.Name, element).id for element in elements]
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only assignment to a variable or a tuple of variables is "
+                    "supported.",
+                )
+
         value = self.visit_single_value(node.value)
-        name = node.targets[0].id
+        unpack = py.PyUnpackOp(value, [py.PyObjectType()] * len(names))
+        self.insert_op(unpack, node)
+        # The values are assigned here, rather than left for an expression.
+        del self.inserter.stack[len(self.inserter.stack) - len(names) :]
+        for name, element in zip(names, unpack.res, strict=True):
+            self._assign(name, element, node)
+
+    def _assign(self, name: str, value: SSAValue, node: ast.Assign) -> None:
         assert self.symbol_table is not None
         if name not in self.symbol_table:
             self.symbol_table.add(name)
@@ -278,6 +297,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Symbol '{node.id}' is not defined.",
             )
         self.insert_op(symref.FetchOp(node.id, py.PyObjectType()), node)
+
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        elements = [self.visit_single_value(element) for element in node.elts]
+        self.insert_op(py.PyBuildTupleOp(elements), node)
 
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
