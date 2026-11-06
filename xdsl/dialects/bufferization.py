@@ -26,6 +26,7 @@ from xdsl.irdl import (
     InferenceContext,
     IntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     VarConstraint,
     VerificationContext,
     irdl_op_definition,
@@ -35,7 +36,6 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
     var_operand_def,
-    ParamAttrConstraint,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
