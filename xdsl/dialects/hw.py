@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
     ArrayAttr,
     ContainerType,
-    FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
     IntegerAttr,
@@ -32,6 +31,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
 )
+from xdsl.dialects.llvm import param_def
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -122,7 +122,7 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: FlatSymbolRefAttr
+    module_ref: SymbolRefAttr = param_def(FlatSymbolRefAttrConstr)
     # NB. upstream defines as “name” which clashes with Attribute.name
     sym_name: StringAttr
 
@@ -1120,7 +1120,7 @@ class InstanceOp(IRDLOperation):
     def __init__(
         self,
         instance_name: str,
-        module_name: FlatSymbolRefAttr,
+        module_name: SymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
         inner_sym: InnerSymAttr | None = None,
