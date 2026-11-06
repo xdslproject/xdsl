@@ -81,6 +81,15 @@ class xDSLOptMain(CommandLineTool):
                 f"(choose from {', '.join(self.available_targets)})"
             )
 
+        # Validate frontend spec
+        if self.args.frontend:
+            frontend_spec = parse_spec(self.args.frontend)
+            if frontend_spec.name not in self.available_frontends:
+                arg_parser.error(
+                    f"argument -f/--frontend: invalid choice: '{frontend_spec.name}' "
+                    f"(choose from {', '.join(self.available_frontends)})"
+                )
+
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
         if self.args.disable_verify:
@@ -335,8 +344,6 @@ class xDSLOptMain(CommandLineTool):
                 for chunk, off in zip(chunks_bytes, chunks_off, strict=True)
             ]
             f.close()
-        if self.args.frontend:
-            file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
             for chunk, _ in chunks:

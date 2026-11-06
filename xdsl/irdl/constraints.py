@@ -981,6 +981,13 @@ class IntSetConstraint(IntConstraint):
     def __repr__(self) -> str:
         return f"IntSetConstraint({{{', '.join(str(x) for x in sorted(self.values))}}})"
 
+    @staticmethod
+    def get(*values: int) -> IntConstraint:
+        unique_values = frozenset(values)
+        if len(unique_values) == 1:
+            return EqIntConstraint(values[0])
+        return IntSetConstraint(unique_values)
+
     def verify(
         self,
         i: int,

@@ -14,6 +14,18 @@ builtin.module {
     }) : () -> i32
     func.return %ret : i32
   }
+  func.func @memref_alloca_scope_custom() -> (i32, f32) {
+    memref.alloca_scope {
+    }
+    memref.alloca_scope {
+      "test.op"() : () -> ()
+    } {foo = 1 : i32}
+    %a, %b = memref.alloca_scope -> (i32, f32) {
+      %x, %y = "test.op"() : () -> (i32, f32)
+      memref.alloca_scope.return %x, %y : i32, f32
+    }
+    func.return %a, %b : i32, f32
+  }
   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
   "memref.global"() {"sym_name" = "g_constant", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public", "constant"} : () -> ()
   "memref.global"() {"alignment" = 64 : i64, "sym_name" = "g_with_alignment", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
@@ -72,17 +84,28 @@ builtin.module {
 
 // CHECK:  builtin.module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
-// CHECK-NEXT:      "memref.alloca_scope"() ({
-// CHECK-NEXT:        memref.alloca_scope.return
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      memref.alloca_scope {
+// CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:   func.func @memref_alloca_scope_val() -> i32 {
-// CHECK-NEXT:     %{{.*}} = "memref.alloca_scope"() ({
+// CHECK-NEXT:     %{{.*}} = memref.alloca_scope -> (i32) {
 // CHECK-NEXT:       %{{.*}} = "test.op"() : () -> i32
 // CHECK-NEXT:       memref.alloca_scope.return %{{.*}} : i32
-// CHECK-NEXT:     }) : () -> i32
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %ret : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   func.func @memref_alloca_scope_custom() -> (i32, f32) {
+// CHECK-NEXT:     memref.alloca_scope {
+// CHECK-NEXT:     }
+// CHECK-NEXT:     memref.alloca_scope {
+// CHECK-NEXT:       "test.op"() : () -> ()
+// CHECK-NEXT:     } {foo = 1 : i32}
+// CHECK-NEXT:     %a, %b = memref.alloca_scope -> (i32, f32) {
+// CHECK-NEXT:       %x, %y = "test.op"() : () -> (i32, f32)
+// CHECK-NEXT:       memref.alloca_scope.return %x, %y : i32, f32
+// CHECK-NEXT:     }
+// CHECK-NEXT:     func.return %a, %b : i32, f32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "memref.global"() <{sym_name = "g", sym_visibility = "public", type = memref<1xindex>, initial_value = dense<0> : tensor<1xindex>}> : () -> ()
 // CHECK-NEXT:   "memref.global"() <{sym_name = "g_constant", sym_visibility = "public", type = memref<1xindex>, initial_value = dense<0> : tensor<1xindex>, constant}> : () -> ()

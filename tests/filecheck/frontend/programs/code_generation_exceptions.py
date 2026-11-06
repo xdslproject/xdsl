@@ -54,6 +54,19 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
+# CHECK: Unsupported comparison operation 'Is'.
+@ctx.parse_program
+def test_is_unsupported(x: c_size_t) -> None:
+    assert x is x
+    return
+
+
+try:
+    test_is_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
 # CHECK: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:

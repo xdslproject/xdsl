@@ -67,10 +67,11 @@ builtin.module {
 │   └── type_conversion.py    : Map between Python objects, Python AST nodes,
 │                               and xDSL IR for the types and functions
 ├── code_generation.py        : Walk AST to generate IR from nodes, with the
-│                               `py` dialect for functions and returns. Simple
-│                               operands supported, no control flow. Assignment
-│                               only to single variables. Implicitly no support
-│                               for complex structures such as classes
+│                               `py` dialect for functions, calls, operators
+│                               and comparisons. Simple operands supported, no
+│                               control flow. Assignment only to single
+│                               variables. Implicitly no support for complex
+│                               structures such as classes
 ├── context.py                : Configure mappings and transformations, and
 │                               decorate functions with parse_program
 ├── lowering.py               : Lower `py` to the operations registered in the

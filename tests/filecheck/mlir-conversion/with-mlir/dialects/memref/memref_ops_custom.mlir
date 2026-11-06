@@ -1,10 +1,16 @@
 // RUN: xdsl-opt %s | xdsl-opt | $XDSL_MLIR_OPT --allow-unregistered-dialect --mlir-print-local-scope | filecheck %s
 
-func.func @memref_alloca_scope() {
-"memref.alloca_scope"() ({
-    "memref.alloca_scope.return"() : () -> ()
-}) : () -> ()
-func.return
+func.func @memref_alloca_scope() -> (i32, f32) {
+  memref.alloca_scope {
+  }
+  memref.alloca_scope {
+    "test.op"() : () -> ()
+  } {foo = 1 : i32}
+  %a, %b = memref.alloca_scope -> (i32, f32) {
+    %x, %y = "test.op"() : () -> (i32, f32)
+    memref.alloca_scope.return %x, %y : i32, f32
+  }
+  func.return %a, %b : i32, f32
 }
 
 %v0 = "test.op"() : () -> (i32)
@@ -31,11 +37,18 @@ memref.dealloc %a1 : memref<2x3xf32>
 %dv = memref.dim %dm, %di : memref<?x?xi32>
 
 // CHECK:       module {
-// CHECK-NEXT:    func.func @memref_alloca_scope() {
-// CHECK-NEXT:      memref.alloca_scope  {
-// CHECK-NEXT:      }
-// CHECK-NEXT:      return
+// CHECK-NEXT:    func.func @memref_alloca_scope() -> (i32, f32) {
+// CHECK-NEXT:    memref.alloca_scope  {
 // CHECK-NEXT:    }
+// CHECK-NEXT:    memref.alloca_scope  {
+// CHECK-NEXT:      "test.op"() : () -> ()
+// CHECK-NEXT:    } {foo = 1 : i32}
+// CHECK-NEXT:    %10:2 = memref.alloca_scope  -> (i32, f32) {
+// CHECK-NEXT:      %11:2 = "test.op"() : () -> (i32, f32)
+// CHECK-NEXT:      memref.alloca_scope.return %11#0, %11#1 : i32, f32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    return %10#0, %10#1 : i32, f32
+// CHECK-NEXT:  }
 // CHECK-NEXT:   %0 = "test.op"() : () -> i32
 // CHECK-NEXT:   %1 = "test.op"() : () -> index
 // CHECK-NEXT:   %2 = "test.op"() : () -> index

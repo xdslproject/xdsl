@@ -1159,6 +1159,75 @@ class RegionBranchOpTrait(OpTrait):
         """
         raise NotImplementedError()
 
+    @classmethod
+    def successor_regions_from_region(
+        cls, op: Operation, region: Region
+    ) -> Iterator[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from any terminator in
+        `region`.
+        """
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is not None and terminator.has_trait(
+                RegionBranchTerminatorOpTrait
+            ):
+                yield from cls.successor_regions(op, RegionBranchPoint(terminator))
+
+    @classmethod
+    def successor_inputs(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """
+        Return all successor inputs for the given region successor. If the given region
+        successor is a region, then the returned values are block arguments. Otherwise, if the
+        given region successor is an operation, the returned values are op results.
+        """
+        return ()
+
+    @classmethod
+    def predecessors(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Iterator[RegionBranchPoint]:
+        """Returns all potential branching points (predecessors) for a given region successor."""
+        for point in cls.all_region_branch_points(op):
+            if successor in cls.successor_regions(op, point):
+                yield point
+
+    @classmethod
+    def region_invocation_bounds(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[InvocationBounds]:
+        """
+        Returns the minimum and maximum number of times this operation will invoke the attached
+        regions (assuming the regions yield normally, i.e. do not abort or invoke an infinite
+        loop). The minimum number of invocations is at least 0. If the maximum number of
+        invocations cannot be statically determined, then it will be set to
+        `InvocationBounds.UNKNOWN`.
+
+        This method also passes along the constant operands of this op. `operands` contains an
+        entry for every operand of this op, with `None` if the operand has no constant value.
+
+        This method may be called speculatively on operations where the provided operands are not
+        necessarily the same as the operation's current operands. This may occur in analyses that
+        wish to determine "what would be the region invocations if these were the operands?"
+        """
+        return [InvocationBounds.UNKNOWN] * len(op.regions)
+
+    @classmethod
+    def are_types_compatible(
+        cls, op: Operation, lhs: Attribute, rhs: Attribute
+    ) -> bool:
+        """
+        This method is called to compare types along control-flow edges. By default, the types
+        are checked as equal.
+        """
+        return lhs == rhs
+
     def verify(self, op: Operation) -> None:
         from xdsl.irdl import IRDLOperation
 
@@ -1168,6 +1237,21 @@ class RegionBranchOpTrait(OpTrait):
             raise VerifyException(
                 f"'{op.name}' implements RegionBranchOpInterface but defines no regions."
             )
+
+    @classmethod
+    def all_region_branch_points(cls, op: Operation) -> Iterator[RegionBranchPoint]:
+        """
+        Return all possible region branch points: the region branch op itself and all region
+        branch terminators.
+        """
+        yield RegionBranchPoint.PARENT
+        for region in op.regions:
+            for block in region.blocks:
+                terminator = block.last_op
+                if terminator is not None and terminator.has_trait(
+                    RegionBranchTerminatorOpTrait
+                ):
+                    yield RegionBranchPoint(terminator)
 
 
 class RegionBranchTerminatorOpTrait(OpTrait):
