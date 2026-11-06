@@ -148,13 +148,13 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     @classmethod
     def entry_successor_regions(
         cls, op: Operation, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         return cast(RegionBranchOpInterface, op).entry_successor_regions(operands)
 
     @classmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         return cast(RegionBranchOpInterface, op).successor_regions(point)
 
     @classmethod
@@ -209,12 +209,12 @@ class RegionBranchOpInterface(Operation, abc.ABC):
 
     def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """See `RegionBranchOpTrait.entry_successor_regions`."""
         return self.successor_regions(RegionBranchPoint.PARENT)
 
     @abc.abstractmethod
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         """See `RegionBranchOpTrait.successor_regions`."""
         raise NotImplementedError()
 
@@ -275,7 +275,7 @@ class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
     @classmethod
     def successor_regions(
         cls, op: Operation, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         return cast(RegionBranchTerminatorOpInterface, op).successor_regions(operands)
 
 
@@ -293,6 +293,6 @@ class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
 
     def successor_regions(
         self, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """See `RegionBranchTerminatorOpTrait.successor_regions`."""
         return RegionBranchTerminatorOpTrait.successor_regions(self, operands)

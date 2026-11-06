@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -1116,10 +1116,12 @@ class _ForOpTrait(RegionBranchOpTrait):
     @classmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         if point.is_parent():
-            return [RegionSuccessor(op.regions[0])]
-        return [RegionSuccessor(op.regions[0]), RegionSuccessor(op)]
+            yield RegionSuccessor(op.regions[0])
+        else:
+            yield RegionSuccessor(op.regions[0])
+            yield RegionSuccessor(op)
 
     @classmethod
     def entry_successor_operands(
@@ -1195,16 +1197,17 @@ class LoopRegionsOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     bodies = var_region_def()
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if (terminator := point.terminator) is None:
-            return [RegionSuccessor(region) for region in self.regions]
-        region = terminator.parent_region()
-        assert region is not None
-        successors = [RegionSuccessor(region)]
-        if region is self.regions[1]:
-            # This region also branches back to this operation.
-            successors.insert(0, RegionSuccessor(self))
-        return successors
+            for region in self.regions:
+                yield RegionSuccessor(region)
+        else:
+            region = terminator.parent_region()
+            assert region is not None
+            if region is self.regions[1]:
+                # This region also branches back to this operation.
+                yield RegionSuccessor(self)
+            yield RegionSuccessor(region)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results if successor.is_operation() else ()
@@ -1221,12 +1224,13 @@ class SequentialRegionsOp(IRDLOperation, RegionBranchOpInterface):
     name = "test.sequential_regions_op"
     bodies = var_region_def()
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if (terminator := point.terminator) is None:
-            return [RegionSuccessor(self.regions[0])]
-        if terminator.parent_region() is self.regions[0]:
-            return [RegionSuccessor(self.regions[1])]
-        return [RegionSuccessor(self)]
+            yield RegionSuccessor(self.regions[0])
+        elif terminator.parent_region() is self.regions[0]:
+            yield RegionSuccessor(self.regions[1])
+        else:
+            yield RegionSuccessor(self)
 
 
 # Ops forwarding values, which MLIR's unit tests do not cover.
@@ -1250,10 +1254,12 @@ class LoopOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     body = region_def()
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if point.is_parent():
-            return [RegionSuccessor(self.body)]
-        return [RegionSuccessor(self.body), RegionSuccessor(self)]
+            yield RegionSuccessor(self.body)
+        else:
+            yield RegionSuccessor(self.body)
+            yield RegionSuccessor(self)
 
     def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
         return OperandRange(self)
@@ -1276,8 +1282,8 @@ class IntegerCastOp(IRDLOperation, RegionBranchOpInterface):
     res = var_result_def()
     body = region_def()
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
-        return [RegionSuccessor(self)]
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
+        yield RegionSuccessor(self)
 
     def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
         return OperandRange(self)
@@ -1496,8 +1502,8 @@ class _ExitOnlyTrait(RegionBranchOpTrait):
     @classmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
-        return [RegionSuccessor(op)]
+    ) -> Iterator[RegionSuccessor]:
+        yield RegionSuccessor(op)
 
 
 def test_region_branch_op_entry_successor_regions():

@@ -1227,7 +1227,7 @@ class RegionBranchOpTrait(OpTrait):
         cls,
         op: Operation,
         operands: Sequence[Attribute | None],
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """
         Returns all potential region successors when first executing the op.
 
@@ -1251,7 +1251,7 @@ class RegionBranchOpTrait(OpTrait):
     @abc.abstractmethod
     def successor_regions(
         cls, op: Operation, point: RegionBranchPoint
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """
         Returns all potential region successors when branching from `point`. These are the
         regions that may be selected during the flow of control.
@@ -1660,7 +1660,7 @@ class RegionBranchTerminatorOpTrait(OpTrait):
         cls,
         op: Operation,
         operands: Sequence[Attribute | None],
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         """
         Returns all potential region successors that are branched to after this terminator based
         on the given constant operands.

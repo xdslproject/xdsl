@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import ClassVar, Self
 
 from xdsl.dialects.arith import AddiOp, IntegerOverflowFlag
@@ -112,13 +112,15 @@ class WhileOp(IRDLOperation, RegionBranchOpInterface):
     def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
         return OperandRange(self)
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if (terminator := point.terminator) is None:
-            return [RegionSuccessor(self.before_region)]
-        # The after region always branches back to the before region.
-        if terminator.parent_region() is self.after_region:
-            return [RegionSuccessor(self.before_region)]
-        return [RegionSuccessor(self), RegionSuccessor(self.after_region)]
+            yield RegionSuccessor(self.before_region)
+        elif terminator.parent_region() is self.after_region:
+            # The after region always branches back to the before region.
+            yield RegionSuccessor(self.before_region)
+        else:
+            yield RegionSuccessor(self)
+            yield RegionSuccessor(self.after_region)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         if successor.is_operation():
@@ -263,10 +265,11 @@ class ExecuteRegionOp(IRDLOperation, RegionBranchOpInterface):
     ):
         super().__init__(result_types=(result_types,), regions=(region,))
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if point.is_parent():
-            return [RegionSuccessor(self.region)]
-        return [RegionSuccessor(self)]
+            yield RegionSuccessor(self.region)
+        else:
+            yield RegionSuccessor(self)
 
     def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
@@ -368,21 +371,24 @@ class IfOp(IRDLOperation, RegionBranchOpInterface):
             return RegionSuccessor(self.false_region)
         return RegionSuccessor(self)
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if not point.is_parent():
-            return [RegionSuccessor(self)]
-        return [RegionSuccessor(self.true_region), self._else_successor()]
+            yield RegionSuccessor(self)
+        else:
+            yield RegionSuccessor(self.true_region)
+            yield self._else_successor()
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results if successor.is_operation() else ()
 
     def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         cond = _constant_bool(operands[0])
         if cond is None:
-            return self.successor_regions(RegionBranchPoint.PARENT)
-        return [RegionSuccessor(self.true_region) if cond else self._else_successor()]
+            yield from self.successor_regions(RegionBranchPoint.PARENT)
+        else:
+            yield RegionSuccessor(self.true_region) if cond else self._else_successor()
 
     def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
@@ -566,13 +572,15 @@ class ForOp(IRDLOperation, RegionBranchOpInterface):
         # `iter_args` come after `lb`, `ub` and `step`.
         return OperandRange(self, 3)
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         trip_count = _static_trip_count(self.lb, self.ub, self.step)
         if point.is_parent() and trip_count is not None:
-            return [RegionSuccessor(self.body if trip_count else self)]
-        if not point.is_parent() and trip_count == 1:
-            return [RegionSuccessor(self)]
-        return [RegionSuccessor(self.body), RegionSuccessor(self)]
+            yield RegionSuccessor(self.body if trip_count else self)
+        elif not point.is_parent() and trip_count == 1:
+            yield RegionSuccessor(self)
+        else:
+            yield RegionSuccessor(self.body)
+            yield RegionSuccessor(self)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         if successor.is_operation():
@@ -730,8 +738,9 @@ class ParallelOp(IRDLOperation, RegionBranchOpInterface):
             result_types=[[SSAValue.get(a).type for a in init_vals]],
         )
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
-        return [RegionSuccessor(self.body), RegionSuccessor(self)]
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
+        yield RegionSuccessor(self.body)
+        yield RegionSuccessor(self)
 
     def verify_(self) -> None:
         # First check that the number of lower and upper bounds, along with the number of
@@ -910,16 +919,14 @@ class ConditionOp(IRDLOperation, RegionBranchTerminatorOpInterface):
 
     def successor_regions(
         self, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         while_op = self.parent_op()
         assert isinstance(while_op, WhileOp)
         cond = _constant_bool(operands[0])
-        regions: list[RegionSuccessor] = []
         if cond is None or cond:
-            regions.append(RegionSuccessor(while_op.after_region))
+            yield RegionSuccessor(while_op.after_region)
         if cond is None or not cond:
-            regions.append(RegionSuccessor(while_op))
-        return regions
+            yield RegionSuccessor(while_op)
 
 
 @irdl_op_definition
@@ -957,10 +964,12 @@ class IndexSwitchOp(IRDLOperation, RegionBranchOpInterface):
             result_types=(result_types,),
         )
 
-    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+    def successor_regions(self, point: RegionBranchPoint) -> Iterator[RegionSuccessor]:
         if not point.is_parent():
-            return [RegionSuccessor(self)]
-        return [RegionSuccessor(region) for region in self.regions]
+            yield RegionSuccessor(self)
+        else:
+            for region in self.regions:
+                yield RegionSuccessor(region)
 
     def successor_inputs(self, successor: RegionSuccessor) -> Sequence[SSAValue]:
         return self.results if successor.is_operation() else ()
@@ -976,10 +985,11 @@ class IndexSwitchOp(IRDLOperation, RegionBranchOpInterface):
 
     def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
-    ) -> Sequence[RegionSuccessor]:
+    ) -> Iterator[RegionSuccessor]:
         if (live_region := self._live_region(operands[0])) is None:
-            return self.successor_regions(RegionBranchPoint.PARENT)
-        return [RegionSuccessor(live_region)]
+            yield from self.successor_regions(RegionBranchPoint.PARENT)
+        else:
+            yield RegionSuccessor(live_region)
 
     def region_invocation_bounds(
         self, operands: Sequence[Attribute | None]
