@@ -185,22 +185,40 @@ def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
 
 
 @pytest.mark.parametrize(
-    "memref_t, tensor_t",
+    "memref_t, tensor_t, err",
     [
-        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 40])),
-        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20])),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IntegerType(64), [10, 20, 30]),
+            "expected from variable 'ELEM_T'",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IndexType(), [10, 20, 40]),
+            "expected from variable 'SHAPE'",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IndexType(), [10, 20]),
+            "expected from variable 'SHAPE'",
+        ),
         (
             UnrankedMemRefType.from_type(IndexType()),
             TensorType(IndexType(), [10, 20, 30]),
+            "expected from variable 'SHAPE'",
         ),
-        (MemRefType(IndexType(), [10, 20, 30]), UnrankedTensorType(IndexType())),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            UnrankedTensorType(IndexType()),
+            "expected from variable 'SHAPE'",
+        ),
     ],
 )
-def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType):
+def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType, err: str):
     memref_v = TestOp(result_types=[memref_t]).res[0]
 
-    to_tensor = ToTensorOp.build(operands=[memref_v], result_types=[tensor_t])
-    with pytest.raises(VerifyException):
+    to_tensor = ToTensorOp(memref_v, tensor_type=tensor_t)
+    with pytest.raises(VerifyException, match=err):
         to_tensor.verify()
 
 

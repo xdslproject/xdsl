@@ -199,6 +199,8 @@ class ToTensorOp(IRDLOperation):
         memref: SSAValue | Operation,
         restrict: bool = False,
         writable: bool = False,
+        *,
+        tensor_type: TensorType | UnrankedTensorType | None = None,
     ):
         memref_v = SSAValue.get(memref, type=MemRefType | UnrankedMemRefType)
         properties = dict[str, Attribute]()
@@ -206,9 +208,11 @@ class ToTensorOp(IRDLOperation):
             properties["restrict"] = UnitAttr()
         if writable:
             properties["writable"] = UnitAttr()
+        if tensor_type is None:
+            tensor_type = self.__memref_to_tensor(memref_v.type)
         super().__init__(
             operands=(memref,),
-            result_types=(self.__memref_to_tensor(memref_v.type),),
+            result_types=(tensor_type,),
             properties=properties,
         )
 
