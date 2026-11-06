@@ -623,6 +623,32 @@ class AllOf(AttrConstraint[AttributeCovT]):
     attr_constrs: tuple[AttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
+    @staticmethod
+    def get(
+        *attr_constrs: IRDLAttrConstraint[AttributeInvT],
+    ) -> AttrConstraint[AttributeInvT]:
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        constrs = list(irdl_to_attr_constraint(c) for c in attr_constrs)
+        # Iterate through the constraints looking for optimisations
+        i = 0
+        while i < len(constrs):
+            c = constrs[i]
+            if c == AnyAttr():
+                constrs.pop(i)
+                continue
+            if isinstance(c, AllOf):
+                constrs = constrs[:i] + list(c.attr_constrs) + constrs[i + 1 :]
+                continue
+            i += 1
+
+        if len(constrs) == 0:
+            return cast(AttrConstraint[AttributeInvT], AnyAttr())
+        if len(constrs) == 1:
+            return constrs[0]
+
+        return AllOf(tuple(constrs))
+
     def verify(
         self,
         attr: Attribute,
