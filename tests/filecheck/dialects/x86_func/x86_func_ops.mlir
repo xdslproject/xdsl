@@ -11,6 +11,6 @@ x86_func.func @noarg_void() {
     x86_func.ret {"comment" = "this is a return instruction"}
 }
 
-// CHECK-GENERIC:       "x86_func.func"() ({
+// CHECK-GENERIC:       "x86_func.func"() <{sym_name = "noarg_void", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:    "x86_func.ret"() {comment = "this is a return instruction"} : () -> ()
-// CHECK-GENERIC-NEXT:  }) {sym_name = "noarg_void", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:  }) : () -> ()

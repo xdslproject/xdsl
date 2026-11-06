@@ -77,9 +77,9 @@ riscv_scf.rof %j : !riscv.reg<a1> = %ub : !riscv.reg<a1> down to %lb : !riscv.re
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
 
-// CHECK-GENERIC:         %lb = "rv32.li"() {immediate = 1 : i32} : () -> !riscv.reg<a0>
-// CHECK-GENERIC-NEXT:    %ub = "rv32.li"() {immediate = 8 : i32} : () -> !riscv.reg<a1>
-// CHECK-GENERIC-NEXT:    %step = "rv32.li"() {immediate = 3 : i32} : () -> !riscv.reg<a2>
+// CHECK-GENERIC:         %lb = "rv32.li"() <{immediate = 1 : i32}> : () -> !riscv.reg<a0>
+// CHECK-GENERIC-NEXT:    %ub = "rv32.li"() <{immediate = 8 : i32}> : () -> !riscv.reg<a1>
+// CHECK-GENERIC-NEXT:    %step = "rv32.li"() <{immediate = 3 : i32}> : () -> !riscv.reg<a2>
 // CHECK-GENERIC-NEXT:    "riscv_scf.rof"(%ub, %lb, %step) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-GENERIC-NEXT:    ^bb0(%i: !riscv.reg<a1>):
 // CHECK-GENERIC-NEXT:      "riscv_scf.yield"() : () -> ()
