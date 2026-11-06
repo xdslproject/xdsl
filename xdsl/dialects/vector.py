@@ -16,13 +16,11 @@ from xdsl.dialects.builtin import (
     I64,
     AffineMapAttr,
     AnyFloat,
-    AnyFloatConstr,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
     FixedBitwidthType,
     IndexType,
-    IndexTypeConstr,
     IntAttr,
     IntegerType,
     MemRefType,
@@ -371,7 +369,7 @@ class BroadcastOp(IRDLOperation):
 class FMAOp(IRDLOperation):
     name = "vector.fma"
 
-    T: ClassVar = VarConstraint("T", VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", VectorType[AnyFloat])
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -524,15 +522,13 @@ class CreateMaskOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     name = "vector.extract"
 
-    _T: ClassVar = VarConstraint(
-        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
-    )
+    _T: ClassVar = VarConstraint.get("T", IntegerType | IndexType | AnyFloat)
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseArrayBase.constr(i64))
 
     vector = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position = var_operand_def(IndexType)
 
     result = result_def(
         VectorType.constr(
@@ -619,9 +615,7 @@ class ExtractOp(IRDLOperation):
 class InsertOp(IRDLOperation):
     name = "vector.insert"
 
-    _T: ClassVar = VarConstraint(
-        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
-    )
+    _T: ClassVar = VarConstraint.get("T", IntegerType | IndexType | AnyFloat)
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseArrayBase.constr(i64))
@@ -637,7 +631,7 @@ class InsertOp(IRDLOperation):
         | _T
     )
     dest = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position = var_operand_def(IndexType)
 
     result = result_def(_V)
 
@@ -1389,12 +1383,8 @@ class BitcastOp(IRDLOperation):
 
     name = "vector.bitcast"
 
-    source = operand_def(
-        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
-    )
-    result = result_def(
-        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
-    )
+    source = operand_def(VectorType[IntegerType | IndexType | AnyFloat])
+    result = result_def(VectorType[IntegerType | IndexType | AnyFloat])
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
 

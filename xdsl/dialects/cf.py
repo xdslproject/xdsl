@@ -6,13 +6,12 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntElementsAttr,
     IndexType,
-    IndexTypeConstr,
     IntegerType,
-    SignlessIntegerConstraint,
     StringAttr,
     VectorType,
     i32,
 )
+from xdsl.dialects.hw import AnySignlessIntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -327,7 +326,7 @@ class SwitchOp(IRDLOperation):
 
     case_values = opt_prop_def(DenseIntElementsAttr)
 
-    flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
+    flag = operand_def(IndexType | AnySignlessIntegerType)
 
     default_operands = var_operand_def()
 

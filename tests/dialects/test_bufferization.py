@@ -9,7 +9,6 @@ from xdsl.dialects.bufferization import (
     ToTensorOp,
 )
 from xdsl.dialects.builtin import (
-    AnyUnrankedMemRefTypeConstr,
     IndexType,
     IntAttr,
     IntegerType,
@@ -58,9 +57,7 @@ with pytest.deprecated_call():
     @irdl_op_definition
     class TensorFromMemRefOp(IRDLOperation):
         name = "test.tensor_from_memref"
-        T: ClassVar = VarConstraint(
-            "T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr
-        )
+        T: ClassVar = VarConstraint.get("T", MemRefType | UnrankedMemRefType)
 
         in_tensor = operand_def(
             TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]

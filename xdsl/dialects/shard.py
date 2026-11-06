@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     DenseArrayBase,
     IndexType,
-    IndexTypeConstr,
     IntegerAttr,
     MemRefType,
     SymbolNameConstraint,
@@ -240,7 +239,7 @@ class GatherOp(CollectiveCommunicationOp):
     name = "shard.gather"
 
     input = operand_def(TensorType)
-    gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    gather_axis = prop_def(IntegerAttr.constr(IndexType))
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
 
@@ -272,7 +271,7 @@ class ScatterOp(CollectiveCommunicationOp):
     name = "shard.scatter"
 
     input = operand_def(TensorType)
-    scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    scatter_axis = prop_def(IntegerAttr.constr(IndexType))
 
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
@@ -388,7 +387,7 @@ class ShiftOp(CollectiveCommunicationOp):
 
     input = operand_def(TensorType)
 
-    shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    shift_axis = prop_def(IntegerAttr.constr(IndexType))
     offset = prop_def(IntegerAttr[I64])
     rotate = prop_def(UnitAttr)
 

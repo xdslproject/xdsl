@@ -17,8 +17,6 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyTensorType,
-    AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BoolAttr,
@@ -729,7 +727,7 @@ class AttrParser(BaseParser):
 
         return VectorType(type, dims, scalable_dims_attr)
 
-    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> TensorType | UnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:

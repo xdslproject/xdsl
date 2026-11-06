@@ -10,14 +10,13 @@ from xdsl.dialects.builtin import (
     I64,
     AnyAttr,
     AnyFloat,
-    AnyFloatConstr,
+    AnySignlessIntegerType,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IntegerAttr,
     ShapedType,
-    SignlessIntegerConstraint,
     TensorType,
     i1,
 )
@@ -157,8 +156,8 @@ class ClampOp(IRDLOperation):
 
     T: ClassVar[VarConstraint] = VarConstraint("T", AnyAttr())
     VALUE: ClassVar[AttrConstraint] = IntegerAttr.constr(
-        type=SignlessIntegerConstraint & T
-    ) | FloatAttr.constr(type=AnyFloatConstr & T)
+        type=T & AnySignlessIntegerType
+    ) | FloatAttr.constr(type=T & AnyFloat)
 
     min_val = prop_def(VALUE)
     max_val = prop_def(VALUE)
