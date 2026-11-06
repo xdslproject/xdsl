@@ -1272,3 +1272,51 @@ def test_region_branch_op_are_types_compatible() -> None:
     assert not trait.are_types_compatible(op, i32, i64)
     assert _ExitOnlyTrait.are_types_compatible(op, i32, i32)
     assert not _ExitOnlyTrait.are_types_compatible(op, i32, i64)
+
+
+def test_region_branch_op_successor_regions_from_region() -> None:
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    region = Region(Block([terminator]))
+    empty = Region(Block())
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[region, empty]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.successor_regions_from_region(op, region)) == [
+        RegionSuccessor(op)
+    ]
+    assert list(trait.successor_regions_from_region(op, empty)) == []
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, region)) == [
+        RegionSuccessor(op)
+    ]
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, empty)) == []
+
+
+def test_region_branch_op_predecessors() -> None:
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    region = Region(Block([terminator]))
+    # A block without a terminator is not a branch point.
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[region, Region(Block())]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.predecessors(op, RegionSuccessor(region))) == [
+        RegionBranchPoint.PARENT
+    ]
+    assert list(trait.predecessors(op, RegionSuccessor(op))) == [
+        RegionBranchPoint(terminator)
+    ]
+    # Every branch point of `_ExitOnlyTrait` exits the op.
+    assert list(_ExitOnlyTrait.predecessors(op, RegionSuccessor(region))) == []
+    assert list(_ExitOnlyTrait.predecessors(op, RegionSuccessor(op))) == [
+        RegionBranchPoint.PARENT,
+        RegionBranchPoint(terminator),
+    ]

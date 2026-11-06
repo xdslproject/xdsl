@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
 from typing_extensions import TypeVar
@@ -12,6 +12,7 @@ from xdsl.irdl import (
     BaseAttr,
     EqAttrConstraint,
     EqIntConstraint,
+    IntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
     IntVarConstraint,
@@ -128,6 +129,20 @@ def test_set():
         two_constr.verify(2, VerificationContext())
 
 
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        ((), IntSetConstraint(frozenset())),
+        ((8,), EqIntConstraint(8)),
+        ((8, 8), EqIntConstraint(8)),
+        ((8, 16), IntSetConstraint(frozenset({8, 16}))),
+        ((8, 16, 8), IntSetConstraint(frozenset({8, 16}))),
+    ],
+)
+def test_set_get(values: tuple[int, ...], expected: IntConstraint):
+    assert IntSetConstraint.get(*values) == expected
+
+
 def test_mapping_type_vars():
     _IntT = TypeVar("_IntT", bound=int, default=int)
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
@@ -159,6 +174,26 @@ def test_get_int_constr():
 
     with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]
+
+
+@pytest.mark.parametrize(
+    "hint, expected",
+    [
+        (
+            Literal[8, 16] | Literal[16, 32],  # noqa: PYI030
+            IntSetConstraint(frozenset({8, 16, 32})),
+        ),
+        # Python distinguishes bool and int literals, but integer constraints
+        # deduplicate them by value, leaving a single equality constraint.
+        (Literal[0, False], EqIntConstraint(0)),
+        (Literal[1, True], EqIntConstraint(1)),
+        (Literal[0] | Literal[False], EqIntConstraint(0)),  # noqa: PYI030
+        (Literal[1] | Literal[True], EqIntConstraint(1)),  # noqa: PYI030
+        (Literal[8] | Literal["x"], None),  # noqa: PYI030
+    ],
+)
+def test_get_optional_int_constraint(hint: Any, expected: IntConstraint | None):
+    assert get_optional_int_constraint(hint) == expected
 
 
 def test_int_attr_get():
