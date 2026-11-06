@@ -1,3 +1,6 @@
+# TensorFromMemRefConstraint is deprecated
+# pyright: reportDeprecated=false
+
 from typing import ClassVar
 
 import pytest
@@ -23,15 +26,9 @@ from xdsl.dialects.builtin import (
     f64,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Attribute
-from xdsl.irdl import (
-    EqAttrConstraint,
-    IRDLOperation,
-    VarConstraint,
-    VerificationContext,
-    irdl_op_definition,
-    operand_def,
-)
+from xdsl.ir.core import Attribute
+from xdsl.irdl.constraints import EqAttrConstraint, VarConstraint, VerificationContext
+from xdsl.irdl.operations import IRDLOperation, irdl_op_definition, operand_def
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -151,9 +148,28 @@ def test_tensor_from_memref_constraint_failure(
         op1.verify()
 
 
-def test_to_tensor():
-    memref_t = MemRefType(f64, [10, 20, 30])
-    tensor_t = TensorType(f64, [10, 20, 30])
+@pytest.mark.parametrize(
+    "memref_t, tensor_t",
+    [
+        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 30])),
+        (
+            MemRefType(IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30], NoneAttr(), IntAttr(1)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(
+                IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4), IntAttr(1)
+            ),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (UnrankedMemRefType.from_type(IndexType()), UnrankedTensorType(IndexType())),
+    ],
+)
+def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
     memref_v = TestOp(result_types=[memref_t]).res[0]
 
     to_tensor = ToTensorOp(memref_v)
@@ -167,6 +183,26 @@ def test_to_tensor():
     assert to_tensor.restrict == UnitAttr()
     assert to_tensor.writable == UnitAttr()
     assert to_tensor.tensor.type == tensor_t
+
+
+@pytest.mark.parametrize(
+    "memref_t, tensor_t",
+    [
+        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 40])),
+        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20])),
+        (
+            UnrankedMemRefType.from_type(IndexType()),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (MemRefType(IndexType(), [10, 20, 30]), UnrankedTensorType(IndexType())),
+    ],
+)
+def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType):
+    memref_v = TestOp(result_types=[memref_t]).res[0]
+
+    to_tensor = ToTensorOp.build(operands=[memref_v], result_types=[tensor_t])
+    with pytest.raises(VerifyException):
+        to_tensor.verify()
 
 
 def test_alloc_tensor_static():
