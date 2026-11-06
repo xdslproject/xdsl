@@ -1,4 +1,3 @@
-import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -32,18 +31,6 @@ PACKED_F16_TYPE = VectorType(f16, [4])
 """Type of the value held by a float register that stores four packed f16 values."""
 
 
-def _round_to_element_type(value: float, element_type: AnyFloat) -> float:
-    """
-    Round a Python float to the given float type, returning infinity on overflow like
-    the hardware does.
-    """
-    try:
-        (rounded,) = element_type.unpack(element_type.pack((value,)), 1)
-    except OverflowError:
-        return math.copysign(math.inf, value)
-    return rounded
-
-
 def create_packed_value(
     vector_type: VectorType[AnyFloat], values: Sequence[float]
 ) -> DenseIntOrFPElementsAttr[AnyFloat]:
@@ -53,8 +40,7 @@ def create_packed_value(
     """
     element_type = vector_type.get_element_type()
     return DenseIntOrFPElementsAttr.from_list(
-        vector_type,
-        tuple(_round_to_element_type(value, element_type) for value in values),
+        vector_type, tuple(element_type.round(value) for value in values)
     )
 
 
