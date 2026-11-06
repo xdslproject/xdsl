@@ -118,9 +118,15 @@ def test_mapping_type_vars():
     )
 
 
-def test_init_irdl_constraint():
-    range_constr = RangeOf(Attribute)
-    assert range_constr.constr == AnyAttr()
+def test_range_of_get():
+    """Test that RangeOf.get(AnyAttr()) is simplified to AnyRange()."""
+    # Test with AnyAttr instance
+    range_constr = RangeOf.get(AnyAttr())
+    assert isinstance(range_constr, AnyRange)
+
+    range_constr3 = RangeOf.get(i32)
+    assert isinstance(range_constr3, RangeOf)
+    assert isinstance(range_constr3.constr, EqAttrConstraint)
 
 
 def test_empty_range():
