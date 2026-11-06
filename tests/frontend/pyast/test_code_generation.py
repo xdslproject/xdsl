@@ -2,7 +2,6 @@ import ast
 
 from xdsl.dialects import builtin, py
 from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 
 
 def test_generates_py():
@@ -10,10 +9,10 @@ def test_generates_py():
 def f(x: int, y: float) -> int:
     z = g(x, key=y)
     assert z < x
-    return h()
+    return h(1)
 """
     module = builtin.ModuleOp([])
-    visitor = CodeGenerationVisitor(TypeConverter(), module, "test.py")
+    visitor = CodeGenerationVisitor(module, "test.py")
     visitor.visit(ast.parse(source).body[0])
     assert (
         str(module)
@@ -35,9 +34,10 @@ builtin.module {
     %6 = symref.fetch @z : !py.object
     %7 = py.compare lt, %6, %5
     cf.assert %7, ""
-    %8 = py.call "h"()
-    %9 = py.cast %8 : !py.object to !py.object<"int">
-    py.return %9 : !py.object<"int">
+    %8 = py.const 1
+    %9 = py.call "h"(%8)
+    %10 = py.cast %9 : !py.object to !py.object<"int">
+    py.return %10 : !py.object<"int">
   }
 }"""
     )
@@ -61,15 +61,13 @@ class StackRecordingVisitor(CodeGenerationVisitor):
 
 
 def test_expression_statements_discard_their_values():
-    type_converter = TypeConverter()
-    type_converter.type_registry.insert(int, builtin.i32)
     source = """
 def discarded(x: int) -> None:
     pair(x, x)
     consume(x)
     add(x, x)
 """
-    visitor = StackRecordingVisitor(type_converter, builtin.ModuleOp([]), None)
+    visitor = StackRecordingVisitor(builtin.ModuleOp([]), None)
     visitor.stack_sizes = []
     visitor.visit(ast.parse(source).body[0])
 

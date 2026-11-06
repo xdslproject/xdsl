@@ -267,6 +267,8 @@ class PyLowering:
                 self._lower_func(op)
             case py.PyReturnOp():
                 self._lower_return(op)
+            case py.PyConstOp():
+                self._lower_const(op)
             case py.PyCastOp():
                 # Casts only change annotations, which are resolved by now.
                 Rewriter.replace_op(op, (), (op.value,))
@@ -329,6 +331,30 @@ class PyLowering:
             Rewriter.replace_op(op, return_op, ())
         if none and not none.res.uses:
             Rewriter.erase_op(none)
+
+    def _lower_const(self, op: py.PyConstOp) -> None:
+        if self._is_returned_none(op):
+            # Returning None returns no values, so the return lowers it.
+            return
+        value = op.value
+        literal_op = self.type_converter.literal_registry.resolve_operation(value)
+        if literal_op is None:
+            raise self._error(
+                op,
+                f"Unsupported constant '{value}' of type '{type(value).__qualname__}'.",
+            )
+        self._replace(op, literal_op)
+
+    @staticmethod
+    def _is_returned_none(op: py.PyConstOp) -> bool:
+        """Whether `op` is a `None` that is only returned, through a cast."""
+        if op.value is not None or not op.res.uses:
+            return False
+        return all(
+            isinstance(cast_op := use.operation, py.PyCastOp)
+            and all(isinstance(u.operation, py.PyReturnOp) for u in cast_op.res.uses)
+            for use in op.res.uses
+        )
 
     def _lower_binop(self, op: py.PyBinOp) -> None:
         op_name = _BINARY_OPERATORS[op.op.data]

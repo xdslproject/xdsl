@@ -10,7 +10,6 @@ from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
@@ -18,12 +17,8 @@ from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 class CodeGenerationVisitor(ast.NodeVisitor):
     """
     Visitor that generates the `py` dialect from the Python AST, with source locations
-    for the errors found when lowering it. Constants are still generated directly
-    with the registered constructors.
+    for the errors found when lowering it.
     """
-
-    type_converter: TypeConverter
-    """Used for type conversion during code generation."""
 
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
@@ -40,13 +35,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    def __init__(
-        self,
-        type_converter: TypeConverter,
-        module: builtin.ModuleOp,
-        file: str | None,
-    ) -> None:
-        self.type_converter = type_converter
+    def __init__(self, module: builtin.ModuleOp, file: str | None) -> None:
         self.file = file
 
         assert len(module.body.blocks) == 1
@@ -179,12 +168,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(py.PyCompareOp(py.CmpOp(op_name.lower()), lhs, rhs), node)
 
     def visit_Constant(self, node: ast.Constant) -> None:
-        if (
-            literal_op := self.type_converter.literal_registry.resolve_operation(
-                node.value
-            )
-        ) is not None:
-            self.insert_op(literal_op, node)
+        if node.value is None or isinstance(node.value, int | float | str):
+            self.insert_op(py.PyConstOp.from_value(node.value), node)
             return
 
         raise CodeGenerationException(
