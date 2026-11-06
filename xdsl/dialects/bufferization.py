@@ -4,9 +4,8 @@ from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
-from warnings import deprecated
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,

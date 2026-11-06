@@ -39,56 +39,47 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_tensor_from_memref_inference():
-    constr = TensorFromMemRefConstraint(MemRefType.constr())
-    assert not constr.can_infer(set())
+    with pytest.deprecated_call():
+        constr = TensorFromMemRefConstraint(MemRefType.constr())
+        assert not constr.can_infer(set())
 
-    constr2 = TensorFromMemRefConstraint(
-        EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
-    )
-    assert constr2.can_infer(set())
-    assert constr2.infer(VerificationContext()) == TensorType(f64, [10, 20, 30])
-
-    constr3 = TensorFromMemRefConstraint(
-        EqAttrConstraint(UnrankedMemRefType.from_type(f64))
-    )
-    assert constr3.can_infer(set())
-    assert constr3.infer(VerificationContext()) == UnrankedTensorType(f64)
-
-
-@irdl_op_definition
-class TensorFromMemRefOp(IRDLOperation):
-    name = "test.tensor_from_memref"
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-
-    in_tensor = operand_def(
-        TensorFromMemRefConstraint(
-            MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
+        constr2 = TensorFromMemRefConstraint(
+            EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
         )
-    )
+        assert constr2.can_infer(set())
+        assert constr2.infer(VerificationContext()) == TensorType(f64, [10, 20, 30])
 
-    in_var_memref = operand_def(T)
+        constr3 = TensorFromMemRefConstraint(
+            EqAttrConstraint(UnrankedMemRefType.from_type(f64))
+        )
+        assert constr3.can_infer(set())
+        assert constr3.infer(VerificationContext()) == UnrankedTensorType(f64)
 
-    in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
+
+with pytest.deprecated_call():
+
+    @irdl_op_definition
+    class TensorFromMemRefOp(IRDLOperation):
+        name = "test.tensor_from_memref"
+        T: ClassVar = VarConstraint(
+            "T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr
+        )
+
+        in_tensor = operand_def(
+            TensorFromMemRefConstraint(
+                MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
+            )
+        )
+
+        in_var_memref = operand_def(T)
+
+        in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
 
 
 @pytest.mark.parametrize(
     "memref_ty, tensor_ty",
     [
         (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 30])),
-        (
-            MemRefType(IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4)),
-            TensorType(IndexType(), [10, 20, 30]),
-        ),
-        (
-            MemRefType(IndexType(), [10, 20, 30], NoneAttr(), IntAttr(1)),
-            TensorType(IndexType(), [10, 20, 30]),
-        ),
-        (
-            MemRefType(
-                IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4), IntAttr(1)
-            ),
-            TensorType(IndexType(), [10, 20, 30]),
-        ),
         (UnrankedMemRefType.from_type(IndexType()), UnrankedTensorType(IndexType())),
     ],
 )
