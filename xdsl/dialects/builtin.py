@@ -1185,6 +1185,20 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
         # All float types just print their name
         printer.print_string(self.name)
 
+    def round(self, value: float) -> float:
+        """
+        Round `value` to the nearest value representable in this type, with ties to
+        even.
+        Magnitudes that are too large for the type round to infinity, or to the
+        value the type uses on overflow if it has no infinities.
+        """
+        try:
+            (rounded,) = self.unpack(self.pack((value,)), 1)
+        except OverflowError:
+            # `struct` raises on overflow instead of rounding to infinity (f16, f32).
+            return math.copysign(math.inf, value)
+        return rounded
+
 
 class FloatNonfiniteBehavior(Enum):
     """
@@ -1637,6 +1651,10 @@ class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     def format(self) -> str:
         raise NotImplementedError()
 
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f80.
+        return value
+
 
 @irdl_attr_definition
 class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
@@ -1649,6 +1667,10 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
     @property
     def format(self) -> str:
         raise NotImplementedError()
+
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f128.
+        return value
 
 
 @irdl_attr_definition
@@ -1888,17 +1910,8 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
                 raise ValueError(f"Invalid bitwidth: {type}")
 
         value: float = data.data if isinstance(data, FloatData) else data
-        # for supported types, constrain value to precision of floating point type
-        # else, allow full python float precision
-        if isinstance(
-            type,
-            Float64Type
-            | Float32Type
-            | Float16Type
-            | BFloat16Type
-            | ReducedPrecisionFloatType,
-        ):
-            value = type.unpack(type.pack((value,)), 1)[0]
+        # constrain value to precision of floating point type
+        value = type.round(value)
 
         data_attr = FloatData(value)
 
