@@ -230,21 +230,17 @@ class ToTensorOp(IRDLOperation):
         if writable:
             properties["writable"] = UnitAttr()
         if tensor_type is None:
-            tensor_type = self.__memref_to_tensor(memref_v.type)
+            if isinstance(memref_v.type, MemRefType):
+                tensor_type = TensorType(
+                    memref_v.type.element_type, memref_v.type.shape
+                )
+            else:
+                tensor_type = UnrankedTensorType(memref_v.type.element_type)
         super().__init__(
             operands=(memref,),
             result_types=(tensor_type,),
             properties=properties,
         )
-
-    @staticmethod
-    def __memref_to_tensor(
-        memref: MemRefType | UnrankedMemRefType,
-    ) -> TensorType | UnrankedTensorType:
-        if isinstance(memref, MemRefType):
-            return TensorType(memref.element_type, memref.shape)
-        else:
-            return UnrankedTensorType(memref.element_type)
 
     def verify_(self) -> None:
         _verify_rank(self.memref, self.tensor)
