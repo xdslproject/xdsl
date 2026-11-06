@@ -234,7 +234,7 @@ dump_dialect_pyfile(
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_AnyOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.any"
-# CHECK-NEXT:      in_ = operand_def(AnyAttr())
+# CHECK-NEXT:      in_ = operand_def()
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_Integers(IRDLOperation):
