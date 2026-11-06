@@ -209,16 +209,16 @@ def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
             TensorType(IndexType(), [10, 20]),
             "expected from variable 'SHAPE'",
         ),
-        # (
-        #     UnrankedMemRefType.from_type(IndexType()),
-        #     TensorType(IndexType(), [10, 20, 30]),
-        #     "expected from variable 'SHAPE'",
-        # ),
-        # (
-        #     MemRefType(IndexType(), [10, 20, 30]),
-        #     UnrankedTensorType(IndexType()),
-        #     "expected from variable 'SHAPE'",
-        # ),
+        (
+            UnrankedMemRefType.from_type(IndexType()),
+            TensorType(IndexType(), [10, 20, 30]),
+            "either be ranked or unranked",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            UnrankedTensorType(IndexType()),
+            "either be ranked or unranked",
+        ),
     ],
 )
 def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType, err: str):

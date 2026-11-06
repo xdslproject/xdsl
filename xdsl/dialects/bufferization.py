@@ -180,6 +180,20 @@ class CloneOp(IRDLOperation):
         super().__init__(operands=(input,), result_types=(result_type,))
 
 
+def _verify_rank(*vals: SSAValue | None):
+    is_unranked_list = [
+        isinstance(val.type, UnrankedTensorType)
+        or isinstance(val.type, UnrankedMemRefType)
+        for val in vals
+        if val is not None
+    ]
+    if all(is_unranked_list) or not any(is_unranked_list):
+        return
+    raise VerifyException(
+        "All memref and tensor types should either be ranked or unranked"
+    )
+
+
 @irdl_op_definition
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
@@ -232,6 +246,9 @@ class ToTensorOp(IRDLOperation):
         else:
             return UnrankedTensorType(memref.element_type)
 
+    def verify_(self) -> None:
+        _verify_rank(self.memref, self.tensor)
+
 
 @irdl_op_definition
 class ToBufferOp(IRDLOperation):
@@ -252,6 +269,9 @@ class ToBufferOp(IRDLOperation):
     read_only = opt_prop_def(UnitAttr)
 
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($tensor) `to` type($memref)"
+
+    def verify_(self) -> None:
+        _verify_rank(self.memref, self.tensor)
 
 
 @irdl_op_definition
@@ -276,6 +296,9 @@ class MaterializeInDestinationOp(IRDLOperation):
     writable = opt_prop_def(UnitAttr)
 
     assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"  # noqa: E501
+
+    def verify_(self) -> None:
+        _verify_rank(self.source, self.dest, self.result)
 
 
 Bufferization = Dialect(
