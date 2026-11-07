@@ -57,6 +57,7 @@ from xdsl.traits import (
     InvocationBounds,
     IsTerminator,
     MemoryEffectKind,
+    OperandRange,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     RegionBranchOpTrait,
@@ -1312,3 +1313,53 @@ def test_region_branch_op_predecessors() -> None:
         RegionBranchPoint.PARENT,
         RegionBranchPoint(terminator),
     ]
+
+
+def test_operand_range() -> None:
+    a, b, c = create_ssa_value(i32), create_ssa_value(i32), create_ssa_value(i32)
+    op = test.TestOp(operands=[a, b, c])
+    tail = OperandRange(op, 1)
+    assert (tail.start, tail.stop) == (1, 3)
+    assert list(tail) == [b, c]
+    assert len(tail) == 2
+    assert tail[0] is b
+    assert tail[-1] is c
+    assert list(tail[1:]) == [c]
+    assert tail.op_operands == ((op, 1), (op, 2))
+    assert list(OperandRange(op)) == [a, b, c]
+    assert len(OperandRange(op, 3)) == 0
+    message = (
+        "Operand range [2, 4) is out of bounds for 'test.op', which has 3 operands."
+    )
+    with pytest.raises(ValueError, match=re.escape(message)):
+        OperandRange(op, 2, 4)
+
+
+def test_region_branch_op_entry_successor_operands() -> None:
+    op = test.TestRegionBranchOp(
+        operands=[[create_ssa_value(i32)]], result_types=[[]], regions=[[]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+    successor = RegionSuccessor(op)
+
+    assert trait is not None
+    assert list(trait.entry_successor_operands(op, successor)) == []
+    assert list(_ExitOnlyTrait.entry_successor_operands(op, successor)) == []
+
+
+def test_region_branch_terminator_op_successor_operands() -> None:
+    a, b = create_ssa_value(i32), create_ssa_value(i32)
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[a, b]], result_types=[[]], successors=[[]]
+    )
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[Region(Block([terminator]))]]
+    )
+    trait = terminator.get_trait(RegionBranchTerminatorOpTrait)
+    successor = RegionSuccessor(op)
+
+    assert trait is not None
+    assert list(trait.successor_operands(terminator, successor)) == [a, b]
+    assert list(
+        RegionBranchTerminatorOpTrait.successor_operands(terminator, successor)
+    ) == [a, b]
