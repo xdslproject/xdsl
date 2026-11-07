@@ -61,19 +61,14 @@ def masked_memory_access_str(
     register: SSAValue,
     offset: IntegerAttr,
     mask: SSAValue,
-    z: UnitAttr | None,
 ) -> str:
     """
     Returns string for asm printing of a memory access followed by the {k}
-    (and optionally {z}) specifiers, in AVX512 masked operations.
-    e.g. ``[rdx+8] {k1}`` or ``[rdx] {k1}{z}``
+    specifier in AVX512 masked stores, e.g. ``[rdx+8] {k1}``.
     """
     mem_str = memory_access_str(register, offset)
     mask_str = reg(mask)
-    res = f"{mem_str} {{{mask_str}}}"
-    if z:
-        res += "{z}"
-    return res
+    return f"{mem_str} {{{mask_str}}}"
 
 
 def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:

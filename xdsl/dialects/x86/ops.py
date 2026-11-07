@@ -767,10 +767,10 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
 class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
-    A base class for x86 AVX512 operations that have one destination register that is
-    written to, a memory operand (with optional offset), a source register, and a mask
-    register. The z attribute enables zero-masking, which sets the elements of the
-    destination register to zero where the mask is zero.
+    A base class for x86 AVX512 masked stores with a memory operand (with optional
+    offset), a source register, and a mask register.
+    Masked-off memory elements are unchanged.
+    Stores do not support zero-masking.
 
     Typical usage: [m+offset]{k} := s
     where [m+offset] is the memory location addressed by the base register and offset,
@@ -781,7 +781,6 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(R2InvT)
     mask_reg = operand_def(AVX512MaskRegisterType)
-    z = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryWriteEffect())
 
@@ -797,7 +796,6 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         mask_reg: Operation | SSAValue,
         memory_offset: int | IntegerAttr,
         *,
-        z: bool = False,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(memory_offset, int):
@@ -809,14 +807,13 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
             operands=[memory, source, mask_reg],
             attributes={
                 "memory_offset": memory_offset,
-                "z": UnitAttr() if z else None,
                 "comment": comment,
             },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         masked_mem = masked_memory_access_str(
-            self.memory, self.memory_offset, self.mask_reg, self.z
+            self.memory, self.memory_offset, self.mask_reg
         )
         return (masked_mem, reg(self.source))
 
