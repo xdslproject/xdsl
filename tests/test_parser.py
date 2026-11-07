@@ -1128,30 +1128,35 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
 
 
 @pytest.mark.parametrize(
-    "text, allow_negative, expected",
+    "text, expected",
     [
-        ("0.0", True, 0.0),
-        ("1.5", False, 1.5),
-        ("-2.25", True, -2.25),
-        ("-2.25", False, None),
-        ("-", False, None),
-        ("end", True, None),
-        ("1", True, None),
+        ("0.0", 0.0),
+        ("-0.0", -0.0),
+        ("1.5", 1.5),
+        ("-2.25", -2.25),
+        ("- 1.0", -1.0),
+        ("- // comment\n0.0", -0.0),
+        ("end", None),
+        ("1", None),
     ],
 )
-def test_parse_float(text: str, allow_negative: bool, expected: float | None):
+def test_parse_float(text: str, expected: float | None):
     parser = Parser(Context(), text)
     pos = parser.pos
-    assert parser.parse_optional_float(allow_negative=allow_negative) == expected
+    value = parser.parse_optional_float()
     if expected is None:
+        assert value is None
         assert parser.pos == pos
+    else:
+        assert value is not None
+        assert value.hex() == expected.hex()
 
     parser = Parser(Context(), text)
     if expected is None:
         with pytest.raises(ParseError, match="Expected float literal"):
-            parser.parse_float(allow_negative=allow_negative)
+            parser.parse_float()
     else:
-        assert parser.parse_float(allow_negative=allow_negative) == expected
+        assert parser.parse_float().hex() == expected.hex()
 
 
 @pytest.mark.parametrize("text", ["-", "- end", "-1", "--1.0"])
@@ -1175,6 +1180,9 @@ def test_parse_float_malformed(text: str):
         ("0x1a", False, 26),
         ("-0x1a", False, -26),
         ("0.", False, 0.0),
+        ("-0.0", False, -0.0),
+        ("- 1.0", False, -1.0),
+        ("- // comment\n0.0", False, -0.0),
         ("1.", False, 1.0),
         ("0.2", False, 0.2),
         ("38.1243", False, 38.1243),
@@ -1192,14 +1200,22 @@ def test_parse_number(
     text: str, allow_boolean: bool, expected_value: int | float | None
 ):
     parser = Parser(Context(), text)
-    assert parser.parse_optional_number(allow_boolean=allow_boolean) == expected_value
+    value = parser.parse_optional_number(allow_boolean=allow_boolean)
+    assert value == expected_value
+    if isinstance(expected_value, float):
+        assert isinstance(value, float)
+        assert value.hex() == expected_value.hex()
 
     parser = Parser(Context(), text)
     if expected_value is None:
         with pytest.raises(ParseError):
             parser.parse_number()
     else:
-        assert parser.parse_number(allow_boolean=allow_boolean) == expected_value
+        value = parser.parse_number(allow_boolean=allow_boolean)
+        assert value == expected_value
+        if isinstance(expected_value, float):
+            assert isinstance(value, float)
+            assert value.hex() == expected_value.hex()
 
 
 @pytest.mark.parametrize(
@@ -1257,6 +1273,8 @@ def test_parse_optional_builtin_int_or_float_attr(
         ("-true", True),
         ("-k", False),
         ("-(", False),
+        ("--1.0", False),
+        ("- -1.0", False),
     ],
 )
 def test_parse_number_error(text: str, allow_boolean: bool):
