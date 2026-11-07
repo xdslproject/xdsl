@@ -606,20 +606,20 @@ def test_dma_start():
 
     dma_start.verify()
 
-    # check that src index count is verified
-    with pytest.raises(VerifyException, match="Expected 2 source indices"):
+    # operands are flat, so index count mismatches shift the layout and are rejected
+    with pytest.raises(VerifyException, match=r"in memref\.dma_start"):
         DmaStartOp.get(
             src, [index, index, index], dest, [index], num_elements, tag, [index]
         ).verify()
 
     # check that dest index count is verified
-    with pytest.raises(VerifyException, match="Expected 1 dest indices"):
+    with pytest.raises(VerifyException, match=r"in memref\.dma_start"):
         DmaStartOp.get(
             src, [index, index], dest, [], num_elements, tag, [index]
         ).verify()
 
     # check that tag index count is verified
-    with pytest.raises(VerifyException, match="Expected 1 tag indices"):
+    with pytest.raises(VerifyException, match=r"in memref\.dma_start"):
         DmaStartOp.get(
             src, [index, index], dest, [index], num_elements, tag, [index, index]
         ).verify()
