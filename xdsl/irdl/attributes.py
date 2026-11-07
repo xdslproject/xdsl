@@ -663,13 +663,13 @@ def range_constr_coercion(
 ) -> RangeConstraint[AttributeCovT]:
     if isinstance(attr, RangeConstraint):
         return attr
-    return RangeOf(irdl_to_attr_constraint(attr))
+    return RangeOf.get(attr)
 
 
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
-    return RangeOf(irdl_to_attr_constraint(attr)).of_length(1)
+    return RangeOf.get(attr).of_length(1)
 
 
 @overload

@@ -73,7 +73,6 @@ from xdsl.irdl import (
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
-    irdl_to_attr_constraint,
     opt_prop_def,
     param_def,
     region_def,
@@ -248,9 +247,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
         else:
-            object.__setattr__(
-                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
-            )
+            object.__setattr__(self, "elem_range_constraint", RangeOf.get(constr))
 
     def verify(
         self,

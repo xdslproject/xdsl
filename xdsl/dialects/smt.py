@@ -317,7 +317,7 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
+    inputs = var_operand_def(RangeOf.get(BoolType).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())

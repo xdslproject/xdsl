@@ -35,6 +35,7 @@ from xdsl.dialects.utils.reshape_ops_utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    AnyRange,
     AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
@@ -128,14 +129,14 @@ class ConcatOp(IRDLOperation):
     inputs = var_operand_def(
         RangeOf(
             TensorType.constr(
-                _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+                _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
             )
         ).of_length(AtLeast(1))
     )
     dim = prop_def(IntegerAttr[I64])
     result = result_def(
         TensorType.constr(
-            _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+            _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
         )
     )
 

@@ -59,7 +59,6 @@ from xdsl.irdl import (
     RangeOf,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -534,7 +533,7 @@ class ExtractOp(IRDLOperation):
         VectorType.constr(
             _T,
             shape=MessageConstraint(
-                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1))),
                 "Cannot extract 0d vector.",
             ),
         )
@@ -624,7 +623,7 @@ class InsertOp(IRDLOperation):
         VectorType.constr(
             _T,
             shape=MessageConstraint(
-                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1))),
                 "Cannot insert 0d vector.",
             ),
         )
