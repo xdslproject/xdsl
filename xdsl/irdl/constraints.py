@@ -1392,9 +1392,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
         | RangeConstraint[AttributeInvT] = AnyRange(),
     ) -> RangeConstraint[AttributeInvT]:
         if not isinstance(constraint, RangeConstraint):
-            from xdsl.irdl import irdl_to_attr_constraint
-
-            constraint = RangeOf(irdl_to_attr_constraint(constraint))
+            constraint = RangeOf.get(constraint)
 
         return RangeVarConstraint(
             name, cast(RangeConstraint[AttributeInvT], constraint)
@@ -1454,7 +1452,7 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     ) -> RangeConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        attr_constr = irdl_to_attr_constraint(constr)
+        attr_constr = irdl_to_attr_constraint(constr, allow_type_var=True)
         # Simplify RangeOf(AnyAttr()) to AnyRange()
         if attr_constr == AnyAttr():
             return AnyRange()  # pyright: ignore[reportReturnType]

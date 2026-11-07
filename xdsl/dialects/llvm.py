@@ -1902,9 +1902,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         VectorType.constr(
             self.element_constr,
-            shape=ArrayAttr.constr(
-                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
-            ),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(EqIntConstraint(1))),
         ).verify(attr, constraint_context)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
@@ -1945,7 +1943,7 @@ class ShuffleVectorOp(IRDLOperation):
         "VEC_TYPE",
         VectorType.constr(
             T,
-            shape=ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(1)),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(1)),
         ),
     )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
