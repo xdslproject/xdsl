@@ -711,6 +711,33 @@ def test_parse_block_name():
     assert block.args[1].name_hint is None
 
 
+@pytest.mark.parametrize(
+    "names, hints",
+    [
+        (("0", "42"), (None, None)),
+        (("bb0", "bb1"), (None, None)),
+        (("entry", "exit"), ("entry", "exit")),
+    ],
+)
+def test_parse_region_block_references(
+    names: tuple[str, str], hints: tuple[str | None, str | None]
+):
+    text = f"""{{
+    ^{names[0]}:
+      "test.branch"() [^{names[1]}, ^{names[0]}] : () -> ()
+    ^{names[1]}:
+      "test.branch"() [^{names[0]}, ^{names[1]}] : () -> ()
+    }}"""
+    region = Parser(Context(allow_unregistered=True), text).parse_region()
+    entry, exit = region.blocks
+
+    assert (entry.name_hint, exit.name_hint) == hints
+    assert entry.first_op is not None
+    assert tuple(entry.first_op.successors) == (exit, entry)
+    assert exit.first_op is not None
+    assert tuple(exit.first_op.successors) == (entry, exit)
+
+
 @pytest.mark.parametrize("separator", [",", "|"])
 @pytest.mark.parametrize("delimiter", Parser.Delimiter)
 @pytest.mark.parametrize(
