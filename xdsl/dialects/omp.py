@@ -596,9 +596,9 @@ class MapBoundsType(ParametrizedAttribute, TypeAttribute):
 class LoopNestOp(IRDLOperation):
     name = "omp.loop_nest"
 
-    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
-    upperBound = var_operand_def(base(IntegerType) | base(IndexType))
-    step = var_operand_def(base(IntegerType) | base(IndexType))
+    lowerBound = var_operand_def(IntegerType | IndexType)
+    upperBound = var_operand_def(IntegerType | IndexType)
+    step = var_operand_def(IntegerType | IndexType)
 
     collapse_num_loops = opt_prop_def(IntegerAttr)
     loop_inclusive = opt_prop_def(UnitAttr)
@@ -671,7 +671,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     allocate_vars = var_operand_def()
     allocators_vars = var_operand_def()
     if_expr = opt_operand_def(i1)
-    num_threads = opt_operand_def(base(IntegerType) | base(IndexType))
+    num_threads = opt_operand_def(IntegerType | IndexType)
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
     private_vars = var_operand_def()

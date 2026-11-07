@@ -48,7 +48,6 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     SameVariadicResultSize,
     VarConstraint,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -428,7 +427,7 @@ class AssumeAlignmentOp(IRDLOperation):
 
     name = "memref.assume_alignment"
 
-    T: ClassVar = VarConstraint("T", base(MemRefType))
+    T: ClassVar = VarConstraint.get("T", MemRefType)
 
     memref = operand_def(T)
     alignment = prop_def(IntegerAttr[I32])
@@ -478,7 +477,7 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    memref = operand_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(MemoryFreeEffect())
 
@@ -558,7 +557,7 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
     index = operand_def(IndexType)
 
     result = result_def(IndexType)
@@ -940,8 +939,8 @@ class SubviewOp(IRDLOperation):
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -957,8 +956,8 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 

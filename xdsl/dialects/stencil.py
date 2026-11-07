@@ -938,7 +938,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
+    result = result_def(FieldType | MemRefType)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"

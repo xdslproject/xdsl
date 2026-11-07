@@ -34,7 +34,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -849,8 +848,8 @@ class TransposeOp(LinalgStructuredOperation):
 
     name = "linalg.transpose"
 
-    inputs = var_operand_def(base(MemRefType) | base(TensorType))
-    outputs = var_operand_def(base(MemRefType) | base(TensorType))
+    inputs = var_operand_def(MemRefType | TensorType)
+    outputs = var_operand_def(MemRefType | TensorType)
     res = var_result_def(TensorType)
 
     body = region_def("single_block")
@@ -1368,8 +1367,8 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(base(MemRefType) | base(TensorType))
-    init = operand_def(base(MemRefType) | base(TensorType))
+    input = operand_def(MemRefType | TensorType)
+    init = operand_def(MemRefType | TensorType)
     result = var_result_def(TensorType)
 
     hidden_region = region_def("single_block")
@@ -1489,8 +1488,8 @@ class BroadcastOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "linalg.reduce"
 
-    input = operand_def(base(MemRefType) | base(TensorType))
-    init = operand_def(base(MemRefType) | base(TensorType))
+    input = operand_def(MemRefType | TensorType)
+    init = operand_def(MemRefType | TensorType)
     result = var_result_def(TensorType)
 
     region: Region = region_def("single_block")

@@ -26,7 +26,6 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -99,7 +98,7 @@ class BinCombOperation(TwoStateOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -151,7 +150,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     inputs = var_operand_def(T)
     result = result_def(T)
@@ -319,7 +318,7 @@ class ICmpOp(TwoStateOperation, ABC):
 
     name = "comb.icmp"
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     predicate = prop_def(IntegerAttr[I64])
     lhs = operand_def(T)
@@ -650,7 +649,7 @@ class MuxOp(TwoStateOperation):
 
     name = "comb.mux"
 
-    T: ClassVar = VarConstraint("T", base(TypeAttribute))
+    T: ClassVar = VarConstraint.get("T", TypeAttribute)
 
     cond = operand_def(IntegerType(1))
     true_value = operand_def(T)

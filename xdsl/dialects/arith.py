@@ -38,7 +38,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParamAttrConstraint,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -1237,9 +1236,9 @@ class BitcastOp(IRDLOperation):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input = operand_def(base(IntegerType) | base(IndexType))
+    input = operand_def(IntegerType | IndexType)
 
-    result = result_def(base(IntegerType) | base(IndexType))
+    result = result_def(IntegerType | IndexType)
 
     traits = traits_def(Pure())
 

@@ -69,7 +69,6 @@ from xdsl.irdl import (
     VarConstraint,
     VarOpResult,
     attr_def,
-    base,
     irdl_op_definition,
     irdl_to_attr_constraint,
     operand_def,
@@ -1237,7 +1236,7 @@ class RSSK_Operation(X86Instruction, ABC):
     bit in the mask is zero.
     """
 
-    T: ClassVar[VarConstraint] = VarConstraint("T", base(X86VectorRegisterType))
+    T: ClassVar[VarConstraint] = VarConstraint.get("T", X86VectorRegisterType)
 
     register_in = operand_def(T)
     register_out = result_def(T)

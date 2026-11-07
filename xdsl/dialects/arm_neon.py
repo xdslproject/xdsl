@@ -25,7 +25,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -270,8 +269,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
     """
 
-    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_NEON_REGISTER_TYPE", base(NEONRegisterType)
+    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_NEON_REGISTER_TYPE", NEONRegisterType
     )
 
     name = "arm_neon.dss.fmla"
