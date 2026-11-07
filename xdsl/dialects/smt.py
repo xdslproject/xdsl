@@ -25,7 +25,6 @@ from xdsl.irdl import (
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
