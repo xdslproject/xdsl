@@ -1842,7 +1842,7 @@ class InsertElementOp(IRDLOperation):
         "VECTOR_T",
         VectorType.constr(
             ELEMENT,
-            shape=ArrayAttr.constr(RangeOf(IntAttr).of_length(1)),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(1)),
         ),
     )
 

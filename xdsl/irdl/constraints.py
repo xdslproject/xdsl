@@ -1448,10 +1448,17 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
     constr: AttrConstraint[AttributeCovT]
 
-    def __init__(self, constr: IRDLAttrConstraint[AttributeCovT]):
+    @staticmethod
+    def get(
+        constr: IRDLAttrConstraint[AttributeInvT],
+    ) -> RangeConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        object.__setattr__(self, "constr", irdl_to_attr_constraint(constr))
+        attr_constr = irdl_to_attr_constraint(constr)
+        # Simplify RangeOf(AnyAttr()) to AnyRange()
+        if attr_constr == AnyAttr():
+            return AnyRange()  # pyright: ignore[reportReturnType]
+        return RangeOf(attr_constr)
 
     def verify(
         self,
@@ -1483,8 +1490,8 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> RangeOf[AttributeCovT]:
-        return RangeOf(self.constr.mapping_type_vars(type_var_mapping))
+    ) -> RangeConstraint[AttributeCovT]:
+        return RangeOf.get(self.constr.mapping_type_vars(type_var_mapping))
 
 
 @deprecated("Use `RangeOf(attr).of_length(1)` instead.")

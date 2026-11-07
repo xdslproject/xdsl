@@ -2302,9 +2302,9 @@ class ParallelMovOp(RISCVRegallocOperation):
     _L: ClassVar = IntVarConstraint("L", AnyInt())
 
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    inputs = var_operand_def(RangeOf.get(RISCVRegisterType).of_length(_L))
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
-        RangeOf(RISCVRegisterType).of_length(_L)
+        RangeOf.get(RISCVRegisterType).of_length(_L)
     )
     input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
