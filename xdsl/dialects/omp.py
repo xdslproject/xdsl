@@ -47,7 +47,6 @@ from xdsl.irdl import (
     SameVariadicOperandSize,
     VarOperand,
     base,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -620,7 +619,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
     linear_vars = var_operand_def(AnyRange().of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf.get(i32).of_length(LINEAR_COUNT))
     private_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
@@ -917,7 +916,7 @@ class SimdOp(BlockArgOpenMPOperation):
     aligned_vars = var_operand_def(AnyRange().of_length(ALIGN_COUNT))
     if_expr = opt_operand_def(i1)
     linear_vars = var_operand_def(AnyRange().of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf.get(i32).of_length(LINEAR_COUNT))
     nontemporal_vars = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     private_vars = var_operand_def()
     reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
@@ -931,8 +930,8 @@ class SimdOp(BlockArgOpenMPOperation):
     reduction_mod = opt_prop_def(ReductionModifierAttr)
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
-    simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
-    safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
+    simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=i64))
+    safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=i64))
     linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")

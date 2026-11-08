@@ -80,7 +80,6 @@ from xdsl.irdl import (
     RangeVarConstraint,
     TypeVarConstraint,
     VerificationContext,
-    eq,
     irdl_attr_definition,
 )
 from xdsl.printer import Printer
@@ -1403,7 +1402,7 @@ def test_array_constr():
     assert constr.verifies(ArrayAttr([i32]))
     assert not constr.verifies(ArrayAttr([i64]))
 
-    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    T = RangeVarConstraint("T", RangeOf.get(i32))
     constr = ArrayAttr.constr(T)
     assert constr.can_infer({"T"})
 
