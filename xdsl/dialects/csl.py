@@ -56,12 +56,12 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSetConstraint,
     BaseAttr,
     IRDLOperation,
     ParametrizedAttribute,
     VarConstraint,
     base,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -398,13 +398,13 @@ class IntPtrCastOp(IRDLOperation):
             )
 
 
-DsdElementTypeConstr = (
-    base(Float16Type)
-    | base(Float32Type)
-    | eq(IntegerType(16, Signedness.SIGNED))
-    | eq(IntegerType(16, Signedness.UNSIGNED))
-    | eq(IntegerType(32, Signedness.SIGNED))
-    | eq(IntegerType(32, Signedness.UNSIGNED))
+DsdElementTypeConstr = AttrSetConstraint.get(
+    Float16Type(),
+    Float32Type(),
+    IntegerType(16, Signedness.SIGNED),
+    IntegerType(16, Signedness.UNSIGNED),
+    IntegerType(32, Signedness.SIGNED),
+    IntegerType(32, Signedness.UNSIGNED),
 )
 
 
@@ -1349,7 +1349,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(eq(i16) | eq(i16_value))
+    offset = operand_def(AttrSetConstraint.get(i16, i16_value))
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
@@ -1376,7 +1376,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(eq(i16) | eq(u16_value))
+    length = operand_def(AttrSetConstraint.get(i16, u16_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
@@ -1403,7 +1403,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(eq(i8) | eq(i8_value))
+    stride = operand_def(AttrSetConstraint.get(i8, i8_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())

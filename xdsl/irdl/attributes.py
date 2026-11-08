@@ -25,7 +25,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform
+from typing_extensions import TypeVar, dataclass_transform, deprecated
 
 if sys.version_info >= (3, 14, 0):
     from typing_extensions import TypeForm
@@ -591,6 +591,7 @@ def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
     return irdl_to_attr_constraint(irdl)
 
 
+@deprecated("Use constraint `.get` constructors or irdl_to_attr_constraint directly")
 def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     """
     Converts an attribute instance into the equivalent constraint.

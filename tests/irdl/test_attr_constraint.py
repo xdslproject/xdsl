@@ -47,7 +47,6 @@ from xdsl.irdl import (
     VarConstraint,
     VerificationContext,
     base,
-    eq,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -143,13 +142,9 @@ def test_param_attr_constraint_inference():
     @irdl_attr_definition
     class WrapAttr(BaseWrapAttr): ...
 
-    constr = ParamAttrConstraint(
+    constr = ParamAttrConstraint.get(
         WrapAttr,
-        (
-            eq(
-                StringAttr("Hello"),
-            ),
-        ),
+        StringAttr("Hello"),
     )
 
     assert constr.can_infer(set())
@@ -158,11 +153,9 @@ def test_param_attr_constraint_inference():
     var_constr = ParamAttrConstraint(
         WrapAttr,
         (
-            VarConstraint(
+            VarConstraint.get(
                 "T",
-                eq(
-                    StringAttr("Hello"),
-                ),
+                StringAttr("Hello"),
             ),
         ),
     )
@@ -172,13 +165,9 @@ def test_param_attr_constraint_inference():
         VerificationContext({"T": StringAttr("Hello")})
     ) == WrapAttr(StringAttr("Hello"))
 
-    base_constr = ParamAttrConstraint(
+    base_constr = ParamAttrConstraint.get(
         BaseWrapAttr,
-        (
-            eq(
-                StringAttr("Hello"),
-            ),
-        ),
+        StringAttr("Hello"),
     )
     assert not base_constr.can_infer(set())
 

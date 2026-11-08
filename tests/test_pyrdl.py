@@ -35,7 +35,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     VarConstraint,
     VerificationContext,
-    eq,
     get_constraint,
     irdl_attr_definition,
     irdl_to_attr_constraint,
@@ -348,7 +347,7 @@ def test_param_attr_verify_params_fail():
 def test_constraint_vars_success():
     """Test that VarConstraint verifier succeed when given the same attributes."""
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     constraint_context = VerificationContext()
     constraint.verify(BoolData(False), constraint_context)
@@ -362,7 +361,7 @@ def test_constraint_vars_success():
 def test_constraint_vars_fail_different():
     """Test that VarConstraint verifier fails when given different attributes."""
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     constraint_context = VerificationContext()
     constraint.verify(IntData(0), constraint_context)
@@ -377,7 +376,7 @@ def test_constraint_vars_fail_underlying_constraint():
     attributes that fail the underlying constraint.
     """
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     with pytest.raises(VerifyException):
         constraint.verify(IntData(1), VerificationContext())
