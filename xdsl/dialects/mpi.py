@@ -27,7 +27,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -110,7 +109,6 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 
 VectorWrappable = RequestType | StatusType | DataType
-VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
 _VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
@@ -718,7 +716,7 @@ class AllocateTypeOp(MPIBaseOp):
     name = "mpi.allocate"
 
     bindc_name = opt_prop_def(StringAttr)
-    dtype = prop_def(VectorWrappableConstr)
+    dtype = prop_def(VectorWrappable)
     count = operand_def(i32)
 
     result = result_def(VectorType)
@@ -751,7 +749,7 @@ class VectorGetOp(MPIBaseOp):
     vect = operand_def(VectorType)
     element = operand_def(i32)
 
-    result = result_def(VectorWrappableConstr)
+    result = result_def(VectorWrappable)
 
     def __init__(self, vect: SSAValue | Operation, element: SSAValue | Operation):
         ssa_val = SSAValue.get(vect)

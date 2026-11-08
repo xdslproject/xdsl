@@ -583,6 +583,7 @@ def irdl_to_attr_constraint(
     raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
+@deprecated("Use constraint `.get` constructors or irdl_to_attr_constraint directly")
 def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
     """
     Converts an attribute type into the equivalent constraint, detecting generic

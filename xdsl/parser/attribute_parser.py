@@ -78,13 +78,17 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import base
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
+
+_DenseLiteralConstr = irdl_to_attr_constraint(
+    RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]
+)
 
 
 @dataclass
@@ -868,9 +872,7 @@ class AttrParser(BaseParser):
     ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
-        if not (
-            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
-        ).verifies(
+        if not _DenseLiteralConstr.verifies(
             type,
         ):
             self.raise_error(

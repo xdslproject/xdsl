@@ -680,7 +680,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         location before going back to a pointer and setting this as the result
         """
 
-        assert mpi.VectorWrappableConstr.verifies(op.result.type)
+        assert isinstance(op.result.type, mpi.VectorWrappable)
         assert isa(op.vect.type, llvm.LLVMPointerType)
         datatype_size = self._get_mpi_dtype_size(op.result.type)
 
