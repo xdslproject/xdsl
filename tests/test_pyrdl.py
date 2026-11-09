@@ -7,7 +7,7 @@ from enum import auto
 from typing import Any, Literal, Self
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import TypeForm, TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
@@ -35,7 +35,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     VarConstraint,
     VerificationContext,
-    eq,
     get_constraint,
     irdl_attr_definition,
     irdl_to_attr_constraint,
@@ -348,7 +347,7 @@ def test_param_attr_verify_params_fail():
 def test_constraint_vars_success():
     """Test that VarConstraint verifier succeed when given the same attributes."""
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     constraint_context = VerificationContext()
     constraint.verify(BoolData(False), constraint_context)
@@ -362,7 +361,7 @@ def test_constraint_vars_success():
 def test_constraint_vars_fail_different():
     """Test that VarConstraint verifier fails when given different attributes."""
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     constraint_context = VerificationContext()
     constraint.verify(IntData(0), constraint_context)
@@ -377,7 +376,7 @@ def test_constraint_vars_fail_underlying_constraint():
     attributes that fail the underlying constraint.
     """
 
-    constraint = VarConstraint("T", eq(BoolData(False)) | eq(IntData(0)))
+    constraint = VarConstraint("T", AttrSetConstraint.get(BoolData(False), IntData(0)))
 
     with pytest.raises(VerifyException):
         constraint.verify(IntData(1), VerificationContext())
@@ -519,6 +518,28 @@ def test_irdl_to_attr_constraint():
             ),
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "hint",
+    [
+        Literal[True],
+        Literal[False],
+        Literal[1, True],
+        Literal[TestEnum.A, False],
+        IntegerType | Literal[True],
+        IntAttr[Literal[True]],
+    ],
+)
+def test_boolean_literal_attribute_constraints_unsupported(hint: TypeForm[Any]):
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        irdl_to_attr_constraint(hint)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_constraint(hint)
 
 
 def test_get_constraint():

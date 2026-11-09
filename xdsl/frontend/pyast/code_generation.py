@@ -1,45 +1,33 @@
 import ast
 import itertools
-from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.py as py
 import xdsl.dialects.symref as symref
-from xdsl.frontend.pyast.lowering import (
-    BINARY_OPERATOR_OVERLOADS,
-    UNSUPPORTED_COMPARISON_OPERATORS,
-    resolve_binary_operator,
-    resolve_callee,
-    resolve_comparison_operator,
-)
 from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
 @dataclass(init=False)
 class CodeGenerationVisitor(ast.NodeVisitor):
     """
-    Visitor that generates xDSL from the Python AST. Functions and returns are
-    generated as `py.func` and `py.return`, for the registered constructors to be
-    applied when lowering.
+    Visitor that generates the `py` dialect from the Python AST, with source locations
+    for the errors found when lowering it.
     """
-
-    type_converter: TypeConverter
-    """Used for type conversion during code generation."""
 
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
-    symbol_table: dict[str, Attribute] | None = field(default=None)
+    symbol_table: set[str] | None = field(default=None)
     """
-    Maps local variable names to their xDSL types. A single dictionary is sufficient
-    because inner functions and global variables are not allowed (yet).
+    The names of the local variables. A single set is sufficient because inner
+    functions and global variables are not allowed (yet).
     """
 
     last_return: ast.Return | None = field(default=None)
@@ -48,13 +36,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    def __init__(
-        self,
-        type_converter: TypeConverter,
-        module: builtin.ModuleOp,
-        file: str | None,
-    ) -> None:
-        self.type_converter = type_converter
+    def __init__(self, module: builtin.ModuleOp, file: str | None) -> None:
         self.file = file
 
         assert len(module.body.blocks) == 1
@@ -72,23 +54,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         """Insert an operation generated from `node`."""
         op.location = self.location(node)
         self.inserter.insert_op(op)
-
-    def _error_at(self, node: ast.expr) -> Callable[[str], CodeGenerationException]:
-        """Construct errors located at `node`."""
-        return lambda msg: CodeGenerationException(
-            self.file, node.lineno, node.col_offset, msg
-        )
-
-    def get_symbol(self, node: ast.Name) -> Attribute:
-        assert self.symbol_table is not None
-        if node.id not in self.symbol_table:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Symbol '{node.id}' is not defined.",
-            )
-        return self.symbol_table[node.id]
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -133,46 +98,46 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(cf.AssertOp(self.inserter.get_operand(), msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Only assignment to a single variable is supported.",
-            )
+        match node.targets:
+            case [ast.Name(id=name)]:
+                value = self.visit_single_value(node.value)
+                self._assign(name, value, node)
+                return
+            case [ast.Tuple(elts=elements)] if all(
+                isinstance(element, ast.Name) for element in elements
+            ):
+                names = [cast(ast.Name, element).id for element in elements]
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only assignment to a variable or a tuple of variables is "
+                    "supported.",
+                )
+
         value = self.visit_single_value(node.value)
-        name = node.targets[0].id
+        unpack = py.PyUnpackOp(value, [py.PyObjectType()] * len(names))
+        self.insert_op(unpack, node)
+        # The values are assigned here, rather than left for an expression.
+        del self.inserter.stack[len(self.inserter.stack) - len(names) :]
+        for name, element in zip(names, unpack.res, strict=True):
+            self._assign(name, element, node)
+
+    def _assign(self, name: str, value: SSAValue, node: ast.Assign) -> None:
         assert self.symbol_table is not None
         if name not in self.symbol_table:
-            self.symbol_table[name] = value.type
+            self.symbol_table.add(name)
             self.insert_op(symref.DeclareOp(name), node)
-        elif self.symbol_table[name] != value.type:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Cannot change the type of variable '{name}'.",
-            )
         self.insert_op(symref.UpdateOp(name, value), node)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
-        op_name: str = node.op.__class__.__qualname__
-        if op_name not in BINARY_OPERATOR_OVERLOADS:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Unexpected binary operation {op_name}.",
-            )
-
         self.visit(node.right)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        op = resolve_binary_operator(
-            self.type_converter, op_name, lhs, rhs, self._error_at(node)
-        )
-        self.insert_op(op, node)
+        op_name = py.Operator(node.op.__class__.__qualname__.lower())
+        self.insert_op(py.PyBinOp(op_name, lhs, rhs), node)
 
     def visit_Call(self, node: ast.Call) -> None:
         match node.func:
@@ -187,10 +152,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     "Unsupported call expression.",
                 )
-        ir_op = resolve_callee(self.type_converter, callee, self._error_at(node))
 
         args = [self.visit_single_value(arg) for arg in node.args]
-        kwargs: dict[str, SSAValue] = {}
+        keywords: list[str] = []
         for keyword in node.keywords:
             if keyword.arg is None:
                 raise CodeGenerationException(
@@ -199,9 +163,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     "Unpacking keyword arguments is not supported.",
                 )
-            kwargs[keyword.arg] = self.visit_single_value(keyword.value)
+            keywords.append(keyword.arg)
+            args.append(self.visit_single_value(keyword.value))
 
-        self.insert_op(ir_op(*args, **kwargs), node)
+        self.insert_op(py.PyCallOp(callee, args, keywords), node)
 
     def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
@@ -214,30 +179,16 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__qualname__
-        if op_name in UNSUPPORTED_COMPARISON_OPERATORS:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Unsupported comparison operation '{op_name}'.",
-            )
 
         self.visit(comp)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        op = resolve_comparison_operator(
-            self.type_converter, op_name, lhs, rhs, self._error_at(node)
-        )
-        self.insert_op(op, node)
+        self.insert_op(py.PyCompareOp(py.CmpOp(op_name.lower()), lhs, rhs), node)
 
     def visit_Constant(self, node: ast.Constant) -> None:
-        if (
-            literal_op := self.type_converter.literal_registry.resolve_operation(
-                node.value
-            )
-        ) is not None:
-            self.insert_op(literal_op, node)
+        if node.value is None or isinstance(node.value, int | float | str):
+            self.insert_op(py.PyConstOp.from_value(node.value), node)
             return
 
         raise CodeGenerationException(
@@ -265,12 +216,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 f"Cannot have an inner function '{node.name}' inside another function.",
             )
-        self.symbol_table = dict()
+        self.symbol_table = set()
         self.last_return = None
 
         # Then, keep the annotations in the function signature, to be resolved when
-        # lowering. The argument types are also needed now, for their variables.
-        argument_types: list[Attribute] = []
+        # lowering.
         annotated_types: list[Attribute] = []
         for arg in node.args.args:
             if arg.annotation is None:
@@ -280,19 +230,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     arg.col_offset,
                     "Function arguments must be type hinted",
                 )
-            annotation = ast.unparse(arg.annotation)
-            xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                annotation, self.type_converter.globals
-            )
-            if xdsl_type is None:
-                raise CodeGenerationException(
-                    self.file,
-                    arg.lineno,
-                    arg.col_offset,
-                    f"Unsupported function argument type: '{annotation}'",
-                )
-            argument_types.append(xdsl_type)
-            annotated_types.append(py.PyObjectType(annotation))
+            annotated_types.append(py.PyObjectType(ast.unparse(arg.annotation)))
 
         returns = node.returns
         if returns is None:
@@ -315,13 +253,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_block(entry_block)
 
         # All arguments are declared using symref.
-        for arg, value, xdsl_type in zip(
-            node.args.args, entry_block.args, argument_types, strict=True
-        ):
+        for arg, value in zip(node.args.args, entry_block.args, strict=True):
             symbol_name = str(arg.arg)
             value.name_hint = symbol_name
             value.location = self.location(arg)
-            self.symbol_table[symbol_name] = xdsl_type
+            self.symbol_table.add(symbol_name)
             self.insert_op(symref.DeclareOp(symbol_name), arg)
             # In the body, arguments are plain objects whatever their annotation.
             plain = py.PyCastOp(value, py.PyObjectType())
@@ -352,7 +288,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_block(parent_block)
 
     def visit_Name(self, node: ast.Name) -> None:
-        self.insert_op(symref.FetchOp(node.id, self.get_symbol(node)), node)
+        assert self.symbol_table is not None
+        if node.id not in self.symbol_table:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Symbol '{node.id}' is not defined.",
+            )
+        self.insert_op(symref.FetchOp(node.id, py.PyObjectType()), node)
+
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        elements = [self.visit_single_value(element) for element in node.elts]
+        self.insert_op(py.PyBuildTupleOp(elements), node)
 
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
@@ -369,7 +317,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.last_return = node
 
         value = node.value
-        if value is None or (isinstance(value, ast.Constant) and value.value is None):
+        if value is None:
             # A bare return returns None, which is constructed first, as in bytecode.
             none = py.PyConstOp.from_value(None)
             self.insert_op(none, node)

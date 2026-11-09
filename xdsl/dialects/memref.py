@@ -11,7 +11,8 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I32,
     I64,
-    AnyFloatConstr,
+    AnyFloat,
+    AnySignlessIntegerType,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -22,7 +23,6 @@ from xdsl.dialects.builtin import (
     MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
-    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -49,7 +49,6 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     SameVariadicResultSize,
     VarConstraint,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -74,8 +73,11 @@ from xdsl.traits import (
     MemoryWriteEffect,
     NoMemoryEffect,
     Pure,
+    RecursiveMemoryEffect,
     SameOperandsAndResultType,
+    SingleBlockImplicitTerminator,
     SymbolOpInterface,
+    ensure_terminator,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
@@ -310,6 +312,41 @@ class AllocaScopeOp(IRDLOperation):
 
     scope = region_def()
 
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(AllocaScopeReturnOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        result_types: Sequence[Attribute] = ()
+        if parser.parse_optional_punctuation("->"):
+            types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            result_types = [parser.parse_type()] if types is None else types
+        region = parser.parse_region()
+        attrs = parser.parse_optional_attr_dict()
+        op = cls(result_types=(result_types,), regions=(region,), attributes=attrs)
+        for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(op, trait)
+        return op
+
+    def print(self, printer: Printer):
+        if self.res:
+            printer.print_string(" -> (")
+            printer.print_list(self.res.types, printer.print_attribute)
+            printer.print_string(")")
+        printer.print_string(" ")
+        printer.print_region(
+            self.scope,
+            print_entry_block_args=False,
+            print_block_terminators=bool(self.res),
+        )
+        printer.print_op_attributes(self.attributes)
+
 
 @irdl_op_definition
 class AllocaScopeReturnOp(IRDLOperation):
@@ -391,7 +428,7 @@ class AssumeAlignmentOp(IRDLOperation):
 
     name = "memref.assume_alignment"
 
-    T: ClassVar = VarConstraint("T", base(MemRefType))
+    T: ClassVar = VarConstraint.get("T", MemRefType)
 
     memref = operand_def(T)
     alignment = prop_def(IntegerAttr[I32])
@@ -425,7 +462,7 @@ class AssumeAlignmentOp(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get("T", AnyFloat | AnySignlessIntegerType)
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(T))
@@ -441,7 +478,7 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    memref = operand_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(MemoryFreeEffect())
 
@@ -521,7 +558,7 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
     index = operand_def(IndexType)
 
     result = result_def(IndexType)
@@ -903,8 +940,8 @@ class SubviewOp(IRDLOperation):
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -920,8 +957,8 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 

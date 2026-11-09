@@ -35,8 +35,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AnyInt,
+    AnyRange,
     AtLeast,
     AttrSizedOperandSegments,
     IntVarConstraint,
@@ -46,8 +46,6 @@ from xdsl.irdl import (
     RangeOf,
     SameVariadicOperandSize,
     VarOperand,
-    base,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -596,9 +594,9 @@ class MapBoundsType(ParametrizedAttribute, TypeAttribute):
 class LoopNestOp(IRDLOperation):
     name = "omp.loop_nest"
 
-    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
-    upperBound = var_operand_def(base(IntegerType) | base(IndexType))
-    step = var_operand_def(base(IntegerType) | base(IndexType))
+    lowerBound = var_operand_def(IntegerType | IndexType)
+    upperBound = var_operand_def(IntegerType | IndexType)
+    step = var_operand_def(IntegerType | IndexType)
 
     collapse_num_loops = opt_prop_def(IntegerAttr)
     loop_inclusive = opt_prop_def(UnitAttr)
@@ -619,16 +617,16 @@ class WsLoopOp(BlockArgOpenMPOperation):
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
-    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
+    linear_vars = var_operand_def(AnyRange().of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf.get(i32).of_length(LINEAR_COUNT))
     private_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
-    reduction_vars = var_operand_def(RangeOf(AnyAttr()).of_length(REDUCTION_COUNT))
+    reduction_vars = var_operand_def(AnyRange().of_length(REDUCTION_COUNT))
     schedule_chunk = opt_operand_def()
 
     reduction_syms = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(SymbolRefAttr)).of_length(REDUCTION_COUNT))
+        ArrayAttr.constr(RangeOf.get(SymbolRefAttr).of_length(REDUCTION_COUNT))
     )
     reduction_mod = opt_prop_def(ReductionModifierAttr)
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
@@ -636,7 +634,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
     schedule_mod = opt_prop_def(ScheduleModifierAttr)
     schedule_simd = opt_prop_def(UnitAttr)
     nowait = opt_prop_def(UnitAttr)
-    ordered = opt_prop_def(IntegerAttr.constr(value=AtLeast(0), type=base(IntegerType)))
+    ordered = opt_prop_def(IntegerAttr.constr(value=AtLeast(0), type=IntegerType))
     order = opt_prop_def(OrderKindAttr)
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
@@ -671,7 +669,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     allocate_vars = var_operand_def()
     allocators_vars = var_operand_def()
     if_expr = opt_operand_def(i1)
-    num_threads = opt_operand_def(base(IntegerType) | base(IndexType))
+    num_threads = opt_operand_def(IntegerType | IndexType)
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
     private_vars = var_operand_def()
@@ -801,9 +799,7 @@ class TargetOp(BlockArgOpenMPOperation):
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
     depend_vars = var_operand_def(
-        RangeOf(
-            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-        ).of_length(DEP_COUNT)
+        AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
     )
     device = opt_operand_def(IntegerType)
     has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
@@ -817,7 +813,7 @@ class TargetOp(BlockArgOpenMPOperation):
 
     bare = opt_prop_def(UnitAttr)
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
@@ -916,20 +912,16 @@ class SimdOp(BlockArgOpenMPOperation):
     ALIGN_COUNT: ClassVar = IntVarConstraint("ALIGN_COUNT", AnyInt())
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
 
-    aligned_vars = var_operand_def(
-        RangeOf(
-            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-        ).of_length(ALIGN_COUNT)
-    )
+    aligned_vars = var_operand_def(AnyRange().of_length(ALIGN_COUNT))
     if_expr = opt_operand_def(i1)
-    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
+    linear_vars = var_operand_def(AnyRange().of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf.get(i32).of_length(LINEAR_COUNT))
     nontemporal_vars = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     private_vars = var_operand_def()
     reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     alignments = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(IntegerAttr[i64])).of_length(ALIGN_COUNT))
+        ArrayAttr.constr(RangeOf.get(IntegerAttr[i64]).of_length(ALIGN_COUNT))
     )
     order = opt_prop_def(OrderKindAttr)
     order_mod = opt_prop_def(OrderModifierAttr)
@@ -937,8 +929,8 @@ class SimdOp(BlockArgOpenMPOperation):
     reduction_mod = opt_prop_def(ReductionModifierAttr)
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
-    simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
-    safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
+    simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=i64))
+    safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=i64))
     linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")
@@ -1036,16 +1028,14 @@ class TargetTaskBasedDataOp(IRDLOperation):
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
 
     depend_vars = var_operand_def(
-        RangeOf(
-            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-        ).of_length(DEP_COUNT)
+        AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
     )
     device = opt_operand_def(IntegerType | IndexType)
     if_expr = opt_operand_def(i1)
     mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     nowait = opt_prop_def(UnitAttr)
 
@@ -1160,14 +1150,10 @@ class TaskwaitOp(IRDLOperation):
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
 
-    depend_vars = var_operand_def(
-        RangeOf(
-            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-        ).of_length(DEP_COUNT)
-    )
+    depend_vars = var_operand_def(AnyRange().of_length(DEP_COUNT))
 
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     nowait = opt_prop_def(UnitAttr)
 
@@ -1232,9 +1218,7 @@ class TaskOp(BlockArgOpenMPOperation):
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
     depend_vars = var_operand_def(
-        RangeOf(
-            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-        ).of_length(DEP_COUNT)
+        AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
     )
     final = opt_operand_def(i1)
     if_expr = opt_operand_def(i1)
@@ -1244,7 +1228,7 @@ class TaskOp(BlockArgOpenMPOperation):
     event_handle = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])

@@ -26,7 +26,7 @@ from xdsl.ir import (
     SSAValue,
     Use,
 )
-from xdsl.irdl import AttrConstraint, base
+from xdsl.irdl import AttrConstraint, irdl_to_attr_constraint
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
@@ -573,7 +573,7 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func, eval_str=True).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-    constr = base(expected_type)
+    constr = irdl_to_attr_constraint(expected_type)
     return attr_constr_rewrite_pattern(constr)(func)
 
 

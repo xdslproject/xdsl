@@ -35,6 +35,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
+    IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -42,7 +43,6 @@ from xdsl.irdl import (
     VarConstraint,
     VerificationContext,
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -387,7 +387,7 @@ class StencilType(
     @staticmethod
     def constr(
         *,
-        bounds: AttrConstraint | None = None,
+        bounds: IRDLAttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
     ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
         return cast(
@@ -938,7 +938,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
+    result = result_def(FieldType | MemRefType)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -1263,7 +1263,7 @@ class LoadOp(IRDLOperation):
 
     field = operand_def(
         FieldType[Attribute].constr(
-            bounds=base(StencilBoundsAttr),
+            bounds=StencilBoundsAttr,
             element_type=MessageConstraint(
                 TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",

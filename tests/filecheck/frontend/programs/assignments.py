@@ -12,6 +12,12 @@ def add(operand1: int, operand2: int) -> int: ...
 def pair(operand1: int, operand2: int) -> tuple[int, bool]: ...
 
 
+def triple(operand1: int, operand2: int) -> tuple[int, int, int]: ...
+
+
+def split(operand1: int, operand2: int) -> tuple[int, int]: ...
+
+
 def effect(value: int) -> int: ...
 
 
@@ -31,6 +37,9 @@ ctx.register_type(int, builtin.i32)
 ctx.register_type(bool, builtin.i1)
 ctx.register_function(add, arith.AddiOp)
 ctx.register_function(pair, arith.AddUIExtendedOp)
+# Registered with fewer results than the functions return, to test unpacking them.
+ctx.register_function(triple, arith.AddUIExtendedOp)
+ctx.register_function(split, arith.AddiOp)
 ctx.register_function(effect, build_effect)
 ctx.register_function(consume, build_consume)
 
@@ -88,7 +97,7 @@ try:
     chained.module
 except CodeGenerationException as error:
     print(error.msg)
-# CHECK: Only assignment to a single variable is supported.
+# CHECK: Only assignment to a variable or a tuple of variables is supported.
 
 
 @ctx.parse_program
@@ -97,11 +106,77 @@ def unpacked(x: int) -> int:
     return y
 
 
+print(unpacked.module)
+# CHECK:       func.func @unpacked(%x: i32) -> i32 {
+# CHECK-NEXT:    %0, %1 = arith.addui_extended %x, %x : i32, i1
+# CHECK-NEXT:    func.return %0 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def swapped(x: int, y: int) -> int:
+    x, y = y, x
+    return add(x, add(x, y))
+
+
+print(swapped.module)
+# CHECK:       func.func @swapped(%x: i32, %y: i32) -> i32 {
+# CHECK-NEXT:    %0 = arith.addi %y, %x : i32
+# CHECK-NEXT:    %1 = arith.addi %y, %0 : i32
+# CHECK-NEXT:    func.return %1 : i32
+# CHECK-NEXT:  }
+
+
+@ctx.parse_program
+def too_many(x: int) -> int:
+    y, _z, _w = triple(x, x)
+    return y
+
+
 try:
-    unpacked.module
+    too_many.module
 except CodeGenerationException as error:
     print(error.msg)
-# CHECK: Only assignment to a single variable is supported.
+# CHECK: Expected 3 values to unpack, got 2.
+
+
+@ctx.parse_program
+def single(x: int) -> int:
+    y, _z = split(x, x)
+    return y
+
+
+try:
+    single.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Expected 2 values to unpack, got 1.
+
+
+@ctx.parse_program
+def kept_tuple(x: int) -> int:
+    _y = (x, x)
+    return x
+
+
+try:
+    kept_tuple.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Tuples are only supported when unpacked.
+
+
+@ctx.parse_program
+def nested(x: int) -> int:
+    (y, _z), _w = (x, x), x
+    return y
+
+
+try:
+    nested.module
+except CodeGenerationException as error:
+    print(error.msg)
+# CHECK: Only assignment to a variable or a tuple of variables is supported.
 
 
 @ctx.parse_program

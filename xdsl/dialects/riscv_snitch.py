@@ -41,10 +41,8 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    BaseAttr,
     VarConstraint,
     attr_def,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -116,7 +114,7 @@ class ScfgwiOp(RISCVInstruction):
     name = "riscv_snitch.scfgwi"
 
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12])
+    immediate = prop_def(IntegerAttr[SI12])
 
     assembly_format = (
         "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
@@ -137,8 +135,8 @@ class ScfgwiOp(RISCVInstruction):
             comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -591,8 +589,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        snitch.ReadableStreamType.constr(riscv.FloatRegisterType)
+        | snitch.WritableStreamType.constr(riscv.FloatRegisterType)
     )
 
     traits = traits_def(NoMemoryEffect())
@@ -1033,8 +1031,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     be annotated with fastmath flags.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
@@ -1042,7 +1040,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
 
-    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = (
         "$rd_in `,` $rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
@@ -1067,8 +1065,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rd, rs1, rs2],
+            properties={"fastmath": fastmath},
             attributes={
-                "fastmath": fastmath,
                 "comment": comment,
             },
             result_types=[rd.type],
@@ -1089,8 +1087,8 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
     that also acts as a source register, and a source floating-point register.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)

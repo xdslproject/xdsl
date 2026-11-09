@@ -103,10 +103,10 @@
 
 // CHECK-NEXT:  }
 
-// CHECK-GENERIC:         %lb = "x86.di.mov"() {immediate = 1 : si32} : () -> !x86.reg64<r12>
-// CHECK-GENERIC-NEXT:    %ub = "x86.di.mov"() {immediate = 8 : si32} : () -> !x86.reg64<r13>
-// CHECK-GENERIC-NEXT:    %step = "x86.di.mov"() {immediate = 3 : si32} : () -> !x86.reg64<r10>
-// CHECK-GENERIC-NEXT:    %init = "x86.di.mov"() {immediate = 0 : si32} : () -> !x86.reg64<r11>
+// CHECK-GENERIC:         %lb = "x86.di.mov"() <{immediate = 1 : si32}> : () -> !x86.reg64<r12>
+// CHECK-GENERIC-NEXT:    %ub = "x86.di.mov"() <{immediate = 8 : si32}> : () -> !x86.reg64<r13>
+// CHECK-GENERIC-NEXT:    %step = "x86.di.mov"() <{immediate = 3 : si32}> : () -> !x86.reg64<r10>
+// CHECK-GENERIC-NEXT:    %init = "x86.di.mov"() <{immediate = 0 : si32}> : () -> !x86.reg64<r11>
 // CHECK-GENERIC-NEXT:    %iv_end, %res = "x86_scf.rof"(%ub, %lb, %step, %init) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^bb0(%i: !x86.reg64<r13>, %acc: !x86.reg64<r11>):
 // CHECK-GENERIC-NEXT:      "x86_scf.yield"(%acc) : (!x86.reg64<r11>) -> ()

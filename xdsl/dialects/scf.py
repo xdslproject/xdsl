@@ -4,10 +4,10 @@ from collections.abc import Sequence
 from typing import ClassVar, Self
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     DenseArrayBase,
     IndexType,
     IntegerType,
-    SignlessIntegerConstraint,
     i1,
     i64,
 )
@@ -29,7 +29,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -382,7 +381,7 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ForOp(IRDLOperation):
     name = "scf.for"
 
-    T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get("T", IndexType | AnySignlessIntegerType)
 
     lb = operand_def(T)
     ub = operand_def(T)

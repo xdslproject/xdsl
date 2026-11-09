@@ -35,6 +35,7 @@ from xdsl.dialects.utils.reshape_ops_utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    AnyRange,
     AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
@@ -44,7 +45,6 @@ from xdsl.irdl import (
     Operand,
     RangeOf,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -80,10 +80,8 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
-    dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
+    dest = result_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
@@ -131,14 +129,14 @@ class ConcatOp(IRDLOperation):
     inputs = var_operand_def(
         RangeOf(
             TensorType.constr(
-                _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+                _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
             )
         ).of_length(AtLeast(1))
     )
     dim = prop_def(IntegerAttr[I64])
     result = result_def(
         TensorType.constr(
-            _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+            _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
         )
     )
 
@@ -240,9 +238,7 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
@@ -689,7 +685,7 @@ class InsertSliceOp(IRDLOperation):
 
     # An insert_slice returns a copy of its destination, so the two share a type.
     # The syntax leaves the result type off, and takes it from the destination.
-    DEST_TYPE: ClassVar = VarConstraint("DEST_TYPE", base(TensorType))
+    DEST_TYPE: ClassVar = VarConstraint.get("DEST_TYPE", TensorType)
 
     source = operand_def(TensorType)
     dest = operand_def(DEST_TYPE)
@@ -970,7 +966,7 @@ class PadOp(IRDLOperation):
 
     name = "tensor.pad"
 
-    source = operand_def(base(TensorType[Attribute]))
+    source = operand_def(TensorType[Attribute])
     low = var_operand_def(IndexType)
     high = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase.constr(i64))

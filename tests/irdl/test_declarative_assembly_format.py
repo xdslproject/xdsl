@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     f32,
     i32,
+    i64,
 )
 from xdsl.dialects.test import Test, TestType
 from xdsl.dialects.utils import DynamicIndexList
@@ -65,7 +66,6 @@ from xdsl.irdl import (
     VarRegion,
     VarSuccessor,
     attr_def,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -3028,7 +3028,7 @@ def test_variadic_length_inference():
     @irdl_op_definition
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
-        T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
+        T: ClassVar = RangeVarConstraint.get("T")
         ins = var_operand_def(T)
         outs = var_result_def(T)
 
@@ -3056,8 +3056,8 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
-        outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
+        ins = var_operand_def(RangeOf.get(IndexType()).of_length(T))
+        outs = var_result_def(RangeOf.get(i64).of_length(T))
 
         assembly_format = "$ins attr-dict"
 
@@ -3902,9 +3902,9 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop = prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    outs = var_result_def(RangeOf(eq(IndexType())).of_length(_I))
+    outs = var_result_def(RangeOf.get(IndexType()).of_length(_I))
 
     assembly_format = "$prop attr-dict"
 
@@ -3947,11 +3947,11 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop = prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
+    ins = var_operand_def(RangeOf.get(IndexType()).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 

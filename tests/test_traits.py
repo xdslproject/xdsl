@@ -15,9 +15,6 @@ import pytest
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -26,6 +23,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     i1,
     i32,
@@ -639,17 +637,11 @@ class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
     ops = var_operand_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     res = var_result_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     traits = traits_def(SameOperandsAndResultType())
@@ -1235,3 +1227,88 @@ def test_region_branch_op_entry_successor_regions():
     assert trait is not None
     assert list(trait.entry_successor_regions(op, [])) == [RegionSuccessor(region)]
     assert list(_ExitOnlyTrait.entry_successor_regions(op, [])) == [RegionSuccessor(op)]
+
+
+def test_region_branch_op_successor_inputs():
+    region = Region()
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[region]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.successor_inputs(op, RegionSuccessor(region))) == []
+    assert list(_ExitOnlyTrait.successor_inputs(op, RegionSuccessor(op))) == []
+
+
+def test_region_branch_op_region_invocation_bounds() -> None:
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[Region(), Region()]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert (
+        list(trait.region_invocation_bounds(op, [])) == [InvocationBounds.UNKNOWN] * 2
+    )
+    assert (
+        list(_ExitOnlyTrait.region_invocation_bounds(op, []))
+        == [InvocationBounds.UNKNOWN] * 2
+    )
+
+
+def test_region_branch_op_are_types_compatible() -> None:
+    op = test.TestRegionBranchOp(operands=[[]], result_types=[[]], regions=[[]])
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert trait.are_types_compatible(op, i32, i32)
+    assert not trait.are_types_compatible(op, i32, i64)
+    assert _ExitOnlyTrait.are_types_compatible(op, i32, i32)
+    assert not _ExitOnlyTrait.are_types_compatible(op, i32, i64)
+
+
+def test_region_branch_op_successor_regions_from_region() -> None:
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    region = Region(Block([terminator]))
+    empty = Region(Block())
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[region, empty]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.successor_regions_from_region(op, region)) == [
+        RegionSuccessor(op)
+    ]
+    assert list(trait.successor_regions_from_region(op, empty)) == []
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, region)) == [
+        RegionSuccessor(op)
+    ]
+    assert list(_ExitOnlyTrait.successor_regions_from_region(op, empty)) == []
+
+
+def test_region_branch_op_predecessors() -> None:
+    terminator = test.TestRegionBranchTerminatorOp(
+        operands=[[]], result_types=[[]], successors=[[]]
+    )
+    region = Region(Block([terminator]))
+    # A block without a terminator is not a branch point.
+    op = test.TestRegionBranchOp(
+        operands=[[]], result_types=[[]], regions=[[region, Region(Block())]]
+    )
+    trait = op.get_trait(RegionBranchOpTrait)
+
+    assert trait is not None
+    assert list(trait.predecessors(op, RegionSuccessor(region))) == [
+        RegionBranchPoint.PARENT
+    ]
+    assert list(trait.predecessors(op, RegionSuccessor(op))) == [
+        RegionBranchPoint(terminator)
+    ]
+    # Every branch point of `_ExitOnlyTrait` exits the op.
+    assert list(_ExitOnlyTrait.predecessors(op, RegionSuccessor(region))) == []
+    assert list(_ExitOnlyTrait.predecessors(op, RegionSuccessor(op))) == [
+        RegionBranchPoint.PARENT,
+        RegionBranchPoint(terminator),
+    ]

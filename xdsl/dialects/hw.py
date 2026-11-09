@@ -20,18 +20,17 @@ from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
     ArrayAttr,
     ContainerType,
-    FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
     IntegerAttr,
     IntegerType,
     LocationAttr,
     Signedness,
-    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
 )
+from xdsl.dialects.llvm import param_def
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -122,7 +121,7 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: FlatSymbolRefAttr
+    module_ref: SymbolRefAttr = param_def(FlatSymbolRefAttrConstr)
     # NB. upstream defines as “name” which clashes with Attribute.name
     sym_name: StringAttr
 
@@ -931,19 +930,16 @@ class HWModuleOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        properties: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            properties["sym_visibility"] = visibility
 
         return super().__init__(
-            properties=properties,
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            },
             regions=[body],
         )
 
@@ -1024,10 +1020,10 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
     verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
     traits = lazy_traits_def(
@@ -1044,18 +1040,16 @@ class HWModuleExternOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
-
-        return super().__init__(attributes=attributes)
+        return super().__init__(
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            }
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> HWModuleExternOp:
@@ -1120,7 +1114,7 @@ class InstanceOp(IRDLOperation):
     def __init__(
         self,
         instance_name: str,
-        module_name: FlatSymbolRefAttr,
+        module_name: SymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
         inner_sym: InnerSymAttr | None = None,
@@ -1497,9 +1491,9 @@ class BitcastOp(IRDLOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "hw.constant"
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint.get("T", AnySignlessIntegerType)
     result = result_def(_T)
-    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+    value = prop_def(IntegerAttr.constr(_T))
 
     assembly_format = "attr-dict $value"
 

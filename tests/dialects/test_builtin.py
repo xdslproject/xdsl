@@ -80,7 +80,6 @@ from xdsl.irdl import (
     RangeVarConstraint,
     TypeVarConstraint,
     VerificationContext,
-    eq,
     irdl_attr_definition,
 )
 from xdsl.printer import Printer
@@ -345,8 +344,8 @@ def test_bf16_pack_overflow(value: float, expected_bits: int):
 @pytest.mark.parametrize(
     "value, type_, tolerance",
     [
-        # f80/f128 have no precision-normalisation path (their format raises
-        # NotImplementedError); FloatAttr stores the float as-is.
+        # Every f64 value is exactly representable in f80/f128, so FloatAttr stores
+        # the float as-is.
         (0.1, f80, None),
         (0.1, f128, None),
         # bf16 normalises through pack/unpack; 1.5 is exactly representable.
@@ -364,6 +363,55 @@ def test_FloatAttr_normalisation(
     else:
         assert data != value
         assert abs(data - value) < tolerance
+
+
+@pytest.mark.parametrize("type_", [f16, f32, bf16])
+def test_FloatAttr_overflow(type_: AnyFloat):
+    assert FloatAttr(1e40, type_).value.data == math.inf
+    assert FloatAttr(-1e40, type_).value.data == -math.inf
+
+
+_F32_MAX = (2 - 2**-23) * 2.0**127
+# Halfway between the largest finite f32 and 2**128, so ties to even rounds it up.
+_F32_OVERFLOW_MIDPOINT = 2.0**128 - 2.0**103
+
+
+@pytest.mark.parametrize(
+    "type_, value, expected",
+    [
+        # 0.1 * 2**10 = 102.4 rounds to 102
+        (f16, 1.1, 1 + 102 / 2**10),
+        (f16, 65519.0, 65504.0),  # rounds down to the largest finite f16
+        (f16, 65520.0, math.inf),  # halfway to 2**16, ties to even rounds up
+        (f16, -65520.0, -math.inf),
+        (f16, 2.0**-25, 0.0),  # halfway to the smallest subnormal, ties to even
+        (f16, 3 * 2.0**-26, 2.0**-24),
+        # 0.1 * 2**23 = 838860.8 rounds to 838861
+        (f32, 1.1, 1 + 838861 / 2**23),
+        (f32, math.nextafter(_F32_OVERFLOW_MIDPOINT, 0.0), _F32_MAX),
+        (f32, _F32_OVERFLOW_MIDPOINT, math.inf),
+        (f32, -1e40, -math.inf),
+        (f64, 1.1, 1.1),
+        (f80, 1.1, 1.1),
+        (f128, 1.1, 1.1),
+        # 0.1 * 2**7 = 12.8 rounds to 13
+        (bf16, 1.1, 1 + 13 / 2**7),
+        (bf16, 1e40, math.inf),
+        # f6E2M3FN has no infinities, so it saturates to its largest value
+        (f6E2M3FN, 100.0, 7.5),
+        (f6E2M3FN, -100.0, -7.5),
+    ],
+)
+def test_FloatType_round(type_: AnyFloat, value: float, expected: float):
+    assert type_.round(value) == expected
+
+
+@pytest.mark.parametrize("type_", [f16, f32, f64, bf16])
+def test_FloatType_round_special_values(type_: AnyFloat):
+    assert type_.round(math.inf) == math.inf
+    assert type_.round(-math.inf) == -math.inf
+    assert math.isnan(type_.round(math.nan))
+    assert math.copysign(1.0, type_.round(-0.0)) == -1.0
 
 
 # (value, type, expected narrowed value): each `value` is not exactly
@@ -1334,7 +1382,7 @@ def test_vector_constr():
         constr.verify(VectorType(i64, [1]), VerificationContext())
 
     shape = ArrayAttr([IntAttr(1)])
-    scalable_dims = ArrayAttr([IntegerAttr(0, IntegerType(1))])
+    scalable_dims = ArrayAttr([IntegerAttr(0, i1)])
     constr = VectorType.constr(
         i32,
         shape=shape,
@@ -1354,7 +1402,7 @@ def test_array_constr():
     assert constr.verifies(ArrayAttr([i32]))
     assert not constr.verifies(ArrayAttr([i64]))
 
-    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    T = RangeVarConstraint("T", RangeOf.get(i32))
     constr = ArrayAttr.constr(T)
     assert constr.can_infer({"T"})
 

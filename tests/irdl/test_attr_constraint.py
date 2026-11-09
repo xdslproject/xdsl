@@ -6,7 +6,7 @@ from typing import Generic
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.dialects.bufferization import TensorFromMemRefConstraint
+from xdsl.dialects.bufferization import TensorFromMemRefConstraint  # pyright: ignore[reportDeprecated]
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
@@ -46,8 +46,6 @@ from xdsl.irdl import (
     SizedConstraint,
     VarConstraint,
     VerificationContext,
-    base,
-    eq,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -66,7 +64,7 @@ def test_failing_inference():
             r"Cannot infer attribute from constraint AnyOf(attr_constrs=(BaseAttr(IntegerType), BaseAttr(IndexType)))"
         ),
     ):
-        (base(IntegerType) | base(IndexType)).infer(VerificationContext())
+        (AnyOf.get(IntegerType, IndexType)).infer(VerificationContext())
 
 
 class Base(ParametrizedAttribute, ABC):
@@ -143,13 +141,9 @@ def test_param_attr_constraint_inference():
     @irdl_attr_definition
     class WrapAttr(BaseWrapAttr): ...
 
-    constr = ParamAttrConstraint(
+    constr = ParamAttrConstraint.get(
         WrapAttr,
-        (
-            eq(
-                StringAttr("Hello"),
-            ),
-        ),
+        StringAttr("Hello"),
     )
 
     assert constr.can_infer(set())
@@ -158,11 +152,9 @@ def test_param_attr_constraint_inference():
     var_constr = ParamAttrConstraint(
         WrapAttr,
         (
-            VarConstraint(
+            VarConstraint.get(
                 "T",
-                eq(
-                    StringAttr("Hello"),
-                ),
+                StringAttr("Hello"),
             ),
         ),
     )
@@ -172,13 +164,9 @@ def test_param_attr_constraint_inference():
         VerificationContext({"T": StringAttr("Hello")})
     ) == WrapAttr(StringAttr("Hello"))
 
-    base_constr = ParamAttrConstraint(
+    base_constr = ParamAttrConstraint.get(
         BaseWrapAttr,
-        (
-            eq(
-                StringAttr("Hello"),
-            ),
-        ),
+        StringAttr("Hello"),
     )
     assert not base_constr.can_infer(set())
 
@@ -315,7 +303,7 @@ def test_attr_set_constraint():
 def test_tensor_to_memref(
     input: TensorType | UnrankedTensorType, output: MemRefType | UnrankedMemRefType
 ):
-    assert TensorFromMemRefConstraint.tensor_to_memref(input) == output
+    assert TensorFromMemRefConstraint.tensor_to_memref(input) == output  # pyright: ignore[reportDeprecated]
 
 
 @pytest.mark.parametrize(
@@ -328,7 +316,7 @@ def test_tensor_to_memref(
 def test_memref_to_tensor(
     input: MemRefType | UnrankedMemRefType, output: TensorType | UnrankedTensorType
 ):
-    assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
+    assert TensorFromMemRefConstraint.memref_to_tensor(input) == output  # pyright: ignore[reportDeprecated]
 
 
 _T = TypeVar("_T")
@@ -567,6 +555,17 @@ def test_mapping_type_vars():
             AttrSetConstraint(frozenset((AttrA(), AttrC()))),
         ),
         (AttrSetConstraint.get(AttrA()), EqAttrConstraint(AttrA())),
+        (AllOf.get(), AnyAttr()),
+        (AllOf.get(AttrA), BaseAttr(AttrA)),
+        (AllOf.get(AttrA, AttrB), AllOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+        (
+            AllOf.get(AttrA, AnyAttr(), AttrB),
+            AllOf((BaseAttr(AttrA), BaseAttr(AttrB))),
+        ),
+        (
+            AllOf.get(AllOf.get(AttrA, AttrB), AttrC),
+            AllOf((BaseAttr(AttrA), BaseAttr(AttrB), BaseAttr(AttrC))),
+        ),
     ],
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):

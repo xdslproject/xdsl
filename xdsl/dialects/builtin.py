@@ -73,7 +73,6 @@ from xdsl.irdl import (
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
-    irdl_to_attr_constraint,
     opt_prop_def,
     param_def,
     region_def,
@@ -248,9 +247,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
         else:
-            object.__setattr__(
-                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
-            )
+            object.__setattr__(self, "elem_range_constraint", RangeOf.get(constr))
 
     def verify(
         self,
@@ -853,9 +850,6 @@ _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=Intege
 AnySignlessIntegerType: TypeAlias = IntegerType[int, Literal[Signedness.SIGNLESS]]
 """Type alias constrained to signless IntegerType."""
 
-SignlessIntegerConstraint = irdl_to_attr_constraint(AnySignlessIntegerType)
-"""Type constraint for signless IntegerType."""
-
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
@@ -1041,8 +1035,6 @@ class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]
         return "<q"
 
 
-IndexTypeConstr = BaseAttr(IndexType)
-
 _IntegerAttrTypeCovT = TypeVar(
     "_IntegerAttrTypeCovT",
     bound=IntegerType | IndexType,
@@ -1050,7 +1042,6 @@ _IntegerAttrTypeCovT = TypeVar(
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
-IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 
 
 @irdl_attr_definition
@@ -1106,7 +1097,7 @@ class IntegerAttr(
 
     @staticmethod
     def from_bool(value: bool) -> BoolAttr:
-        return IntegerAttr(value, 1)
+        return IntegerAttr(value, i1)
 
     def print_builtin(self, printer: Printer) -> None:
         ty = self.type
@@ -1137,7 +1128,7 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IndexType | IntegerType,
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]]:
@@ -1172,7 +1163,7 @@ class IntegerAttr(
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
-BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
+BoolAttr: TypeAlias = IntegerAttr[I1]
 
 
 class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
@@ -1184,6 +1175,20 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     def print_builtin(self, printer: Printer) -> None:
         # All float types just print their name
         printer.print_string(self.name)
+
+    def round(self, value: float) -> float:
+        """
+        Round `value` to the nearest value representable in this type, with ties to
+        even.
+        Magnitudes that are too large for the type round to infinity, or to the
+        value the type uses on overflow if it has no infinities.
+        """
+        try:
+            (rounded,) = self.unpack(self.pack((value,)), 1)
+        except OverflowError:
+            # `struct` raises on overflow instead of rounding to infinity (f16, f32).
+            return math.copysign(math.inf, value)
+        return rounded
 
 
 class FloatNonfiniteBehavior(Enum):
@@ -1637,6 +1642,10 @@ class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     def format(self) -> str:
         raise NotImplementedError()
 
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f80.
+        return value
+
 
 @irdl_attr_definition
 class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
@@ -1649,6 +1658,10 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
     @property
     def format(self) -> str:
         raise NotImplementedError()
+
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f128.
+        return value
 
 
 @irdl_attr_definition
@@ -1806,26 +1819,6 @@ AnyFloat: TypeAlias = (
     | Float6E3M2FNType
     | Float4E2M1FNType
 )
-AnyFloatConstr = (
-    BaseAttr(BFloat16Type)
-    | BaseAttr(Float16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(Float64Type)
-    | BaseAttr(Float80Type)
-    | BaseAttr(Float128Type)
-    | BaseAttr(FloatTF32Type)
-    | BaseAttr(Float8E5M2Type)
-    | BaseAttr(Float8E4M3Type)
-    | BaseAttr(Float8E4M3FNType)
-    | BaseAttr(Float8E5M2FNUZType)
-    | BaseAttr(Float8E4M3FNUZType)
-    | BaseAttr(Float8E4M3B11FNUZType)
-    | BaseAttr(Float8E3M4Type)
-    | BaseAttr(Float8E8M0FNUType)
-    | BaseAttr(Float6E2M3FNType)
-    | BaseAttr(Float6E3M2FNType)
-    | BaseAttr(Float4E2M1FNType)
-)
 
 
 @irdl_attr_definition
@@ -1888,17 +1881,8 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
                 raise ValueError(f"Invalid bitwidth: {type}")
 
         value: float = data.data if isinstance(data, FloatData) else data
-        # for supported types, constrain value to precision of floating point type
-        # else, allow full python float precision
-        if isinstance(
-            type,
-            Float64Type
-            | Float32Type
-            | Float16Type
-            | BFloat16Type
-            | ReducedPrecisionFloatType,
-        ):
-            value = type.unpack(type.pack((value,)), 1)[0]
+        # constrain value to precision of floating point type
+        value = type.round(value)
 
         data_attr = FloatData(value)
 
@@ -1941,7 +1925,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloatConstr,
+        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloat,
     ) -> AttrConstraint[FloatAttr[_FloatAttrTypeCovT]]:
         return cast(
             AttrConstraint[FloatAttr[_FloatAttrTypeCovT]],
@@ -2235,10 +2219,6 @@ class TensorType(
         )
 
 
-AnyTensorType: TypeAlias = TensorType[Attribute]
-AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
-
-
 @irdl_attr_definition
 class UnrankedTensorType(
     ParametrizedAttribute,
@@ -2257,10 +2237,6 @@ class UnrankedTensorType(
     def print_builtin(self, printer: Printer):
         with printer.delimited("tensor<*x", ">"):
             printer.print_attribute(self.element_type)
-
-
-AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
-AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
 def container_of(
@@ -3244,8 +3220,6 @@ class UnrankedMemRefType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-
-AnyUnrankedMemRefTypeConstr = BaseAttr[UnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]

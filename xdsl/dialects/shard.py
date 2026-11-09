@@ -9,9 +9,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BytesAttr,
     DenseArrayBase,
-    FlatSymbolRefAttr,
     IndexType,
-    IndexTypeConstr,
     IntegerAttr,
     MemRefType,
     SymbolNameConstraint,
@@ -20,6 +18,7 @@ from xdsl.dialects.builtin import (
     i16,
     i64,
 )
+from xdsl.dialects.hw import FlatSymbolRefAttrConstr
 from xdsl.dialects.utils import DimensionList, DynamicIndexList, EnumAttribute
 from xdsl.ir import (
     Attribute,
@@ -166,7 +165,7 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
     Base class for collective communication ops.
     """
 
-    grid = prop_def(FlatSymbolRefAttr)
+    grid = prop_def(FlatSymbolRefAttrConstr)
     grid_axes = prop_def(
         ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b""))
     )
@@ -240,7 +239,7 @@ class GatherOp(CollectiveCommunicationOp):
     name = "shard.gather"
 
     input = operand_def(TensorType)
-    gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    gather_axis = prop_def(IntegerAttr.constr(IndexType))
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
 
@@ -272,7 +271,7 @@ class ScatterOp(CollectiveCommunicationOp):
     name = "shard.scatter"
 
     input = operand_def(TensorType)
-    scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    scatter_axis = prop_def(IntegerAttr.constr(IndexType))
 
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
@@ -388,7 +387,7 @@ class ShiftOp(CollectiveCommunicationOp):
 
     input = operand_def(TensorType)
 
-    shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    shift_axis = prop_def(IntegerAttr.constr(IndexType))
     offset = prop_def(IntegerAttr[I64])
     rotate = prop_def(UnitAttr)
 
@@ -451,7 +450,7 @@ class ShardingOp(IRDLOperation):
 
     name = "shard.sharding"
 
-    grid = prop_def(FlatSymbolRefAttr)
+    grid = prop_def(FlatSymbolRefAttrConstr)
     split_axes = prop_def(ShardAxesArrayAttr)
     static_sharded_dims_offsets = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))

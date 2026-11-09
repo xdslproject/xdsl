@@ -1,25 +1,86 @@
 import ast
 
-from xdsl.dialects import arith, builtin, test
+from xdsl.dialects import builtin, py
 from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
-from xdsl.ir import SSAValue
 
 
-def add(operand1: int, operand2: int) -> int:
-    return operand1 + operand2
+def test_generates_py():
+    source = """
+def f(x: int, y: float) -> int:
+    z = g(x, key=y)
+    assert z < x
+    return h(1)
+"""
+    module = builtin.ModuleOp([])
+    visitor = CodeGenerationVisitor(module, "test.py")
+    visitor.visit(ast.parse(source).body[0])
+    assert (
+        str(module)
+        == """\
+builtin.module {
+  py.func @f(%x: !py.object<"int">, %y: !py.object<"float">) -> !py.object<"int"> {
+    symref.declare "x"
+    %0 = py.cast %x : !py.object<"int"> to !py.object
+    symref.update @x = %0 : !py.object
+    symref.declare "y"
+    %1 = py.cast %y : !py.object<"float"> to !py.object
+    symref.update @y = %1 : !py.object
+    %2 = symref.fetch @x : !py.object
+    %3 = symref.fetch @y : !py.object
+    %4 = py.call "g"(%2, %3) keywords ["key"]
+    symref.declare "z"
+    symref.update @z = %4 : !py.object
+    %5 = symref.fetch @x : !py.object
+    %6 = symref.fetch @z : !py.object
+    %7 = py.compare lt, %6, %5
+    cf.assert %7, ""
+    %8 = py.const 1
+    %9 = py.call "h"(%8)
+    %10 = py.cast %9 : !py.object to !py.object<"int">
+    py.return %10 : !py.object<"int">
+  }
+}"""
+    )
+
+    # Operations are located at the code they come from, with one-based columns.
+    call = next(op for op in module.walk() if isinstance(op, py.PyCallOp))
+    assert call.location == builtin.FileLineColLoc(
+        builtin.StringAttr("test.py"), builtin.IntAttr(3), builtin.IntAttr(9)
+    )
 
 
-def pair(lhs: int, rhs: int) -> tuple[int, bool]:
-    return lhs + rhs, False
-
-
-def consume(value: int) -> None:
-    pass
-
-
-def build_consume(value: SSAValue) -> test.TestOp:
-    return test.TestOp([value])
+def test_generates_tuples():
+    source = """
+def f(x: int) -> int:
+    a, b = x, g(x)
+    return a
+"""
+    module = builtin.ModuleOp([])
+    visitor = CodeGenerationVisitor(module, "test.py")
+    visitor.visit(ast.parse(source).body[0])
+    assert (
+        str(module)
+        == """\
+builtin.module {
+  py.func @f(%x: !py.object<"int">) -> !py.object<"int"> {
+    symref.declare "x"
+    %0 = py.cast %x : !py.object<"int"> to !py.object
+    symref.update @x = %0 : !py.object
+    %1 = symref.fetch @x : !py.object
+    %2 = symref.fetch @x : !py.object
+    %3 = py.call "g"(%2)
+    %4 = py.build_tuple(%1, %3)
+    %5, %6 = py.unpack %4 : !py.object, !py.object
+    symref.declare "a"
+    symref.update @a = %5 : !py.object
+    symref.declare "b"
+    symref.update @b = %6 : !py.object
+    %7 = symref.fetch @a : !py.object
+    %8 = py.cast %7 : !py.object to !py.object<"int">
+    py.return %8 : !py.object<"int">
+  }
+}"""
+    )
 
 
 class StackRecordingVisitor(CodeGenerationVisitor):
@@ -34,21 +95,15 @@ class StackRecordingVisitor(CodeGenerationVisitor):
 
 
 def test_expression_statements_discard_their_values():
-    type_converter = TypeConverter(globals())
-    type_converter.type_registry.insert(int, builtin.i32)
-    type_converter.function_registry.insert(add, arith.AddiOp)
-    type_converter.function_registry.insert(pair, arith.AddUIExtendedOp)
-    type_converter.function_registry.insert(consume, build_consume)
     source = """
 def discarded(x: int) -> None:
     pair(x, x)
     consume(x)
     add(x, x)
 """
-    visitor = StackRecordingVisitor(type_converter, builtin.ModuleOp([]), None)
+    visitor = StackRecordingVisitor(builtin.ModuleOp([]), None)
     visitor.stack_sizes = []
     visitor.visit(ast.parse(source).body[0])
 
-    # Calls with two, zero and one results all leave the stack as they found it.
     assert len(visitor.stack_sizes) == 3
     assert all(before == after for before, after in visitor.stack_sizes)
