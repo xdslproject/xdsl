@@ -1410,10 +1410,15 @@ class AttrParser(BaseParser):
                         caller = self._parse_location()
                         return CallSiteLoc(callee, caller)
                 case "fused":
+                    if self.parse_optional_punctuation("<"):
+                        metadata = self.parse_attribute()
+                        self.parse_punctuation(">")
+                    else:
+                        metadata = NoneAttr()
                     locs = self.parse_comma_separated_list(
                         self.Delimiter.SQUARE, lambda: self._parse_location()
                     )
-                    return FusedLoc(tuple(locs), NoneAttr())
+                    return FusedLoc(tuple(locs), metadata)
                 case _:
                     self.raise_error("Unsupported location type.")
 
