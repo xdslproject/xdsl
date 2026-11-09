@@ -9,6 +9,7 @@
     //     CHECK: "test.op"() : () -> !test.type<"int">
     // CHECK-LOC: "test.op"() : () -> !test.type<"int"> loc(unknown)
     %0 = "test.op"() : () -> !test.type<"int"> loc(unknown)
+
     //     CHECK: "test.op"() : () -> ()
     // CHECK-LOC: "test.op"() : () -> () loc(unknown)
     "test.op"() : () -> () loc(unknown)
@@ -18,16 +19,12 @@
     "test.op"() : () -> () loc(fused<"metadata">[unknown])
 
     //     CHECK: "test.op"() : () -> ()
-    // CHECK-LOC: "test.op"() : () -> () loc(fused<{asm.comment = ""}>[unknown])
-    "test.op"() : () -> () loc(fused<{asm.comment = ""}>[unknown])
+    // CHECK-LOC: "test.op"() : () -> () loc(fused<{key = "value"}>[unknown])
+    "test.op"() : () -> () loc(fused<{key = "value"}>[unknown])
 
     //     CHECK: "test.op"() : () -> ()
-    // CHECK-LOC: "test.op"() : () -> () loc(fused<{asm.comment = "assembly comment", tag = "keep"}>["source":2:3])
-    "test.op"() : () -> () loc(fused<{asm.comment = "assembly comment", tag = "keep"}>["source":2:3])
-
-    //     CHECK: "test.op"() : () -> ()
-    // CHECK-LOC: "test.op"() : () -> () loc(fused<{asm.comment = "assembly comment"}>[fused<"existing metadata">["source":2:3]])
-    "test.op"() : () -> () loc(fused<{asm.comment = "assembly comment"}>[fused<"existing metadata">["source":2:3]])
+    // CHECK-LOC: "test.op"() : () -> () loc(fused<"outer">[fused<"inner">["source":2:3]])
+    "test.op"() : () -> () loc(fused<"outer">[fused<"inner">["source":2:3]])
 //     CHECK: }) : () -> ()
 // CHECK-LOC: }) : () -> () loc(unknown)
 }) : () -> ()
