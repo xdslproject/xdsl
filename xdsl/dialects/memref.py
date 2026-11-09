@@ -1156,12 +1156,12 @@ class ViewOp(IRDLOperation):
 
 @dataclass(frozen=True, slots=True)
 class _DmaStartOperands:
-    src: SSAValue
+    src: SSAValue[MemRefType]
     src_indices: tuple[SSAValue, ...]
-    dest: SSAValue
+    dest: SSAValue[MemRefType]
     dest_indices: tuple[SSAValue, ...]
     num_elements: SSAValue
-    tag: SSAValue
+    tag: SSAValue[MemRefType]
     tag_indices: tuple[SSAValue, ...]
 
 
@@ -1179,39 +1179,41 @@ class DmaStartOp(IRDLOperation):
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def _split(self) -> _DmaStartOperands:
-        ops = list(self.ops)
+        ops = self.ops
+        idx = 0
 
         def take(count: int) -> tuple[SSAValue, ...]:
-            if len(ops) < count:
+            nonlocal idx
+            idx += count
+            if idx > len(ops):
                 raise VerifyException(
-                    f"Expected {count} more operands in memref.dma_start, got {len(ops)}"
+                    f"Expected at least {idx} operands in memref.dma_start, got {len(ops)}"
                 )
-            group = tuple(ops[:count])
-            del ops[:count]
-            return group
+            return tuple(ops[idx - count : idx])
 
-        def rank(value: SSAValue) -> int:
-            if not isa(value.type, MemRefType):
+        def take_memref() -> SSAValue[MemRefType]:
+            (value,) = take(1)
+            if not isa(value, SSAValue[MemRefType]):
                 raise VerifyException("Expected memref operand in memref.dma_start")
-            return len(value.type.get_shape())
+            return value
 
-        src = take(1)[0]
-        src_indices = take(rank(src))
-        dest = take(1)[0]
-        dest_indices = take(rank(dest))
-        num_elements = take(1)[0]
-        tag = take(1)[0]
-        tag_indices = take(rank(tag))
-        if ops:
+        src = take_memref()
+        src_indices = take(src.type.get_num_dims())
+        dest = take_memref()
+        dest_indices = take(dest.type.get_num_dims())
+        (num_elements,) = take(1)
+        tag = take_memref()
+        tag_indices = take(tag.type.get_num_dims())
+        if idx != len(ops):
             raise VerifyException(
-                f"Expected {len(self.ops) - len(ops)} operands in memref.dma_start, got {len(self.ops)}"
+                f"Expected {idx} operands in memref.dma_start, got {len(ops)}"
             )
         return _DmaStartOperands(
             src, src_indices, dest, dest_indices, num_elements, tag, tag_indices
         )
 
     @property
-    def src(self) -> SSAValue:
+    def src(self) -> SSAValue[MemRefType]:
         return self._split().src
 
     @property
@@ -1219,7 +1221,7 @@ class DmaStartOp(IRDLOperation):
         return self._split().src_indices
 
     @property
-    def dest(self) -> SSAValue:
+    def dest(self) -> SSAValue[MemRefType]:
         return self._split().dest
 
     @property
@@ -1231,7 +1233,7 @@ class DmaStartOp(IRDLOperation):
         return self._split().num_elements
 
     @property
-    def tag(self) -> SSAValue:
+    def tag(self) -> SSAValue[MemRefType]:
         return self._split().tag
 
     @property
@@ -1264,10 +1266,6 @@ class DmaStartOp(IRDLOperation):
 
     def verify_(self) -> None:
         operands = self._split()
-        assert isa(operands.src.type, MemRefType)
-        assert isa(operands.dest.type, MemRefType)
-        assert isa(operands.tag.type, MemRefType[IntegerType])
-
         if operands.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
 
