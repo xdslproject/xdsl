@@ -57,7 +57,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSetConstraint,
-    BaseAttr,
     IRDLOperation,
     ParametrizedAttribute,
     VarConstraint,
@@ -702,9 +701,6 @@ class ConstStructOp(IRDLOperation):
 
 
 ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
-ZerosOpAttrConstr = (
-    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-)
 
 
 @irdl_op_definition
@@ -715,7 +711,7 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint.get("T", ZerosOpAttr)
 
     size = opt_operand_def(T)
 
@@ -748,9 +744,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar = VarConstraint(
-        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-    )
+    T: ClassVar = VarConstraint.get("T", IntegerType | Float32Type | Float16Type)
 
     size = operand_def(IntegerType)
 
@@ -2046,16 +2040,6 @@ ParamOpAttr: TypeAlias = (
     | ComptimeStructType
 )
 
-ParamOpAttrConstr = (
-    BaseAttr(Float16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(IntegerType)
-    | BaseAttr(ColorType)
-    | BaseAttr(FunctionType)
-    | BaseAttr(ImportedModuleType)
-    | BaseAttr(ComptimeStructType)
-)
-
 
 @irdl_op_definition
 class ParamOp(IRDLOperation):
@@ -2069,7 +2053,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint.get("T", ParamOpAttr)
 
     name = "csl.param"
 
