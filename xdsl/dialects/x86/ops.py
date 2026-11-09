@@ -57,6 +57,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import (
+    OperandArg,
     Operation,
     OpResult,
     SSAValue,
@@ -227,8 +228,8 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
-        source: Operation | SSAValue,
+        register_in: OperandArg,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
@@ -271,7 +272,7 @@ class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
@@ -309,8 +310,8 @@ class DSK_Operation(X86Instruction, ABC):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        source: OperandArg,
+        mask_reg: OperandArg,
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
@@ -346,7 +347,7 @@ class DK_Operation(X86Instruction, HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: GeneralRegisterType,
@@ -382,7 +383,7 @@ class KS_Operation(X86Instruction, HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: AVX512MaskRegisterType,
@@ -472,8 +473,8 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        register_in: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
@@ -540,7 +541,7 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -590,8 +591,8 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        memory: OperandArg,
+        mask_reg: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         z: bool = False,
@@ -684,7 +685,7 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
+        register_in: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -748,8 +749,8 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
         memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
@@ -801,9 +802,9 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
+        mask_reg: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -851,7 +852,7 @@ class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         immediate: int | IntegerAttr[SI32],
         *,
@@ -901,7 +902,7 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -943,7 +944,7 @@ class DSI8_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[UI8],
         *,
         comment: str | StringAttr | None = None,
@@ -990,7 +991,7 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         immediate: int | IntegerAttr[SI32],
         memory_offset: int | IntegerAttr[SI64],
         *,
@@ -1039,7 +1040,7 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
@@ -1086,7 +1087,7 @@ class ConditionalJumpOperation(X86Instruction, ABC):
 
     def __init__(
         self,
-        rflags: Operation | SSAValue,
+        rflags: OperandArg,
         then_values: Sequence[SSAValue],
         else_values: Sequence[SSAValue],
         then_block: Successor,
@@ -1216,8 +1217,8 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
@@ -1274,9 +1275,9 @@ class RSSK_Operation(X86Instruction, ABC):
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
+        mask_reg: OperandArg,
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
@@ -1372,8 +1373,8 @@ class DSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
@@ -1429,8 +1430,8 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source1: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         broadcast: bool = False,
@@ -1512,8 +1513,8 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
 
     def __init__(
         self,
-        source0: Operation | SSAValue,
-        source1: Operation | SSAValue,
+        source0: OperandArg,
+        source1: OperandArg,
         immediate: int | IntegerAttr[UI8],
         *,
         comment: str | StringAttr | None = None,
@@ -1743,8 +1744,8 @@ class S_PushOp(X86Instruction):
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        source: Operation | SSAValue,
+        rsp_in: OperandArg,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1784,7 +1785,7 @@ class D_PopOp(X86Instruction):
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
+        rsp_in: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: X86RegisterType,
@@ -1886,9 +1887,9 @@ class S_IDivOp(X86Instruction):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        rdx_input: Operation | SSAValue,
-        rax_input: Operation | SSAValue,
+        source: OperandArg,
+        rdx_input: OperandArg,
+        rax_input: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1937,8 +1938,8 @@ class S_ImulOp(X86Instruction):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        rax_input: Operation | SSAValue,
+        source: OperandArg,
+        rax_input: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -2371,8 +2372,8 @@ class M_PushOp(X86Instruction):
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        rsp_in: OperandArg,
+        memory: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         memory_offset: int | IntegerAttr,
@@ -2425,8 +2426,8 @@ class M_PopOp(X86Instruction):
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        rsp_in: OperandArg,
+        memory: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         memory_offset: int | IntegerAttr,
@@ -2532,9 +2533,9 @@ class M_IDivOp(X86Instruction):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        rdx_in: Operation | SSAValue,
-        rax_in: Operation | SSAValue,
+        memory: OperandArg,
+        rdx_in: OperandArg,
+        rax_in: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2590,8 +2591,8 @@ class M_ImulOp(X86Instruction):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        rax_in: Operation | SSAValue,
+        memory: OperandArg,
+        rax_in: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2880,8 +2881,8 @@ class SS_CmpOp(X86Instruction):
 
     def __init__(
         self,
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2926,8 +2927,8 @@ class SM_CmpOp(X86Instruction):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2975,7 +2976,7 @@ class SI_CmpOp(X86Instruction):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -3026,8 +3027,8 @@ class MS_CmpOp(X86Instruction):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -3079,7 +3080,7 @@ class MI_CmpOp(X86Instruction):
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         immediate: int | IntegerAttr[SI32],
         *,

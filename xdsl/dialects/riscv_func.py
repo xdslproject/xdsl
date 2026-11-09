@@ -21,7 +21,7 @@ from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
-from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, Operation, Region
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -93,7 +93,7 @@ class SyscallOp(IRDLOperation):
         self,
         num: int | IntegerAttr[I32],
         has_result: bool = False,
-        operands: list[SSAValue | Operation] = [],
+        operands: list[OperandArg] = [],
     ):
         if isinstance(num, int):
             num = IntegerAttr(num, i32)
@@ -140,7 +140,7 @@ class CallOp(riscv.RISCVInstruction):
     def __init__(
         self,
         callee: str | StringAttr | SymbolRefAttr,
-        args: Sequence[Operation | SSAValue],
+        args: Sequence[OperandArg],
         result_types: Sequence[riscv.RISCVRegisterType],
         comment: StringAttr | None = None,
     ):
@@ -304,7 +304,7 @@ class ReturnOp(riscv.RISCVInstruction):
 
     def __init__(
         self,
-        *values: Operation | SSAValue,
+        *values: OperandArg,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):

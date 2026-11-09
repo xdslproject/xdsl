@@ -560,7 +560,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
 
     @staticmethod
     def get(
-        arg: SSAValue | Operation, *, type: TypeForm[AttributeInvT] = Attribute
+        arg: OperandArg, *, type: TypeForm[AttributeInvT] = Attribute
     ) -> SSAValue[AttributeInvT]:
         """
         Get a new SSAValue from either a SSAValue, or an operation with a single result.
@@ -2642,6 +2642,10 @@ class Region(_IRNode):
         ):
             return False
         return True
+
+
+OperandArg: TypeAlias = SSAValue | Operation
+"""An SSA value or single-result operation accepted by `SSAValue.get`."""
 
 
 IRNode: TypeAlias = Operation | Region | Block

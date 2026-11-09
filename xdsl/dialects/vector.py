@@ -42,7 +42,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     SSAValue,
 )
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
@@ -95,8 +95,8 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        ref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        ref: OperandArg,
+        indices: Sequence[OperandArg],
         result_type: VectorType,
     ):
         super().__init__(
@@ -132,9 +132,9 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
-        base: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        vector: OperandArg,
+        base: OperandArg,
+        indices: Sequence[OperandArg],
         nontemporal: BoolAttr | None = None,
     ):
         super().__init__(
@@ -349,7 +349,7 @@ class BroadcastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($vector)"
 
-    def __init__(self, source: Operation | SSAValue, result_type: VectorType):
+    def __init__(self, source: OperandArg, result_type: VectorType):
         super().__init__(operands=(source,), result_types=(result_type,))
 
     def verify_(self):
@@ -380,9 +380,9 @@ class FMAOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-        acc: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        acc: OperandArg,
     ):
         acc = SSAValue.get(acc)
         super().__init__(operands=(lhs, rhs, acc), result_types=(acc.type,))
@@ -401,10 +401,10 @@ class MaskedLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        base: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        pass_thru: SSAValue | Operation,
+        base: OperandArg,
+        indices: Sequence[OperandArg],
+        mask: OperandArg,
+        pass_thru: OperandArg,
         result_type: VectorType | None = None,
     ):
         pass_thru = SSAValue.get(pass_thru, type=VectorType)
@@ -479,10 +479,10 @@ class MaskedStoreOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        value_to_store: SSAValue | Operation,
+        memref: OperandArg,
+        indices: Sequence[OperandArg],
+        mask: OperandArg,
+        value_to_store: OperandArg,
     ):
         super().__init__(operands=[memref, indices, mask, value_to_store])
 
@@ -492,7 +492,7 @@ class PrintOp(IRDLOperation):
     name = "vector.print"
     source = operand_def()
 
-    def __init__(self, source: SSAValue | Operation):
+    def __init__(self, source: OperandArg):
         super().__init__(operands=[SSAValue.get(source)])
 
 
@@ -504,9 +504,7 @@ class CreateMaskOp(IRDLOperation):
 
     assembly_format = "$mask_dim_sizes attr-dict `:` type(results)"
 
-    def __init__(
-        self, mask_operands: list[Operation | SSAValue], result_type: VectorType
-    ):
+    def __init__(self, mask_operands: list[OperandArg], result_type: VectorType):
         super().__init__(operands=(mask_operands,), result_types=(result_type,))
 
     def verify_(self):
@@ -1020,13 +1018,13 @@ class TransferReadOp(VectorTransferOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        padding: SSAValue | Operation,
+        source: OperandArg,
+        indices: Sequence[OperandArg],
+        padding: OperandArg,
         result_type: Attribute,
         in_bounds: ArrayAttr[BoolAttr],
         permutation_map: AffineMapAttr,
-        mask: SSAValue | Operation | None = None,
+        mask: OperandArg | None = None,
     ):
         super().__init__(
             operands=[source, indices, padding, mask],
@@ -1173,11 +1171,11 @@ class TransferWriteOp(VectorTransferOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
-        source: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        vector: OperandArg,
+        source: OperandArg,
+        indices: Sequence[OperandArg],
         in_bounds: ArrayAttr[BoolAttr],
-        mask: SSAValue | Operation | None = None,
+        mask: OperandArg | None = None,
         permutation_map: AffineMapAttr | None = None,
         result_type: TensorType | None = None,
     ):
@@ -1356,9 +1354,9 @@ class ReductionOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
+        vector: OperandArg,
         kind: CombiningKindAttr,
-        acc: SSAValue | Operation | None = None,
+        acc: OperandArg | None = None,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         vector = SSAValue.get(vector)
@@ -1389,7 +1387,7 @@ class BitcastOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         result_type: Attribute,
     ):
         super().__init__(

@@ -32,7 +32,7 @@ from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
     verify_reshape_like_types,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyRange,
@@ -87,7 +87,7 @@ class CastOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
+    def __init__(self, source: OperandArg, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
 
     def verify_(self):
@@ -148,7 +148,7 @@ class ConcatOp(IRDLOperation):
 
     def __init__(
         self,
-        inputs: Sequence[SSAValue | Operation],
+        inputs: Sequence[OperandArg],
         dim: IntegerAttr | int,
         result_type: TensorType,
         attributes: Mapping[str, Attribute] | None = None,
@@ -248,8 +248,8 @@ class DimOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        index: SSAValue | Operation,
+        source: OperandArg,
+        index: OperandArg,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         super().__init__(
@@ -440,7 +440,7 @@ class ExpandShapeOp(IRDLOperation):
 
     def __init__(
         self,
-        src: SSAValue | Operation,
+        src: OperandArg,
         dynamic_output_shape: Sequence[SSAValue],
         reassociation: ArrayAttr[ArrayAttr[IntegerAttr]],
         static_output_shape: Sequence[int] | DenseArrayBase,
@@ -588,7 +588,7 @@ class ExtractSliceOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue | int],
         sizes: Sequence[SSAValue | int],
         strides: Sequence[SSAValue | int],
@@ -640,7 +640,7 @@ class ExtractSliceOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int] | None = None,
@@ -782,8 +782,8 @@ class InsertSliceOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
-        dest: SSAValue | Operation,
+        source: OperandArg,
+        dest: OperandArg,
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int] | None = None,
@@ -935,7 +935,7 @@ class SplatOp(IRDLOperation):
     def __init__(
         self,
         input: SSAValue,
-        dynamicSizes: Sequence[SSAValue | Operation],
+        dynamicSizes: Sequence[OperandArg],
         result_type: TensorType[Attribute],
     ):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
@@ -990,7 +990,7 @@ class PadOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         low: Sequence[SSAValue],
         high: Sequence[SSAValue],
         region: Region,

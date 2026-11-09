@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Dialect,
-    Operation,
+    OperandArg,
     OpResult,
     SSAValue,
 )
@@ -207,8 +207,8 @@ class RdRsRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -233,8 +233,8 @@ class RdRsRsIntegerOperation(
 ):
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -247,8 +247,8 @@ class RdRsRsFloatOperation(
 ):
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -272,8 +272,8 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -316,7 +316,7 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
@@ -360,9 +360,9 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        rs3: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
+        rs3: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -402,8 +402,8 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr | None = None,
@@ -445,8 +445,8 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         fastmath: FastMathFlagsAttr | None = None,
@@ -575,7 +575,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -630,7 +630,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAt
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: IntegerAttr[ShiftImmT],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -721,7 +721,7 @@ class RdRsImmBitManipOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[UI5] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -776,7 +776,7 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType | None = None,
@@ -818,7 +818,7 @@ class RdRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RSInvT]):
 
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: RDInvT,
         comment: str | StringAttr | None = None,
@@ -840,7 +840,7 @@ class RdRsIntegerOperation(
 ):
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -853,7 +853,7 @@ class RdRsFloatOperation(
 ):
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -881,8 +881,8 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         offset: int | IntegerAttr[SI12] | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -927,8 +927,8 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -965,8 +965,8 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -1035,7 +1035,7 @@ class CsrReadWriteOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         csr: IntegerAttr[UI12],
         *,
         writeonly: bool = False,
@@ -1096,7 +1096,7 @@ class CsrBitwiseOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         csr: IntegerAttr[UI12],
         *,
         readonly: bool = False,

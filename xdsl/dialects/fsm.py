@@ -22,7 +22,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -194,7 +194,7 @@ class OutputOp(IRDLOperation):
 
     def __init__(
         self,
-        operand: Sequence[SSAValue | Operation],
+        operand: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[operand],
@@ -285,8 +285,8 @@ class UpdateOp(IRDLOperation):
 
     def __init__(
         self,
-        variable: SSAValue | Operation,
-        value: SSAValue | Operation,
+        variable: OperandArg,
+        value: OperandArg,
     ):
         super().__init__(
             operands=[variable, value],
@@ -359,7 +359,7 @@ class ReturnOp(IRDLOperation):
 
     def __init__(
         self,
-        operand: SSAValue | Operation,
+        operand: OperandArg,
     ):
         super().__init__(
             operands=[operand],
@@ -420,7 +420,7 @@ class TriggerOp(IRDLOperation):
 
     def __init__(
         self,
-        inputs: Sequence[SSAValue | Operation],
+        inputs: Sequence[OperandArg],
         instance: SSAValue,
         outputs: Sequence[Attribute],
     ):
@@ -474,9 +474,9 @@ class HWInstanceOp(IRDLOperation):
         self,
         sym_name: str | StringAttr,
         machine: str | SymbolRefAttr,
-        inputs: Sequence[SSAValue | Operation],
-        clock: SSAValue | Operation,
-        reset: SSAValue | Operation,
+        inputs: Sequence[OperandArg],
+        clock: OperandArg,
+        reset: OperandArg,
         outputs: Sequence[Attribute],
     ):
         if isinstance(machine, str):

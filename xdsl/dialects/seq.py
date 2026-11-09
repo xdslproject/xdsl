@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Data, Dialect, Operation, SSAValue
+from xdsl.ir import Data, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -60,7 +60,7 @@ class ClockDividerOp(IRDLOperation):
 
     assembly_format = "$clockIn `by` $pow2 attr-dict"
 
-    def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
+    def __init__(self, clockIn: OperandArg, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
             pow2 = IntegerAttr(pow2, i8)
         super().__init__(

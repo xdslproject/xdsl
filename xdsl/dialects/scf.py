@@ -20,6 +20,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
@@ -68,7 +69,7 @@ class WhileOp(IRDLOperation):
 
     def __init__(
         self,
-        arguments: Sequence[SSAValue | Operation],
+        arguments: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
@@ -284,7 +285,7 @@ class IfOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: SSAValue | Operation,
+        cond: OperandArg,
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
@@ -401,10 +402,10 @@ class ForOp(IRDLOperation):
 
     def __init__(
         self,
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
-        step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
+        lb: OperandArg,
+        ub: OperandArg,
+        step: OperandArg,
+        iter_args: Sequence[OperandArg],
         body: Region | Sequence[Operation] | Sequence[Block] | Block,
     ):
         if isinstance(body, Block):
@@ -566,11 +567,11 @@ class ParallelOp(IRDLOperation):
 
     def __init__(
         self,
-        lower_bounds: Sequence[SSAValue | Operation],
-        upper_bounds: Sequence[SSAValue | Operation],
-        steps: Sequence[SSAValue | Operation],
+        lower_bounds: Sequence[OperandArg],
+        upper_bounds: Sequence[OperandArg],
+        steps: Sequence[OperandArg],
         body: Region | Sequence[Block] | Sequence[Operation],
-        init_vals: Sequence[SSAValue | Operation] = (),
+        init_vals: Sequence[OperandArg] = (),
     ):
         super().__init__(
             operands=[lower_bounds, upper_bounds, steps, init_vals],
@@ -672,7 +673,7 @@ class ReduceOp(IRDLOperation):
 
     def __init__(
         self,
-        args: Sequence[SSAValue | Operation] = (),
+        args: Sequence[OperandArg] = (),
         regions: Sequence[Region] = (),
     ):
         super().__init__(operands=(args,), regions=(regions,))
@@ -724,7 +725,7 @@ class ReduceReturnOp(IRDLOperation):
 
     assembly_format = "$result attr-dict `:` type($result)"
 
-    def __init__(self, result: SSAValue | Operation):
+    def __init__(self, result: OperandArg):
         super().__init__(operands=[result])
 
 
@@ -740,8 +741,8 @@ class ConditionOp(IRDLOperation):
 
     def __init__(
         self,
-        condition: SSAValue | Operation,
-        *args: SSAValue | Operation,
+        condition: OperandArg,
+        *args: OperandArg,
     ):
         super().__init__(operands=(condition, args))
 
@@ -762,7 +763,7 @@ class IndexSwitchOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         cases: DenseArrayBase,
         default_region: Region,
         case_regions: Sequence[Region],

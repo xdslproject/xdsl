@@ -18,7 +18,7 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
@@ -98,9 +98,9 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     def __init__(
         self,
-        start: SSAValue | Operation,
-        stop: SSAValue | Operation,
-        step: SSAValue | Operation | IntegerAttr,
+        start: OperandArg,
+        stop: OperandArg,
+        step: OperandArg | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
@@ -284,7 +284,7 @@ class WhileOp(IRDLOperation):
 
     def __init__(
         self,
-        arguments: Sequence[SSAValue | Operation],
+        arguments: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
@@ -405,7 +405,7 @@ class ConditionOp(IRDLOperation):
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
+    def __init__(self, cond: OperandArg, *output_ops: OperandArg):
         super().__init__(operands=[cond, output_ops])
 
     def print(self, printer: Printer):

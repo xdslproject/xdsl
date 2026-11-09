@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i64,
 )
-from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import Dialect, OperandArg, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -32,7 +32,7 @@ class HLSYieldOp(IRDLOperation):
     traits = traits_def(IsTerminator())
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> HLSYieldOp:
+    def get(*operands: OperandArg) -> HLSYieldOp:
         return HLSYieldOp.create(
             operands=[SSAValue.get(operand) for operand in operands]
         )
@@ -43,7 +43,7 @@ class PragmaPipelineOp(IRDLOperation):
     name = "hls.pipeline"
     ii = operand_def(IntegerType)
 
-    def __init__(self, ii: SSAValue | Operation):
+    def __init__(self, ii: OperandArg):
         super().__init__(operands=[ii])
 
 
@@ -52,7 +52,7 @@ class PragmaUnrollOp(IRDLOperation):
     name = "hls.unroll"
     factor = operand_def(IntegerType)
 
-    def __init__(self, factor: SSAValue | Operation):
+    def __init__(self, factor: OperandArg):
         super().__init__(operands=[factor])
 
 
@@ -78,8 +78,8 @@ class PragmaArrayPartitionOp(IRDLOperation):
         self,
         variable: StringAttr,
         array_type: Attribute,
-        factor: SSAValue | Operation,
-        dim: SSAValue | Operation,
+        factor: OperandArg,
+        dim: OperandArg,
     ):
         super().__init__(
             operands=[factor, dim],
@@ -116,7 +116,7 @@ class HLSStreamWriteOp(IRDLOperation):
     element = operand_def()
     stream = operand_def(HLSStreamType)
 
-    def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
+    def __init__(self, element: OperandArg, stream: OperandArg):
         super().__init__(operands=[element, stream])
 
 
@@ -144,7 +144,7 @@ class HLSExtractStencilValueOp(IRDLOperation):
     def __init__(
         self,
         position: DenseArrayBase,
-        container: SSAValue | Operation,
+        container: OperandArg,
         result_type: Attribute,
     ):
         super().__init__(

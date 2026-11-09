@@ -23,7 +23,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    Operation,
+    OperandArg,
     Region,
     SSAValue,
 )
@@ -283,9 +283,9 @@ class ForOp(IRDLOperation):
 
     @staticmethod
     def from_region(
-        lowerBoundOperands: Sequence[Operation | SSAValue],
-        upperBoundOperands: Sequence[Operation | SSAValue],
-        inits: Sequence[Operation | SSAValue],
+        lowerBoundOperands: Sequence[OperandArg],
+        upperBoundOperands: Sequence[OperandArg],
+        inits: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
@@ -731,7 +731,7 @@ class MinOp(IRDLOperation):
 
     def __init__(
         self,
-        map_operands: Sequence[SSAValue | Operation],
+        map_operands: Sequence[OperandArg],
         affine_map: AffineMapAttr,
     ):
         super().__init__(
@@ -798,7 +798,7 @@ class YieldOp(IRDLOperation):
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> YieldOp:
+    def get(*operands: OperandArg) -> YieldOp:
         return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 

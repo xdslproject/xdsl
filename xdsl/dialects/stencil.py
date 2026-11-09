@@ -25,6 +25,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -769,7 +770,7 @@ class CastOp(IRDLOperation):
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ):
@@ -914,8 +915,8 @@ class DynAccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        offset: Sequence[SSAValue | Operation],
+        temp: OperandArg,
+        offset: Sequence[OperandArg],
         lb: IndexAttr,
         ub: IndexAttr,
     ):
@@ -946,7 +947,7 @@ class ExternalLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: SSAValue | Operation,
+        arg: OperandArg,
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
@@ -1053,7 +1054,7 @@ class AccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
+        temp: OperandArg,
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
@@ -1285,7 +1286,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
@@ -1367,7 +1368,7 @@ class BufferOp(IRDLOperation):
 
     traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
-    def __init__(self, temp: SSAValue | Operation):
+    def __init__(self, temp: OperandArg):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
@@ -1447,8 +1448,8 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        field: SSAValue | Operation,
+        temp: OperandArg,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
     ):
         super().__init__(operands=[temp, field], properties={"bounds": bounds})
@@ -1517,7 +1518,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
-    def __init__(self, res: Sequence[SSAValue | Operation]):
+    def __init__(self, res: Sequence[OperandArg]):
         super().__init__(operands=[res])
 
     def verify_(self) -> None:

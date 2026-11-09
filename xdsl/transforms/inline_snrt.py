@@ -6,7 +6,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, rv32, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.riscv.attrs import ui5, ui12
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import OperandArg, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -242,14 +242,14 @@ class LowerDMAStart2DBase(RewritePattern, ABC):
 
     def generate_dma_instructions(
         self,
-        dst_low: SSAValue | Operation,
-        dst_high: SSAValue | Operation,
-        src_low: SSAValue | Operation,
-        src_high: SSAValue | Operation,
-        size: SSAValue | Operation,
-        dst_stride: SSAValue | Operation,
-        src_stride: SSAValue | Operation,
-        repeat: SSAValue | Operation,
+        dst_low: OperandArg,
+        dst_high: OperandArg,
+        src_low: OperandArg,
+        src_high: OperandArg,
+        size: OperandArg,
+        dst_stride: OperandArg,
+        src_stride: OperandArg,
+        repeat: OperandArg,
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
         Common function to generate the following sequence of operations:

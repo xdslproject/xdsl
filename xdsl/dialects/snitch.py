@@ -22,9 +22,8 @@ from xdsl.dialects.riscv import IntRegisterType
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
-    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -115,7 +114,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        value: Operation | SSAValue,
+        value: OperandArg,
         dm: IntAttr,
         dimension: IntAttr,
     ):
@@ -144,7 +143,7 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     value = operand_def(IntRegisterType)
     dm = prop_def(IntAttr)
 
-    def __init__(self, value: Operation | SSAValue, dm: IntAttr):
+    def __init__(self, value: OperandArg, dm: IntAttr):
         super().__init__(
             operands=[value],
             properties={

@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, OperandArg, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -434,7 +434,7 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
 
         operations = [comm_global, mpi_op]
 
-        send_buffer_op: SSAValue | Operation
+        send_buffer_op: OperandArg
         if has_send_buffer:
             assert op.send_buffer is not None
             send_buffer_op = op.send_buffer

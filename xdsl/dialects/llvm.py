@@ -55,6 +55,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -1145,10 +1146,10 @@ class GEPOp(IRDLOperation):
 
     def __init__(
         self,
-        ptr: SSAValue | Operation,
+        ptr: OperandArg,
         indices: Sequence[int],
         pointee_type: Attribute,
-        ssa_indices: Sequence[SSAValue | Operation] | None = None,
+        ssa_indices: Sequence[OperandArg] | None = None,
         result_type: LLVMPointerType = LLVMPointerType(),
         inbounds: bool = False,
     ):
@@ -1181,8 +1182,8 @@ class GEPOp(IRDLOperation):
 
     @staticmethod
     def from_mixed_indices(
-        ptr: SSAValue | Operation,
-        indices: Sequence[int | SSAValue | Operation],
+        ptr: OperandArg,
+        indices: Sequence[int | OperandArg],
         pointee_type: Attribute,
         result_type: LLVMPointerType = LLVMPointerType(),
         inbounds: bool = False,
@@ -1271,7 +1272,7 @@ class AllocaOp(IRDLOperation):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
+        size: OperandArg,
         elem_type: Attribute,
         alignment: int = 32,
     ):
@@ -1324,7 +1325,7 @@ class IntToPtrOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         ptr_type = LLVMPointerType()
         super().__init__(operands=[input], result_types=[ptr_type])
 
@@ -1401,7 +1402,7 @@ class InlineAsmOp(IRDLOperation):
         self,
         asm_string: str,
         constraints: str,
-        operands: Sequence[SSAValue | Operation],
+        operands: Sequence[OperandArg],
         res_types: Sequence[Attribute] | None = None,
         asm_dialect: int | None = None,
         has_side_effects: bool = False,
@@ -1514,7 +1515,7 @@ class PtrToIntOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
+    def __init__(self, arg: OperandArg, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
 
 
@@ -1548,7 +1549,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        ptr: SSAValue | Operation,
+        ptr: OperandArg,
         result_type: Attribute,
         alignment: int | None = None,
         ordering: int = 0,
@@ -1621,8 +1622,8 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        value: SSAValue | Operation,
-        ptr: SSAValue | Operation,
+        value: OperandArg,
+        ptr: OperandArg,
         alignment: int | None = None,
         ordering: int = 0,
         volatile: bool = False,
@@ -1707,7 +1708,7 @@ class ExtractValueOp(IRDLOperation):
     def __init__(
         self,
         position: DenseArrayBase,
-        container: SSAValue | Operation,
+        container: OperandArg,
         result_type: Attribute,
     ):
         super().__init__(
@@ -1858,9 +1859,9 @@ class InsertElementOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: Operation | SSAValue,
-        value: Operation | SSAValue,
-        index: Operation | SSAValue,
+        vector: OperandArg,
+        value: OperandArg,
+        index: OperandArg,
     ):
         super().__init__(
             operands=[vector, value, index],
@@ -1970,8 +1971,8 @@ class ShuffleVectorOp(IRDLOperation):
 
     def __init__(
         self,
-        v1: Operation | SSAValue,
-        v2: Operation | SSAValue,
+        v1: OperandArg,
+        v2: OperandArg,
         mask: DenseArrayBase,
         result_type: Attribute,
     ):
@@ -2706,7 +2707,7 @@ class CallOp(IRDLOperation):
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
-        *args: SSAValue | Operation,
+        *args: OperandArg,
         op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
@@ -2867,7 +2868,7 @@ class GenericCastOp(IRDLOperation, ABC):
 
     assembly_format = "$arg attr-dict `:` type($arg) `to` type($result)"
 
-    def __init__(self, val: Operation | SSAValue, res_type: Attribute):
+    def __init__(self, val: OperandArg, res_type: Attribute):
         super().__init__(
             operands=[SSAValue.get(val)],
             result_types=[res_type],
@@ -2891,8 +2892,8 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
         attrs: dict[str, Attribute] | None = None,
     ):
@@ -2981,8 +2982,8 @@ class FCmpOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         predicate: str | IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
@@ -3060,7 +3061,7 @@ class FAbsOp(IRDLOperation):
 
     def __init__(
         self,
-        input: Operation | SSAValue,
+        input: OperandArg,
         result_type: Attribute,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
@@ -3094,7 +3095,7 @@ class FCeilOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3127,7 +3128,7 @@ class FSqrtOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3160,7 +3161,7 @@ class FFloorOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3193,7 +3194,7 @@ class FExp2Op(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3226,7 +3227,7 @@ class FLogOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3259,7 +3260,7 @@ class FExpOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3292,7 +3293,7 @@ class FSinOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3325,7 +3326,7 @@ class FCosOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3358,7 +3359,7 @@ class FLog2Op(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3389,7 +3390,7 @@ class FNegOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | None = None,
     ):
         if fast_math is None:
@@ -3419,9 +3420,9 @@ class MaskedStoreOp(IRDLOperation):
 
     def __init__(
         self,
-        value: Operation | SSAValue,
-        data: Operation | SSAValue,
-        mask: Operation | SSAValue,
+        value: OperandArg,
+        data: OperandArg,
+        mask: OperandArg,
         alignment: int = 32,
     ):
         super().__init__(
@@ -3454,9 +3455,9 @@ class SelectOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: Operation | SSAValue,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        cond: OperandArg,
+        lhs: OperandArg,
+        rhs: OperandArg,
     ):
         super().__init__(
             operands=[cond, lhs, rhs],
@@ -3476,7 +3477,7 @@ class BrOp(IRDLOperation):
 
     assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
 
-    def __init__(self, dest: Block, *ops: Operation | SSAValue):
+    def __init__(self, dest: Block, *ops: OperandArg):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
 
 
@@ -3504,11 +3505,11 @@ class CondBrOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: Operation | SSAValue,
+        cond: OperandArg,
         then_block: Block,
-        then_ops: Sequence[Operation | SSAValue],
+        then_ops: Sequence[OperandArg],
         else_block: Block,
-        else_ops: Sequence[Operation | SSAValue],
+        else_ops: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[cond, then_ops, else_ops],
@@ -3538,8 +3539,8 @@ class VectorFMaxOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3573,8 +3574,8 @@ class FCopySignOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3609,9 +3610,9 @@ class FMAOp(IRDLOperation):
 
     def __init__(
         self,
-        a: Operation | SSAValue,
-        b: Operation | SSAValue,
-        c: Operation | SSAValue,
+        a: OperandArg,
+        b: OperandArg,
+        c: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3645,8 +3646,8 @@ class VectorFMinOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3680,8 +3681,8 @@ class FPowOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3720,8 +3721,8 @@ class VectorReduceOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        start_value: Operation | SSAValue,
-        vector: Operation | SSAValue,
+        start_value: OperandArg,
+        vector: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3751,7 +3752,7 @@ class StackRestoreOp(IRDLOperation):
 
     assembly_format = "$ptr attr-dict `:` type($ptr)"
 
-    def __init__(self, ptr: Operation | SSAValue):
+    def __init__(self, ptr: OperandArg):
         super().__init__(operands=[ptr])
 
 

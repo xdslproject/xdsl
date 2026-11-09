@@ -20,7 +20,7 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
 )
@@ -134,7 +134,7 @@ class PrefetchOp(IRDLOperation):
 
     def __init__(
         self,
-        input_stencil: SSAValue | Operation,
+        input_stencil: OperandArg,
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
