@@ -656,20 +656,15 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
 
 
 def range_constr_coercion(
-    attr: (
-        AttributeCovT
-        | type[AttributeCovT]
-        | AttrConstraint[AttributeCovT]
-        | RangeConstraint[AttributeCovT]
-    ),
+    attr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
 ) -> RangeConstraint[AttributeCovT]:
     if isinstance(attr, RangeConstraint):
-        return attr
+        return cast(RangeConstraint[AttributeCovT], attr)
     return RangeOf.get(attr)
 
 
 def single_range_constr_coercion(
-    attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
+    attr: IRDLAttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
     return RangeOf.get(attr).of_length(1)
 

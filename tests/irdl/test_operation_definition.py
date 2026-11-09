@@ -93,8 +93,13 @@ def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
     assert OpDefTestOp.get_irdl_definition() == OpDef(
         "test.op_def_test",
-        operands=[("operand", OperandDef(AnyAttr()))],
-        results=[("result", ResultDef(AnyAttr()))],
+        operands=[
+            (
+                "operand",
+                OperandDef(AnyRange().of_length(1)),
+            )
+        ],
+        results=[("result", ResultDef(AnyRange().of_length(1)))],
         attributes={
             "attr": AttributeDef(AnyAttr()),
             "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
