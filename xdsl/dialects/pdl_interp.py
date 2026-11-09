@@ -32,7 +32,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.pdl import (
     AnyPDLType,
-    AnyPDLTypeConstr,
     AttributeType,
     OperationType,
     RangeType,
@@ -298,7 +297,7 @@ class IsNotNullOp(IRDLOperation):
 
     name = "pdl_interp.is_not_null"
     traits = traits_def(IsTerminator())
-    value = operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    value = operand_def(AnyPDLType | RangeType[AnyPDLType])
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -521,7 +520,7 @@ class AreEqualOp(IRDLOperation):
 
     name = "pdl_interp.are_equal"
     traits = traits_def(IsTerminator())
-    T: ClassVar = VarConstraint.get("T", AnyPDLTypeConstr | RangeType[AnyPDLType])
+    T: ClassVar = VarConstraint.get("T", AnyPDLType | RangeType[AnyPDLType])
     lhs = operand_def(T)
     rhs = operand_def(T)
     true_dest = successor_def()
@@ -549,8 +548,8 @@ class ApplyConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
-    results_ = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    args = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
+    results_ = var_result_def(AnyPDLType | RangeType[AnyPDLType])
     true_dest = successor_def()
     false_dest = successor_def()
     irdl_options = (ParsePropInAttrDict(),)
@@ -591,8 +590,8 @@ class ApplyRewriteOp(IRDLOperation):
 
     name = "pdl_interp.apply_rewrite"
     rewrite_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
-    results_ = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    args = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
+    results_ = var_result_def(AnyPDLType | RangeType[AnyPDLType])
     irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = (
@@ -631,7 +630,7 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    inputs = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
     matched_ops = var_operand_def(OperationType)
 
     dest = successor_def()
@@ -996,7 +995,7 @@ class CreateRangeOp(IRDLOperation):
     """
 
     name = "pdl_interp.create_range"
-    arguments = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    arguments = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
     result = result_def(RangeType[AnyPDLType])
 
     custom_directives = (RangeTypeDirective,)

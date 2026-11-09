@@ -74,7 +74,6 @@ from xdsl.irdl import (
     RangeOf,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -2840,13 +2839,6 @@ class CallOp(IRDLOperation):
 LLVMType = (
     LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
 )
-LLVMTypeConstr = (
-    base(LLVMStructType)
-    | base(LLVMPointerType)
-    | base(LLVMArrayType)
-    | base(LLVMVoidType)
-    | base(LLVMFunctionType)
-)
 
 
 @irdl_op_definition
@@ -2857,7 +2849,7 @@ class ZeroOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    res = result_def(LLVMTypeConstr)
+    res = result_def(LLVMType)
 
 
 class GenericCastOp(IRDLOperation, ABC):

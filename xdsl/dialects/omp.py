@@ -46,7 +46,6 @@ from xdsl.irdl import (
     RangeOf,
     SameVariadicOperandSize,
     VarOperand,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -635,7 +634,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
     schedule_mod = opt_prop_def(ScheduleModifierAttr)
     schedule_simd = opt_prop_def(UnitAttr)
     nowait = opt_prop_def(UnitAttr)
-    ordered = opt_prop_def(IntegerAttr.constr(value=AtLeast(0), type=base(IntegerType)))
+    ordered = opt_prop_def(IntegerAttr.constr(value=AtLeast(0), type=IntegerType))
     order = opt_prop_def(OrderKindAttr)
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])

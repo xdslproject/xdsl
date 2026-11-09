@@ -46,7 +46,6 @@ from xdsl.irdl import (
     SizedConstraint,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -65,7 +64,7 @@ def test_failing_inference():
             r"Cannot infer attribute from constraint AnyOf(attr_constrs=(BaseAttr(IntegerType), BaseAttr(IndexType)))"
         ),
     ):
-        (base(IntegerType) | base(IndexType)).infer(VerificationContext())
+        (AnyOf.get(IntegerType, IndexType)).infer(VerificationContext())
 
 
 class Base(ParametrizedAttribute, ABC):

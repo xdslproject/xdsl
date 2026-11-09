@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.pdl import (
-    AnyPDLTypeConstr,
+    AnyPDLType,
     AttributeType,
     OperationType,
     RangeType,
@@ -338,7 +338,7 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr)
+    inputs = var_operand_def(AnyPDLType)
     matched_ops = var_operand_def(OperationType)
 
     dest = successor_def()

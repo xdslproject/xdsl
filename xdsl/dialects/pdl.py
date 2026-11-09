@@ -28,7 +28,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -120,9 +119,6 @@ class ValueType(ParametrizedAttribute, TypeAttribute):
 
 
 AnyPDLType = AttributeType | OperationType | TypeType | ValueType
-AnyPDLTypeConstr = (
-    base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType)
-)
 
 _RangeT = TypeVar(
     "_RangeT",
@@ -175,8 +171,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
-    res = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    args = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
+    res = var_result_def(AnyPDLType | RangeType[AnyPDLType])
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -206,8 +202,8 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
-    res = var_result_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    args = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
+    res = var_result_def(AnyPDLType | RangeType[AnyPDLType])
 
     def __init__(
         self,
@@ -596,7 +592,7 @@ class RangeOp(IRDLOperation):
     """
 
     name = "pdl.range"
-    arguments = var_operand_def(AnyPDLTypeConstr | RangeType[AnyPDLType])
+    arguments = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
     result = result_def(RangeType[AnyPDLType])
 
     traits = lazy_traits_def(lambda: (HasParent(RewriteOp),))
@@ -630,7 +626,7 @@ class RangeOp(IRDLOperation):
 
             if isa(arguments[0].type, RangeType[AnyPDLType]):
                 result_type = RangeType(arguments[0].type.element_type)
-            elif AnyPDLTypeConstr.verifies(arguments[0].type):
+            elif isinstance(arguments[0].type, AnyPDLType):
                 result_type = RangeType(arguments[0].type)
             else:
                 raise ValueError(
@@ -792,7 +788,7 @@ class RewriteOp(IRDLOperation):
     # name of external rewriter function
     name_ = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function
-    external_args = var_operand_def(AnyPDLTypeConstr)
+    external_args = var_operand_def(AnyPDLType)
     # body of inline rewriter function
     body = region_def()
 

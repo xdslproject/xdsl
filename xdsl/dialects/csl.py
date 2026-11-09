@@ -61,7 +61,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParametrizedAttribute,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -270,7 +269,7 @@ class ComptimeStringType(ParametrizedAttribute, TypeAttribute):
     name = "csl.comptime_string"
 
 
-StructLikeConstr = base(ImportedModuleType) | base(ComptimeStructType)
+StructLike = ImportedModuleType | ComptimeStructType
 
 
 @irdl_attr_definition
@@ -360,7 +359,7 @@ class PtrCastOp(IRDLOperation):
         super().__init__(operands=[ptr], result_types=[result_type])
 
 
-IntPtrCastTypeConstr = base(PtrType) | base(IntegerType) | base(IndexType)
+IntPtrCastType = PtrType | IntegerType | IndexType
 
 
 @irdl_op_definition
@@ -374,8 +373,8 @@ class IntPtrCastOp(IRDLOperation):
 
     name = "csl.intptrcast"
 
-    input = operand_def(IntPtrCastTypeConstr)
-    result = result_def(IntPtrCastTypeConstr)
+    input = operand_def(IntPtrCastType)
+    result = result_def(IntPtrCastType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -623,7 +622,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLikeConstr)
+    params = opt_operand_def(StructLike)
 
     result = result_def(ImportedModuleType)
 
@@ -791,7 +790,7 @@ class MemberAccessOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    struct = operand_def(StructLikeConstr)
+    struct = operand_def(StructLike)
 
     field = prop_def(StringAttr)
 
@@ -806,7 +805,7 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-    struct = operand_def(StructLikeConstr)
+    struct = operand_def(StructLike)
 
     field = prop_def(StringAttr)
 
@@ -1309,9 +1308,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
     name = "csl.set_dsd_base_addr"
 
     op = operand_def(DsdType)
-    base_addr = operand_def(
-        base(MemRefType) | base(TensorType[Attribute]) | base(PtrType)
-    )
+    base_addr = operand_def(MemRefType | TensorType[Attribute] | PtrType)
     result = result_def(DsdType)
 
     traits = traits_def(Pure())
