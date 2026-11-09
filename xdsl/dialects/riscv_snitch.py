@@ -41,7 +41,6 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    BaseAttr,
     VarConstraint,
     attr_def,
     irdl_op_definition,
@@ -590,8 +589,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        snitch.ReadableStreamType.constr(riscv.FloatRegisterType)
+        | snitch.WritableStreamType.constr(riscv.FloatRegisterType)
     )
 
     traits = traits_def(NoMemoryEffect())

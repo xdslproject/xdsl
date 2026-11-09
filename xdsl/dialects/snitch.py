@@ -29,7 +29,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AttrConstraint,
+    IRDLAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     irdl_attr_definition,
@@ -61,7 +61,7 @@ class ReadableStreamType(
 
     @staticmethod
     def constr(
-        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return cast(
             ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]],
@@ -85,7 +85,7 @@ class WritableStreamType(
 
     @staticmethod
     def constr(
-        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return cast(
             ParamAttrConstraint[WritableStreamType[_StreamTypeElement]],
