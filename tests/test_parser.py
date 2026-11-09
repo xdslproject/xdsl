@@ -1338,6 +1338,20 @@ def test_parse_location():
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 
+    attr = Parser(ctx, 'loc(fused<"metadata">[unknown])').parse_optional_location()
+    assert attr == FusedLoc((UnknownLoc(),), StringAttr("metadata"))
+
+    attr = Parser(
+        ctx, 'loc(fused<{tag = "example"}>["source":2:3])'
+    ).parse_optional_location()
+    assert attr == FusedLoc(
+        (FileLineColLoc(StringAttr("source"), IntAttr(2), IntAttr(3)),),
+        DictionaryAttr({"tag": StringAttr("example")}),
+    )
+
+    with pytest.raises(ParseError, match="Expected '>'"):
+        Parser(ctx, 'loc(fused<"metadata"[unknown])').parse_optional_location()
+
     with pytest.raises(ParseError, match=re.escape("Unsupported location type.")):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
 
