@@ -930,19 +930,16 @@ class HWModuleOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        properties: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            properties["sym_visibility"] = visibility
 
         return super().__init__(
-            properties=properties,
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            },
             regions=[body],
         )
 
@@ -1023,10 +1020,10 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
     verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
     traits = lazy_traits_def(
@@ -1043,18 +1040,16 @@ class HWModuleExternOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
-
-        return super().__init__(attributes=attributes)
+        return super().__init__(
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            }
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> HWModuleExternOp:

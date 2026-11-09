@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Dialect, SSAValue
-from xdsl.irdl import attr_def, irdl_op_definition, traits_def, var_operand_def
+from xdsl.irdl import irdl_op_definition, prop_def, traits_def, var_operand_def
 from xdsl.traits import MemoryWriteEffect
 
 
@@ -27,7 +27,7 @@ class PrintfOp(riscv.RISCVInstruction):
     """
 
     name = "riscv_debug.printf"
-    format_str = attr_def(StringAttr)
+    format_str = prop_def(StringAttr)
     inputs = var_operand_def()
     traits = traits_def(MemoryWriteEffect())
 
@@ -47,8 +47,8 @@ class PrintfOp(riscv.RISCVInstruction):
 
         super().__init__(
             operands=[inputs],
+            properties={"format_str": format_str},
             attributes={
-                "format_str": format_str,
                 "comment": comment,
             },
         )

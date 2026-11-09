@@ -2049,7 +2049,7 @@ class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
 
     name = "riscv.label"
-    label = attr_def(StringAttr)
+    label = prop_def(StringAttr)
     comment = opt_attr_def(StringAttr)
 
     assembly_format = "$label attr-dict"
@@ -2066,8 +2066,8 @@ class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
             comment = StringAttr(comment)
 
         super().__init__(
+            properties={"label": label},
             attributes={
-                "label": label,
                 "comment": comment,
             },
         )
@@ -2088,8 +2088,8 @@ class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
 
     name = "riscv.directive"
-    directive = attr_def(StringAttr)
-    value = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
+    value = prop_def(StringAttr)
 
     assembly_format = "$directive $value attr-dict"
 
@@ -2104,7 +2104,7 @@ class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
             value = StringAttr(value)
 
         super().__init__(
-            attributes={
+            properties={
                 "directive": directive,
                 "value": value,
             }
@@ -2135,7 +2135,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
 
     name = "riscv.assembly_section"
-    directive = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
     data = region_def("single_block")
 
     traits = traits_def(NoTerminator(), IsolatedFromAbove())
@@ -2152,7 +2152,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
         super().__init__(
             regions=[region],
-            attributes={
+            properties={
                 "directive": directive,
             },
         )
