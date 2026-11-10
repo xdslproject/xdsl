@@ -2,13 +2,13 @@
 
 func.func @triangle(%n: i32) -> (i32) {
   // Initial sum set to 0.
-  %sum_0 = arith.constant 0 : i32
+  %initial_sum = arith.constant 0 : i32
 
   %zero = arith.constant 0 : i32
   %one = arith.constant 1 : i32
   // iter_args binds initial values to the loop's region arguments.
   %sum = scf.for %iv = %zero to %n step %one
-    iter_args(%sum_iter = %sum_0) -> (i32) : i32 {
+    iter_args(%sum_iter = %initial_sum) -> (i32) : i32 {
 
     %sum_next = arith.addi %sum_iter, %iv : i32
     // Yield current iteration sum to next iteration %sum_iter or to %sum
@@ -19,10 +19,10 @@ func.func @triangle(%n: i32) -> (i32) {
 }
 
 // CHECK:      func.func @triangle(%n: i32) -> i32 {
-// CHECK-NEXT:   %sum = arith.constant 0 : i32
+// CHECK-NEXT:   %initial_sum = arith.constant 0 : i32
 // CHECK-NEXT:   %zero = arith.constant 0 : i32
 // CHECK-NEXT:   %one = arith.constant 1 : i32
-// CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %sum : i32, i32)
+// CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %initial_sum : i32, i32)
 // CHECK-NEXT: ^bb[[#b0]](%iv: i32, %sum_iter: i32):
 // CHECK-NEXT:   %[[#v0:]] = arith.cmpi slt, %iv, %n : i32
 // CHECK-NEXT:   cf.cond_br %[[#v0]], ^bb[[#b1:]], ^bb[[#b2:]]
@@ -78,13 +78,13 @@ func.func @if_no_else(%b: i1) {
 
 func.func @nested(%n: index) -> (index) {
   // Initial sum set to 0.
-  %sum_0 = arith.constant 0 : index
+  %initial_sum = arith.constant 0 : index
 
   %zero = arith.constant 0 : index
   %one = arith.constant 1 : index
 
   %sum = scf.for %iv = %zero to %n step %one
-    iter_args(%sum_iter = %sum_0) -> (index) : index {
+    iter_args(%sum_iter = %initial_sum) -> (index) : index {
 
     %cond = arith.constant true
 
@@ -100,10 +100,10 @@ func.func @nested(%n: index) -> (index) {
 }
 
 // CHECK:      func.func @nested(%n: index) -> index {
-// CHECK-NEXT:   %sum = arith.constant 0 : index
+// CHECK-NEXT:   %initial_sum = arith.constant 0 : index
 // CHECK-NEXT:   %zero = arith.constant 0 : index
 // CHECK-NEXT:   %one = arith.constant 1 : index
-// CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %sum : index, index)
+// CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %initial_sum : index, index)
 // CHECK-NEXT: ^bb[[#b0]](%iv: index, %sum_iter: index):
 // CHECK-NEXT:   %[[#v0:]] = arith.cmpi slt, %iv, %n : index
 // CHECK-NEXT:   cf.cond_br %[[#v0]], ^bb[[#b1:]], ^bb[[#b2:]]
