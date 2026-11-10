@@ -106,12 +106,12 @@ class _ParameterDef:
     Parameter field definition class for `@irdl_param_attr_definition`.
     """
 
-    param: AttrConstraint | None
+    param: "IRDLAttrConstraint | None"
     converter: Callable[[Any], Attribute] | None
 
     def __init__(
         self,
-        param: AttrConstraint | None,
+        param: "IRDLAttrConstraint | None",
         converter: Callable[[Any], Attribute] | None,
     ):
         self.param = param
@@ -119,7 +119,7 @@ class _ParameterDef:
 
 
 def param_def(
-    constraint: AttrConstraint[AttributeInvT] | None = None,
+    constraint: "IRDLAttrConstraint[AttributeInvT] | None" = None,
     *,
     converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,

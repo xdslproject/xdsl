@@ -42,6 +42,7 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
+    EqAttrConstraint,
     GenericData,
     IntConstraint,
     MessageConstraint,
@@ -1016,6 +1017,33 @@ def test_irdl_definition():
         "test.param_attr_def_attr",
         [("arg1", ParamDef(AnyAttr())), ("arg2", ParamDef(BaseAttr(BoolData)))],
     )
+
+
+@irdl_attr_definition
+class ParamDefIRDLConstraintAttr(ParametrizedAttribute):
+    name = "test.param_def_irdl_constraint"
+
+    cls: Attribute = param_def(IntAttr)
+    instance: Attribute = param_def(IntAttr(1))
+
+
+def test_param_def_accepts_irdl_attr_constraint():
+    """Test that `param_def` converts IRDL constraints like `operand_def` does."""
+    assert ParamDefIRDLConstraintAttr.get_irdl_definition() == ParamAttrDef(
+        "test.param_def_irdl_constraint",
+        [
+            ("cls", ParamDef(AnyAttr() & BaseAttr(IntAttr))),
+            ("instance", ParamDef(AnyAttr() & EqAttrConstraint(IntAttr(1)))),
+        ],
+    )
+
+    ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(1))
+
+    with pytest.raises(VerifyException):
+        ParamDefIRDLConstraintAttr(BoolData(True), IntAttr(1))
+
+    with pytest.raises(VerifyException):
+        ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(2))
 
 
 @irdl_attr_definition
