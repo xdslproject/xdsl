@@ -32,7 +32,7 @@ from xdsl.dialects.gpu import (
     WaitOp,
     YieldOp,
 )
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, OperandArg, Operation, Region, SSAValue
 
 
 def test_dimension():
@@ -237,8 +237,8 @@ def test_func():
 def test_launch():
     body = Region([])
     ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
-    gridSize: list[Operation | SSAValue] = [ten, ten, ten]
-    blockSize: list[Operation | SSAValue] = [ten, ten, ten]
+    gridSize: list[OperandArg] = [ten, ten, ten]
+    blockSize: list[OperandArg] = [ten, ten, ten]
     launch = LaunchOp(body, gridSize, blockSize)
 
     assert isinstance(launch, LaunchOp)
@@ -281,8 +281,8 @@ def test_launchfunc():
     kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
     args = [arith.ConstantOp.from_int_and_width(10, builtin.IndexType())]
     ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
-    gridSize: list[Operation | SSAValue] = [ten, ten, ten]
-    blockSize: list[Operation | SSAValue] = [ten, ten, ten]
+    gridSize: list[OperandArg] = [ten, ten, ten]
+    blockSize: list[OperandArg] = [ten, ten, ten]
     launch = LaunchFuncOp(kernel, gridSize, blockSize)
 
     assert isinstance(launch, LaunchFuncOp)
@@ -411,7 +411,7 @@ def test_wait():
 
 
 def test_yield():
-    operands: list[SSAValue | Operation] = [
+    operands: list[OperandArg] = [
         o
         for o in [
             arith.ConstantOp.from_int_and_width(42, builtin.i32),

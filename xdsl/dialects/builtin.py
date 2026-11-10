@@ -34,6 +34,7 @@ from xdsl.ir import (
     Data,
     DataElement,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -2723,7 +2724,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
+    def get(inputs: Sequence[OperandArg], result_type: Sequence[Attribute]):
         return UnrealizedConversionCastOp.build(
             operands=[inputs],
             result_types=[result_type],

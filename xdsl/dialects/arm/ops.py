@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.dialects.builtin import StringAttr
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import OperandArg
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -75,7 +75,7 @@ class DSMovOp(ARMInstruction):
     def __init__(
         self,
         d: IntRegisterType,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -131,8 +131,8 @@ class DSSMulOp(ARMInstruction):
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         d: IntRegisterType,
         comment: str | StringAttr | None = None,
@@ -208,8 +208,8 @@ class CmpRegOp(ARMInstruction):
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):

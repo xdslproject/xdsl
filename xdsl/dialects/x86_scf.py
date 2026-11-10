@@ -16,7 +16,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.dialects.x86.ops import SI32, X86HasRegisterConstraints
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
-from xdsl.ir import Dialect
+from xdsl.ir import Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
@@ -120,9 +120,9 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        start: SSAValue | Operation,
-        stop: SSAValue | Operation | IntegerAttr,
-        step: SSAValue | Operation | IntegerAttr,
+        start: OperandArg,
+        stop: OperandArg | IntegerAttr,
+        step: OperandArg | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):

@@ -4,7 +4,7 @@ from pathlib import Path
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, csl_wrapper, scf
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, OperandArg, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -292,8 +292,8 @@ class LowerImport(RewritePattern):
         Last struct in the list is to be used in `csl.import`
         """
 
-        fields = list[tuple[builtin.StringAttr, SSAValue | Operation]]()
-        structs_to_concat = list[SSAValue | Operation]()
+        fields = list[tuple[builtin.StringAttr, OperandArg]]()
+        structs_to_concat = list[OperandArg]()
         for fname, op in zip(import_op.fields, import_op.ops):
             if fname.data != "":
                 fields.append((fname, op))

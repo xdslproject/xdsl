@@ -35,8 +35,7 @@ from xdsl.dialects.riscv.attrs import (
 )
 from xdsl.ir import (
     Dialect,
-    Operation,
-    SSAValue,
+    OperandArg,
 )
 from xdsl.irdl import (
     irdl_op_definition,
@@ -85,7 +84,7 @@ class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[UI6],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,

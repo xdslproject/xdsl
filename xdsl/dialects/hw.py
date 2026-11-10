@@ -37,6 +37,7 @@ from xdsl.ir import (
     Data,
     Dialect,
     OpaqueSyntaxAttribute,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -1327,7 +1328,7 @@ class OutputOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
-    def __init__(self, ops: Sequence[SSAValue | Operation]):
+    def __init__(self, ops: Sequence[OperandArg]):
         super().__init__(operands=[ops])
 
     def verify_(self) -> None:
@@ -1389,9 +1390,7 @@ class ArrayCreateOp(IRDLOperation):
     inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
-    def __init__(
-        self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
-    ):
+    def __init__(self, first_input: OperandArg, *other_inputs: OperandArg):
         inputs = (first_input, *other_inputs)
         el_type = SSAValue.get(
             first_input, type=AnySignlessIntegerType | ArrayType
@@ -1430,7 +1429,7 @@ class ArrayGetOp(IRDLOperation):
     index = operand_def(IntegerType)
     result = result_def(IntegerType | ArrayType)
 
-    def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
+    def __init__(self, input: OperandArg, index: OperandArg):
         typ = SSAValue.get(input, type=ArrayType).type
         assert isinstance(typ, ArrayType)
         out_type = typ.get_element_type()
@@ -1481,7 +1480,7 @@ class BitcastOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` functional-type($input, $result)"
 
-    def __init__(self, inp: SSAValue | Operation, out_t: Attribute):
+    def __init__(self, inp: OperandArg, out_t: Attribute):
         super().__init__(
             operands=[SSAValue.get(inp)],
             result_types=[out_t],

@@ -11,7 +11,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.interfaces import HasCanonicalizationPatternsInterface
-from xdsl.ir import Dialect, Operation, SSAValue
+from xdsl.ir import Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
@@ -65,8 +65,8 @@ class ConditionalBranchOperation(
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         then_arguments: Sequence[SSAValue],
         else_arguments: Sequence[SSAValue],
         then_block: Successor,
@@ -487,7 +487,7 @@ class BnezOp(RISCVInstruction):
 
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         then_arguments: Sequence[SSAValue],
         else_arguments: Sequence[SSAValue],
         then_block: Successor,

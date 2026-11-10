@@ -49,6 +49,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
     Region,
     SpacedOpaqueSyntaxAttribute,
@@ -354,7 +355,7 @@ class PtrCastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
+    def __init__(self, ptr: OperandArg, result_type: PtrType):
         super().__init__(operands=[ptr], result_types=[result_type])
 
 
@@ -381,7 +382,7 @@ class IntPtrCastOp(IRDLOperation):
 
     def __init__(
         self,
-        input: Operation | SSAValue,
+        input: OperandArg,
         result_type: PtrType | IntegerType | IndexType,
     ):
         super().__init__(operands=[input], result_types=[result_type])
@@ -562,7 +563,7 @@ class StoreVarOp(IRDLOperation):
         "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
     )
 
-    def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
+    def __init__(self, var: VariableOp, new_value: OperandArg):
         super().__init__(operands=[var, new_value])
 
     def verify_(self) -> None:
@@ -625,9 +626,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(
-        self, name: str | StringAttr, params: SSAValue | Operation | None = None
-    ):
+    def __init__(self, name: str | StringAttr, params: OperandArg | None = None):
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
@@ -675,8 +674,8 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str | StringAttr, Operation | SSAValue]):
-        operands: list[Operation | SSAValue] = []
+    def __init__(self, *args: tuple[str | StringAttr, OperandArg]):
+        operands: list[OperandArg] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr.get(fname))
@@ -722,7 +721,7 @@ class ZerosOp(IRDLOperation):
     def __init__(
         self,
         memref: MemRefType[IntegerType | Float32Type | Float16Type],
-        dynamic_size: SSAValue | Operation | None = None,
+        dynamic_size: OperandArg | None = None,
         is_const: builtin.UnitAttr | None = None,
     ):
         super().__init__(
@@ -754,7 +753,7 @@ class ConstantsOp(IRDLOperation):
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
-    def __init__(self, size: SSAValue | Operation, value: SSAValue | Operation):
+    def __init__(self, size: OperandArg, value: OperandArg):
         super().__init__(
             operands=[size, value],
             result_types=[MemRefType(SSAValue.get(value).type, [-1])],
@@ -812,7 +811,7 @@ class MemberCallOp(IRDLOperation):
         fname: str | StringAttr,
         result_type: Attribute | None,
         struct: Operation,
-        params: Sequence[SSAValue | Operation],
+        params: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[struct, params],
@@ -1062,7 +1061,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(FuncOp, TaskOp), IsTerminator())
 
-    def __init__(self, return_val: SSAValue | Operation | None = None):
+    def __init__(self, return_val: OperandArg | None = None):
         super().__init__(operands=[return_val])
 
     def verify_(self) -> None:
@@ -1114,7 +1113,7 @@ class CallOp(IRDLOperation):
     def __init__(
         self,
         callee: str | StringAttr | SymbolRefAttr,
-        args: Sequence[SSAValue | Operation] | None = None,
+        args: Sequence[OperandArg] | None = None,
         result: Attribute | None = None,
     ):
         super().__init__(
@@ -1151,9 +1150,9 @@ class SetTileCodeOp(IRDLOperation):
     def __init__(
         self,
         fname: str | StringAttr,
-        x_coord: SSAValue | Operation,
-        y_coord: SSAValue | Operation,
-        params: SSAValue | Operation | None = None,
+        x_coord: OperandArg,
+        y_coord: OperandArg,
+        params: OperandArg | None = None,
     ):
         name = StringAttr(fname) if isinstance(fname, str) else fname
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
@@ -1964,7 +1963,7 @@ class AddressOfOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, value: SSAValue | Operation, result_type: PtrType):
+    def __init__(self, value: OperandArg, result_type: PtrType):
         super().__init__(operands=[value], result_types=[result_type])
 
     def _verify_memref_addr(self, val_ty: MemRefType, res_ty: PtrType):
@@ -2068,7 +2067,7 @@ class ParamOp(IRDLOperation):
         self,
         name: str | StringAttr,
         result_type: ParamOpAttr,
-        init_value: SSAValue | Operation | None = None,
+        init_value: OperandArg | None = None,
     ):
         super().__init__(
             operands=[init_value],
@@ -2093,9 +2092,7 @@ class SignednessCastOp(IRDLOperation):
 
     assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
-    def __init__(
-        self, op: SSAValue | Operation, result_type: IntegerType | None = None
-    ):
+    def __init__(self, op: OperandArg, result_type: IntegerType | None = None):
         """
         Create a signedness cast op.
 
@@ -2150,7 +2147,7 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
+    def __init__(self, struct_a: OperandArg, struct_b: OperandArg):
         super().__init__(
             operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],

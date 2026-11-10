@@ -26,6 +26,7 @@ from xdsl.ir import (
     AttributeCovT,
     AttributeInvT,
     Block,
+    OperandArg,
     Operation,
     OpResult,
     OpTraits,
@@ -92,10 +93,7 @@ class IRDLOperation(Operation):
     def __init__(
         self: IRDLOperation,
         *,
-        operands: (
-            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-            | None
-        ) = None,
+        operands: (Sequence[OperandArg | Sequence[OperandArg] | None] | None) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
@@ -160,10 +158,7 @@ class IRDLOperation(Operation):
     def build(
         cls,
         *,
-        operands: (
-            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-            | None
-        ) = None,
+        operands: (Sequence[OperandArg | Sequence[OperandArg] | None] | None) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -1613,11 +1608,8 @@ def irdl_build_arg_list(
     return res, arg_sizes
 
 
-_OperandArg: TypeAlias = SSAValue | Operation
-
-
 def irdl_build_operations_arg(
-    operand: _OperandArg | Sequence[_OperandArg] | None,
+    operand: OperandArg | Sequence[OperandArg] | None,
 ) -> SSAValue | list[SSAValue]:
     if operand is None:
         return []
@@ -1669,7 +1661,7 @@ def irdl_op_init(
     self: IRDLOperation,
     op_def: OpDef,
     *,
-    operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None],
+    operands: Sequence[OperandArg | Sequence[OperandArg] | None],
     result_types: Sequence[Attribute | Sequence[Attribute] | None],
     properties: Mapping[str, Attribute | None],
     attributes: Mapping[str, Attribute | None],

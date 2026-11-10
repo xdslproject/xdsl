@@ -38,7 +38,7 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, OperandArg, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     VarConstraint,
@@ -124,7 +124,7 @@ class ScfgwiOp(RISCVInstruction):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12],
         *,
         comment: str | StringAttr | None = None,
@@ -314,9 +314,9 @@ class FRepOperation(RISCVInstruction):
 
     def __init__(
         self,
-        max_rep: SSAValue | Operation,
+        max_rep: OperandArg,
         body: Sequence[Operation] | Sequence[Block] | Region,
-        iter_args: Sequence[SSAValue | Operation] = (),
+        iter_args: Sequence[OperandArg] = (),
         stagger_mask: IntegerAttr[I4] | None = None,
         stagger_count: IntegerAttr[I3] | None = None,
     ):
@@ -633,7 +633,7 @@ class DMSourceOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -654,7 +654,7 @@ class DMDestinationOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -675,7 +675,7 @@ class DMStrideOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
+    def __init__(self, srcstrd: OperandArg, dststrd: OperandArg):
         super().__init__(operands=[srcstrd, dststrd])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -695,7 +695,7 @@ class DMRepOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, reps: SSAValue | Operation):
+    def __init__(self, reps: OperandArg):
         super().__init__(operands=[reps])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -740,8 +740,8 @@ class DMCopyOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
-        config: SSAValue | Operation,
+        size: OperandArg,
+        config: OperandArg,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[size, config], result_types=[result_type])
@@ -766,7 +766,7 @@ class DMStatOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: SSAValue | Operation,
+        status: OperandArg,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[status], result_types=[result_type])
@@ -813,7 +813,7 @@ class DMCopyImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
+        size: OperandArg,
         config: int | IntegerAttr[UI5],
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
@@ -1051,9 +1051,9 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rd: OperandArg,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         fastmath: FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
@@ -1101,8 +1101,8 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs: Operation | SSAValue,
+        rd: OperandArg,
+        rs: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):

@@ -22,7 +22,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
@@ -169,9 +169,9 @@ class AllocOp(IRDLOperation):
     def __init__(
         self,
         return_type: memref.MemRefType,
-        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
         host_shared: bool = False,
-        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+        async_dependencies: Sequence[OperandArg] | None = None,
         is_async: bool = False,
     ):
         token_return = [AsyncTokenType()] if is_async else []
@@ -205,7 +205,7 @@ class AllReduceOp(IRDLOperation):
     @staticmethod
     def from_op(
         op: AllReduceOpAttr,
-        operand: SSAValue | Operation,
+        operand: OperandArg,
         uniform: UnitAttr | None = None,
     ):
         return AllReduceOp.build(
@@ -219,9 +219,7 @@ class AllReduceOp(IRDLOperation):
         )
 
     @staticmethod
-    def from_body(
-        body: Region, operand: SSAValue | Operation, uniform: UnitAttr | None = None
-    ):
+    def from_body(body: Region, operand: OperandArg, uniform: UnitAttr | None = None):
         return AllReduceOp.build(
             operands=[operand],
             result_types=[SSAValue.get(operand).type],
@@ -299,8 +297,8 @@ class DeallocOp(IRDLOperation):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+        buffer: OperandArg,
+        async_dependencies: Sequence[OperandArg] | None = None,
         is_async: bool = False,
     ):
         super().__init__(
@@ -323,9 +321,9 @@ class MemcpyOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        destination: SSAValue | Operation,
-        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+        source: OperandArg,
+        destination: OperandArg,
+        async_dependencies: Sequence[OperandArg] | None = None,
         is_async: bool = False,
     ):
         super().__init__(
@@ -455,7 +453,7 @@ class HostRegisterOp(IRDLOperation):
 
     value = operand_def(memref.UnrankedMemRefType)
 
-    def __init__(self, memref: SSAValue | Operation):
+    def __init__(self, memref: OperandArg):
         super().__init__(operands=[SSAValue.get(memref)])
 
 
@@ -469,7 +467,7 @@ class HostUnregisterOp(IRDLOperation):
 
     value = operand_def(memref.UnrankedMemRefType)
 
-    def __init__(self, memref: SSAValue | Operation):
+    def __init__(self, memref: OperandArg):
         super().__init__(operands=[SSAValue.get(memref)])
 
 
@@ -503,12 +501,12 @@ class LaunchOp(IRDLOperation):
     def __init__(
         self,
         body: Region,
-        gridSize: Sequence[SSAValue | Operation],
-        blockSize: Sequence[SSAValue | Operation],
-        clusterSize: Sequence[SSAValue | Operation] = [],
+        gridSize: Sequence[OperandArg],
+        blockSize: Sequence[OperandArg],
+        clusterSize: Sequence[OperandArg] = [],
         async_launch: bool = False,
-        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
-        dynamicSharedMemorySize: SSAValue | Operation | None = None,
+        asyncDependencies: Sequence[OperandArg] | None = None,
+        dynamicSharedMemorySize: OperandArg | None = None,
     ):
         if len(gridSize) != 3:
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
@@ -612,21 +610,19 @@ class LaunchFuncOp(IRDLOperation):
     def __init__(
         self,
         func: SymbolRefAttr,
-        gridSize: Sequence[SSAValue | Operation],
-        blockSize: Sequence[SSAValue | Operation],
-        clusterSize: Sequence[SSAValue | Operation] | None = None,
-        kernelOperands: Sequence[SSAValue | Operation] | None = None,
+        gridSize: Sequence[OperandArg],
+        blockSize: Sequence[OperandArg],
+        clusterSize: Sequence[OperandArg] | None = None,
+        kernelOperands: Sequence[OperandArg] | None = None,
         async_launch: bool = False,
-        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
-        dynamicSharedMemorySize: SSAValue | Operation | None = None,
+        asyncDependencies: Sequence[OperandArg] | None = None,
+        dynamicSharedMemorySize: OperandArg | None = None,
     ):
         if len(gridSize) != 3:
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
-        clusterSizeOperands: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ]
+        clusterSizeOperands: Sequence[OperandArg | Sequence[OperandArg]]
         if clusterSize is None:
             clusterSizeOperands = [[], [], []]
         else:
@@ -668,7 +664,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
-    def __init__(self, operands: Sequence[SSAValue | Operation]):
+    def __init__(self, operands: Sequence[OperandArg]):
         super().__init__(operands=[operands])
 
 
@@ -677,7 +673,7 @@ class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
     devIndex = operand_def(i32)
 
-    def __init__(self, devIndex: SSAValue | Operation):
+    def __init__(self, devIndex: OperandArg):
         super().__init__(operands=[SSAValue.get(devIndex)])
 
 
@@ -727,7 +723,7 @@ class WaitOp(IRDLOperation):
 
     def __init__(
         self,
-        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+        async_dependencies: Sequence[OperandArg] | None = None,
     ):
         super().__init__(
             operands=[async_dependencies],
@@ -740,7 +736,7 @@ class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values = var_operand_def(Attribute)
 
-    def __init__(self, operands: Sequence[SSAValue | Operation]):
+    def __init__(self, operands: Sequence[OperandArg]):
         super().__init__(operands=[operands])
 
     traits = traits_def(IsTerminator())

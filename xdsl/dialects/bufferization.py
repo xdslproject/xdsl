@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     UnrankedMemRefType,
     UnrankedTensorType,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
@@ -151,9 +151,9 @@ class AllocTensorOp(IRDLOperation):
     def __init__(
         self,
         result_type: Attribute,
-        dynamic_sizes: Sequence[Operation | SSAValue] | None = None,
-        copy: SSAValue | Operation | None = None,
-        size_hint: SSAValue | Operation | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
+        copy: OperandArg | None = None,
+        size_hint: OperandArg | None = None,
     ):
         super().__init__(
             operands=(dynamic_sizes, copy, size_hint),
@@ -172,7 +172,7 @@ class CloneOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         result_type = SSAValue.get(input).type
         super().__init__(operands=(input,), result_types=(result_type,))
 
@@ -214,7 +214,7 @@ class ToTensorOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        memref: OperandArg,
         restrict: bool = False,
         writable: bool = False,
         *,

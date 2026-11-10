@@ -19,6 +19,7 @@ from xdsl.dialects import builtin, stencil
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     SSAValue,
@@ -702,7 +703,7 @@ class SwapOp(IRDLOperation):
 
     @staticmethod
     def get(
-        input_stencil: SSAValue | Operation,
+        input_stencil: OperandArg,
         strategy: DomainDecompositionStrategy,
         swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = None,
     ):

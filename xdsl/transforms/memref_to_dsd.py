@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
 )
-from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.ir import OperandArg, Operation, OpResult
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -179,7 +179,7 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_sizes(
-        subview: memref.SubviewOp, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: OperandArg
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
@@ -212,7 +212,7 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_strides(
-        subview: memref.SubviewOp, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: OperandArg
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
@@ -245,7 +245,7 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_offsets(
-        subview: memref.SubviewOp, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: OperandArg
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()

@@ -41,7 +41,7 @@ from xdsl.dialects.utils import (
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -126,9 +126,7 @@ class LoadOp(IRDLOperation):
             raise Exception("expected an index for each dimension")
 
     @classmethod
-    def get(
-        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> Self:
+    def get(cls, ref: OperandArg, indices: Sequence[OperandArg]) -> Self:
         ssa_value = SSAValue.get(ref, type=MemRefType)
         return cls(operands=[ref, indices], result_types=[ssa_value.type.element_type])
 
@@ -162,9 +160,9 @@ class StoreOp(IRDLOperation):
     @classmethod
     def get(
         cls,
-        value: Operation | SSAValue,
-        ref: Operation | SSAValue,
-        indices: Sequence[Operation | SSAValue],
+        value: OperandArg,
+        ref: OperandArg,
+        indices: Sequence[OperandArg],
     ) -> Self:
         return cls(operands=[value, ref, indices])
 
@@ -212,7 +210,7 @@ class AllocOp(IRDLOperation):
         return_type: Attribute,
         alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
-        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Self:
@@ -390,7 +388,7 @@ class AllocaOp(IRDLOperation):
         return_type: Attribute,
         alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
-        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> AllocaOp:
@@ -440,7 +438,7 @@ class AssumeAlignmentOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        memref: OperandArg,
         alignment: int | IntegerAttr[I32],
     ) -> None:
         memref = SSAValue.get(memref)
@@ -483,7 +481,7 @@ class DeallocOp(IRDLOperation):
     traits = traits_def(MemoryFreeEffect())
 
     @staticmethod
-    def get(operand: Operation | SSAValue) -> DeallocOp:
+    def get(operand: OperandArg) -> DeallocOp:
         return DeallocOp.build(operands=[operand])
 
     assembly_format = "$memref attr-dict `:` type($memref)"
@@ -569,8 +567,8 @@ class DimOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        index: SSAValue | Operation,
+        source: OperandArg,
+        index: OperandArg,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         super().__init__(
@@ -579,9 +577,7 @@ class DimOp(IRDLOperation):
 
     @staticmethod
     @deprecated("Use DimOp(source, index) instead")
-    def from_source_and_index(
-        source: SSAValue | Operation, index: SSAValue | Operation
-    ) -> DimOp:
+    def from_source_and_index(source: OperandArg, index: OperandArg) -> DimOp:
         return DimOp(source, index)
 
 
@@ -596,7 +592,7 @@ class RankOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def from_memref(memref: Operation | SSAValue):
+    def from_memref(memref: OperandArg):
         return RankOp.build(operands=[memref], result_types=[IndexType()])
 
 
@@ -665,7 +661,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
 
-    def __init__(self, source: SSAValue | Operation):
+    def __init__(self, source: OperandArg):
         """
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
@@ -698,7 +694,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def get(source: SSAValue | Operation):
+    def get(source: OperandArg):
         return ExtractAlignedPointerAsIndexOp.build(
             operands=[source], result_types=[IndexType()]
         )
@@ -759,7 +755,7 @@ class SubviewOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue],
         sizes: Sequence[SSAValue],
         strides: Sequence[SSAValue],
@@ -901,7 +897,7 @@ class SubviewOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
+        source: OperandArg,
         source_type: MemRefType,
         offsets: Sequence[int],
         sizes: Sequence[int],
@@ -947,7 +943,7 @@ class CastOp(IRDLOperation):
 
     @staticmethod
     def get(
-        source: SSAValue | Operation,
+        source: OperandArg,
         type: MemRefType | UnrankedMemRefType,
     ):
         return CastOp.build(operands=[source], result_types=[type])
@@ -964,14 +960,14 @@ class MemorySpaceCastOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         dest: MemRefType | UnrankedMemRefType,
     ):
         super().__init__(operands=[source], result_types=[dest])
 
     @staticmethod
     def from_type_and_target_space(
-        source: SSAValue | Operation,
+        source: OperandArg,
         type: MemRefType,
         dest_memory_space: Attribute,
     ) -> MemorySpaceCastOp:
@@ -1030,7 +1026,7 @@ class ReinterpretCastOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue],
         sizes: Sequence[SSAValue],
         strides: Sequence[SSAValue],
@@ -1147,9 +1143,9 @@ class ViewOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        byte_shift: SSAValue | Operation,
-        sizes: Sequence[SSAValue | Operation],
+        source: OperandArg,
+        byte_shift: OperandArg,
+        sizes: Sequence[OperandArg],
         result_type: MemRefType,
     ):
         super().__init__(
@@ -1279,13 +1275,13 @@ class DmaStartOp(IRDLOperation):
 
     @staticmethod
     def get(
-        src: SSAValue | Operation,
-        src_indices: Sequence[SSAValue | Operation],
-        dest: SSAValue | Operation,
-        dest_indices: Sequence[SSAValue | Operation],
-        num_elements: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        tag_indices: Sequence[SSAValue | Operation],
+        src: OperandArg,
+        src_indices: Sequence[OperandArg],
+        dest: OperandArg,
+        dest_indices: Sequence[OperandArg],
+        num_elements: OperandArg,
+        tag: OperandArg,
+        tag_indices: Sequence[OperandArg],
     ):
         return DmaStartOp.build(
             operands=[
@@ -1327,9 +1323,9 @@ class DmaWaitOp(IRDLOperation):
 
     @staticmethod
     def get(
-        tag: SSAValue | Operation,
-        tag_indices: Sequence[SSAValue | Operation],
-        num_elements: SSAValue | Operation,
+        tag: OperandArg,
+        tag_indices: Sequence[OperandArg],
+        num_elements: OperandArg,
     ):
         return DmaWaitOp.build(
             operands=[
@@ -1359,7 +1355,7 @@ class CopyOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
+    def __init__(self, source: OperandArg, destination: OperandArg):
         super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:

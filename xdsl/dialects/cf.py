@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.hw import AnySignlessIntegerType
-from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -66,7 +66,7 @@ class AssertOp(IRDLOperation):
 
     traits = traits_def(AssertHasCanonicalizationPatterns())
 
-    def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
+    def __init__(self, arg: OperandArg, msg: str | StringAttr):
         if isinstance(msg, str):
             msg = StringAttr(msg)
         super().__init__(
@@ -99,7 +99,7 @@ class BranchOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), BranchOpHasCanonicalizationPatterns())
 
-    def __init__(self, dest: Block, *ops: Operation | SSAValue):
+    def __init__(self, dest: Block, *ops: OperandArg):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
 
     assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
@@ -144,11 +144,11 @@ class ConditionalBranchOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: Operation | SSAValue,
+        cond: OperandArg,
         then_block: Block,
-        then_ops: Sequence[Operation | SSAValue],
+        then_ops: Sequence[OperandArg],
         else_block: Block,
-        else_ops: Sequence[Operation | SSAValue],
+        else_ops: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]
@@ -362,16 +362,16 @@ class SwitchOp(IRDLOperation):
 
     def __init__(
         self,
-        flag: Operation | SSAValue,
+        flag: OperandArg,
         default_block: Successor,
-        default_operands: Sequence[Operation | SSAValue],
+        default_operands: Sequence[OperandArg],
         case_values: DenseIntElementsAttr | None = None,
         case_blocks: Sequence[Successor] = [],
-        case_operands: Sequence[Sequence[Operation | SSAValue]] = [],
+        case_operands: Sequence[Sequence[OperandArg]] = [],
         attr_dict: dict[str, Attribute] | None = None,
     ):
         case_operand_segments = tuple(len(o) for o in case_operands)
-        c_operands: tuple[SSAValue | Operation, ...] = tuple(
+        c_operands: tuple[OperandArg, ...] = tuple(
             o for os in case_operands for o in os
         )
         operands = [flag, default_operands, c_operands]

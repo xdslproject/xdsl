@@ -29,6 +29,7 @@ from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterfa
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OperandArg,
     Operation,
     SSAValue,
 )
@@ -240,8 +241,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         result_type: Attribute | None = None,
     ):
         if result_type is None:
@@ -288,8 +289,8 @@ class SignlessIntegerBinaryOperationWithOverflow(
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         result_type: Attribute | None = None,
         overflow: IntegerOverflowAttr = IntegerOverflowAttr("none"),
     ):
@@ -339,8 +340,8 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         flags: FastMathFlagsAttr | None = None,
         result_type: Attribute | None = None,
     ):
@@ -401,8 +402,8 @@ class AddUIExtendedOp(IRDLOperation):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         attributes: Mapping[str, Attribute] | None = None,
         result_type: Attribute | None = None,
     ):
@@ -856,8 +857,8 @@ class CmpiOp(ComparisonOperation):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         arg: int | str,
     ):
         operand1 = SSAValue.get(operand1)
@@ -949,8 +950,8 @@ class CmpfOp(ComparisonOperation):
 
     def __init__(
         self,
-        operand1: SSAValue | Operation,
-        operand2: SSAValue | Operation,
+        operand1: OperandArg,
+        operand2: OperandArg,
         arg: int | str,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
     ):
@@ -1061,9 +1062,9 @@ class SelectOp(IRDLOperation):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
-        operand3: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
+        operand3: OperandArg,
     ):
         operand2 = SSAValue.get(operand2)
         super().__init__(
@@ -1123,9 +1124,7 @@ class NegfOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
+    def __init__(self, operand: OperandArg, fastmath: FastMathFlagsAttr | None = None):
         operand = SSAValue.get(operand)
         super().__init__(
             attributes={"fastmath": fastmath},
@@ -1202,7 +1201,7 @@ class BitcastOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
+    def __init__(self, in_arg: OperandArg, target_type: Attribute):
         super().__init__(operands=[in_arg], result_types=[target_type])
 
     def verify_(self) -> None:
@@ -1244,7 +1243,7 @@ class IndexCastOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
+    def __init__(self, input_arg: OperandArg, target_type: Attribute):
         super().__init__(operands=[input_arg], result_types=[target_type])
 
     def verify_(self) -> None:
@@ -1265,7 +1264,7 @@ class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
 
     traits = traits_def(Pure())
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: OperandArg, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
 
 
@@ -1287,7 +1286,7 @@ class IntegerToFloatingPointBaseOp(IRDLOperation, abc.ABC):
 
     traits = traits_def(Pure())
 
-    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+    def __init__(self, op: OperandArg, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
 
 
@@ -1308,7 +1307,7 @@ class ExtFOp(IRDLOperation):
     input = operand_def(floatingPointLike)
     result = result_def(floatingPointLike)
 
-    def __init__(self, op: SSAValue | Operation, target_type: Attribute):
+    def __init__(self, op: OperandArg, target_type: Attribute):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -1323,7 +1322,7 @@ class TruncFOp(IRDLOperation):
     input = operand_def(floatingPointLike)
     result = result_def(floatingPointLike)
 
-    def __init__(self, op: SSAValue | Operation, target_type: Attribute):
+    def __init__(self, op: OperandArg, target_type: Attribute):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -1338,7 +1337,7 @@ class TruncIOp(IRDLOperation):
     input = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: OperandArg, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
@@ -1360,7 +1359,7 @@ class ExtSIOp(IRDLOperation):
     input = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: OperandArg, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
@@ -1380,7 +1379,7 @@ class ExtUIOp(IRDLOperation):
     input = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: OperandArg, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:

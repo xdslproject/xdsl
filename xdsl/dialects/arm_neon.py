@@ -19,7 +19,7 @@ from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
 )
@@ -218,8 +218,8 @@ class DSSFMulOp(ARMInstruction):
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         d: NEONRegisterType,
         scalar_idx: IntegerAttr | None,
@@ -288,9 +288,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
     def __init__(
         self,
-        d: Operation | SSAValue,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        d: OperandArg,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         res: NEONRegisterType,
         scalar_idx: IntegerAttr,
@@ -339,7 +339,7 @@ class DSDupOp(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: NEONRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -386,7 +386,7 @@ class DSVecMovOp(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: IntRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -432,7 +432,7 @@ class DVarSLd1Op(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         result_types: Sequence[Attribute],
         *,
         arrangement: NeonArrangement | NeonArrangementAttr,
