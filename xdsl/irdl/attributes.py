@@ -101,23 +101,6 @@ class GenericData(Data[_DataElement], ABC):
 #
 
 
-class _ParameterDef:
-    """
-    Parameter field definition class for `@irdl_param_attr_definition`.
-    """
-
-    param: "IRDLAttrConstraint | None"
-    converter: Callable[[Any], Attribute] | None
-
-    def __init__(
-        self,
-        param: "IRDLAttrConstraint | None",
-        converter: Callable[[Any], Attribute] | None,
-    ):
-        self.param = param
-        self.converter = converter
-
-
 def param_def(
     constraint: "IRDLAttrConstraint[AttributeInvT] | None" = None,
     *,
@@ -125,7 +108,15 @@ def param_def(
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a parameter of a ParametrizedAttribute."""
-    return cast(AttributeInvT, _ParameterDef(constraint, converter))
+    return cast(
+        AttributeInvT,
+        ParamDef(
+            AnyAttr()
+            if constraint is None
+            else irdl_to_attr_constraint(constraint, allow_type_var=True),
+            converter,
+        ),
+    )
 
 
 def check_attr_name(cls: type):
@@ -173,8 +164,7 @@ def _is_dunder(name: str) -> bool:
 
 class ParamDef(NamedTuple):
     """
-    Contains information about a parameter,
-    effectively acting as a resolved `_ParameterDef`
+    Contains information about a parameter of a parametrized attribute.
     """
 
     constr: AttrConstraint
@@ -252,19 +242,9 @@ class ParamAttrDef:
 
             if field_name in field_values:
                 value = field_values.pop(field_name)
-                if isinstance(value, _ParameterDef):
-                    try:
-                        if value.param is not None:
-                            constraint &= irdl_to_attr_constraint(
-                                value.param, allow_type_var=True
-                            )
-                    except TypeError as e:
-                        raise PyRDLAttrDefinitionError(
-                            f"Invalid constraint {value.param} for field name {field_name}."
-                        ) from e
-                    if value.converter is not None:
-                        converter = value.converter
-
+                if isinstance(value, ParamDef):
+                    constraint &= value.constr
+                    converter = value.converter
                 else:
                     raise PyRDLAttrDefinitionError(
                         f"{field_name} is not a parameter definition."
