@@ -62,19 +62,19 @@ module {
     %c0 = arith.constant 0 : index
     %c2 = arith.constant 2 : index
     %c0_i32 = arith.constant 0 : i32
-    %async_token, %results = air.execute -> (memref<64x64xi32>) {
+    %alloc_ready, %first_buffer = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_0 = air.execute [%async_token] {
+    %dependent_alloc_ready = air.execute [%alloc_ready] {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_1, %results_2 = air.execute -> (memref<64x64xi32>) {
+    %buffer_ready, %second_buffer = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_3 = air.execute [%async_token_1, %async_token_0] {
+    %joined_ready = air.execute [%buffer_ready, %dependent_alloc_ready] {
         %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
         air.execute_terminator %alloc : memref<64x64xi32>
     }
@@ -98,7 +98,7 @@ module {
       %10 = air.channel.put async [%arg4]  @channel_3[] (%arg1[%arg3, %c32] [%c32, %c32] [%c64, %c1]) {id = 4 : i32} : (memref<128x64xi32>)
       scf.yield %10 : !air.async.token
     }
-    %10 = air.channel.get async [%async_token_3]  @channel_4[] (%results_2[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
+    %10 = air.channel.get async [%joined_ready]  @channel_4[] (%second_buffer[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
     return
   }
 }
@@ -117,19 +117,19 @@ module {
 // CHECK-NEXT:     %c0 = arith.constant 0 : index
 // CHECK-NEXT:     %c2 = arith.constant 2 : index
 // CHECK-NEXT:     %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:     %async_token, %results = "air.execute"() ({
+// CHECK-NEXT:     %alloc_ready, %first_buffer = "air.execute"() ({
 // CHECK-NEXT:       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_1 = "air.execute"(%async_token) ({
+// CHECK-NEXT:     %dependent_alloc_ready = "air.execute"(%alloc_ready) ({
 // CHECK-NEXT:       %alloc_1 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_1) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token) -> !air.async.token
-// CHECK-NEXT:     %async_token_2, %results_1 = "air.execute"() ({
+// CHECK-NEXT:     %buffer_ready, %second_buffer = "air.execute"() ({
 // CHECK-NEXT:       %alloc_2 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_2) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_3 = "air.execute"(%async_token_2, %async_token_1) ({
+// CHECK-NEXT:     %joined_ready = "air.execute"(%buffer_ready, %dependent_alloc_ready) ({
 // CHECK-NEXT:       %alloc_3 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_3) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token, !air.async.token) -> !air.async.token
@@ -153,7 +153,7 @@ module {
 // CHECK-NEXT:       %11 = air.channel.put async[%arg4_3] @channel_3[] (%arg1[%arg3_3, %c32] [%c32, %c32] [%c64, %c1]) {id = 4 : i32} : (memref<128x64xi32>)
 // CHECK-NEXT:       scf.yield %11 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %12 = air.channel.get async[%async_token_3] @channel_4[] (%results_1[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
+// CHECK-NEXT:     %12 = air.channel.get async[%joined_ready] @channel_4[] (%second_buffer[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
