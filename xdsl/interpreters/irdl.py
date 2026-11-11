@@ -25,6 +25,7 @@ from xdsl.irdl import (
     ResultDef,
     VarConstraint,
     get_accessors_from_op_def,
+    single_range_constr_coercion,
 )
 from xdsl.traits import SymbolTable
 
@@ -177,7 +178,8 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (python_name(name.data), OperandDef(a)) for name, a in zip(op.names, args)
+            (python_name(name.data), OperandDef(single_range_constr_coercion(a)))
+            for name, a in zip(op.names, args)
         )
         return ()
 
@@ -188,7 +190,8 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (python_name(name.data), ResultDef(a)) for name, a in zip(op.names, args)
+            (python_name(name.data), ResultDef(single_range_constr_coercion(a)))
+            for name, a in zip(op.names, args)
         )
         return ()
 
