@@ -51,8 +51,8 @@ shard.grid @grid5(shape = ?)
 // CHECK-NEXT: %13 = shard.broadcast %t on @grid0 grid_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %14 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
 // CHECK-NEXT: %14 = shard.gather %t on @grid0 grid_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
-%15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
-// CHECK-NEXT: %15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+%15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_dim = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+// CHECK-NEXT: %15 = shard.scatter %t on @grid0 grid_axes = [0] scatter_dim = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
 %16 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: %16 = shard.recv %t on @grid0 grid_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %17 = shard.reduce %t on @grid0 grid_axes = [0, 2] root = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
