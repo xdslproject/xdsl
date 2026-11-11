@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
-    AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
     IndexType,
-    IndexTypeConstr,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -38,8 +34,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
-    attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -303,7 +297,7 @@ class IndexOp(IRDLOperation):
 
     dim = prop_def(IntegerAttr[i64])
 
-    result = result_def(IndexTypeConstr)
+    result = result_def(IndexType)
 
     traits = traits_def(HasParent(GenericOp))
 
@@ -854,9 +848,9 @@ class TransposeOp(LinalgStructuredOperation):
 
     name = "linalg.transpose"
 
-    inputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
-    outputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
-    res = var_result_def(AnyTensorType)
+    inputs = var_operand_def(MemRefType | TensorType)
+    outputs = var_operand_def(MemRefType | TensorType)
+    res = var_result_def(TensorType)
 
     body = region_def("single_block")
 
@@ -968,15 +962,15 @@ class TransposeOp(LinalgStructuredOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
@@ -1023,7 +1017,7 @@ class MatmulOp(NamedOperation):
     ):
         if res is None:
             result_types = tuple(
-                cast(AnyTensorType, output_type)
+                cast(TensorType, output_type)
                 for output in outputs
                 if isinstance(output_type := output.type, TensorType)
             )
@@ -1085,7 +1079,7 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    memoized_indexing_maps = attr_def(
+    memoized_indexing_maps = prop_def(
         ArrayAttr[AffineMapAttr],
         default_value=ArrayAttr(
             [
@@ -1096,7 +1090,7 @@ class QuantizedMatmulOp(NamedOperation):
                 AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
             ]
         ),
-        attr_name="linalg.memoized_indexing_maps",
+        prop_name="linalg.memoized_indexing_maps",
     )
 
     def __init__(
@@ -1108,7 +1102,7 @@ class QuantizedMatmulOp(NamedOperation):
     ):
         if res is None:
             result_types = tuple(
-                cast(AnyTensorType, output_type)
+                cast(TensorType, output_type)
                 for output in outputs
                 if isinstance(output_type := output.type, TensorType)
             )
@@ -1373,9 +1367,9 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    input = operand_def(MemRefType | TensorType)
+    init = operand_def(MemRefType | TensorType)
+    result = var_result_def(TensorType)
 
     hidden_region = region_def("single_block")
 
@@ -1467,15 +1461,15 @@ class BroadcastOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
@@ -1494,9 +1488,9 @@ class BroadcastOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "linalg.reduce"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    input = operand_def(MemRefType | TensorType)
+    init = operand_def(MemRefType | TensorType)
+    result = var_result_def(TensorType)
 
     region: Region = region_def("single_block")
 
@@ -1577,15 +1571,15 @@ class ReduceOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("ins")
         parser.parse_punctuation("(")
-        input = parser.parse_operand()
+        unresolved_input = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        input = parser.resolve_operand(unresolved_input, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_characters("outs")
         parser.parse_punctuation("(")
-        init = parser.parse_operand()
+        unresolved_init = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        parser.parse_type()
+        init = parser.resolve_operand(unresolved_init, parser.parse_type())
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")

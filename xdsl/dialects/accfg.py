@@ -17,6 +17,7 @@ from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     SSAValue,
@@ -132,9 +133,9 @@ class LaunchOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: Sequence[SSAValue | Operation],
+        vals: Sequence[OperandArg],
         param_names: Iterable[str] | Iterable[StringAttr],
-        state: SSAValue | Operation,
+        state: OperandArg,
     ):
         state_val = SSAValue.get(state, type=StateType)
 
@@ -189,7 +190,7 @@ class AwaitOp(IRDLOperation):
 
     token = operand_def(TokenType)
 
-    def __init__(self, token: SSAValue | Operation):
+    def __init__(self, token: OperandArg):
         super().__init__(operands=[token])
 
 
@@ -234,10 +235,10 @@ class SetupOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: Sequence[SSAValue | Operation],
+        vals: Sequence[OperandArg],
         param_names: Sequence[str] | Sequence[StringAttr],
         accelerator: str | StringAttr,
-        in_state: SSAValue | Operation | None = None,
+        in_state: OperandArg | None = None,
     ):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
@@ -278,7 +279,7 @@ class SetupOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print_string(" ")
-        printer.print_string_literal(self.accelerator.data)
+        printer.print_attribute(self.accelerator)
 
         if self.in_state:
             printer.print_string(" from ")
@@ -287,7 +288,7 @@ class SetupOp(IRDLOperation):
         printer.print_string(" to (")
 
         for i, (name, val) in enumerate(zip(self.param_names, self.values)):
-            printer.print_string_literal(name.data)
+            printer.print_attribute(name)
             printer.print_string(" = ")
             printer.print_ssa_value(val)
             printer.print_string(" : ")
@@ -311,20 +312,17 @@ class SetupOp(IRDLOperation):
 
         in_state: SSAValue | None = None
         if parser.parse_optional_keyword("from"):
-            in_state = parser.parse_operand()
+            in_state = parser.parse_operand(StateType(accelerator))
 
         parser.parse_keyword("to")
 
         def parse_itm() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal("accelerator field name")
             parser.parse_punctuation("=")
-            val = parser.parse_operand(f'expected value for field "{name}"')
+            val = parser.parse_unresolved_operand(f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
-            assert val.type == typ, (
-                f"ssa value type mismatch! Expected {typ}, got {val.type}"
-            )
-            return name, val
+            return name, parser.resolve_operand(val, typ)
 
         args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parse_itm
@@ -440,7 +438,7 @@ class ResetOp(IRDLOperation):
 
     assembly_format = "$in_state attr-dict `:` type($in_state)"
 
-    def __init__(self, in_state: Operation | SSAValue):
+    def __init__(self, in_state: OperandArg):
         super().__init__(operands=[in_state])
 
 

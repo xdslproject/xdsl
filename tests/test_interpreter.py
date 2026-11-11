@@ -1,11 +1,12 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Union
 
 import pytest
 
 from xdsl.dialects import builtin, func, test
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -13,6 +14,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     f32,
     i32,
+    i64,
 )
 from xdsl.interpreter import (
     Interpreter,
@@ -25,7 +27,8 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, Operation, TypeAttribute
+from xdsl.irdl import AnyOf, BaseAttr, IRDLAttrConstraint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
@@ -210,7 +213,8 @@ def test_run_op_interpreter_args():
     assert interpreter.run_op(op_2, (1,)) == (1,)
 
 
-def test_mixed_values():
+@pytest.mark.parametrize("input_type", [IntegerType, BaseAttr(IntegerType)])
+def test_mixed_values(input_type: IRDLAttrConstraint[IntegerType]):
     @dataclass
     @register_impls
     class TestFuncA(InterpreterFunctions):
@@ -223,7 +227,7 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncB(InterpreterFunctions):
-        @impl_attr(IntegerType)
+        @impl_attr(input_type)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
         ) -> int:
@@ -241,6 +245,63 @@ def test_mixed_values():
 
     assert i.value_for_attribute(IntegerAttr(1, i32), i32) == 1
     assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1
+
+
+@pytest.mark.parametrize(
+    "input_type",
+    [
+        IntegerType | IndexType,
+        Union[IntegerType, IndexType],  # noqa: UP007
+        AnyOf.get(IntegerType, IndexType),
+    ],
+)
+def test_union_attribute_impl_override(
+    input_type: IRDLAttrConstraint[IntegerType | IndexType],
+):
+    @register_impls
+    class BaseFunctions(InterpreterFunctions):
+        @impl_attr(input_type)
+        def integer_value(
+            self,
+            interpreter: Interpreter,
+            attr: Attribute,
+            attr_type: IntegerType | IndexType,
+        ) -> int:
+            return 7
+
+    @register_impls
+    class DerivedFunctions(BaseFunctions):
+        @impl_attr(IndexType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
+        ) -> int:
+            return 13
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(DerivedFunctions())
+    assert interpreter.value_for_attribute(IntegerAttr(1, i32), i32) == 7
+    index = IndexType()
+    assert interpreter.value_for_attribute(IntegerAttr(1, index), index) == 13
+
+
+@pytest.mark.parametrize(
+    "input_type",
+    [i32, i64, ArrayAttr[IntegerType], AnyOf.get(i32, IndexType), Attribute],
+)
+def test_attribute_impl_rejects_non_base_constraints(input_type: IRDLAttrConstraint):
+    with pytest.raises(
+        ValueError,
+        match="impl_attr requires a BaseAttr or an AnyOf of BaseAttr constraints",
+    ):
+        impl_attr(input_type)
+
+
+@pytest.mark.parametrize("input_type", [TypeAttribute, TypeAttribute | ArrayAttr])
+def test_attribute_impl_rejects_non_final_classes(input_type: IRDLAttrConstraint):
+    with pytest.raises(
+        ValueError, match="impl_attr requires runtime-final attribute classes"
+    ):
+        impl_attr(input_type)
 
 
 def test_combined_listener():

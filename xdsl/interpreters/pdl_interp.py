@@ -325,6 +325,12 @@ class PDLInterpFunctions(InterpreterFunctions):
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
 
+    @impl_terminator(pdl_interp.BranchOp)
+    def run_branch(
+        self, interpreter: Interpreter, op: pdl_interp.BranchOp, args: PythonValues
+    ) -> tuple[Successor, PythonValues]:
+        return Successor(op.dest, ()), ()
+
     @impl_terminator(pdl_interp.AreEqualOp)
     def run_are_equal(
         self,
@@ -520,7 +526,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             (
                 op.rewriter,
                 PDLInterpFunctions.get_root(interpreter),
-                args,
+                args[: len(op.inputs)],
             )
         )
         return Successor(op.dest, ()), ()

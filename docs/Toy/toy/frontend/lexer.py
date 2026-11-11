@@ -1,10 +1,10 @@
 import re
 from enum import Enum, auto
 from string import hexdigits
-from typing import TypeAlias, cast
+from typing import TypeAlias
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, Token
+from xdsl.utils.lexer import Lexer, Offset, Position, Span, Token
 
 
 class ToyTokenKind(Enum):
@@ -59,37 +59,31 @@ IDENTIFIER_CHARS = re.compile(r"[\w]|[\d]|_")
 SPECIAL_CHARS = set(",")
 
 
-ToyToken: TypeAlias = Token[ToyTokenKind]
+ToyToken: TypeAlias = Token[ToyTokenKind, str]
 
 
-class ToyLexer(Lexer[ToyTokenKind]):
-    def _is_in_bounds(self, size: Position = 1) -> bool:
+class ToyLexer(Lexer[ToyTokenKind, str]):
+    def _get_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
-        Check if the current position is within the bounds of the input.
+        Read `[pos, pos + end_offset)` and advance to its end, even on failure.
+        The exclusive end may equal EOF; return None if it exceeds EOF.
         """
-        return self.pos + size - 1 < self.input.len
-
-    def _get_chars(self, size: int = 1) -> str | None:
-        """
-        Get the character at the current location, or multiple characters ahead.
-        Return None if the position is out of bounds.
-        """
-        res = self.input.slice(self.pos, self.pos + size)
-        self.pos += size
+        res = self.input.slice(self.pos, self.pos + end_offset)
+        self.pos += end_offset
         return res
 
-    def _peek_chars(self, size: int = 1) -> str | None:
+    def _peek_chars(self, *, end_offset: Offset = 1) -> str | None:
         """
-        Peek at the character at the current location, or multiple characters ahead.
-        Return None if the position is out of bounds.
+        Read `[pos, pos + end_offset)` without advancing.
+        The exclusive end may equal EOF; return None if it exceeds EOF.
         """
-        return self.input.slice(self.pos, self.pos + size)
+        return self.input.slice(self.pos, self.pos + end_offset)
 
-    def _consume_chars(self, size: int = 1) -> None:
+    def _consume_chars(self, *, end_offset: Offset = 1) -> None:
         """
-        Advance the lexer position in the input by the given amount.
+        Move to `pos + end_offset` without checking bounds.
         """
-        self.pos += size
+        self.pos += end_offset
 
     def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
@@ -171,10 +165,10 @@ class ToyLexer(Lexer[ToyTokenKind]):
         if (
             first_digit == "0"
             and self._peek_chars() == "x"
-            and self._is_in_bounds(2)
-            and cast(str, self.input.at(self.pos + 1)) in hexdigits
+            and (hex_digit := self.input.at(self.pos + 1)) is not None
+            and hex_digit in hexdigits
         ):
-            self._consume_chars(2)
+            self._consume_chars(end_offset=2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(ToyTokenKind.NUMBER, start_pos)
 

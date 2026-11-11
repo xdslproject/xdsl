@@ -32,6 +32,9 @@ csl.task @control_task_args(%a: i32) attributes {kind = #csl<task_kind control>,
 csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
   csl.return
 }
+csl.task @task_extra_attrs() attributes {kind = #csl<task_kind local>, id = 3 : ui5, extra} {
+  csl.return
+}
 
 
 csl.func @initialize() {
@@ -70,6 +73,8 @@ csl.func @initialize() {
 
     %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 
+    %str = csl.const_str "hello world"
+
     %three = arith.constant 3 : i16
     %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 
@@ -84,6 +89,9 @@ csl.func @initialize() {
 
     %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
     %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+    %ptr_to_idx = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+    %ptr_to_int = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+    %int_to_ptr = csl.intptrcast %scalar : i32 to !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 
     %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
     %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
@@ -339,7 +347,7 @@ csl.func @builtins() {
 
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind program>, sym_name = "program"}> ({
 // CHECK-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-NEXT:     csl.func @func_with_args(%arg1: i32, %arg2: i16) -> i32 {
 // CHECK-NEXT:       csl.return %arg1 : i32
@@ -363,6 +371,9 @@ csl.func @builtins() {
 // CHECK-NEXT:     csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
+// CHECK-NEXT:     csl.task @task_extra_attrs() attributes {extra, kind = #csl<task_kind local>, id = 3 : ui5} {
+// CHECK-NEXT:       csl.return
+// CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @initialize() {
 // CHECK-NEXT:       %lb, %ub = "test.op"() : () -> (i16, i16)
 // CHECK-NEXT:       "csl.member_call"(%thing, %lb, %ub) <{field = "some_func"}> : (!csl.imported_module, i16, i16) -> ()
@@ -379,6 +390,7 @@ csl.func @builtins() {
 // CHECK-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"], items = {i = 42 : i32, f = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:       %str = csl.const_str "hello world"
 // CHECK-NEXT:       %three = arith.constant 3 : i16
 // CHECK-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 // CHECK-NEXT:       %three_ui = csl.mlir.signedness_cast %three : i16 to ui16
@@ -389,6 +401,9 @@ csl.func @builtins() {
 // CHECK-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %ptr_to_idx = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+// CHECK-NEXT:       %ptr_to_int = csl.intptrcast %many_arr_ptr : !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+// CHECK-NEXT:       %int_to_ptr = csl.intptrcast %scalar : i32 to !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-NEXT:       %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %dir = "csl.get_dir"() <{dir = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
@@ -568,8 +583,8 @@ csl.func @builtins() {
 // CHECK-NEXT:     "csl.export"(%global_ptr) <{var_name = "some_name", type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     %rpc_col = "test.op"() : () -> !csl.color
 // CHECK-NEXT:     "csl.rpc"(%rpc_col) : (!csl.color) -> ()
-// CHECK-NEXT:   }) {sym_name = "program"} : () -> ()
-// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "layout"}> ({
 // CHECK-NEXT:     %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
 // CHECK-NEXT:     %init = arith.constant 3.140620e+00 : f16
 // CHECK-NEXT:     %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
@@ -579,11 +594,11 @@ csl.func @builtins() {
 // CHECK-NEXT:       %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
 // CHECK-NEXT:       "csl.set_tile_code"(%x_coord, %y_coord, %params) <{file = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 // CHECK-NEXT:     }
-// CHECK-NEXT:   }) {sym_name = "layout"} : () -> ()
+// CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>, sym_name = "program"}> ({
 // CHECK-GENERIC-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "func_with_args", function_type = (i32, i16) -> i32}> ({
 // CHECK-GENERIC-NEXT:     ^bb0(%arg1: i32, %arg2: i16):
@@ -610,6 +625,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "runtime_bound_local_task", function_type = () -> (), kind = #csl<task_kind local>}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
+// CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "task_extra_attrs", function_type = () -> (), kind = #csl<task_kind local>, id = 3 : ui5}> ({
+// CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
+// CHECK-GENERIC-NEXT:     }) {extra} : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "initialize", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       %lb, %ub = "test.op"() : () -> (i16, i16)
 // CHECK-GENERIC-NEXT:       "csl.member_call"(%thing, %lb, %ub) <{field = "some_func"}> : (!csl.imported_module, i16, i16) -> ()
@@ -626,6 +644,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{ssa_fields = ["i32_", "i16_", "col"], items = {i = 42 : i32, f = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-GENERIC-NEXT:       %str = "csl.const_str"() <{value = "hello world"}> : () -> !csl.comptime_string
 // CHECK-GENERIC-NEXT:       %three = "arith.constant"() <{value = 3 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 // CHECK-GENERIC-NEXT:       %three_ui = "csl.mlir.signedness_cast"(%three) : (i16) -> ui16
@@ -636,6 +655,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %ptr_to_idx = "csl.intptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> index
+// CHECK-GENERIC-NEXT:       %ptr_to_int = "csl.intptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> ui16
+// CHECK-GENERIC-NEXT:       %int_to_ptr = "csl.intptrcast"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-GENERIC-NEXT:       %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %dir = "csl.get_dir"() <{dir = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
@@ -815,8 +837,8 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:     "csl.export"(%global_ptr) <{var_name = "some_name", type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-GENERIC-NEXT:     %rpc_col = "test.op"() : () -> !csl.color
 // CHECK-GENERIC-NEXT:     "csl.rpc"(%rpc_col) : (!csl.color) -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "program"} : () -> ()
-// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>}> ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind layout>, sym_name = "layout"}> ({
 // CHECK-GENERIC-NEXT:     %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
 // CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{value = 3.140620e+00 : f16}> : () -> f16
 // CHECK-GENERIC-NEXT:     %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
@@ -826,5 +848,5 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
 // CHECK-GENERIC-NEXT:       "csl.set_tile_code"(%x_coord, %y_coord, %params) <{file = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "layout"} : () -> ()
+// CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

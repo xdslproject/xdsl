@@ -1,18 +1,19 @@
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.colors import RESET, Colors
+from xdsl.utils.lexer import ContentT
 
 
-@dataclass(eq=False, repr=False)
-class ColorPrinter(BasePrinter):
+@dataclass(eq=False, repr=False, init=False)
+class ColorPrinter(BasePrinter[ContentT]):
     """
     A printer for printing colored text to a terminal window.
     Colors are set by calling the `colored` context manager.
     """
 
-    _in_color_block: bool = field(default=False, init=False)
+    _in_color_block: bool = False
 
     @contextmanager
     def colored(self, color: Colors | None):
@@ -35,7 +36,7 @@ class ColorPrinter(BasePrinter):
             yield
         else:
             self._in_color_block = True
-            print(color, end="", file=self.stream)
+            self._write(self._encode(str(color)))
             yield
-            print(RESET, end="", file=self.stream)
+            self._write(self._encode(str(RESET)))
             self._in_color_block = False

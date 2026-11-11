@@ -42,7 +42,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     prop_def,
@@ -564,7 +563,9 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             and self.arguments.types != parent.function_type.outputs.data
         ):
             raise VerifyException(
-                "Expected yielded values to have the same types as the named sequence output types"
+                "Expected yielded values to have the same types as the named sequence "
+                f"output types: expected {parent.function_type.outputs}, "
+                f"got {ArrayAttr(self.arguments.types)}"
             )
 
 
@@ -713,7 +714,7 @@ class TileToForallOp(IRDLOperation):
     packed_tile_sizes = opt_operand_def(DenseArrayBase)
     static_num_threads = opt_prop_def(DenseArrayBase)
     static_tile_sizes = opt_prop_def(DenseArrayBase)
-    mapping = opt_attr_def(DenseArrayBase)
+    mapping = opt_prop_def(DenseArrayBase)
 
     forall_op = result_def(TransformHandleType)
     tiled_op = result_def(TransformHandleType)

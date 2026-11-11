@@ -5,9 +5,9 @@ import sys
 import time
 from collections.abc import Callable, Sequence
 from importlib.metadata import version
-from io import StringIO
+from io import BytesIO, StringIO
 from itertools import accumulate
-from typing import IO, Any, cast
+from typing import IO, Any, ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -19,7 +19,6 @@ from xdsl.universe import Universe
 from xdsl.utils.arg_spec import parse_spec
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
-from xdsl.utils.lexer import Span
 from xdsl.utils.target import Target
 
 
@@ -49,6 +48,12 @@ class xDSLOptMain(CommandLineTool):
     pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
 
+    version_format: ClassVar[str] = "xdsl-opt built from xdsl version {xdsl_version}"
+    """
+    Format string for the message printed by `--version`. `{xdsl_version}` is
+    replaced by the installed xDSL version.
+    """
+
     def __init__(
         self,
         description: str = "xDSL modular optimizer driver",
@@ -75,6 +80,15 @@ class xDSLOptMain(CommandLineTool):
                 f"argument -t/--target: invalid choice: '{target_spec.name}' "
                 f"(choose from {', '.join(self.available_targets)})"
             )
+
+        # Validate frontend spec
+        if self.args.frontend:
+            frontend_spec = parse_spec(self.args.frontend)
+            if frontend_spec.name not in self.available_frontends:
+                arg_parser.error(
+                    f"argument -f/--frontend: invalid choice: '{frontend_spec.name}' "
+                    f"(choose from {', '.join(self.available_frontends)})"
+                )
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
@@ -104,8 +118,7 @@ class xDSLOptMain(CommandLineTool):
                         output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
                 except ParseError as e:
-                    s = e.span
-                    e.span = Span(s.start, s.end, s.input, offset)
+                    e.span = dataclasses.replace(e.span, line_offset=offset)
                     if self.args.parsing_diagnostics:
                         print(e)
                     else:
@@ -236,6 +249,7 @@ class xDSLOptMain(CommandLineTool):
             "-v",
             "--version",
             action=VersionAction,
+            version_format=self.version_format,
         )
 
         arg_parser.add_argument(
@@ -308,7 +322,7 @@ class xDSLOptMain(CommandLineTool):
             callback,
         )
 
-    def prepare_input(self) -> tuple[list[tuple[IO[str], int]], str]:
+    def prepare_input(self) -> tuple[list[tuple[IO[bytes], int]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -317,21 +331,19 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: list[tuple[IO[str], int]] = []
+        chunks: list[tuple[IO[bytes], int]] = []
         f, file_extension = self.get_input_stream()
         chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_bytes = f.read().split(b"// -----")
             chunks_off = accumulate(
-                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
+                [0, *[chunk.count(b"\n") for chunk in chunks_bytes[:-1]]]
             )
             chunks = [
-                (StringIO(chunk), off)
-                for chunk, off in zip(chunks_str, chunks_off, strict=True)
+                (BytesIO(chunk), off)
+                for chunk, off in zip(chunks_bytes, chunks_off, strict=True)
             ]
             f.close()
-        if self.args.frontend:
-            file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
             for chunk, _ in chunks:
@@ -386,8 +398,16 @@ class xDSLOptMain(CommandLineTool):
 
 
 class VersionAction(argparse.Action):
-    def __init__(self, *args: Any, **kwargs: Any):
+    version_format: str
+
+    def __init__(
+        self,
+        *args: Any,
+        version_format: str = xDSLOptMain.version_format,
+        **kwargs: Any,
+    ):
         super().__init__(nargs=0, *args, **kwargs)
+        self.version_format = version_format
 
     def __call__(
         self,
@@ -396,5 +416,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        print(self.version_format.format(xdsl_version=version("xdsl")))
         parser.exit()

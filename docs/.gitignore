@@ -1,0 +1,7 @@
+# Generated API reference pages.
+/reference/
+
+# Exported notebook websites, redirects, and index.
+/notebooks/html/
+/notebooks/**/*.html
+/notebooks/index.md

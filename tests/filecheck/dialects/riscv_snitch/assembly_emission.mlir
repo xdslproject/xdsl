@@ -7,7 +7,7 @@ riscv_func.func @main() {
 
   %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg<a0> {
     %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
     riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>

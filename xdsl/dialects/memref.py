@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import ClassVar, cast
+from dataclasses import dataclass
+from typing import ClassVar, Self, cast
 
-from typing_extensions import Self, deprecated
+from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I32,
     I64,
-    AnyFloatConstr,
+    AnyFloat,
+    AnySignlessIntegerType,
     BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -21,7 +23,6 @@ from xdsl.dialects.builtin import (
     MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
-    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -40,7 +41,7 @@ from xdsl.dialects.utils import (
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -48,7 +49,6 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     SameVariadicResultSize,
     VarConstraint,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -73,8 +73,11 @@ from xdsl.traits import (
     MemoryWriteEffect,
     NoMemoryEffect,
     Pure,
+    RecursiveMemoryEffect,
     SameOperandsAndResultType,
+    SingleBlockImplicitTerminator,
     SymbolOpInterface,
+    ensure_terminator,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
@@ -123,9 +126,7 @@ class LoadOp(IRDLOperation):
             raise Exception("expected an index for each dimension")
 
     @classmethod
-    def get(
-        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> Self:
+    def get(cls, ref: OperandArg, indices: Sequence[OperandArg]) -> Self:
         ssa_value = SSAValue.get(ref, type=MemRefType)
         return cls(operands=[ref, indices], result_types=[ssa_value.type.element_type])
 
@@ -159,9 +160,9 @@ class StoreOp(IRDLOperation):
     @classmethod
     def get(
         cls,
-        value: Operation | SSAValue,
-        ref: Operation | SSAValue,
-        indices: Sequence[Operation | SSAValue],
+        value: OperandArg,
+        ref: OperandArg,
+        indices: Sequence[OperandArg],
     ) -> Self:
         return cls(operands=[value, ref, indices])
 
@@ -209,7 +210,7 @@ class AllocOp(IRDLOperation):
         return_type: Attribute,
         alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
-        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Self:
@@ -309,6 +310,41 @@ class AllocaScopeOp(IRDLOperation):
 
     scope = region_def()
 
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(AllocaScopeReturnOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        result_types: Sequence[Attribute] = ()
+        if parser.parse_optional_punctuation("->"):
+            types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            result_types = [parser.parse_type()] if types is None else types
+        region = parser.parse_region()
+        attrs = parser.parse_optional_attr_dict()
+        op = cls(result_types=(result_types,), regions=(region,), attributes=attrs)
+        for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(op, trait)
+        return op
+
+    def print(self, printer: Printer):
+        if self.res:
+            printer.print_string(" -> (")
+            printer.print_list(self.res.types, printer.print_attribute)
+            printer.print_string(")")
+        printer.print_string(" ")
+        printer.print_region(
+            self.scope,
+            print_entry_block_args=False,
+            print_block_terminators=bool(self.res),
+        )
+        printer.print_op_attributes(self.attributes)
+
 
 @irdl_op_definition
 class AllocaScopeReturnOp(IRDLOperation):
@@ -317,6 +353,7 @@ class AllocaScopeReturnOp(IRDLOperation):
     ops = var_operand_def()
 
     traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
+    assembly_format = "attr-dict ($ops^ `:` type($ops))?"
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
@@ -351,7 +388,7 @@ class AllocaOp(IRDLOperation):
         return_type: Attribute,
         alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
-        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> AllocaOp:
@@ -389,7 +426,7 @@ class AssumeAlignmentOp(IRDLOperation):
 
     name = "memref.assume_alignment"
 
-    T: ClassVar = VarConstraint("T", base(MemRefType))
+    T: ClassVar = VarConstraint.get("T", MemRefType)
 
     memref = operand_def(T)
     alignment = prop_def(IntegerAttr[I32])
@@ -401,7 +438,7 @@ class AssumeAlignmentOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        memref: OperandArg,
         alignment: int | IntegerAttr[I32],
     ) -> None:
         memref = SSAValue.get(memref)
@@ -423,7 +460,7 @@ class AssumeAlignmentOp(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get("T", AnyFloat | AnySignlessIntegerType)
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(T))
@@ -439,12 +476,12 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    memref = operand_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(MemoryFreeEffect())
 
     @staticmethod
-    def get(operand: Operation | SSAValue) -> DeallocOp:
+    def get(operand: OperandArg) -> DeallocOp:
         return DeallocOp.build(operands=[operand])
 
     assembly_format = "$memref attr-dict `:` type($memref)"
@@ -519,7 +556,7 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
     index = operand_def(IndexType)
 
     result = result_def(IndexType)
@@ -530,8 +567,8 @@ class DimOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        index: SSAValue | Operation,
+        source: OperandArg,
+        index: OperandArg,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         super().__init__(
@@ -540,9 +577,7 @@ class DimOp(IRDLOperation):
 
     @staticmethod
     @deprecated("Use DimOp(source, index) instead")
-    def from_source_and_index(
-        source: SSAValue | Operation, index: SSAValue | Operation
-    ) -> DimOp:
+    def from_source_and_index(source: OperandArg, index: OperandArg) -> DimOp:
         return DimOp(source, index)
 
 
@@ -557,7 +592,7 @@ class RankOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def from_memref(memref: Operation | SSAValue):
+    def from_memref(memref: OperandArg):
         return RankOp.build(operands=[memref], result_types=[IndexType()])
 
 
@@ -626,7 +661,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
 
-    def __init__(self, source: SSAValue | Operation):
+    def __init__(self, source: OperandArg):
         """
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
@@ -659,7 +694,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def get(source: SSAValue | Operation):
+    def get(source: OperandArg):
         return ExtractAlignedPointerAsIndexOp.build(
             operands=[source], result_types=[IndexType()]
         )
@@ -720,7 +755,7 @@ class SubviewOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue],
         sizes: Sequence[SSAValue],
         strides: Sequence[SSAValue],
@@ -862,7 +897,7 @@ class SubviewOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
+        source: OperandArg,
         source_type: MemRefType,
         offsets: Sequence[int],
         sizes: Sequence[int],
@@ -901,14 +936,14 @@ class SubviewOp(IRDLOperation):
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
-        source: SSAValue | Operation,
+        source: OperandArg,
         type: MemRefType | UnrankedMemRefType,
     ):
         return CastOp.build(operands=[source], result_types=[type])
@@ -918,21 +953,21 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
-    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
+    source = operand_def(MemRefType | UnrankedMemRefType)
+    dest = result_def(MemRefType | UnrankedMemRefType)
 
     traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         dest: MemRefType | UnrankedMemRefType,
     ):
         super().__init__(operands=[source], result_types=[dest])
 
     @staticmethod
     def from_type_and_target_space(
-        source: SSAValue | Operation,
+        source: OperandArg,
         type: MemRefType,
         dest_memory_space: Attribute,
     ) -> MemorySpaceCastOp:
@@ -991,7 +1026,7 @@ class ReinterpretCastOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue],
         sizes: Sequence[SSAValue],
         strides: Sequence[SSAValue],
@@ -1108,9 +1143,9 @@ class ViewOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        byte_shift: SSAValue | Operation,
-        sizes: Sequence[SSAValue | Operation],
+        source: OperandArg,
+        byte_shift: OperandArg,
+        sizes: Sequence[OperandArg],
         result_type: MemRefType,
     ):
         super().__init__(
@@ -1152,71 +1187,122 @@ class ViewOp(IRDLOperation):
             )
 
 
+@dataclass(frozen=True, slots=True)
+class _DmaStartOperands:
+    src: SSAValue[MemRefType]
+    src_indices: tuple[SSAValue, ...]
+    dest: SSAValue[MemRefType]
+    dest_indices: tuple[SSAValue, ...]
+    num_elements: SSAValue
+    tag: SSAValue[MemRefType]
+    tag_indices: tuple[SSAValue, ...]
+
+
 @irdl_op_definition
 class DmaStartOp(IRDLOperation):
+    """
+    Operands are flat, as in MLIR: src, src_indices, dest, dest_indices,
+    num_elements, tag, tag_indices. The index counts follow from the memref ranks.
+    """
+
     name = "memref.dma_start"
 
-    src = operand_def(MemRefType)
-    src_indices = var_operand_def(IndexType)
-
-    dest = operand_def(MemRefType)
-    dest_indices = var_operand_def(IndexType)
-
-    num_elements = operand_def(IndexType)
-
-    tag = operand_def(MemRefType[IntegerType])
-    tag_indices = var_operand_def(IndexType)
+    ops = var_operand_def()
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    irdl_options = (AttrSizedOperandSegments(),)
+    def _split(self) -> _DmaStartOperands:
+        ops = self.ops
+        idx = 0
+
+        def take(count: int) -> tuple[SSAValue, ...]:
+            nonlocal idx
+            idx += count
+            if idx > len(ops):
+                raise VerifyException(
+                    f"Expected at least {idx} operands in memref.dma_start, got {len(ops)}"
+                )
+            return tuple(ops[idx - count : idx])
+
+        def take_memref() -> SSAValue[MemRefType]:
+            (value,) = take(1)
+            if not isa(value, SSAValue[MemRefType]):
+                raise VerifyException("Expected memref operand in memref.dma_start")
+            return value
+
+        src = take_memref()
+        src_indices = take(src.type.get_num_dims())
+        dest = take_memref()
+        dest_indices = take(dest.type.get_num_dims())
+        (num_elements,) = take(1)
+        tag = take_memref()
+        tag_indices = take(tag.type.get_num_dims())
+        if idx != len(ops):
+            raise VerifyException(
+                f"Expected {idx} operands in memref.dma_start, got {len(ops)}"
+            )
+        return _DmaStartOperands(
+            src, src_indices, dest, dest_indices, num_elements, tag, tag_indices
+        )
+
+    @property
+    def src(self) -> SSAValue[MemRefType]:
+        return self._split().src
+
+    @property
+    def src_indices(self) -> tuple[SSAValue, ...]:
+        return self._split().src_indices
+
+    @property
+    def dest(self) -> SSAValue[MemRefType]:
+        return self._split().dest
+
+    @property
+    def dest_indices(self) -> tuple[SSAValue, ...]:
+        return self._split().dest_indices
+
+    @property
+    def num_elements(self) -> SSAValue:
+        return self._split().num_elements
+
+    @property
+    def tag(self) -> SSAValue[MemRefType]:
+        return self._split().tag
+
+    @property
+    def tag_indices(self) -> tuple[SSAValue, ...]:
+        return self._split().tag_indices
 
     @staticmethod
     def get(
-        src: SSAValue | Operation,
-        src_indices: Sequence[SSAValue | Operation],
-        dest: SSAValue | Operation,
-        dest_indices: Sequence[SSAValue | Operation],
-        num_elements: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        tag_indices: Sequence[SSAValue | Operation],
+        src: OperandArg,
+        src_indices: Sequence[OperandArg],
+        dest: OperandArg,
+        dest_indices: Sequence[OperandArg],
+        num_elements: OperandArg,
+        tag: OperandArg,
+        tag_indices: Sequence[OperandArg],
     ):
         return DmaStartOp.build(
             operands=[
-                src,
-                src_indices,
-                dest,
-                dest_indices,
-                num_elements,
-                tag,
-                tag_indices,
+                [
+                    src,
+                    *src_indices,
+                    dest,
+                    *dest_indices,
+                    num_elements,
+                    tag,
+                    *tag_indices,
+                ]
             ]
         )
 
     def verify_(self) -> None:
-        assert isa(self.src.type, MemRefType)
-        assert isa(self.dest.type, MemRefType)
-        assert isa(self.tag.type, MemRefType[IntegerType])
-
-        if len(self.src.type.shape) != len(self.src_indices):
-            raise VerifyException(
-                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
-            )
-
-        if len(self.dest.type.shape) != len(self.dest_indices):
-            raise VerifyException(
-                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
-            )
-
-        if len(self.tag.type.shape) != len(self.tag_indices):
-            raise VerifyException(
-                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
-            )
-
-        if self.tag.type.element_type != i32:
+        operands = self._split()
+        if operands.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
 
-        if self.dest.type.memory_space == self.src.type.memory_space:
+        if operands.dest.type.memory_space == operands.src.type.memory_space:
             raise VerifyException("Source and dest must have different memory spaces!")
 
 
@@ -1231,11 +1317,15 @@ class DmaWaitOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
+    assembly_format = (
+        "$tag `[` $tag_indices `]` `,` $num_elements attr-dict `:` type($tag)"
+    )
+
     @staticmethod
     def get(
-        tag: SSAValue | Operation,
-        tag_indices: Sequence[SSAValue | Operation],
-        num_elements: SSAValue | Operation,
+        tag: OperandArg,
+        tag_indices: Sequence[OperandArg],
+        num_elements: OperandArg,
     ):
         return DmaWaitOp.build(
             operands=[
@@ -1265,7 +1355,7 @@ class CopyOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
+    def __init__(self, source: OperandArg, destination: OperandArg):
         super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:

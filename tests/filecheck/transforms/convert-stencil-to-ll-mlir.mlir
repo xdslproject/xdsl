@@ -277,13 +277,13 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @neg_bounds(%in: !stencil.field<[-32,32]xf64>, %out_1: !stencil.field<[-32,32]xf64>) {
+  func.func @neg_bounds(%in: !stencil.field<[-32,32]xf64>, %out: !stencil.field<[-32,32]xf64>) {
     %tin = stencil.load %in : !stencil.field<[-32,32]xf64> -> !stencil.temp<[-16,16]xf64>
     %outt = stencil.apply(%tinb = %tin : !stencil.temp<[-16,16]xf64>) -> (!stencil.temp<[-16,16]xf64>) {
       %val = stencil.access %tinb[0] : !stencil.temp<[-16,16]xf64>
       stencil.return %val : f64
     }
-    stencil.store %outt to %out_1 (<[-16], [16]>) : !stencil.temp<[-16,16]xf64> to !stencil.field<[-32,32]xf64>
+    stencil.store %outt to %out (<[-16], [16]>) : !stencil.temp<[-16,16]xf64> to !stencil.field<[-32,32]xf64>
     func.return
   }
 
@@ -400,10 +400,10 @@ builtin.module {
     %u_vec_1 = builtin.unrealized_conversion_cast %73 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
     %74 = builtin.unrealized_conversion_cast %69 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
     "gpu.memcpy"(%73, %74) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
-    %time_m_1 = arith.constant 0 : index
-    %time_M_1 = arith.constant 10 : index
-    %step_1 = arith.constant 1 : index
-    %75, %76 = scf.for %time_1 = %time_m_1 to %time_M_1 step %step_1 iter_args(%t0 = %u_vec_1, %t1 = %u_vec) -> (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) {
+    %time_m = arith.constant 0 : index
+    %time_M = arith.constant 10 : index
+    %step = arith.constant 1 : index
+    %75, %76 = scf.for %time = %time_m to %time_M step %step iter_args(%t0 = %u_vec_1, %t1 = %u_vec) -> (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) {
       %t0_temp = stencil.load %t0 : !stencil.field<[-2,13]x[-2,13]xf32> -> !stencil.temp<[0,11]x[0,11]xf32>
       %t1_result = stencil.apply(%t0_buff = %t0_temp : !stencil.temp<[0,11]x[0,11]xf32>) -> (!stencil.temp<[0,11]x[0,11]xf32>) {
         %77 = stencil.access %t0_buff[0, 0] : !stencil.temp<[0,11]x[0,11]xf32>
@@ -559,12 +559,12 @@ builtin.module {
 
   func.func @stencil_init_index_offset(%93: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 <[1, 1, 1]>
-      %y_1 = stencil.index 1 <[-1, -1, -1]>
-      %z_1 = stencil.index 2 <[0, 0, 0]>
-      %xy_1 = arith.addi %x_1, %y_1 : index
-      %xyz_1 = arith.addi %xy_1, %z_1 : index
-      stencil.return %xyz_1 : index
+      %x = stencil.index 0 <[1, 1, 1]>
+      %y = stencil.index 1 <[-1, -1, -1]>
+      %z = stencil.index 2 <[0, 0, 0]>
+      %xy = arith.addi %x, %y : index
+      %xyz = arith.addi %xy, %z : index
+      stencil.return %xyz : index
     }
     stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
@@ -631,15 +631,15 @@ func.func @store_result_lowering(%arg0: f64) {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-func.func @if_lowering(%arg0_1: f64, %b0: !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1: !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"} {
-    %101, %102 = stencil.apply(%arg1_1 = %arg0_1 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
+func.func @if_lowering(%arg0: f64, %b0: !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1: !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"} {
+    %101, %102 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
       %true = "test.op"() : () -> i1
       %103, %104 = scf.if %true -> (!stencil.result<f64>, f64) {
-        %105 = stencil.store_result %arg1_1 : !stencil.result<f64>
-        scf.yield %105, %arg1_1 : !stencil.result<f64>, f64
+        %105 = stencil.store_result %arg1 : !stencil.result<f64>
+        scf.yield %105, %arg1 : !stencil.result<f64>, f64
       } else {
         %106 = stencil.store_result  : !stencil.result<f64>
-        scf.yield %106, %arg1_1 : !stencil.result<f64>, f64
+        scf.yield %106, %arg1 : !stencil.result<f64>, f64
       }
       %107 = stencil.store_result %104 : !stencil.result<f64>
       stencil.return %103, %107 : !stencil.result<f64>, !stencil.result<f64>
@@ -861,27 +861,27 @@ func.func @buffered_combine(%115: !stencil.field<?x?xf64>) {
 
   func.func @stencil_double_store(%93: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 <[1, 1, 1]>
-      %y_1 = stencil.index 1 <[-1, -1, -1]>
-      %z_1 = stencil.index 2 <[0, 0, 0]>
-      %xy_1 = arith.addi %x_1, %y_1 : index
-      %xyz_1 = arith.addi %xy_1, %z_1 : index
-      stencil.return %xyz_1 : index
+      %x = stencil.index 0 <[1, 1, 1]>
+      %y = stencil.index 1 <[-1, -1, -1]>
+      %z = stencil.index 2 <[0, 0, 0]>
+      %xy = arith.addi %x, %y : index
+      %xyz = arith.addi %xy, %z : index
+      stencil.return %xyz : index
     }
     stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     %95 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 <[1, 1, 1]>
-      %y_1 = stencil.index 1 <[-1, -1, -1]>
-      %z_1 = stencil.index 2 <[0, 0, 0]>
-      %xy_1 = arith.addi %x_1, %y_1 : index
-      %xyz_1 = arith.addi %xy_1, %z_1 : index
-      stencil.return %xyz_1 : index
+      %x = stencil.index 0 <[1, 1, 1]>
+      %y = stencil.index 1 <[-1, -1, -1]>
+      %z = stencil.index 2 <[0, 0, 0]>
+      %xy = arith.addi %x, %y : index
+      %xyz = arith.addi %xy, %z : index
+      stencil.return %xyz : index
     }
     stencil.store %95 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
   }
 
-// CHECK:           "stencil.store"(%2, %0) {bounds = #stencil.bounds<[0, 0, 0], [64, 64, 64]>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
+// CHECK:           "stencil.store"(%2, %0) <{bounds = #stencil.bounds<[0, 0, 0], [64, 64, 64]>}> : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
 // CHECK-NEXT:      ^^^^^^^^^^^^^^^-------------------------------------------------------------------------------------------------------------------------
 // CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before.
 // CHECK-NEXT:      ----------------------------------------------------------------------------------------------------------------------------------------
@@ -890,12 +890,12 @@ func.func @buffered_combine(%115: !stencil.field<?x?xf64>) {
 
   func.func @stencil_load_store(%93: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 <[1, 1, 1]>
-      %y_1 = stencil.index 1 <[-1, -1, -1]>
-      %z_1 = stencil.index 2 <[0, 0, 0]>
-      %xy_1 = arith.addi %x_1, %y_1 : index
-      %xyz_1 = arith.addi %xy_1, %z_1 : index
-      stencil.return %xyz_1 : index
+      %x = stencil.index 0 <[1, 1, 1]>
+      %y = stencil.index 1 <[-1, -1, -1]>
+      %z = stencil.index 2 <[0, 0, 0]>
+      %xy = arith.addi %x, %y : index
+      %xyz = arith.addi %xy, %z : index
+      stencil.return %xyz : index
     }
     stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     %95 = stencil.load %93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex> -> !stencil.temp<[0,64]x[0,64]x[0,64]xindex>

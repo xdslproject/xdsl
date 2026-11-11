@@ -663,7 +663,7 @@ def _(
     class BinaryOp(IRDLOperation):
         name = "test.binary_op"
 
-        T: ClassVar = VarConstraint("T", base(IntegerType))
+        T: ClassVar = VarConstraint.get("T", IntegerType)
 
         lhs = operand_def(T)
         rhs = operand_def(T)

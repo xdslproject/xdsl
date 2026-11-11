@@ -1,12 +1,12 @@
-// RUN: xdsl-run --verbose %s | filecheck %s
-// RUN: xdsl-run --verbose --symbol="sum_to" --args="6" %s | filecheck %s --check-prefix=CHECK-ARGS
+// RUN: xdsl-run --verbose --index-bitwidth=32 %s | filecheck %s
+// RUN: xdsl-run --verbose --index-bitwidth=64 --symbol="sum_to" --args="6" %s | filecheck %s --check-prefix=CHECK-ARGS
 
 builtin.module {
   func.func @sum_to(%0: !riscv.reg) -> !riscv.reg {
     %1 = rv32.li 0 : !riscv.reg
     %2 = rv32.li 1 : !riscv.reg
     %3 = rv32.li 0 : !riscv.reg
-    %4 = riscv_scf.for %5 : !riscv.reg = %1 to %0 step %2 iter_args(%6 = %3) -> (!riscv.reg) {
+    %4 = riscv_scf.for %5 : !riscv.reg = %1 : !riscv.reg to %0 : !riscv.reg step %2 : !riscv.reg iter_args(%6 = %3) -> (!riscv.reg) {
       %7 = riscv.add %5, %6 : (!riscv.reg, !riscv.reg) -> !riscv.reg
       riscv_scf.yield %7 : !riscv.reg
     }
@@ -19,5 +19,5 @@ builtin.module {
   }
 }
 
-// CHECK:       result: 10
-// CHECK-ARGS:  result: 15
+// CHECK:       result: 10 : i32
+// CHECK-ARGS:  result: 15 : i64

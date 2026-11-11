@@ -3,9 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterConstraints
@@ -18,7 +16,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.dialects.x86.ops import SI32, X86HasRegisterConstraints
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
-from xdsl.ir import Dialect
+from xdsl.ir import Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
@@ -122,9 +120,9 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        start: SSAValue | Operation,
-        stop: SSAValue | Operation | IntegerAttr,
-        step: SSAValue | Operation | IntegerAttr,
+        start: OperandArg,
+        stop: OperandArg | IntegerAttr,
+        step: OperandArg | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
@@ -223,6 +221,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             self.body,
             bound_words=self.BOUND_WORDS,
         )
+        printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -233,8 +232,10 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
             allow_static_step=True,
         )
         _, *iter_args = body.block.args
+        attrs = parser.parse_optional_attr_dict()
 
         op = cls(start, stop, step, iter_arg_operands, body)
+        op.attributes |= attrs
 
         if not iter_args:
             for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):

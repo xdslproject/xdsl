@@ -15,9 +15,16 @@ from collections.abc import Iterator
 from dataclasses import Field, dataclass
 from enum import Enum
 from types import NoneType, UnionType
-from typing import Any, ClassVar, TypeAlias, Union, get_args, get_origin, get_type_hints
-
-from typing_extensions import Self
+from typing import (
+    Any,
+    ClassVar,
+    Self,
+    TypeAlias,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from xdsl.utils.exceptions import ArgSpecParseError
 from xdsl.utils.lexer import Input, Span, Token
@@ -286,7 +293,7 @@ class SpecTokenKind(Enum):
     COMMA = ","
 
 
-SpecToken: TypeAlias = Token[SpecTokenKind]
+SpecToken: TypeAlias = Token[SpecTokenKind, str]
 
 _lexer_rules: list[tuple[re.Pattern[str], SpecTokenKind]] = [
     # first rule is special to allow 2d-slice to be recognized as an ident

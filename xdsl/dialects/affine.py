@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -25,7 +23,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    Operation,
+    OperandArg,
     Region,
     SSAValue,
 )
@@ -52,7 +50,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     IsTerminator,
@@ -99,12 +97,12 @@ class ApplyOp(IRDLOperation):
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
         dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+            parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
         )
         if dims is None:
             dims = []
         syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         if syms is None:
             syms = []
@@ -149,7 +147,7 @@ def _parse_affine_for_bound(
     """
     used_min_max = parser.parse_optional_keyword(keyword) is not None
 
-    if (operand := parser.parse_optional_operand()) is not None:
+    if (operand := parser.parse_optional_operand(IndexType())) is not None:
         # A bare SSA value is sugar for a single-symbol identity map.
         return (
             AffineMapAttr(AffineMap(0, 1, (AffineExpr.symbol(0),))),
@@ -166,10 +164,10 @@ def _parse_affine_for_bound(
     m = map_attr.data
 
     dims = parser.parse_comma_separated_list(
-        Parser.Delimiter.PAREN, parser.parse_operand
+        Parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
     )
     syms = parser.parse_optional_comma_separated_list(
-        Parser.Delimiter.SQUARE, parser.parse_operand
+        Parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
     )
     if syms is None:
         syms = []
@@ -285,9 +283,9 @@ class ForOp(IRDLOperation):
 
     @staticmethod
     def from_region(
-        lowerBoundOperands: Sequence[Operation | SSAValue],
-        upperBoundOperands: Sequence[Operation | SSAValue],
-        inits: Sequence[Operation | SSAValue],
+        lowerBoundOperands: Sequence[OperandArg],
+        upperBoundOperands: Sequence[OperandArg],
+        inits: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
@@ -342,16 +340,16 @@ class ForOp(IRDLOperation):
 
         if parser.parse_optional_characters("iter_args") is not None:
 
-            def parse_iter_arg() -> tuple[Parser.UnresolvedArgument, SSAValue]:
+            def parse_iter_arg() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
                 arg = parser.parse_argument(expect_type=False)
                 parser.parse_characters("=")
-                return arg, parser.parse_operand()
+                return arg, parser.parse_unresolved_operand()
 
+            iter_args_pos = parser.pos
             pairs = parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, parse_iter_arg
             )
             unresolved_iter_args = tuple(arg for arg, _ in pairs)
-            iter_arg_operands = tuple(val for _, val in pairs)
             parser.parse_characters("->")
 
             # MLIR's `parseArrowTypeList` also accepts a single bare type
@@ -363,6 +361,10 @@ class ForOp(IRDLOperation):
                 parser.parse_punctuation(")")
             else:
                 iter_arg_types = (parser.parse_type(),)
+
+            iter_arg_operands = parser.resolve_operands(
+                tuple(val for _, val in pairs), iter_arg_types, iter_args_pos
+            )
 
         iter_args = tuple(
             u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
@@ -729,7 +731,7 @@ class MinOp(IRDLOperation):
 
     def __init__(
         self,
-        map_operands: Sequence[SSAValue | Operation],
+        map_operands: Sequence[OperandArg],
         affine_map: AffineMapAttr,
     ):
         super().__init__(
@@ -754,12 +756,12 @@ class MinOp(IRDLOperation):
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
         dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+            parser.Delimiter.PAREN, lambda: parser.parse_operand(IndexType())
         )
         if dims is None:
             dims = []
         syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         if syms is None:
             syms = []
@@ -796,7 +798,7 @@ class YieldOp(IRDLOperation):
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> YieldOp:
+    def get(*operands: OperandArg) -> YieldOp:
         return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 

@@ -70,7 +70,7 @@ class FunctionConstantPinning(RewritePattern):
                     [
                         # if we are equal to the specialized value, call the function:
                         call_op := func.CallOp(
-                            new_func.sym_name.data,
+                            new_func.sym_name,
                             func_op.body.block.args,
                             return_types,
                         ),

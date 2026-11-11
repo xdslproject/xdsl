@@ -10,9 +10,7 @@ at the bottom of this file.
 """
 
 from io import BytesIO, StringIO
-from typing import BinaryIO
-
-from typing_extensions import Self
+from typing import BinaryIO, Self
 
 from xdsl.irdl import (
     IRDLOperation,

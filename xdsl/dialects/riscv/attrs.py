@@ -1,15 +1,31 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable
-from typing import Literal, TypeAlias
+from typing import ClassVar, Literal, TypeAlias
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    Signedness,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Data
-from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import AttrParser
+from xdsl.irdl import IRDLOperation, irdl_attr_definition
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    irdl_custom_directive,
+)
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -28,35 +44,23 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
 UI5: TypeAlias = IntegerType[Literal[5], Literal[Signedness.UNSIGNED]]
 UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
+UI12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.UNSIGNED]]
 SI20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNED]]
 SI12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNED]]
 I12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNLESS]]
 I20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNLESS]]
 ui5: UI5 = IntegerType(5, Signedness.UNSIGNED)
 ui6: UI6 = IntegerType(6, Signedness.UNSIGNED)
+ui12: UI12 = IntegerType(12, Signedness.UNSIGNED)
 si20: SI20 = IntegerType(20, Signedness.SIGNED)
 si12: SI12 = IntegerType(12, Signedness.SIGNED)
 i12: I12 = IntegerType(12, Signedness.SIGNLESS)
 i20: I20 = IntegerType(20, Signedness.SIGNLESS)
 
 
-@irdl_attr_definition
-class LabelAttr(Data[str]):
-    name = "riscv.label"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string_literal(self.data)
-
-
 def _parse_optional_immediate_value(
     parser: AttrParser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+) -> IntegerAttr[IntegerType | IndexType] | StringAttr | None:
     """
     Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
     """
@@ -67,21 +71,66 @@ def _parse_optional_immediate_value(
         except VerifyException as e:
             parser.raise_error(e.args[0], pos)
     if (immediate := parser.parse_optional_str_literal()) is not None:
-        return LabelAttr(immediate)
+        return StringAttr(immediate)
 
 
 def parse_immediate_value(
     parser: AttrParser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+) -> IntegerAttr[IntegerType | IndexType] | StringAttr:
     return parser.expect(
         lambda: _parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",
     )
 
 
-def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
+def print_immediate_value(printer: Printer, immediate: IntegerAttr | StringAttr):
     match immediate:
         case IntegerAttr():
             immediate.print_without_type(printer)
-        case LabelAttr():
-            printer.print_string_literal(immediate.data)
+        case StringAttr():
+            printer.print_attribute(immediate)
+
+
+@irdl_custom_directive
+class _Immediate(CustomDirective, abc.ABC):
+    """A bare integer of a fixed type, or a quoted label."""
+
+    immediate: AttributeVariable
+    INTEGER_TYPE: ClassVar[IntegerType]
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        self.immediate.set(state, parse_immediate_value(parser, self.INTEGER_TYPE))
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        immediate = self.immediate.get(op)
+        assert isa(immediate, IntegerAttr | StringAttr)
+        state.print_whitespace(printer)
+        print_immediate_value(printer, immediate)
+
+
+class ImmediateI12(_Immediate):
+    INTEGER_TYPE = i12
+
+
+class ImmediateSI12(_Immediate):
+    INTEGER_TYPE = si12
+
+
+class ImmediateI20(_Immediate):
+    INTEGER_TYPE = i20
+
+
+class ImmediateSI20(_Immediate):
+    INTEGER_TYPE = si20
+
+
+class ImmediateUI5(_Immediate):
+    INTEGER_TYPE = ui5
+
+
+class ImmediateI32(_Immediate):
+    INTEGER_TYPE = i32
+
+
+class ImmediateI64(_Immediate):
+    INTEGER_TYPE = i64

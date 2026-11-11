@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -46,7 +46,7 @@ class UpdateOp(IRDLOperation):
 
     assembly_format = "$symbol `=` $value attr-dict `:` type($value)"
 
-    def __init__(self, symbol: str | SymbolRefAttr, value: Operation | SSAValue):
+    def __init__(self, symbol: str | SymbolRefAttr, value: OperandArg):
         if isinstance(symbol, str):
             symbol = SymbolRefAttr(symbol)
         super().__init__(operands=[value], properties={"symbol": symbol})

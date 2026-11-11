@@ -20,9 +20,9 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Dialect,
+    OperandArg,
     Operation,
     Region,
-    SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -334,16 +334,14 @@ class CallOp(IRDLOperation):
 
     def __init__(
         self,
-        callee: str | SymbolRefAttr,
-        arguments: Sequence[SSAValue | Operation],
+        callee: str | StringAttr | SymbolRefAttr,
+        arguments: Sequence[OperandArg],
         return_types: Sequence[Attribute],
     ):
-        if isinstance(callee, str):
-            callee = SymbolRefAttr(callee)
         super().__init__(
             operands=[arguments],
             result_types=[return_types],
-            properties={"callee": callee},
+            properties={"callee": SymbolRefAttr.get(callee)},
         )
 
 
@@ -356,7 +354,7 @@ class ReturnOp(IRDLOperation):
 
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
-    def __init__(self, *return_vals: SSAValue | Operation):
+    def __init__(self, *return_vals: OperandArg):
         super().__init__(operands=[return_vals])
 
     def verify_(self) -> None:
@@ -367,7 +365,9 @@ class ReturnOp(IRDLOperation):
         return_types = self.arguments.types
         if function_return_types != return_types:
             raise VerifyException(
-                "Expected arguments to have the same types as the function output types"
+                "Expected arguments to have the same types as the function output "
+                f"types: expected {func_op.function_type.outputs}, "
+                f"got {ArrayAttr(return_types)}"
             )
 
 

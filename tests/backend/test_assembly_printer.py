@@ -6,8 +6,8 @@ from xdsl.utils.test_value import create_ssa_value
 def test_reg():
     x0_val = create_ssa_value(TestRegisterType.from_name("x0"))
     x1_val = create_ssa_value(TestRegisterType.from_name("x1"))
-    assert reg(x0_val) == "x0"
-    assert reg(x1_val) == "x1"
+    assert reg(x0_val) == "a0"
+    assert reg(x1_val) == "a1"
 
 
 def test_register_name_spec():

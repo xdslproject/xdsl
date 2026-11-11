@@ -21,7 +21,7 @@ x86_func.func @copy10(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %step = x86.di.mov 4 : () -> !x86.reg64<rdx>
     %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
-    %zero_end = x86_scf.for %offset : !x86.reg64<rcx> = %zero to %forty step %step {
+    %zero_end = x86_scf.for %offset : !x86.reg64<rcx> = %zero : !x86.reg64<rcx> to %forty : !x86.reg64<r8> step %step : !x86.reg64<rdx> {
         "test.op"(%offset, %src, %dst) :  (!x86.reg64<rcx>, !x86.reg64<rax>, !x86.reg64<rbx>) -> ()
         yield
     }
@@ -51,7 +51,7 @@ x86_func.func @iv_not_used(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %step = x86.di.mov 4 : () -> !x86.reg64<rdx>
     %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
-    %offset_end = x86_scf.for %offset : !x86.reg64<rcx> = %zero to %forty step %step {
+    %offset_end = x86_scf.for %offset : !x86.reg64<rcx> = %zero : !x86.reg64<rcx> to %forty : !x86.reg64<r8> step %step : !x86.reg64<rdx> {
         "test.op"(%src, %dst) :  (!x86.reg64<rax>, !x86.reg64<rbx>) -> ()
         yield
     }
@@ -96,11 +96,11 @@ x86_func.func @nested(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
     %zero_outer = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %step_outer = x86.di.mov 4 : () -> !x86.reg64<rdx>
     %forty_outer = x86.di.mov 40 : () -> !x86.reg64<r8>
-    %zero_outer_end = x86_scf.for %offset_outer : !x86.reg64<rcx> = %zero_outer to %forty_outer step %step_outer {
+    %zero_outer_end = x86_scf.for %offset_outer : !x86.reg64<rcx> = %zero_outer : !x86.reg64<rcx> to %forty_outer : !x86.reg64<r8> step %step_outer : !x86.reg64<rdx> {
         %zero_inner = x86.di.mov 0 : () -> !x86.reg64<r10>
         %step_inner = x86.di.mov 2 : () -> !x86.reg64<r11>
         %forty_inner = x86.di.mov 40 : () -> !x86.reg64<r12>
-        %zero_inner_end = x86_scf.for %offset_inner : !x86.reg64<r10> = %zero_inner to %forty_inner step %step_inner {
+        %zero_inner_end = x86_scf.for %offset_inner : !x86.reg64<r10> = %zero_inner : !x86.reg64<r10> to %forty_inner : !x86.reg64<r12> step %step_inner : !x86.reg64<r11> {
             "test.op"(%src, %dst, %offset_outer, %offset_inner) : (!x86.reg64<rax>, !x86.reg64<rbx>, !x86.reg64<rcx>, !x86.reg64<r10>) -> ()
             x86_scf.yield
         }
@@ -125,7 +125,7 @@ x86_func.func @nested(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
 x86_func.func @entry_fallthrough_static_ub_dyn_step() {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %step = x86.di.mov 1 : () -> !x86.reg64<rdx>
-    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero to 10 : si32 step %step {
+    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero : !x86.reg64<rcx> to 10 : si32 step %step : !x86.reg64<rdx> {
         x86_scf.yield
     }
     ret
@@ -145,7 +145,7 @@ x86_func.func @entry_fallthrough_static_ub_dyn_step() {
 //  CHECK-NEXT:    }
 x86_func.func @entry_fallthrough_static_bounds() {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
-    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero to 12 : si32 step 1 : si32 {
+    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero : !x86.reg64<rcx> to 12 : si32 step 1 : si32 {
         x86_scf.yield
     }
     ret
@@ -167,7 +167,7 @@ x86_func.func @entry_fallthrough_static_bounds() {
 //  CHECK-NEXT:    }
 x86_func.func @dyn_lb_static_ub(%lb: !x86.reg64<rcx>) {
     %step = x86.di.mov 2 : () -> !x86.reg64<rdx>
-    %lb_end = x86_scf.for %i : !x86.reg64<rcx> = %lb to 10 : si32 step %step {
+    %lb_end = x86_scf.for %i : !x86.reg64<rcx> = %lb : !x86.reg64<rcx> to 10 : si32 step %step : !x86.reg64<rdx> {
         x86_scf.yield
     }
     ret
@@ -187,7 +187,7 @@ x86_func.func @dyn_lb_static_ub(%lb: !x86.reg64<rcx>) {
 //  CHECK-NEXT:      x86_func.ret
 //  CHECK-NEXT:    }
 x86_func.func @dyn_lb_static_bounds(%lb: !x86.reg64<rcx>) {
-    %lb_end = x86_scf.for %i : !x86.reg64<rcx> = %lb to 12 : si32 step 1 : si32 {
+    %lb_end = x86_scf.for %i : !x86.reg64<rcx> = %lb : !x86.reg64<rcx> to 12 : si32 step 1 : si32 {
         x86_scf.yield
     }
     ret
@@ -211,7 +211,7 @@ x86_func.func @dyn_lb_static_bounds(%lb: !x86.reg64<rcx>) {
 x86_func.func @dyn_ub_static_step() {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %ub = x86.di.mov 20 : () -> !x86.reg64<r8>
-    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero to %ub step 3 : si32 {
+    %zero_end = x86_scf.for %i : !x86.reg64<rcx> = %zero : !x86.reg64<rcx> to %ub : !x86.reg64<r8> step 3 : si32 {
         x86_scf.yield
     }
     ret
@@ -233,7 +233,7 @@ x86_func.func @dyn_ub_static_step() {
 //  CHECK-NEXT:    }
 x86_func.func @known_empty() {
     %ten = x86.di.mov 10 : () -> !x86.reg64<rcx>
-    %ten_end = x86_scf.for %i : !x86.reg64<rcx> = %ten to 10 : si32 step 1 : si32 {
+    %ten_end = x86_scf.for %i : !x86.reg64<rcx> = %ten : !x86.reg64<rcx> to 10 : si32 step 1 : si32 {
         x86_scf.yield
     }
     ret

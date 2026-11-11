@@ -1,6 +1,16 @@
+import pytest
+
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import x86_func
+from xdsl.dialects.builtin import StringAttr
+from xdsl.ir import Region
 from xdsl.traits import MemoryEffect
+
+
+@pytest.mark.parametrize("name", ["callable", StringAttr("callable")])
+def test_func_name(name: str | StringAttr):
+    func = x86_func.FuncOp(name, Region(), ((), ()))
+    assert func.sym_name == StringAttr("callable")
 
 
 def test_effect_traits():

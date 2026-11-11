@@ -25,9 +25,6 @@ from .abstract_ops import (
     RISCVAsmOperation as RISCVAsmOperation,
 )
 from .abstract_ops import (
-    RISCVCustomFormatOperation as RISCVCustomFormatOperation,
-)
-from .abstract_ops import (
     RISCVInstruction as RISCVInstruction,
 )
 from .abstract_ops import (
@@ -149,7 +146,6 @@ from .ops import (
     JalOp,
     JalrOp,
     JOp,
-    LabelAttr,
     LabelOp,
     LbOp,
     LbuOp,
@@ -397,7 +393,6 @@ RISCV = Dialect(
     [
         IntRegisterType,
         FloatRegisterType,
-        LabelAttr,
         FastMathFlagsAttr,
     ],
 )

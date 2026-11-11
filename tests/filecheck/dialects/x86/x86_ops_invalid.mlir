@@ -78,3 +78,51 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 %result = "x86.dsi.vextractf128"(%ymm) {immediate = 1 : i32} : (!x86.avx2reg) -> !x86.ssereg
 
 // CHECK: Expected attribute ui8 but got i32
+
+// -----
+
+// Register-source arithmetic cannot change the tied physical register.
+%acc, %src = "test.op"() : () -> (!x86.reg64<rax>, !x86.reg64<rcx>)
+%result = x86.rs.add %acc, %src : (!x86.reg64<rax>, !x86.reg64<rcx>) -> !x86.reg64<rdx>
+
+// CHECK: attribute !x86.reg64<rax> expected from variable 'T', but got !x86.reg64<rdx>
+
+// -----
+
+// Unary operations cannot have a partially allocated tie.
+%acc = "test.op"() : () -> !x86.reg64
+%result = x86.r.neg %acc : (!x86.reg64) -> !x86.reg64<rax>
+
+// CHECK: attribute !x86.reg64 expected from variable 'T', but got !x86.reg64<rax>
+
+// -----
+
+// Memory-source arithmetic must preserve the accumulator register.
+%acc, %base = "test.op"() : () -> (!x86.reg64<r8>, !x86.reg64<rdi>)
+%result = x86.rm.add %acc, [%base] : (!x86.reg64<r8>, !x86.reg64<rdi>) -> !x86.reg64<r9>
+
+// CHECK: attribute !x86.reg64<r8> expected from variable 'T', but got !x86.reg64<r9>
+
+// -----
+
+// Immediate operations also reject an allocated input with an unallocated result.
+%acc = "test.op"() : () -> !x86.reg64<rax>
+%result = x86.ri.add %acc, 1 : (!x86.reg64<rax>) -> !x86.reg64
+
+// CHECK: attribute !x86.reg64<rax> expected from variable 'T', but got !x86.reg64
+
+// -----
+
+// Register FMA results must match the accumulator, not another source register.
+%acc, %lhs, %rhs = "test.op"() : () -> (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>)
+%result = x86.rss.vfmadd231pd %acc, %lhs, %rhs : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm1>
+
+// CHECK: attribute !x86.avx512reg<zmm0> expected from variable 'T', but got !x86.avx512reg<zmm1>
+
+// -----
+
+// Memory FMA operations cannot have a partially allocated accumulator tie.
+%acc, %src, %base = "test.op"() : () -> (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdi>)
+%result = x86.rsm.vfmadd231pd %acc, %src, [%base] : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg
+
+// CHECK: attribute !x86.avx512reg<zmm0> expected from variable 'T', but got !x86.avx512reg

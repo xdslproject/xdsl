@@ -156,7 +156,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         module_op.update_program_block_args()
 
         # set up main function and move func.func ops into this csl.func
-        main_func = csl.FuncOp(op.sym_name.data, ((), None))
+        main_func = csl.FuncOp(op.sym_name, ((), None))
         func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
         args_to_ops, arg_mappings = self._translate_function_args(op.args, op.arg_attrs)
         rewriter.inline_block(

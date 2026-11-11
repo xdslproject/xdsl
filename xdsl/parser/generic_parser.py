@@ -7,28 +7,28 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, NoReturn, overload
+from typing import Generic, NoReturn, cast, overload
 
 from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT
+from xdsl.utils.lexer import ContentT, Lexer, Position, Span, Token, TokenKindT
 
 
 @dataclass(init=False)
-class ParserState(Generic[TokenKindT]):
+class ParserState(Generic[TokenKindT, ContentT]):
     """
     The parser state. It contains the lexer, and the next token to parse.
     The parser state should be shared between all parsers, so parsers can
     share the same position.
     """
 
-    lexer: Lexer[TokenKindT]
-    current_token: Token[TokenKindT]
+    lexer: Lexer[TokenKindT, ContentT]
+    current_token: Token[TokenKindT, ContentT]
     dialect_stack: list[str]
 
     def __init__(
-        self, lexer: Lexer[TokenKindT], dialect_stack: list[str] | None = None
+        self, lexer: Lexer[TokenKindT, ContentT], dialect_stack: list[str] | None = None
     ):
         if dialect_stack is None:
             dialect_stack = ["builtin"]
@@ -41,7 +41,7 @@ _AnyInvT = TypeVar("_AnyInvT")
 
 
 @dataclass
-class GenericParser(Generic[TokenKindT]):
+class GenericParser(Generic[TokenKindT, ContentT]):
     """
     Basic recursive descent parser. It contains parsing methods that are shared
     between the different parsers.
@@ -56,7 +56,7 @@ class GenericParser(Generic[TokenKindT]):
     `" in integer list"` will throw the error `',' expected in integer list` instead.
     """
 
-    _parser_state: ParserState[TokenKindT]
+    _parser_state: ParserState[TokenKindT, ContentT]
 
     @overload
     def raise_error(
@@ -70,13 +70,13 @@ class GenericParser(Generic[TokenKindT]):
     def raise_error(
         self,
         msg: str,
-        at_position: Position | Span | None = None,
+        at_position: Position | Span[ContentT] | None = None,
     ) -> NoReturn: ...
 
     def raise_error(
         self,
         msg: str,
-        at_position: Span | Position | None = None,
+        at_position: Span[ContentT] | Position | None = None,
         end_position: Position | None = None,
     ) -> NoReturn:
         """
@@ -91,9 +91,9 @@ class GenericParser(Generic[TokenKindT]):
         elif isinstance(at_position, Position):
             at_position = Span(at_position, at_position, self.lexer.input)
 
-        raise ParseError(at_position, msg)
+        raise ParseError(cast(Span[str] | Span[bytes], at_position), msg)
 
-    def _resume_from(self, pos: Position | ParserState[TokenKindT]):
+    def _resume_from(self, pos: Position | ParserState[TokenKindT, ContentT]):
         """Resume parsing from a given position."""
         if isinstance(pos, Position):
             self.lexer.pos = pos
@@ -102,12 +102,12 @@ class GenericParser(Generic[TokenKindT]):
             self._parser_state = pos
 
     @property
-    def _current_token(self) -> Token[TokenKindT]:
+    def _current_token(self) -> Token[TokenKindT, ContentT]:
         """Get the token that is currently being parsed. Do not consume the token."""
         return self._parser_state.current_token
 
     @property
-    def lexer(self) -> Lexer[TokenKindT]:
+    def lexer(self) -> Lexer[TokenKindT, ContentT]:
         """The lexer used to parse the current input."""
         return self._parser_state.lexer
 
@@ -121,7 +121,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _consume_token(
         self, expected_kind: TokenKindT | None = None
-    ) -> Token[TokenKindT]:
+    ) -> Token[TokenKindT, ContentT]:
         """
         Advance the lexer to the next token.
         Assert that the current token was of a specific kind, if specified.
@@ -137,7 +137,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_optional_token(
         self, expected_kind: TokenKindT
-    ) -> Token[TokenKindT] | None:
+    ) -> Token[TokenKindT, ContentT] | None:
         """
         If the current token is of the expected kind, consume it and return it.
         Otherwise, return None.
@@ -147,7 +147,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_token(
         self, expected_kind: TokenKindT, error_msg: str
-    ) -> Token[TokenKindT]:
+    ) -> Token[TokenKindT, ContentT]:
         """
         Parse a specific token, and raise an error if it is not present.
         Returns the token that was parsed.
@@ -158,7 +158,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def _parse_optional_token_in(
         self, expected_kinds: Iterable[TokenKindT]
-    ) -> Token[TokenKindT] | None:
+    ) -> Token[TokenKindT, ContentT] | None:
         """Parse one of the expected tokens if present, and returns it."""
         if self._current_token.kind not in expected_kinds:
             return None

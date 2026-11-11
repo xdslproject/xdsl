@@ -6,9 +6,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, cast
-
-from typing_extensions import Self
+from typing import ClassVar, Self, cast
 
 from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
@@ -20,7 +18,7 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Block,
@@ -100,9 +98,9 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     def __init__(
         self,
-        start: SSAValue | Operation,
-        stop: SSAValue | Operation,
-        step: SSAValue | Operation | IntegerAttr,
+        start: OperandArg,
+        stop: OperandArg,
+        step: OperandArg | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
@@ -184,6 +182,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             self.body,
             bound_words=self.BOUND_WORDS,
         )
+        printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -191,8 +190,10 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             parser, bound_words=cls.BOUND_WORDS, allow_static_step=True
         )
         _, *iter_args = body.block.args
+        attrs = parser.parse_optional_attr_dict()
 
         op = cls(start, stop, step, iter_arg_operands, body)
+        op.attributes |= attrs
 
         if not iter_args:
             for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
@@ -257,16 +258,6 @@ class ForOp(ForRofOperation):
 
     name = "riscv_scf.for"
 
-    def print(self, printer: Printer):
-        print_for_op_like(
-            printer,
-            self.start,
-            self.stop,
-            self.step,
-            self.iter_args,
-            self.body,
-        )
-
 
 @irdl_op_definition
 class RofOp(ForRofOperation):
@@ -293,7 +284,7 @@ class WhileOp(IRDLOperation):
 
     def __init__(
         self,
-        arguments: Sequence[SSAValue | Operation],
+        arguments: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
@@ -414,7 +405,7 @@ class ConditionOp(IRDLOperation):
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
+    def __init__(self, cond: OperandArg, *output_ops: OperandArg):
         super().__init__(operands=[cond, output_ops])
 
     def print(self, printer: Printer):

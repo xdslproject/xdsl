@@ -51,3 +51,18 @@ builtin.module {
 
 }
 // CHECK-NEXT: }
+
+// -----
+
+builtin.module {
+// CHECK: builtin.module {
+
+%0 = csl.const_str "hello"
+%1 = csl.const_str "unused"
+"test.op"(%0) : (!csl.comptime_string) -> ()
+
+// CHECK-NEXT:  %0 = csl.const_str "hello"
+// CHECK-NEXT:  "test.op"(%0) : (!csl.comptime_string) -> ()
+
+}
+// CHECK-NEXT: }

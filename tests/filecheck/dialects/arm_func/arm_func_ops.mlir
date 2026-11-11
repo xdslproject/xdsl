@@ -11,6 +11,6 @@ arm_func.func @noarg_void() {
     arm_func.return {"comment" = "this is a return instruction"}
 }
 
-// CHECK-GENERIC:       "arm_func.func"() ({
-// CHECK-GENERIC-NEXT:    "arm_func.return"() {comment = "this is a return instruction"} : () -> ()
-// CHECK-GENERIC-NEXT:  }) {sym_name = "noarg_void", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC:       "arm_func.func"() <{sym_name = "noarg_void", function_type = () -> ()}> ({
+// CHECK-GENERIC-NEXT:    "arm_func.return"() <{comment = "this is a return instruction"}> : () -> ()
+// CHECK-GENERIC-NEXT:  }) : () -> ()

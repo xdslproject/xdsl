@@ -35,6 +35,12 @@
   "csl.member_call"(%param_import, %const27) <{field = "bar"}> : (!csl.imported_module, i16) -> ()
   %val2 = "csl.member_call"(%param_import) <{field = "baz"}> : (!csl.imported_module) -> (f32)
 
+  // csl.const_str
+  %short_str = csl.const_str "hello"
+  "csl.member_call"(%param_import, %short_str) <{field = "qux"}> : (!csl.imported_module, !csl.comptime_string) -> ()
+  %long_str = csl.const_str "this string is long enough not to be inlined as an expression"
+  "csl.member_call"(%param_import, %long_str) <{field = "qux"}> : (!csl.imported_module, !csl.comptime_string) -> ()
+
   %val3 = "csl.member_access"(%param_import) <{field = "f"}> :  (!csl.imported_module) -> (i32)
 
 
@@ -410,12 +416,42 @@ csl.func @ctrlflow() {
   csl.return
 }
 
+csl.func @yields(%ycond : i1, %ya : i32, %yb : i32) -> i32 {
+  %swap:2 = scf.if %ycond -> (i32, i32) {
+    scf.yield %ya, %yb : i32, i32
+  } else {
+    scf.yield %yb, %ya : i32, i32
+  }
+  %nested = scf.if %ycond -> (i32) {
+    %inner = scf.if %ycond -> (i32) {
+      scf.yield %ya : i32
+    } else {
+      scf.yield %yb : i32
+    }
+    scf.yield %inner : i32
+  } else {
+    scf.yield %ya : i32
+  }
+  %lb = arith.constant 0 : i32
+  %ub = arith.constant 4 : i32
+  %step = arith.constant 1 : i32
+  %x, %y = scf.for %i = %lb to %ub step %step iter_args(%xi = %ya, %yi = %yb) -> (i32, i32) : i32 {
+    %sum = arith.addi %xi, %yi : i32
+    scf.yield %yi, %sum : i32, i32
+  }
+  %r0 = arith.addi %swap#0, %swap#1 : i32
+  %r1 = arith.addi %r0, %nested : i32
+  %r2 = arith.addi %r1, %x : i32
+  %r3 = arith.addi %r2, %y : i32
+  csl.return %r3 : i32
+}
+
 %tsc = "csl.import_module"() <{"module" = "<time>"}> : () -> !csl.imported_module
 %tsc_buf = "csl.zeros"() : () -> memref<6xui16>
 
 csl.func @timestamp_start() {
-  %addr_of_1 = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
-  %ptrcast_1 = "csl.ptrcast"(%addr_of_1) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %addr_of = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
+  %ptrcast_1 = "csl.ptrcast"(%addr_of) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
   "csl.member_call"(%tsc) <{"field" = "enable_tsc"}> : (!csl.imported_module) -> ()
   "csl.member_call"(%tsc, %ptrcast_1) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
   csl.return
@@ -424,8 +460,8 @@ csl.func @timestamp_start() {
 csl.func @timestamp_stop() {
   %three = arith.constant 3 : index
   %ld = memref.load %tsc_buf[%three] : memref<6xui16>
-  %addr_of_2 = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
-  %ptrcast_2 = "csl.ptrcast"(%addr_of_2) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %addr_of = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %ptrcast_2 = "csl.ptrcast"(%addr_of) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
   "csl.member_call"(%tsc, %ptrcast_2) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
   csl.return
 }
@@ -518,6 +554,25 @@ csl.func @builtins() {
   csl.return
 }
 
+csl.func @memref_alloc_bitcast(%f : f32, %i : i32) {
+  %alloc = memref.alloc() : memref<10xf32>
+  %alloca = memref.alloca() : memref<2x3xi16>
+  %n = arith.constant 4 : index
+  %dyn = memref.alloc(%n) : memref<?xf32>
+  %f_to_i = arith.bitcast %f : f32 to i32
+  %i_to_f = arith.bitcast %i : i32 to f32
+  %i_to_u = arith.bitcast %i : i32 to ui32
+  %f_to_f = arith.bitcast %f : f32 to f32
+  csl.return
+}
+
+csl.func @intptrcast(%p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>, %u : ui16) {
+  %p_to_idx = csl.intptrcast %p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>> to index
+  %p_to_u = csl.intptrcast %p : !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>> to ui16
+  %u_to_p = csl.intptrcast %u : ui16 to !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  csl.return
+}
+
 }) {sym_name = "program.csl"} : () -> ()
 
 
@@ -579,6 +634,9 @@ csl.func @builtins() {
 // CHECK-NEXT: param_import.foo();
 // CHECK-NEXT: param_import.bar(const27);
 // CHECK-NEXT: const val2 : f32 = param_import.baz();
+// CHECK-NEXT: param_import.qux("hello");
+// CHECK-NEXT: const long_str : comptime_string = "this string is long enough not to be inlined as an expression";
+// CHECK-NEXT: param_import.qux(long_str);
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn main() void {
 // CHECK-NEXT:   no_args_no_return();
@@ -817,7 +875,7 @@ csl.func @builtins() {
 // CHECK-NEXT:     var tmp : f32 = 0.0;
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT:     for(@range(i32, 0, 6, 1)) |j| {
-// CHECK-NEXT:       tmp = tmp + ((A[((i * 6) + j)]) * (x[j]));
+// CHECK-NEXT:       tmp = (tmp + ((A[((i * 6) + j)]) * (x[j])));
 // CHECK-NEXT:     }
 // CHECK-NEXT:     y[i] = (tmp + (b[i]));
 // CHECK-NEXT:   }
@@ -843,6 +901,43 @@ csl.func @builtins() {
 // CHECK-NEXT:     i32ret = 222;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn yields(ycond : bool, ya : i32, yb : i32) i32 {
+// CHECK-NEXT:   var swap : i32;
+// CHECK-NEXT:   var swap1 : i32;
+// CHECK-NEXT:   if (ycond) {
+// CHECK-NEXT:     swap = ya;
+// CHECK-NEXT:     swap1 = yb;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     swap = yb;
+// CHECK-NEXT:     swap1 = ya;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var nested : i32;
+// CHECK-NEXT:   if (ycond) {
+// CHECK-NEXT:     var inner : i32;
+// CHECK-NEXT:     if (ycond) {
+// CHECK-NEXT:       inner = ya;
+// CHECK-NEXT:     }
+// CHECK-NEXT:     else {
+// CHECK-NEXT:       inner = yb;
+// CHECK-NEXT:     }
+// CHECK-NEXT:     nested = inner;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     nested = ya;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var x : i32 = ya;
+// CHECK-NEXT:   var y : i32 = yb;
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT:   for(@range(i32, 0, 4, 1)) |i| {
+// CHECK-NEXT:     const x_next2 = y;
+// CHECK-NEXT:     const y_next3 = (x + y);
+// CHECK-NEXT:     x = x_next2;
+// CHECK-NEXT:     y = y_next3;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   return ((((swap + swap1) + nested) + x) + y);
 // CHECK-NEXT: }
 // CHECK-NEXT: const tsc : imported_module = @import_module("<time>");
 // CHECK-NEXT: var tsc_buf : [6]u16 = @zeros([6]u16);
@@ -952,6 +1047,24 @@ csl.func @builtins() {
 // CHECK-NEXT:   @activate(@get_data_task_id(0));
 // CHECK-NEXT:   @activate(@get_local_task_id(1));
 // CHECK-NEXT:   @activate(@get_control_task_id(42));
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-EMPTY:
+// CHECK-NEXT: fn memref_alloc_bitcast(f : f32, i : i32) void {
+// CHECK-NEXT:   var alloc : [10]f32 = @zeros([10]f32);
+// CHECK-NEXT:   var alloca : [2,3]i16 = @zeros([2,3]i16);
+// CHECK-NEXT:   var dyn : [4]f32 = @zeros([4]f32);
+// CHECK-NEXT:   const f_to_i : i32 = @bitcast(i32, f);
+// CHECK-NEXT:   const i_to_f : f32 = @bitcast(f32, i);
+// CHECK-NEXT:   const i_to_u : u32 = @bitcast(u32, i);
+// CHECK-NEXT:   const f_to_f : f32 = @bitcast(f32, f);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-EMPTY:
+// CHECK-NEXT: fn intptrcast(p : [*]const i32, u : u16) void {
+// CHECK-NEXT:   const p_to_idx : i32 = @bitcast(i32, p);
+// CHECK-NEXT:   const p_to_u : u16 = @bitcast(u16, p);
+// CHECK-NEXT:   const u_to_p : *f32 = @bitcast(*f32, u);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----

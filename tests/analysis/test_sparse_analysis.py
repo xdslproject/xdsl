@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
-from typing_extensions import Self
+from typing import Literal, Self
 
 from xdsl.analysis.dataflow import (
     ChangeResult,

@@ -1,5 +1,6 @@
 import re
 from collections.abc import Sequence
+from unittest.mock import patch
 
 import pytest
 
@@ -20,6 +21,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    OpImplResult,
     PythonValues,
     Successor,
     impl_external,
@@ -634,6 +636,16 @@ def test_replace_with_range_invalid():
         interpreter.run_op(replace_op, (target_op, c0, (c1,), c3))
 
 
+def test_branch():
+    interpreter = Interpreter(ModuleOp([]))
+    destination = Block()
+    op = pdl_interp.BranchOp(destination)
+
+    assert PDLInterpFunctions().run_branch(interpreter, op, ()) == OpImplResult(
+        (), Successor(destination, ())
+    )
+
+
 def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
     testmodule = ModuleOp(Region([Block()]))
@@ -662,6 +674,37 @@ def test_func():
         interpreter.call_op("matcher", (op,))
     pdl_interp_functions.set_rewriter(interpreter, PatternRewriter(op))
     interpreter.call_op("matcher", (op,))
+
+
+@pytest.mark.parametrize("num_inputs,num_matched_ops", [(0, 2), (1, 0), (1, 2), (2, 1)])
+def test_record_match_rewrite_inputs(num_inputs: int, num_matched_ops: int):
+    """Only captures, not location metadata, are passed to the rewriter."""
+    root = test.TestOp()
+    interpreter = Interpreter(ModuleOp([root]))
+    functions = PDLInterpFunctions()
+    functions.set_root(interpreter, root)
+    functions.set_rewriter(interpreter, PatternRewriter(root))
+
+    inputs = (create_ssa_value(i32), create_ssa_value(i64))[:num_inputs]
+    matched_ops = (root, test.TestOp())[:num_matched_ops]
+    destination = Block()
+    op = pdl_interp.RecordMatchOp(
+        "rewrite",
+        root_kind=None,
+        generated_ops=None,
+        benefit=1,
+        inputs=[create_ssa_value(pdl.ValueType()) for _ in inputs],
+        matched_ops=[create_ssa_value(pdl.OperationType()) for _ in matched_ops],
+        dest=destination,
+    )
+
+    assert functions.run_recordmatch(
+        interpreter, op, (*inputs, *matched_ops)
+    ) == OpImplResult((), Successor(destination, ()))
+
+    with patch.object(interpreter, "call_op", autospec=True) as call_op:
+        functions.apply_pending_rewrites(interpreter)
+        call_op.assert_called_once_with(op.rewriter, inputs)
 
 
 def test_switch_operation_name():

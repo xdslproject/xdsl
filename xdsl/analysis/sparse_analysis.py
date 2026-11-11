@@ -8,9 +8,9 @@ For more information on lattices, refer to [this Wikipedia article](https://en.w
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic, Protocol
+from typing import Generic, Protocol, Self
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.analysis.dataflow import (
     AnalysisState,

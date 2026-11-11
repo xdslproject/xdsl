@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_func
-from xdsl.dialects.builtin import IndexType, ModuleOp
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.ir import BlockArgument
@@ -24,10 +24,10 @@ def my_module():
 
 def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(RiscvFuncFunctions())
-    (result,) = interpreter.call_op(func_name, (n,))
-    return result
+    (result,) = interpreter.call_op(func_name, (IntegerAttr(n, i32),))
+    return result.value.data
 
 
 @pytest.mark.parametrize("n,res", [(0, 0), (1, 1)])

@@ -596,6 +596,18 @@ def test_func_op_res_attrs():
     assert op.res_attrs == res_attrs
 
 
+@pytest.mark.parametrize(
+    "callee_type", [str, builtin.StringAttr, builtin.SymbolRefAttr]
+)
+def test_call_callee(
+    callee_type: type[str | builtin.StringAttr | builtin.SymbolRefAttr],
+):
+    call = llvm.CallOp(callee_type("callee"))
+    module = builtin.ModuleOp([llvm.FuncOp("callee", llvm.LLVMFunctionType([])), call])
+    module.verify()
+    assert call.callee == builtin.SymbolRefAttr("callee")
+
+
 def test_call_op_variadic():
     # verify variadic call sets var_callee_type with is_variadic flag
     arg = create_ssa_value(builtin.i32)

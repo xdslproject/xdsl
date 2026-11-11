@@ -88,7 +88,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %22 = "arith.mulf"(%17, %19) <{fastmath = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       "stencil.return"(%22) : (tensor<510xf32>) -> ()
 // CHECK-GENERIC-NEXT:     }) : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, tensor<4x510xf32>) -> !stencil.temp<[0,1]x[0,1]xtensor<510xf32>>
-// CHECK-GENERIC-NEXT:     "stencil.store"(%1, %b) {bounds = #stencil.bounds<[0, 0], [1, 1]>} : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
+// CHECK-GENERIC-NEXT:     "stencil.store"(%1, %b) <{bounds = #stencil.bounds<[0, 0], [1, 1]>}> : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
@@ -205,7 +205,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %23 = "arith.mulf"(%17, %20) <{fastmath = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       "csl_stencil.yield"(%23) : (tensor<510xf32>) -> ()
 // CHECK-GENERIC-NEXT:     }) : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, tensor<510xf32>) -> !stencil.temp<[0,1]x[0,1]xtensor<510xf32>>
-// CHECK-GENERIC-NEXT:     "stencil.store"(%2, %b) {bounds = #stencil.bounds<[0, 0], [1, 1]>} : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
+// CHECK-GENERIC-NEXT:     "stencil.store"(%2, %b) <{bounds = #stencil.bounds<[0, 0], [1, 1]>}> : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

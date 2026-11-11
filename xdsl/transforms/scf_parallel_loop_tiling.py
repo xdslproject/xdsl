@@ -4,7 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import ParallelOp, ReduceOp
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, OperandArg, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -59,8 +59,8 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             ),
         )
 
-        inner_lower = list[SSAValue | Operation]()
-        inner_upper = list[SSAValue | Operation]()
+        inner_lower = list[OperandArg]()
+        inner_upper = list[OperandArg]()
         minops = list[Operation]()
         minmap = affine.AffineMapAttr(
             affine.AffineMap(

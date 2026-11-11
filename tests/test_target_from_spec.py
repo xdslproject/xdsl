@@ -1,6 +1,6 @@
 from contextlib import redirect_stdout
 from dataclasses import dataclass
-from io import StringIO
+from io import BytesIO, StringIO
 from typing import IO
 
 from xdsl.context import Context
@@ -24,8 +24,8 @@ def test_new_style_target_with_args():
         def register_all_targets(self):
             self.available_targets["echo"] = lambda: EchoTarget
 
-        def get_input_stream(self) -> tuple[IO[str], str]:
-            return (StringIO("builtin.module {}"), "mlir")
+        def get_input_stream(self) -> tuple[IO[bytes], str]:
+            return (BytesIO(b"builtin.module {}"), "mlir")
 
     opt = TestMain(args=["-t", "echo"])
     f = StringIO()
@@ -54,8 +54,8 @@ def test_new_style_target_no_args():
         def register_all_targets(self):
             self.available_targets["noop"] = lambda: NoopTarget
 
-        def get_input_stream(self) -> tuple[IO[str], str]:
-            return (StringIO("builtin.module {}"), "mlir")
+        def get_input_stream(self) -> tuple[IO[bytes], str]:
+            return (BytesIO(b"builtin.module {}"), "mlir")
 
     opt = TestMain(args=["-t", "noop"])
     f = StringIO()

@@ -1,8 +1,8 @@
 import re
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import TypeForm, TypeVar
 
 from xdsl.dialects.builtin import IntAttr, IntAttrConstraint
 from xdsl.irdl import (
@@ -12,10 +12,12 @@ from xdsl.irdl import (
     BaseAttr,
     EqAttrConstraint,
     EqIntConstraint,
+    IntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
     IntVarConstraint,
     VerificationContext,
+    get_constraint,
     get_int_constraint,
     get_optional_int_constraint,
 )
@@ -128,6 +130,20 @@ def test_set():
         two_constr.verify(2, VerificationContext())
 
 
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        ((), IntSetConstraint(frozenset())),
+        ((8,), EqIntConstraint(8)),
+        ((8, 8), EqIntConstraint(8)),
+        ((8, 16), IntSetConstraint(frozenset({8, 16}))),
+        ((8, 16, 8), IntSetConstraint(frozenset({8, 16}))),
+    ],
+)
+def test_set_get(values: tuple[int, ...], expected: IntConstraint):
+    assert IntSetConstraint.get(*values) == expected
+
+
 def test_mapping_type_vars():
     _IntT = TypeVar("_IntT", bound=int, default=int)
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
@@ -159,6 +175,70 @@ def test_get_int_constr():
 
     with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]
+
+
+@pytest.mark.parametrize(
+    "hint, expected",
+    [
+        (
+            Literal[8, 16] | Literal[16, 32],  # noqa: PYI030
+            IntSetConstraint(frozenset({8, 16, 32})),
+        ),
+        (Literal[8] | Literal["x"], None),  # noqa: PYI030
+    ],
+)
+def test_get_optional_int_constraint(hint: Any, expected: IntConstraint | None):
+    assert get_optional_int_constraint(hint) == expected
+
+
+@pytest.mark.parametrize(
+    "hint",
+    [
+        Literal[True],
+        Literal[False],
+        Literal[0, False],
+        Literal[1, True],
+        Literal[True, False],
+        Literal[0] | Literal[False],  # noqa: PYI030
+        Literal[1] | Literal[True],  # noqa: PYI030
+    ],
+)
+def test_boolean_literals_unsupported(hint: TypeForm[int]):
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_optional_int_constraint(hint)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_int_constraint(hint)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_constraint(hint)
+
+
+def test_boolean_literal_after_non_integer():
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_optional_int_constraint(Literal["x"] | Literal[True])  # noqa: PYI030
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_boolean_values_unsupported(value: bool):
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_optional_int_constraint(value)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_int_constraint(value)
+    with pytest.raises(
+        PyRDLTypeError, match="Boolean literals are currently not supported"
+    ):
+        get_constraint(value)
 
 
 def test_int_attr_get():

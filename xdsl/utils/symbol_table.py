@@ -47,12 +47,12 @@ class SymbolUse(NamedTuple):
     """The symbol reference that this use represents."""
 
 
-def get_name_if_symbol(op: Operation) -> str | None:
+def get_name_if_symbol(op: Operation) -> StringAttr | None:
     """Returns the symbol name if this operation has one"""
     if (sym_interface := op.get_trait(traits.SymbolOpInterface)) is not None and (
         name_attr := sym_interface.get_sym_attr_name(op)
     ) is not None:
-        return name_attr.data
+        return name_attr
 
 
 class SymbolTable:
@@ -64,7 +64,7 @@ class SymbolTable:
     """
 
     _symbol_table_op: Operation
-    _symbol_table: dict[str, Operation]
+    _symbol_table: dict[StringAttr, Operation]
     """
     This is a mapping from a name to the symbol with that name.
     """
@@ -92,8 +92,7 @@ class SymbolTable:
         exists.
         Names never include the `@` on them.
         """
-        name = name.data if isinstance(name, StringAttr) else name
-        return self._symbol_table.get(name)
+        return self._symbol_table.get(StringAttr.get(name))
 
     def remove(self, op: Operation) -> None:
         """Remove the given symbol from the table, without deleting it."""
@@ -307,7 +306,7 @@ class SymbolTable:
 def _lookup_symbol_in_direct_children(
     symbol_table_op: Operation, symbol: StringAttr | str
 ) -> Operation | None:
-    symbol_name = symbol.data if isinstance(symbol, StringAttr) else symbol
+    symbol_name = StringAttr.get(symbol)
     block = symbol_table_op.regions[0].blocks[0]
     for op in block.ops:
         if get_name_if_symbol(op) == symbol_name:

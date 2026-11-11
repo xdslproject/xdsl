@@ -4,7 +4,7 @@ from pathlib import Path
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, csl_wrapper, scf
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, OperandArg, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -60,7 +60,7 @@ class ExtractCslModules(RewritePattern):
             if value and self.params_as_consts:
                 params.append(value.result)
             else:
-                p = csl.ParamOp(param.key.data, param.type, value)
+                p = csl.ParamOp(param.key, param.type, value)
                 params.append(p.res)
         return width, height, params
 
@@ -178,8 +178,10 @@ class ExtractCslModules(RewritePattern):
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],
-            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
-            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_layout")},
+            properties={
+                "kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT),
+                "sym_name": builtin.StringAttr(f"{prog_name}_layout"),
+            },
         )
         return layout_mod
 
@@ -188,7 +190,7 @@ class ExtractCslModules(RewritePattern):
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
             ty = v.type
-            assert csl.ParamOpAttrConstr.verifies(ty)
+            assert isa(ty, csl.ParamOpAttr)
             params.append(csl.ParamOp(s, ty))
         return params
 
@@ -234,8 +236,10 @@ class ExtractCslModules(RewritePattern):
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],
-            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
-            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_program")},
+            properties={
+                "kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM),
+                "sym_name": builtin.StringAttr(f"{prog_name}_program"),
+            },
         )
         return program_module
 
@@ -276,7 +280,7 @@ class LowerImport(RewritePattern):
         ops.append(op)
         return ops
 
-    def _make_import_struct(self, import_op: csl_wrapper.ImportOp):
+    def _make_import_struct(self, import_op: csl_wrapper.ImportOp) -> list[Operation]:
         """
         Create the struct to be passed to `@import_module`
 
@@ -288,11 +292,11 @@ class LowerImport(RewritePattern):
         Last struct in the list is to be used in `csl.import`
         """
 
-        fields = list[tuple[str, SSAValue | Operation]]()
-        structs_to_concat = list[SSAValue | Operation]()
+        fields = list[tuple[builtin.StringAttr, OperandArg]]()
+        structs_to_concat = list[OperandArg]()
         for fname, op in zip(import_op.fields, import_op.ops):
             if fname.data != "":
-                fields.append((fname.data, op))
+                fields.append((fname, op))
             else:
                 structs_to_concat.append(op)
         out_structs: list[Operation] = [csl.ConstStructOp(*fields)]

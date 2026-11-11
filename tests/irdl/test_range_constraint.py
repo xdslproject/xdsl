@@ -98,7 +98,7 @@ def test_verify_range_length_constraint():
 
 
 def test_of_length():
-    range_constraint = RangeOf(AnyAttr())
+    range_constraint = AnyRange()
 
     range_len_1 = RangeLengthConstraint(range_constraint, EqIntConstraint(2))
     range_len_2 = range_constraint.of_length(EqIntConstraint(2))
@@ -118,9 +118,15 @@ def test_mapping_type_vars():
     )
 
 
-def test_init_irdl_constraint():
-    range_constr = RangeOf(Attribute)
-    assert range_constr.constr == AnyAttr()
+def test_range_of_get():
+    """Test that RangeOf.get(AnyAttr()) is simplified to AnyRange()."""
+    # Test with AnyAttr instance
+    range_constr = RangeOf.get(AnyAttr())
+    assert isinstance(range_constr, AnyRange)
+
+    range_constr3 = RangeOf.get(i32)
+    assert isinstance(range_constr3, RangeOf)
+    assert isinstance(range_constr3.constr, EqAttrConstraint)
 
 
 def test_empty_range():
@@ -135,7 +141,7 @@ def test_range_var_constraint_verify():
     RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32)).of_length(1)).verify(
         (i32,), VerificationContext()
     )
-    RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
+    RangeVarConstraint("R", AnyRange().of_length(1)).verify(
         (i32,), VerificationContext({}, {"R": (i32,)})
     )
 
@@ -145,7 +151,7 @@ def test_range_var_constraint_verify():
             "attributes ('i32',) expected from range variable 'R', but got ('i32', 'i32')"
         ),
     ):
-        RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)).verify(
+        RangeVarConstraint("R", AnyRange().of_length(1)).verify(
             (i32, i32), VerificationContext({}, {"R": (i32,)})
         )
 
@@ -153,7 +159,7 @@ def test_range_var_constraint_verify():
 @pytest.mark.parametrize(
     "constraint, context_dict, length, inferred",
     [
-        (RangeVarConstraint("R", RangeOf(AnyAttr()).of_length(1)), {}, None, None),
+        (RangeVarConstraint("R", AnyRange().of_length(1)), {}, None, None),
         (
             RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32)).of_length(1)),
             {},
@@ -162,26 +168,26 @@ def test_range_var_constraint_verify():
         ),
         (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, None, None),
         (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, 2, (i32, i32)),
-        (RangeVarConstraint("R", AnyRange()), {}, None, None),
+        (RangeVarConstraint.get("R"), {}, None, None),
         (
-            RangeVarConstraint("R", AnyRange()),
+            RangeVarConstraint.get("R"),
             {"R": (i32, i32, i32)},
             None,
             (i32, i32, i32),
         ),
         (
-            RangeVarConstraint("R", AnyRange()),
+            RangeVarConstraint.get("R"),
             {"R": (i32, i32, i32)},
             2,
             (i32, i32, i32),
         ),
         (
-            RangeVarConstraint("R", AnyRange()),
+            RangeVarConstraint.get("R"),
             {"R": (i32, i32, i32)},
             3,
             (i32, i32, i32),
         ),
-        (RangeVarConstraint("R", AnyRange()), {}, 3, None),
+        (RangeVarConstraint.get("R"), {}, 3, None),
     ],
 )
 def test_range_var_constraint_infer(

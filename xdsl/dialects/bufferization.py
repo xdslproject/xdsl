@@ -5,12 +5,9 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
     IndexType,
     MemRefType,
     TensorType,
@@ -18,13 +15,15 @@ from xdsl.dialects.builtin import (
     UnrankedMemRefType,
     UnrankedTensorType,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
     InferenceContext,
     IntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     VarConstraint,
     VerificationContext,
     irdl_op_definition,
@@ -39,6 +38,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+@deprecated("Specify the constraints manually via element_type and shape")
 @dataclass(frozen=True)
 class TensorFromMemRefConstraint(
     AttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
@@ -92,8 +92,8 @@ class TensorFromMemRefConstraint(
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> TensorFromMemRefConstraint:
-        return TensorFromMemRefConstraint(
+    ):
+        return TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
             self.memref_constraint.mapping_type_vars(type_var_mapping)
         )
 
@@ -136,7 +136,7 @@ class AllocTensorOp(IRDLOperation):
 
     name = "bufferization.alloc_tensor"
 
-    T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
+    T: ClassVar = VarConstraint.get("T", TensorType | UnrankedTensorType)
 
     dynamic_sizes = var_operand_def(IndexType())
     copy = opt_operand_def(T)
@@ -151,9 +151,9 @@ class AllocTensorOp(IRDLOperation):
     def __init__(
         self,
         result_type: Attribute,
-        dynamic_sizes: Sequence[Operation | SSAValue] | None = None,
-        copy: SSAValue | Operation | None = None,
-        size_hint: SSAValue | Operation | None = None,
+        dynamic_sizes: Sequence[OperandArg] | None = None,
+        copy: OperandArg | None = None,
+        size_hint: OperandArg | None = None,
     ):
         super().__init__(
             operands=(dynamic_sizes, copy, size_hint),
@@ -165,26 +165,47 @@ class AllocTensorOp(IRDLOperation):
 class CloneOp(IRDLOperation):
     name = "bufferization.clone"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
+    T: ClassVar = VarConstraint.get("T", MemRefType | UnrankedMemRefType)
 
     input = operand_def(T)
     output = result_def(T)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         result_type = SSAValue.get(input).type
         super().__init__(operands=(input,), result_types=(result_type,))
+
+
+def _verify_rank(*vals: SSAValue | None):
+    is_unranked = {
+        isinstance(val.type, UnrankedTensorType | UnrankedMemRefType)
+        for val in vals
+        if val is not None
+    }
+    if len(is_unranked) == 1:
+        # Either all ranked or all unranked
+        return
+    raise VerifyException(
+        "All memref and tensor types should either be ranked or unranked"
+    )
 
 
 @irdl_op_definition
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
+    ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
+    SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
 
-    memref = operand_def(T)
-    tensor = result_def(TensorFromMemRefConstraint(T))
+    memref = operand_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+    )
+    tensor = result_def(
+        TensorType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
+    )
 
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
@@ -193,9 +214,11 @@ class ToTensorOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        memref: OperandArg,
         restrict: bool = False,
         writable: bool = False,
+        *,
+        tensor_type: TensorType | UnrankedTensorType | None = None,
     ):
         memref_v = SSAValue.get(memref, type=MemRefType | UnrankedMemRefType)
         properties = dict[str, Attribute]()
@@ -203,39 +226,72 @@ class ToTensorOp(IRDLOperation):
             properties["restrict"] = UnitAttr()
         if writable:
             properties["writable"] = UnitAttr()
+        if tensor_type is None:
+            if isinstance(memref_v.type, MemRefType):
+                tensor_type = TensorType(
+                    memref_v.type.element_type, memref_v.type.shape
+                )
+            else:
+                tensor_type = UnrankedTensorType(memref_v.type.element_type)
         super().__init__(
             operands=(memref,),
-            result_types=(TensorFromMemRefConstraint.memref_to_tensor(memref_v.type),),
+            result_types=(tensor_type,),
             properties=properties,
         )
+
+    def verify_(self) -> None:
+        _verify_rank(self.memref, self.tensor)
 
 
 @irdl_op_definition
 class ToBufferOp(IRDLOperation):
     name = "bufferization.to_buffer"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    tensor = operand_def(TensorFromMemRefConstraint(T))
-    memref = result_def(T)
+    ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
+    SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
+
+    tensor = operand_def(
+        TensorType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
+    )
+    memref = result_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+    )
 
     read_only = opt_prop_def(UnitAttr)
 
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($tensor) `to` type($memref)"
+
+    def verify_(self) -> None:
+        _verify_rank(self.memref, self.tensor)
 
 
 @irdl_op_definition
 class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-    source = operand_def(TensorFromMemRefConstraint(T))
-    dest = operand_def(T | TensorFromMemRefConstraint(T))
-    result = opt_result_def(TensorFromMemRefConstraint(T))
+    ELEM_T: ClassVar = VarConstraint("ELEM_T", AnyAttr())
+    SHAPE: ClassVar = VarConstraint("SHAPE", AnyAttr())
+    TENSOR_CONSTR: ClassVar = TensorType.constr(
+        ELEM_T, shape=SHAPE
+    ) | ParamAttrConstraint.get(UnrankedTensorType, ELEM_T)
+
+    source = operand_def(TENSOR_CONSTR)
+    dest = operand_def(
+        MemRefType.constr(ELEM_T, shape=SHAPE)
+        | ParamAttrConstraint.get(UnrankedMemRefType, ELEM_T, AnyAttr())
+        | TENSOR_CONSTR
+    )
+    result = opt_result_def(TENSOR_CONSTR)
 
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
     assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"  # noqa: E501
+
+    def verify_(self) -> None:
+        _verify_rank(self.source, self.dest, self.result)
 
 
 Bufferization = Dialect(

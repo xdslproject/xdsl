@@ -10,9 +10,9 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, ClassVar, Generic, cast
+from typing import Any, ClassVar, Generic, Self, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -191,7 +191,7 @@ class StridePattern(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            parser.parse_identifier("ub")
+            parser.parse_keyword("ub")
             parser.parse_punctuation("=")
             index = IndexType()
             ub = ArrayAttr(
@@ -201,7 +201,7 @@ class StridePattern(ParametrizedAttribute):
                 )
             )
             parser.parse_punctuation(",")
-            parser.parse_identifier("index_map")
+            parser.parse_keyword("index_map")
             parser.parse_punctuation("=")
             index_map = AffineMapAttr(parser.parse_affine_map())
             return (ub, index_map)
@@ -370,7 +370,7 @@ class StreamingRegionOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         parser.parse_punctuation("{")
-        parser.parse_identifier("patterns")
+        parser.parse_keyword("patterns")
         parser.parse_punctuation("=")
 
         patterns = parser.parse_attribute()

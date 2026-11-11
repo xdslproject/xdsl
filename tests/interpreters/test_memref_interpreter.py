@@ -3,6 +3,7 @@ from xdsl.dialects import arith, func, memref
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IndexType,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
     TensorType,
@@ -42,7 +43,7 @@ def test_functions():
     store_res = interpreter.run_op(store_op, (forty_two_0, shaped_array, zero, one))
     assert store_res == ()
     (forty_two_1,) = interpreter.run_op(load_42_op, (shaped_array, zero, one))
-    assert forty_two_1 == 42
+    assert forty_two_1 == IntegerAttr(42, i32)
 
     dealloc_res = interpreter.run_op(dealloc_op, (shaped_array,))
     assert dealloc_res == ()

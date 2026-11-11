@@ -20,7 +20,7 @@ def reg_types_by_name(regs: Iterable[RegisterType]) -> dict[str, set[str]]:
     """
     res = defaultdict[str, set[str]](set)
     for reg in regs:
-        res[reg.name].add(reg.register_name.data)
+        res[reg.name].add(reg.register_name)
     return res
 
 

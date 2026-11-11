@@ -261,7 +261,7 @@ linalg.generic {
 // CHECK-GENERIC-NEXT:    %{{.*}} = "arith.constant"() <{value = 0 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:    %{{.*}} = "arith.constant"() <{value = 0 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> tensor<64x4096xi32>
-// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.quantized_matmul"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 4, 1>}> ({
+// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.quantized_matmul"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 4, 1>, linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> (d0, d1)>]}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}}: i8, %{{.*}}: i8, %{{.*}}: i32, %{{.*}}: i32, %{{.*}}: i32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.extsi"(%{{.*}}) : (i8) -> i32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.subi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
@@ -270,7 +270,7 @@ linalg.generic {
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (i32) -> ()
-// CHECK-GENERIC-NEXT:    }) {linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-GENERIC-NEXT:    }) : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> tensor<4x16xi1>
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.select"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 3, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}}: i1, %{{.*}}: f32, %{{.*}}: f32, %{{.*}}: f32):

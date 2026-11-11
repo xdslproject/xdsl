@@ -13,7 +13,6 @@ from xdsl.dialect_interfaces.constant_materialization import (
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyFloatConstr,
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
@@ -27,6 +26,7 @@ from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     SSAValue,
@@ -34,13 +34,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    BaseAttr,
     EqIntConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     RangeOf,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -132,7 +130,7 @@ class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand: SSAValue | Operation,
+        operand: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         operand_ssa = SSAValue.get(operand)
@@ -146,7 +144,7 @@ class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
 class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers that return a float."""
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
 
     complex = operand_def(ComplexType.constr(T))
     result = result_def(T)
@@ -160,7 +158,7 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand: SSAValue | Operation,
+        operand: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         operand_ssa = SSAValue.get(operand)
@@ -197,8 +195,8 @@ class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         lhs_ssa = SSAValue.get(lhs)
@@ -251,7 +249,7 @@ class ComplexCompareOp(IRDLOperation, abc.ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
-    def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
+    def __init__(self, lhs: OperandArg, rhs: OperandArg):
         super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
 
@@ -295,18 +293,14 @@ class BitcastOp(IRDLOperation):
     """
 
     name = "complex.bitcast"
-    operand = operand_def(
-        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
-    )
-    result = result_def(
-        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
-    )
+    operand = operand_def(ComplexType[AnyFloat] | AnyFloat | IntegerType)
+    result = result_def(ComplexType[AnyFloat] | AnyFloat | IntegerType)
 
     traits = traits_def(Pure())
 
     assembly_format = "$operand attr-dict `:` type($operand) `to` type($result)"
 
-    def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
+    def __init__(self, operand: OperandArg, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
 
     def verify_(self) -> None:
@@ -341,7 +335,7 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "complex.constant"
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | IntegerType)
     value = prop_def(
         ArrayOfConstraint(
             RangeOf(
@@ -390,7 +384,7 @@ class CosOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class CreateOp(IRDLOperation):
     name = "complex.create"
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
     real = operand_def(T)
     imaginary = operand_def(T)
     complex = result_def(ComplexType.constr(T))
@@ -401,8 +395,8 @@ class CreateOp(IRDLOperation):
 
     def __init__(
         self,
-        real: SSAValue | Operation,
-        imaginary: SSAValue | Operation,
+        real: OperandArg,
+        imaginary: OperandArg,
         result_type: ComplexType,
     ):
         super().__init__(operands=[real, imaginary], result_types=[result_type])

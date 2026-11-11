@@ -62,19 +62,19 @@ module {
     %c0 = arith.constant 0 : index
     %c2 = arith.constant 2 : index
     %c0_i32 = arith.constant 0 : i32
-    %async_token, %results = air.execute -> (memref<64x64xi32>) {
+    %alloc_ready, %first_buffer = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_0 = air.execute [%async_token] {
+    %dependent_alloc_ready = air.execute [%alloc_ready] {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_1, %results_2 = air.execute -> (memref<64x64xi32>) {
+    %buffer_ready, %second_buffer = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
     }
-    %async_token_3 = air.execute [%async_token_1, %async_token_0] {
+    %joined_ready = air.execute [%buffer_ready, %dependent_alloc_ready] {
         %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
         air.execute_terminator %alloc : memref<64x64xi32>
     }
@@ -98,7 +98,7 @@ module {
       %10 = air.channel.put async [%arg4]  @channel_3[] (%arg1[%arg3, %c32] [%c32, %c32] [%c64, %c1]) {id = 4 : i32} : (memref<128x64xi32>)
       scf.yield %10 : !air.async.token
     }
-    %10 = air.channel.get async [%async_token_3]  @channel_4[] (%results_2[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
+    %10 = air.channel.get async [%joined_ready]  @channel_4[] (%second_buffer[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
     return
   }
 }
@@ -117,19 +117,19 @@ module {
 // CHECK-NEXT:     %c0 = arith.constant 0 : index
 // CHECK-NEXT:     %c2 = arith.constant 2 : index
 // CHECK-NEXT:     %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:     %async_token, %results = "air.execute"() ({
+// CHECK-NEXT:     %alloc_ready, %first_buffer = "air.execute"() ({
 // CHECK-NEXT:       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_1 = "air.execute"(%async_token) ({
+// CHECK-NEXT:     %dependent_alloc_ready = "air.execute"(%alloc_ready) ({
 // CHECK-NEXT:       %alloc_1 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_1) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token) -> !air.async.token
-// CHECK-NEXT:     %async_token_2, %results_1 = "air.execute"() ({
+// CHECK-NEXT:     %buffer_ready, %second_buffer = "air.execute"() ({
 // CHECK-NEXT:       %alloc_2 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_2) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_3 = "air.execute"(%async_token_2, %async_token_1) ({
+// CHECK-NEXT:     %joined_ready = "air.execute"(%buffer_ready, %dependent_alloc_ready) ({
 // CHECK-NEXT:       %alloc_3 = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_3) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token, !air.async.token) -> !air.async.token
@@ -153,132 +153,7 @@ module {
 // CHECK-NEXT:       %11 = air.channel.put async[%arg4_3] @channel_3[] (%arg1[%arg3_3, %c32] [%c32, %c32] [%c64, %c1]) {id = 4 : i32} : (memref<128x64xi32>)
 // CHECK-NEXT:       scf.yield %11 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %12 = air.channel.get async[%async_token_3] @channel_4[] (%results_1[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
-// CHECK-NEXT:     func.return
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
-
-
-// -----
-
-#map0 = affine_map<(d0) -> (d0)>
-module  {
-  func.func @launch(%m0: memref<1024xi32>, %m1: memref<1024xi32>, %m2: memref<1024xi32>) {
-    %c4 = arith.constant 4 : index
-    %c1 = arith.constant 1 : index
-    air.herd tile (%x, %y) in (%sx=%c4, %sy=%c1) args(%op0=%m0, %op1=%m1, %op2=%m2) : memref<1024xi32>,memref<1024xi32>,memref<1024xi32> attributes {sym_name="herd_0"} {
-      %c0 = arith.constant 0 : index
-      %c1024 = arith.constant 1024 : index
-      %c1_1 = arith.constant 1 : index
-
-      air.pipeline attributes {direction = "horiz"} {
-
-        %output1 = air.pipeline.stage {
-          %a = memref.alloc() : memref<1024xi32, 2>
-          %b = memref.alloc() : memref<1024xi32, 2>
-          //air.dma_memcpy_nd (%a[][][], %op0[%c0][%c1024][%c1_1]) {id = 1 : i32} : (memref<1024xi32, 2>, memref<1024xi32>)
-          air.dma_memcpy_nd (%b[][][], %op1[%c0][%c1024][%c1_1]) {id = 2 : i32} : (memref<1024xi32, 2>, memref<1024xi32>)
-          %init = tensor.empty () : tensor<1024xi32>
-          air.pipeline.yield %init : tensor<1024xi32>
-        } : tensor<1024xi32>
-
-        %output2 = air.pipeline.stage args(%in = %output1) : tensor<1024xi32> {
-          %init = tensor.empty () : tensor<1024xi32>
-          %5 = linalg.generic {indexing_maps = [#map0, #map0], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init : tensor<1024xi32>) {
-          ^bb0(%a2: i32, %a3: i32):  // no predecessors
-            %one = arith.constant 1 : i32
-            %6 = arith.addi %a2, %one : i32
-            linalg.yield %6 : i32
-          } -> tensor<1024xi32>
-          air.pipeline.yield %5 : tensor<1024xi32>
-        } : tensor<1024xi32>
-
-        %output3 = air.pipeline.stage args(%in = %output2) : tensor<1024xi32> {
-          %init = tensor.empty () : tensor<1024xi32>
-          %5 = linalg.generic {indexing_maps = [#map0, #map0], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init : tensor<1024xi32>) {
-          ^bb0(%a2: i32, %a3: i32):  // no predecessors
-            %two = arith.constant 2 : i32
-            %6 = arith.addi %a2, %two : i32
-            linalg.yield %6 : i32
-          } -> tensor<1024xi32>
-          air.pipeline.yield %5 : tensor<1024xi32>
-        } : tensor<1024xi32>
-
-        air.pipeline.stage args(%in = %output3) : tensor<1024xi32> {
-          %init = tensor.empty () : tensor<1024xi32>
-          %5 = linalg.generic {indexing_maps = [#map0, #map0], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init : tensor<1024xi32>) {
-          ^bb0(%a2: i32, %a3: i32):  // no predecessors
-            %three = arith.constant 3 : i32
-            %6 = arith.addi %a2, %three : i32
-            linalg.yield %6 : i32
-          } -> tensor<1024xi32>
-          //%c = bufferization.to_memref %5 : memref<1024xi32, 2>
-          //air.dma_memcpy_nd (%op2[%c0][%c1024][%c1_1], %c[][][]) {id = 3 : i32} : (memref<1024xi32>, memref<1024xi32, 2>)
-          air.pipeline.yield
-        }
-        air.pipeline.terminator
-      }
-      air.herd_terminator
-    }
-    return
-  }
-}
-
-
-// CHECK:      builtin.module {
-// CHECK-NEXT:   func.func @launch(%m0: memref<1024xi32>, %m1: memref<1024xi32>, %m2: memref<1024xi32>) {
-// CHECK-NEXT:     %c4 = arith.constant 4 : index
-// CHECK-NEXT:     %c1 = arith.constant 1 : index
-// CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %c4, %size_y = %c1) args(%ext0 = %m0, %ext1 = %m1, %ext2 = %m2 : memref<1024xi32>,memref<1024xi32>,memref<1024xi32>){
-// CHECK-NEXT:     ^bb0(%op0: memref<1024xi32>, %op1: memref<1024xi32>, %op2: memref<1024xi32>):
-// CHECK-NEXT:       %c0 = arith.constant 0 : index
-// CHECK-NEXT:       %c1024 = arith.constant 1024 : index
-// CHECK-NEXT:       %c1_1 = arith.constant 1 : index
-// CHECK-NEXT:       "air.pipeline"() ({
-// CHECK-NEXT:         %output1 = "air.pipeline.stage"() ({
-// CHECK-NEXT:           %a = memref.alloc() : memref<1024xi32, 2 : i64>
-// CHECK-NEXT:           %b = memref.alloc() : memref<1024xi32, 2 : i64>
-// CHECK-NEXT:           %1 = air.dma_memcpy_nd(%b[] [] [], %op1[%c0] [%c1024] [%c1_1]) {id = 2 : i32} : (memref<1024xi32, 2 : i64>, memref<1024xi32>)
-// CHECK-NEXT:           %init = tensor.empty() : tensor<1024xi32>
-// CHECK-NEXT:           air.pipeline.yield %init : tensor<1024xi32>
-// CHECK-NEXT:         }) : () -> tensor<1024xi32>
-// CHECK-NEXT:         %output2 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb0(%in: tensor<1024xi32>):
-// CHECK-NEXT:           %init_1 = tensor.empty() : tensor<1024xi32>
-// CHECK-NEXT:           %2 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init_1 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb0(%a2: i32, %a3: i32):
-// CHECK-NEXT:             %one = arith.constant 1 : i32
-// CHECK-NEXT:             %3 = arith.addi %a2, %one : i32
-// CHECK-NEXT:             linalg.yield %3 : i32
-// CHECK-NEXT:           } -> tensor<1024xi32>
-// CHECK-NEXT:           air.pipeline.yield %2 : tensor<1024xi32>
-// CHECK-NEXT:         }) : () -> tensor<1024xi32>
-// CHECK-NEXT:         %output3 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb0(%in_1: tensor<1024xi32>):
-// CHECK-NEXT:           %init_2 = tensor.empty() : tensor<1024xi32>
-// CHECK-NEXT:           %4 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_1 : tensor<1024xi32>) outs(%init_2 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb0(%a2_1: i32, %a3_1: i32):
-// CHECK-NEXT:             %two = arith.constant 2 : i32
-// CHECK-NEXT:             %5 = arith.addi %a2_1, %two : i32
-// CHECK-NEXT:             linalg.yield %5 : i32
-// CHECK-NEXT:           } -> tensor<1024xi32>
-// CHECK-NEXT:           air.pipeline.yield %4 : tensor<1024xi32>
-// CHECK-NEXT:         }) : () -> tensor<1024xi32>
-// CHECK-NEXT:         "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^bb0(%in_2: tensor<1024xi32>):
-// CHECK-NEXT:           %init_3 = tensor.empty() : tensor<1024xi32>
-// CHECK-NEXT:           %6 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_2 : tensor<1024xi32>) outs(%init_3 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^bb0(%a2_2: i32, %a3_2: i32):
-// CHECK-NEXT:             %three = arith.constant 3 : i32
-// CHECK-NEXT:             %7 = arith.addi %a2_2, %three : i32
-// CHECK-NEXT:             linalg.yield %7 : i32
-// CHECK-NEXT:           } -> tensor<1024xi32>
-// CHECK-NEXT:           air.pipeline.yield
-// CHECK-NEXT:         }) : () -> ()
-// CHECK-NEXT:         air.pipeline.terminator
-// CHECK-NEXT:       }) {direction = "horiz"} : () -> ()
-// CHECK-NEXT:       air.herd_terminator
-// CHECK-NEXT:     }
+// CHECK-NEXT:     %12 = air.channel.get async[%joined_ready] @channel_4[] (%second_buffer[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

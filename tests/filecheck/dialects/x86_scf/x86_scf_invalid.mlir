@@ -65,7 +65,7 @@
 
 %lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.for %i : !x86.reg64 = %lb to 1 : f32 step 1 : si32 {
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : f32 step 1 : si32 {
     x86_scf.yield
 }
 
@@ -75,7 +75,7 @@ x86_scf.for %i : !x86.reg64 = %lb to 1 : f32 step 1 : si32 {
 
 %lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.for %i : !x86.reg64 = %lb to 1 : si32 step 1 : f32 {
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : si32 step 1 : f32 {
     x86_scf.yield
 }
 
@@ -85,7 +85,7 @@ x86_scf.for %i : !x86.reg64 = %lb to 1 : si32 step 1 : f32 {
 
 %lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.for %i : !x86.reg64 = %lb to 1 : i64 step 1 : si32 {
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : i64 step 1 : si32 {
     x86_scf.yield
 }
 
@@ -95,7 +95,7 @@ x86_scf.for %i : !x86.reg64 = %lb to 1 : i64 step 1 : si32 {
 
 %lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.for %i : !x86.reg64 = %lb to 1 : si32 step 1 : i64 {
+x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to 1 : si32 step 1 : i64 {
     x86_scf.yield
 }
 
@@ -105,7 +105,7 @@ x86_scf.for %i : !x86.reg64 = %lb to 1 : si32 step 1 : i64 {
 
 %lb = "test.op"() : () -> !x86.reg64
 
-x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
+x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb : !x86.reg64 step 1 : si32 {
     x86_scf.yield
 }
 
@@ -126,7 +126,7 @@ x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
 
 %lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
 
-%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb to %ub step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
     x86_scf.yield
 }
 
@@ -137,7 +137,7 @@ x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
 %lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
 %wrong = "test.op"() : () -> !x86.reg64<r10>
 
-%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb to %ub step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+%lb_end, %result = x86_scf.for %i : !x86.reg64 = %lb : !x86.reg64 to %ub : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
     x86_scf.yield %wrong : !x86.reg64<r10>
 }
 
@@ -147,7 +147,7 @@ x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
 
 %lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
 
-%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
     x86_scf.yield
 }
 
@@ -158,7 +158,7 @@ x86_scf.rof %i : !x86.reg64 = 10 : si32 down to %lb step 1 : si32 {
 %lb, %ub, %init = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64<r11>)
 %wrong = "test.op"() : () -> !x86.reg64<r10>
 
-%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub down to %lb step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
+%lb_end, %result = x86_scf.rof %i : !x86.reg64 = %ub : !x86.reg64 down to %lb : !x86.reg64 step 1 : si32 iter_args(%acc = %init) -> (!x86.reg64<r11>) {
     x86_scf.yield %wrong : !x86.reg64<r10>
 }
 

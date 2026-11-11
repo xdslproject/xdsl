@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
     StringAttr,
@@ -63,7 +64,7 @@ def test_linalg_generic():
             create_ssa_value(MemRefType(i32, [3, 2])),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.transpose_map()),
@@ -81,13 +82,14 @@ def test_linalg_generic():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
+
+    op.verify()
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
@@ -108,6 +110,7 @@ def test_linalg_generic():
         op.iterator_types,
         (TensorType(i32, [1, 6]),),
     )
+    tensor_op.verify()
 
     c_in = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
@@ -128,7 +131,7 @@ def test_linalg_generic_scalar():
             create_ssa_value(i32),
         ),
         (create_ssa_value(MemRefType(i32, [1, 6])),),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
             AffineMapAttr(AffineMap.from_callable(lambda i, j: ())),
@@ -146,16 +149,17 @@ def test_linalg_generic_scalar():
         (
             linalg.attrs.IteratorTypeAttr.parallel(),
             linalg.attrs.IteratorTypeAttr.parallel(),
-            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _):
         c = arith.MuliOp(a, b).result
         linalg.ops.YieldOp(c)
 
+    op.verify()
+
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = 2
+    b = IntegerAttr(2, i32)
     c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
@@ -339,15 +343,13 @@ def test_linalg_unary_elementwise(
 
 def test_fill_op():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(LinalgFunctions())
-    constant = arith.ConstantOp(FloatAttr(1.0, f32))
     op = linalg.ops.FillOp(
-        (create_ssa_value(constant.result.type),),
+        (create_ssa_value(f32),),
         (create_ssa_value(TensorType(f32, [2, 3])),),
         (TensorType(f32, [2, 3]),),
     )
-    a = ShapedArray(TypedPtr.new_float32([1.0]), [1])
+    a = FloatAttr(1.0, f32)
     b = ShapedArray(TypedPtr.new_float32([0.0] * 6), [2, 3])
     (b,) = interpreter.run_op(op, (a, b))
     assert b == ShapedArray(

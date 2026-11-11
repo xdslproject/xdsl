@@ -3,9 +3,10 @@
 // CHECK: Region argument type !pdl.attribute does not match range element type !pdl.type
 
 pdl_interp.func @argument_mismatch(%range: !pdl.range<type>) {
-    pdl_interp.foreach %val : !pdl.attribute in %range {
+    "pdl_interp.foreach"(%range) [^final] ({
+    ^bb0(%val: !pdl.attribute):
         pdl_interp.continue
-    } -> ^final
+    }) : (!pdl.range<type>) -> ()
     ^final:
         pdl_interp.finalize
 }

@@ -32,12 +32,17 @@ class RiscvScfFunctions(InterpreterFunctions):
                 lb, ub, *loop_args = args
             case _:
                 lb, ub, step, *loop_args = args
+                step = step.value.data
         loop_args = tuple(loop_args)
 
-        for i in range(lb, ub, step):
-            RiscvFunctions.set_reg_value(interpreter, op.body.block.args[0].type, i)
+        for i in range(lb.value.data, ub.value.data, step):
+            induction = RiscvFunctions.set_reg_value(
+                interpreter,
+                op.body.block.args[0].type,
+                IntegerAttr(i, interpreter.index_bitwidth, truncate_bits=True),
+            )
             loop_args = interpreter.run_ssacfg_region(
-                op.body, (i, *loop_args), "for_loop"
+                op.body, (induction, *loop_args), "for_loop"
             )
 
         return loop_args

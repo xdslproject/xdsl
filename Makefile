@@ -139,7 +139,7 @@ precommit: uv-installed ## run all precommit hooks and apply them
 .PHONY: typecheck
 typecheck: uv-installed ## generate typing stubs and type check staged Python files, or the project when none are staged
 	uv run xdsl-stubgen
-	uv run basedpyright $(shell git diff --staged --name-only  -- '*.py')
+	uv run basedpyright --threads 4 $(shell git diff --staged --name-only  -- '*.py')
 
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files

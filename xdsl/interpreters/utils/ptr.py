@@ -3,9 +3,9 @@ from __future__ import annotations
 import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Generic, Literal
+from typing import Generic, Literal, Self
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     PackableType,

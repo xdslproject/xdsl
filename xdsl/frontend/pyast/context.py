@@ -6,8 +6,16 @@ from dataclasses import dataclass, field
 from inspect import getsource
 from typing import Any, NamedTuple
 
+from typing_extensions import TypeForm
+
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.pyast.lowering import (
+    FunctionDefinitionConstructor,
+    ReturnConstructor,
+    build_func,
+    build_return,
+)
 from xdsl.frontend.pyast.program import P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.type_conversion import (
@@ -67,9 +75,15 @@ class PyASTContext:
     )
     """The xDSL context to use when applying transformations to the built module."""
 
+    function_definition_constructor: FunctionDefinitionConstructor = build_func
+    """Construct the operation for each function."""
+
+    return_constructor: ReturnConstructor = build_return
+    """Construct return operations, optionally omitting the terminator."""
+
     def register_type(
         self,
-        source_type: type,
+        source_type: TypeForm[Any],
         ir_type: TypeAttribute,
     ) -> None:
         """Associate a type in the source code with its type in the IR."""
@@ -86,6 +100,16 @@ class PyASTContext:
     ) -> None:
         """Associate a Python literal type with an IR constructor."""
         self.literal_registry.insert(value_type, ir_constructor)
+
+    def register_function_definition(
+        self, ir_constructor: FunctionDefinitionConstructor
+    ) -> None:
+        """Set the definition constructor, receiving name, type, body, and location."""
+        self.function_definition_constructor = ir_constructor
+
+    def register_return(self, ir_constructor: ReturnConstructor) -> None:
+        """Set the return constructor, receiving expression results and location."""
+        self.return_constructor = ir_constructor
 
     def register_post_transform(self, transform: ModulePass) -> None:
         """Add a module pass to be run on the generated IR."""
@@ -108,11 +132,20 @@ class PyASTContext:
 
         # Remove leading indentation from the source code to avoid parsing errors
         source = getsource(func.__code__)
-        source = textwrap.dedent(source)
+        dedented = textwrap.dedent(source)
+        indent = len(source.splitlines()[0]) - len(dedented.splitlines()[0])
 
         # Retrieve the AST for the function body, without the decorator
-        func_ast = ast.parse(source).body[0]
+        func_ast = ast.parse(dedented).body[0]
         assert isinstance(func_ast, ast.FunctionDef)
+
+        # Count positions from the start of the file, not of the function source
+        ast.increment_lineno(func_ast, func.__code__.co_firstlineno - 1)
+        for node in ast.walk(func_ast):
+            if isinstance(node, ast.expr | ast.stmt | ast.arg | ast.keyword):
+                node.col_offset += indent
+                if node.end_col_offset is not None:
+                    node.end_col_offset += indent
         assert func_ast.name == func.__name__
         assert len(func_ast.decorator_list) == 1
         func_ast.decorator_list = []
@@ -146,5 +179,7 @@ class PyASTContext:
             function_ast=func_ast,
             build_context=self.ir_context,
             post_transforms=self.pass_pipeline,
+            function_definition_constructor=self.function_definition_constructor,
+            return_constructor=self.return_constructor,
         )
         return self._get_wrapped_program(func, builder)

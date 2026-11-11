@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, riscv, riscv_scf, rv32
-from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp, i32
 from xdsl.dialects.test import TestOp
 from xdsl.interpreter import Interpreter, OpImplResult
 from xdsl.interpreters.func import FuncFunctions
@@ -90,13 +90,13 @@ def sum_to_while_op():
 
 def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(RiscvScfFunctions())
     interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(Rv32Functions())
     interpreter.register_implementations(FuncFunctions())
-    (result,) = interpreter.call_op(func_name, (n,))
-    return result
+    (result,) = interpreter.call_op(func_name, (IntegerAttr(n, i32),))
+    return result.value.data
 
 
 @pytest.mark.parametrize("n,res", [(0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)])
@@ -113,12 +113,15 @@ def test_for_dynamic():
     result = riscv_scf.ForOp(lb, ub, step, (initial,), body)
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(return_value=(99,))
+    interpreter.index_bitwidth = 32
+    interpreter.run_ssacfg_region = Mock(return_value=(IntegerAttr(99, i32),))
 
     assert RiscvScfFunctions().run_for(
-        interpreter, result, (1, 5, 3, 1)
-    ) == OpImplResult((99,), None)
-    interpreter.run_ssacfg_region.assert_called_with(body, (4, 99), "for_loop")
+        interpreter, result, tuple(IntegerAttr(v, i32) for v in (1, 5, 3, 1))
+    ) == OpImplResult((IntegerAttr(99, i32),), None)
+    interpreter.run_ssacfg_region.assert_called_with(
+        body, (IntegerAttr(4, i32), IntegerAttr(99, i32)), "for_loop"
+    )
     assert interpreter.run_ssacfg_region.call_count == 2
 
 
@@ -130,10 +133,13 @@ def test_for_static():
     result = riscv_scf.ForOp(lb, ub, IntegerAttr(3, riscv.si12), (initial,), body)
 
     interpreter = Mock(spec=Interpreter)
-    interpreter.run_ssacfg_region = Mock(return_value=(99,))
+    interpreter.index_bitwidth = 32
+    interpreter.run_ssacfg_region = Mock(return_value=(IntegerAttr(99, i32),))
 
-    assert RiscvScfFunctions().run_for(interpreter, result, (1, 5, 1)) == OpImplResult(
-        (99,), None
+    assert RiscvScfFunctions().run_for(
+        interpreter, result, tuple(IntegerAttr(v, i32) for v in (1, 5, 1))
+    ) == OpImplResult((IntegerAttr(99, i32),), None)
+    interpreter.run_ssacfg_region.assert_called_with(
+        body, (IntegerAttr(4, i32), IntegerAttr(99, i32)), "for_loop"
     )
-    interpreter.run_ssacfg_region.assert_called_with(body, (4, 99), "for_loop")
     assert interpreter.run_ssacfg_region.call_count == 2

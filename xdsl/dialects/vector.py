@@ -16,13 +16,11 @@ from xdsl.dialects.builtin import (
     I64,
     AffineMapAttr,
     AnyFloat,
-    AnyFloatConstr,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
     FixedBitwidthType,
     IndexType,
-    IndexTypeConstr,
     IntAttr,
     IntegerType,
     MemRefType,
@@ -44,7 +42,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     SSAValue,
 )
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
@@ -61,7 +59,6 @@ from xdsl.irdl import (
     RangeOf,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -98,8 +95,8 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        ref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        ref: OperandArg,
+        indices: Sequence[OperandArg],
         result_type: VectorType,
     ):
         super().__init__(
@@ -135,9 +132,9 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
-        base: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        vector: OperandArg,
+        base: OperandArg,
+        indices: Sequence[OperandArg],
         nontemporal: BoolAttr | None = None,
     ):
         super().__init__(
@@ -352,7 +349,7 @@ class BroadcastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($vector)"
 
-    def __init__(self, source: Operation | SSAValue, result_type: VectorType):
+    def __init__(self, source: OperandArg, result_type: VectorType):
         super().__init__(operands=(source,), result_types=(result_type,))
 
     def verify_(self):
@@ -371,7 +368,7 @@ class BroadcastOp(IRDLOperation):
 class FMAOp(IRDLOperation):
     name = "vector.fma"
 
-    T: ClassVar = VarConstraint("T", VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", VectorType[AnyFloat])
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -383,9 +380,9 @@ class FMAOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-        acc: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        acc: OperandArg,
     ):
         acc = SSAValue.get(acc)
         super().__init__(operands=(lhs, rhs, acc), result_types=(acc.type,))
@@ -404,10 +401,10 @@ class MaskedLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        base: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        pass_thru: SSAValue | Operation,
+        base: OperandArg,
+        indices: Sequence[OperandArg],
+        mask: OperandArg,
+        pass_thru: OperandArg,
         result_type: VectorType | None = None,
     ):
         pass_thru = SSAValue.get(pass_thru, type=VectorType)
@@ -482,10 +479,10 @@ class MaskedStoreOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        mask: SSAValue | Operation,
-        value_to_store: SSAValue | Operation,
+        memref: OperandArg,
+        indices: Sequence[OperandArg],
+        mask: OperandArg,
+        value_to_store: OperandArg,
     ):
         super().__init__(operands=[memref, indices, mask, value_to_store])
 
@@ -495,7 +492,7 @@ class PrintOp(IRDLOperation):
     name = "vector.print"
     source = operand_def()
 
-    def __init__(self, source: SSAValue | Operation):
+    def __init__(self, source: OperandArg):
         super().__init__(operands=[SSAValue.get(source)])
 
 
@@ -507,9 +504,7 @@ class CreateMaskOp(IRDLOperation):
 
     assembly_format = "$mask_dim_sizes attr-dict `:` type(results)"
 
-    def __init__(
-        self, mask_operands: list[Operation | SSAValue], result_type: VectorType
-    ):
+    def __init__(self, mask_operands: list[OperandArg], result_type: VectorType):
         super().__init__(operands=(mask_operands,), result_types=(result_type,))
 
     def verify_(self):
@@ -524,21 +519,19 @@ class CreateMaskOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     name = "vector.extract"
 
-    _T: ClassVar = VarConstraint(
-        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
-    )
+    _T: ClassVar = VarConstraint.get("T", IntegerType | IndexType | AnyFloat)
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseArrayBase.constr(i64))
 
     vector = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position = var_operand_def(IndexType)
 
     result = result_def(
         VectorType.constr(
             _T,
             shape=MessageConstraint(
-                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1))),
                 "Cannot extract 0d vector.",
             ),
         )
@@ -619,9 +612,7 @@ class ExtractOp(IRDLOperation):
 class InsertOp(IRDLOperation):
     name = "vector.insert"
 
-    _T: ClassVar = VarConstraint(
-        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
-    )
+    _T: ClassVar = VarConstraint.get("T", IntegerType | IndexType | AnyFloat)
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseArrayBase.constr(i64))
@@ -630,14 +621,14 @@ class InsertOp(IRDLOperation):
         VectorType.constr(
             _T,
             shape=MessageConstraint(
-                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1))),
                 "Cannot insert 0d vector.",
             ),
         )
         | _T
     )
     dest = operand_def(_V)
-    dynamic_position = var_operand_def(IndexTypeConstr)
+    dynamic_position = var_operand_def(IndexType)
 
     result = result_def(_V)
 
@@ -1027,13 +1018,13 @@ class TransferReadOp(VectorTransferOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        padding: SSAValue | Operation,
+        source: OperandArg,
+        indices: Sequence[OperandArg],
+        padding: OperandArg,
         result_type: Attribute,
         in_bounds: ArrayAttr[BoolAttr],
         permutation_map: AffineMapAttr,
-        mask: SSAValue | Operation | None = None,
+        mask: OperandArg | None = None,
     ):
         super().__init__(
             operands=[source, indices, padding, mask],
@@ -1061,10 +1052,10 @@ class TransferReadOp(VectorTransferOperation):
     def parse(cls, parser: Parser) -> TransferReadOp:
         source = parser.parse_unresolved_operand()
         indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
+            Parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         parser.parse_punctuation(",")
-        padding = parser.parse_operand()
+        padding = parser.parse_unresolved_operand()
         if parser.parse_optional_punctuation(","):
             mask_start_pos = parser.pos
             mask = parser.parse_unresolved_operand()
@@ -1106,7 +1097,7 @@ class TransferReadOp(VectorTransferOperation):
         return TransferReadOp(
             source=source,
             indices=indices,
-            padding=padding,
+            padding=parser.resolve_operand(padding, shaped_type.element_type),
             mask=mask,
             permutation_map=permutation_map,
             in_bounds=in_bounds,
@@ -1180,11 +1171,11 @@ class TransferWriteOp(VectorTransferOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
-        source: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
+        vector: OperandArg,
+        source: OperandArg,
+        indices: Sequence[OperandArg],
         in_bounds: ArrayAttr[BoolAttr],
-        mask: SSAValue | Operation | None = None,
+        mask: OperandArg | None = None,
         permutation_map: AffineMapAttr | None = None,
         result_type: TensorType | None = None,
     ):
@@ -1217,7 +1208,7 @@ class TransferWriteOp(VectorTransferOperation):
         parser.parse_punctuation(",")
         source = parser.parse_unresolved_operand()
         indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
+            Parser.Delimiter.SQUARE, lambda: parser.parse_operand(IndexType())
         )
         if parser.parse_optional_punctuation(","):
             mask_start_pos = parser.pos
@@ -1363,9 +1354,9 @@ class ReductionOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: SSAValue | Operation,
+        vector: OperandArg,
         kind: CombiningKindAttr,
-        acc: SSAValue | Operation | None = None,
+        acc: OperandArg | None = None,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         vector = SSAValue.get(vector)
@@ -1389,18 +1380,14 @@ class BitcastOp(IRDLOperation):
 
     name = "vector.bitcast"
 
-    source = operand_def(
-        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
-    )
-    result = result_def(
-        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
-    )
+    source = operand_def(VectorType[IntegerType | IndexType | AnyFloat])
+    result = result_def(VectorType[IntegerType | IndexType | AnyFloat])
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         result_type: Attribute,
     ):
         super().__init__(

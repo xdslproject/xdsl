@@ -25,6 +25,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -35,6 +36,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
+    IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -42,13 +44,13 @@ from xdsl.irdl import (
     VarConstraint,
     VerificationContext,
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -386,7 +388,7 @@ class StencilType(
     @staticmethod
     def constr(
         *,
-        bounds: AttrConstraint | None = None,
+        bounds: IRDLAttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
     ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
         return cast(
@@ -572,11 +574,11 @@ class ApplyOp(IRDLOperation):
         def parse_assign_args():
             arg = parser.parse_argument(expect_type=False)
             parser.parse_punctuation("=")
-            value = parser.parse_operand()
+            value = parser.parse_unresolved_operand()
             parser.parse_punctuation(":")
             type = parser.parse_attribute()
             arg = arg.resolve(type)
-            return arg, value
+            return arg, parser.resolve_operand(value, type)
 
         def parse_operand():
             op = parser.parse_unresolved_operand()
@@ -768,7 +770,7 @@ class CastOp(IRDLOperation):
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ):
@@ -839,8 +841,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntegerAttr[IndexType])
-    index = attr_def(IntegerAttr[IndexType])
+    dim = prop_def(IntegerAttr[IndexType])
+    index = prop_def(IntegerAttr[IndexType])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -891,8 +893,8 @@ class DynAccessOp(IRDLOperation):
     )
 
     offset = var_operand_def(builtin.IndexType())
-    lb = attr_def(IndexAttr)
-    ub = attr_def(IndexAttr)
+    lb = prop_def(IndexAttr)
+    ub = prop_def(IndexAttr)
 
     res = result_def(
         MessageConstraint(
@@ -913,15 +915,15 @@ class DynAccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        offset: Sequence[SSAValue | Operation],
+        temp: OperandArg,
+        offset: Sequence[OperandArg],
         lb: IndexAttr,
         ub: IndexAttr,
     ):
         temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
-            attributes={"lb": lb, "ub": ub},
+            properties={"lb": lb, "ub": ub},
             result_types=[temp_type.element_type],
         )
 
@@ -937,7 +939,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
+    result = result_def(FieldType | MemRefType)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -945,7 +947,7 @@ class ExternalLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: SSAValue | Operation,
+        arg: OperandArg,
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
@@ -981,8 +983,8 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntegerAttr[IndexType])
-    offset = attr_def(IndexAttr)
+    dim = prop_def(IntegerAttr[IndexType])
+    offset = prop_def(IndexAttr)
     idx = result_def(builtin.IndexType())
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
@@ -1052,7 +1054,7 @@ class AccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
+        temp: OperandArg,
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
@@ -1108,7 +1110,7 @@ class AccessOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        temp = parser.parse_operand()
+        temp = parser.parse_unresolved_operand()
 
         index = 0
         offset = list[int]()
@@ -1140,7 +1142,9 @@ class AccessOp(IRDLOperation):
                 "Expected return type to be a stencil.temp or stencil.field"
             )
         return cls.build(
-            operands=[temp], result_types=[res_type.element_type], attributes=attrs
+            operands=[parser.resolve_operand(temp, res_type)],
+            result_types=[res_type.element_type],
+            attributes=attrs,
         )
 
     def verify_(self) -> None:
@@ -1260,7 +1264,7 @@ class LoadOp(IRDLOperation):
 
     field = operand_def(
         FieldType[Attribute].constr(
-            bounds=base(StencilBoundsAttr),
+            bounds=StencilBoundsAttr,
             element_type=MessageConstraint(
                 TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
@@ -1282,7 +1286,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
@@ -1364,7 +1368,7 @@ class BufferOp(IRDLOperation):
 
     traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
-    def __init__(self, temp: SSAValue | Operation):
+    def __init__(self, temp: OperandArg):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
@@ -1436,7 +1440,7 @@ class StoreOp(IRDLOperation):
             ),
         )
     )
-    bounds = attr_def(StencilBoundsAttr)
+    bounds = prop_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
@@ -1444,11 +1448,11 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        field: SSAValue | Operation,
+        temp: OperandArg,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
     ):
-        super().__init__(operands=[temp, field], attributes={"bounds": bounds})
+        super().__init__(operands=[temp, field], properties={"bounds": bounds})
 
 
 @irdl_op_definition
@@ -1514,7 +1518,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
-    def __init__(self, res: Sequence[SSAValue | Operation]):
+    def __init__(self, res: Sequence[OperandArg]):
         super().__init__(operands=[res])
 
     def verify_(self) -> None:

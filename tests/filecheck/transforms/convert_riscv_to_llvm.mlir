@@ -52,7 +52,7 @@
 
 // csr instructions
 
-%csrss = riscv.csrrs %x0, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg
+%csrss = riscv.csrrs %x0, 3860 readonly : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:  %csrss = llvm.inline_asm "csrrs $0, 3860, x0", "=r" : () -> i32
 // CHECK-NEXT:  %csrss_1 = builtin.unrealized_conversion_cast %csrss : i32 to !riscv.reg
 

@@ -19,7 +19,7 @@ builtin.module {
     }> ({
     ^bb0(%a_stream: !snitch.readable<!riscv.freg<ft0>>, %b_stream: !snitch.readable<!riscv.freg<ft1>>, %c_stream: !snitch.writable<!riscv.freg<ft2>>):
         %c5 = rv32.li 5 : !riscv.reg
-        riscv_snitch.frep_outer %c5 {
+        riscv_snitch.frep_outer %c5 : !riscv.reg {
             %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
             %b = riscv_snitch.read from %b_stream : !riscv.freg<ft1>
             %c = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
@@ -33,7 +33,7 @@ builtin.module {
     %v3 = riscv.fld %C, 24 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
     %v4 = riscv.fld %C, 32 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
     %v5 = riscv.fld %C, 40 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg) -> !riscv.freg
-    riscv_debug.printf %v0, %v1, %v2, %v3, %v4, %v5 "[[{}, {}, {}], [{}, {}, {}]]" : (!riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg) -> ()
+    riscv_debug.printf "[[{}, {}, {}], [{}, {}, {}]]" (%v0, %v1, %v2, %v3, %v4, %v5 : !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg, !riscv.freg)
     riscv_func.return
   }
 }

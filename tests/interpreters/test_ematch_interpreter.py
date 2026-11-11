@@ -1,9 +1,8 @@
 import re
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import pytest
-from typing_extensions import Self
 
 from xdsl.analysis.dataflow import DataFlowSolver
 from xdsl.analysis.sparse_analysis import (

@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     cast,
+    get_origin,
 )
+
+from typing_extensions import TypeForm
 
 from xdsl.frontend.pyast.utils.exceptions import (
     FrontendProgramException,
@@ -62,18 +65,21 @@ class TypeRegistry:
 
     def __init__(self):
         """Instantiate the function registry."""
-        self._mapping: dict[type, TypeAttribute] = {}
+        self._mapping: dict[TypeForm[Any], TypeAttribute] = {}
 
     def insert(
         self,
-        annotation: type,
+        annotation: TypeForm[Any],
         attribute: TypeAttribute,
     ) -> None:
         """Insert a relation between a Python type annotation and an IR type attribute."""
         if annotation in self._mapping:
-            raise FrontendProgramException(
-                f"Cannot re-register type name '{annotation.__qualname__}'"
+            name = (
+                annotation.__qualname__
+                if isinstance(annotation, type)
+                else str(annotation)
             )
+            raise FrontendProgramException(f"Cannot re-register type name '{name}'")
         if attribute in self._mapping.values():
             raise FrontendProgramException(
                 f"Cannot register multiple source types for IR type '{attribute}'"
@@ -84,12 +90,12 @@ class TypeRegistry:
         """
         Get the Python type annotation from an IR type attribute.
 
-        This supports many-to-one mappings by resolving greedily on the first
-        mapping inserted.
+        For a parameterized annotation, return its origin class for operator lookup.
         """
         for key, value in self._mapping.items():
             if value == attribute:
-                return key
+                source_type = get_origin(key) or key
+                return source_type if isinstance(source_type, type) else None
         return None
 
     def resolve_attribute(

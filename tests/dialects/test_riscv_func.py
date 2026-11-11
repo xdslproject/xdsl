@@ -1,5 +1,8 @@
+import pytest
+
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import riscv, riscv_func
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Region
 from xdsl.traits import (
     CallableOpInterface,
@@ -11,12 +14,14 @@ from xdsl.traits import (
 )
 
 
-def test_callable_interface():
+@pytest.mark.parametrize("name", ["callable", StringAttr("callable")])
+def test_callable_interface(name: str | StringAttr):
     a0, a1 = riscv.Registers.A0, riscv.Registers.A1
     fa0, fa1 = riscv.Registers.FA0, riscv.Registers.FA1
 
     region = Region()
-    func = riscv_func.FuncOp("callable", region, ((a0, a1), (fa0, fa1)))
+    func = riscv_func.FuncOp(name, region, ((a0, a1), (fa0, fa1)))
+    assert func.sym_name == StringAttr("callable")
 
     trait = func.get_trait(CallableOpInterface)
 
@@ -25,6 +30,13 @@ def test_callable_interface():
     assert trait.get_callable_region(func) is region
     assert trait.get_argument_types(func) == (a0, a1)
     assert trait.get_result_types(func) == (fa0, fa1)
+
+
+@pytest.mark.parametrize("callee_type", [str, StringAttr, SymbolRefAttr])
+def test_call_callee(callee_type: type[str | StringAttr | SymbolRefAttr]):
+    call = riscv_func.CallOp(callee_type("callee"), [], [])
+    call.verify()
+    assert call.callee == SymbolRefAttr("callee")
 
 
 def test_effect_traits():

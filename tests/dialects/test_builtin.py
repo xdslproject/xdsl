@@ -35,6 +35,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StaticShapeArrayConstr,
     StridedLayoutAttr,
+    StringAttr,
     SymbolRefAttr,
     TensorType,
     UnrealizedConversionCastOp,
@@ -79,7 +80,6 @@ from xdsl.irdl import (
     RangeVarConstraint,
     TypeVarConstraint,
     VerificationContext,
-    eq,
     irdl_attr_definition,
 )
 from xdsl.printer import Printer
@@ -107,8 +107,26 @@ def test_float_data_equality(lhs: float, rhs: float, equal: bool):
         assert hash(FloatData(lhs)) == hash(FloatData(rhs))
 
 
-def test_float_data_nan_equality():
-    assert FloatData(float("nan")) == FloatData(float("nan"))
+@pytest.mark.parametrize(
+    "lhs_bits,rhs_bits,equal",
+    [
+        (0x7FF8000000000000, 0x7FF8000000000000, True),
+        (0x7FF8000000000001, 0x7FF8000000000001, True),
+        (0x7FF0000000000001, 0x7FF0000000000001, True),
+        (0x7FF8000000000001, 0x7FF8000000000002, False),  # Different payloads.
+        (0x7FF8000000000001, 0xFFF8000000000001, False),  # Different signs.
+        (0x7FF8000000000001, 0x7FF0000000000001, False),  # Quiet vs signaling.
+    ],
+)
+def test_float_data_nan_equality(lhs_bits: int, rhs_bits: int, equal: bool):
+    lhs = FloatData(struct.unpack("<d", lhs_bits.to_bytes(8, "little"))[0])
+    rhs = FloatData(struct.unpack("<d", rhs_bits.to_bytes(8, "little"))[0])
+    for left, right in ((lhs, rhs), (FloatAttr(lhs, f64), FloatAttr(rhs, f64))):
+        assert (left == right) is equal
+        if equal:
+            assert hash(left) == hash(right)
+        values = {left: 0, right: 1}
+        assert values[left] == (1 if equal else 0)
 
 
 @pytest.mark.parametrize(
@@ -275,27 +293,59 @@ def test_bf16_pack_bit_patterns(value: float, expected_raw: bytes):
     assert struct.pack(">f", decoded) == struct.pack(">f", value)
 
 
-def test_bf16_pack_nan_stays_quiet():
-    raw = bf16.pack((float("nan"),))
-    bits = int.from_bytes(raw, "little")
-    assert (bits & 0x7F80) == 0x7F80  # exponent all-ones
-    assert (bits & 0x007F) != 0  # mantissa non-zero
-    assert bits & 0x0040  # quiet bit set
+@pytest.mark.parametrize(
+    "source_bits,expected_bits",
+    [
+        (0x7FF8000000000000, 0x7FC0),
+        (0x7FF0000000000001, 0x7FC0),  # Discarded payload must not become infinity.
+        (0x7FFA000000000000, 0x7FD0),
+        (0xFFFA000000000000, 0xFFD0),
+    ],
+)
+def test_bf16_pack_nan_stays_quiet(source_bits: int, expected_bits: int):
+    value = struct.unpack("<d", struct.pack("<Q", source_bits))[0]
+    assert bf16.pack((value,)) == expected_bits.to_bytes(2, "little")
 
 
-def test_bf16_pack_rounds_to_nearest_even():
-    # Halfway between two bf16 values; ties go to even (mantissa LSB 0).
-    halfway = 1.0 + 2.0**-8
-    assert bf16.pack((halfway,)) == (0x3F80).to_bytes(2, "little")
-    just_above = 1.0 + 2.0**-8 + 2.0**-20
-    assert bf16.pack((just_above,)) == (0x3F81).to_bytes(2, "little")
+@pytest.mark.parametrize("negative", [False, True])
+@pytest.mark.parametrize(
+    "midpoint,below,tie,above",
+    [
+        (1.0 + 2**-8, 0x3F80, 0x3F80, 0x3F81),
+        (1.0 + 3 * 2**-8, 0x3F81, 0x3F82, 0x3F82),
+        (2.0 - 2**-8, 0x3FFF, 0x4000, 0x4000),
+        (2**-134, 0x0000, 0x0000, 0x0001),
+        (3 * 2**-134, 0x0001, 0x0002, 0x0002),
+        (2**-126 - 2**-134, 0x007F, 0x0080, 0x0080),
+        # Largest finite is 2**128 - 2**120; the overflow midpoint is half an ULP above.
+        (2.0**128 - 2.0**119, 0x7F7F, 0x7F80, 0x7F80),
+    ],
+)
+def test_bf16_pack_rounds_to_nearest_even(
+    negative: bool, midpoint: float, below: int, tie: int, above: int
+):
+    # Adjacent binary64 inputs distinguish direct rounding from rounding via f32.
+    for value, bits in (
+        (math.nextafter(midpoint, 0.0), below),
+        (midpoint, tie),
+        (math.nextafter(midpoint, math.inf), above),
+    ):
+        if negative:
+            value = -value
+            bits |= 0x8000
+        assert bf16.pack((value,)) == bits.to_bytes(2, "little")
+
+
+@pytest.mark.parametrize("value,expected_bits", [(1e40, 0x7F80), (-1e40, 0xFF80)])
+def test_bf16_pack_overflow(value: float, expected_bits: int):
+    assert bf16.pack((value,)) == expected_bits.to_bytes(2, "little")
 
 
 @pytest.mark.parametrize(
     "value, type_, tolerance",
     [
-        # f80/f128 have no precision-normalisation path (their format raises
-        # NotImplementedError); FloatAttr stores the float as-is.
+        # Every f64 value is exactly representable in f80/f128, so FloatAttr stores
+        # the float as-is.
         (0.1, f80, None),
         (0.1, f128, None),
         # bf16 normalises through pack/unpack; 1.5 is exactly representable.
@@ -313,6 +363,55 @@ def test_FloatAttr_normalisation(
     else:
         assert data != value
         assert abs(data - value) < tolerance
+
+
+@pytest.mark.parametrize("type_", [f16, f32, bf16])
+def test_FloatAttr_overflow(type_: AnyFloat):
+    assert FloatAttr(1e40, type_).value.data == math.inf
+    assert FloatAttr(-1e40, type_).value.data == -math.inf
+
+
+_F32_MAX = (2 - 2**-23) * 2.0**127
+# Halfway between the largest finite f32 and 2**128, so ties to even rounds it up.
+_F32_OVERFLOW_MIDPOINT = 2.0**128 - 2.0**103
+
+
+@pytest.mark.parametrize(
+    "type_, value, expected",
+    [
+        # 0.1 * 2**10 = 102.4 rounds to 102
+        (f16, 1.1, 1 + 102 / 2**10),
+        (f16, 65519.0, 65504.0),  # rounds down to the largest finite f16
+        (f16, 65520.0, math.inf),  # halfway to 2**16, ties to even rounds up
+        (f16, -65520.0, -math.inf),
+        (f16, 2.0**-25, 0.0),  # halfway to the smallest subnormal, ties to even
+        (f16, 3 * 2.0**-26, 2.0**-24),
+        # 0.1 * 2**23 = 838860.8 rounds to 838861
+        (f32, 1.1, 1 + 838861 / 2**23),
+        (f32, math.nextafter(_F32_OVERFLOW_MIDPOINT, 0.0), _F32_MAX),
+        (f32, _F32_OVERFLOW_MIDPOINT, math.inf),
+        (f32, -1e40, -math.inf),
+        (f64, 1.1, 1.1),
+        (f80, 1.1, 1.1),
+        (f128, 1.1, 1.1),
+        # 0.1 * 2**7 = 12.8 rounds to 13
+        (bf16, 1.1, 1 + 13 / 2**7),
+        (bf16, 1e40, math.inf),
+        # f6E2M3FN has no infinities, so it saturates to its largest value
+        (f6E2M3FN, 100.0, 7.5),
+        (f6E2M3FN, -100.0, -7.5),
+    ],
+)
+def test_FloatType_round(type_: AnyFloat, value: float, expected: float):
+    assert type_.round(value) == expected
+
+
+@pytest.mark.parametrize("type_", [f16, f32, f64, bf16])
+def test_FloatType_round_special_values(type_: AnyFloat):
+    assert type_.round(math.inf) == math.inf
+    assert type_.round(-math.inf) == -math.inf
+    assert math.isnan(type_.round(math.nan))
+    assert math.copysign(1.0, type_.round(-0.0)) == -1.0
 
 
 # (value, type, expected narrowed value): each `value` is not exactly
@@ -985,8 +1084,9 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
-def test_symbol_ref_attr_get_from_string():
-    assert SymbolRefAttr.get("test") == SymbolRefAttr("test")
+@pytest.mark.parametrize("name_type", [str, StringAttr])
+def test_symbol_ref_attr_get_from_string(name_type: type[str | StringAttr]):
+    assert SymbolRefAttr.get(name_type("root::leaf")) == SymbolRefAttr("root::leaf")
 
 
 def test_symbol_ref_attr_get_from_symbol_ref_attr():
@@ -1282,7 +1382,7 @@ def test_vector_constr():
         constr.verify(VectorType(i64, [1]), VerificationContext())
 
     shape = ArrayAttr([IntAttr(1)])
-    scalable_dims = ArrayAttr([IntegerAttr(0, IntegerType(1))])
+    scalable_dims = ArrayAttr([IntegerAttr(0, i1)])
     constr = VectorType.constr(
         i32,
         shape=shape,
@@ -1302,7 +1402,7 @@ def test_array_constr():
     assert constr.verifies(ArrayAttr([i32]))
     assert not constr.verifies(ArrayAttr([i64]))
 
-    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    T = RangeVarConstraint("T", RangeOf.get(i32))
     constr = ArrayAttr.constr(T)
     assert constr.can_infer({"T"})
 

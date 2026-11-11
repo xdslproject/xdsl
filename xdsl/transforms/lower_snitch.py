@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_snitch, rv32, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.riscv.attrs import ui5, ui12
 from xdsl.ir import Operation
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
@@ -228,8 +229,8 @@ class LowerSsrEnable(RewritePattern):
             op,
             [
                 riscv.CsrrsiOp(
-                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
-                    immediate=IntegerAttr(1, i32),
+                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
+                    immediate=IntegerAttr(1, ui5),
                     rd=riscv.Registers.ZERO,
                     comment="SSR enable",
                 ),
@@ -246,8 +247,8 @@ class LowerSsrDisable(RewritePattern):
             op,
             [
                 riscv.CsrrciOp(
-                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
-                    immediate=IntegerAttr(1, i32),
+                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
+                    immediate=IntegerAttr(1, ui5),
                     rd=riscv.Registers.ZERO,
                     comment="SSR disable",
                 )

@@ -13,18 +13,20 @@ from typing import (
     Generic,
     Literal,
     NoReturn,
+    Self,
     TypeAlias,
     cast,
     overload,
 )
 
-from typing_extensions import Self, TypeVar, assert_never
+from typing_extensions import TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
     AttributeInvT,
     Block,
+    OperandArg,
     Operation,
     OpResult,
     OpTraits,
@@ -53,7 +55,7 @@ from .attributes import (  # noqa: TID251
     single_range_constr_coercion,
 )
 from .constraints import (  # noqa: TID251
-    AnyAttr,
+    AnyRange,
     AttrConstraint,
     IntConstraint,
     RangeConstraint,
@@ -91,10 +93,7 @@ class IRDLOperation(Operation):
     def __init__(
         self: IRDLOperation,
         *,
-        operands: (
-            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-            | None
-        ) = None,
+        operands: (Sequence[OperandArg | Sequence[OperandArg] | None] | None) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
@@ -159,10 +158,7 @@ class IRDLOperation(Operation):
     def build(
         cls,
         *,
-        operands: (
-            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-            | None
-        ) = None,
+        operands: (Sequence[OperandArg | Sequence[OperandArg] | None] | None) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -411,7 +407,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
+    entry_args: RangeConstraint = field(default_factory=AnyRange)
 
 
 @dataclass
@@ -776,7 +772,7 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -791,7 +787,7 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -806,7 +802,7 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = AnyRange(),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1070,7 +1066,7 @@ class OpDef:
                     if isinstance(pyrdl_constr, RangeConstraint):
                         # Pyright does not know the type of the generic range constraint
                         return cast(RangeConstraint, pyrdl_constr)
-                    return RangeOf(get_constraint(pyrdl_constr))
+                    return RangeOf.get(pyrdl_constr)
 
                 field_names.add(field_name)
 
@@ -1361,11 +1357,26 @@ def verify_variadic_attr_size(
             f"{option.attribute_name}, but got {len(def_sizes)}"
         )
 
-    for l, (name, d) in zip(def_sizes, defs):
+    segment_size = 0
+    for l, (name, d) in zip(def_sizes, defs, strict=True):
+        if l < 0:
+            raise VerifyException(
+                f"'{option.attribute_name}' attribute cannot have negative elements"
+            )
         if isinstance(d, OptionalDef) and l not in (0, 1):
             raise VerifyException(f"expected 0 or 1 values for {name}, but got {l}")
         if not isinstance(d, VariadicDef) and l != 1:
             raise VerifyException(f"expected 1 value for {name}, but got {l}")
+        segment_size += l
+
+    constructs = get_op_constructs(op, construct)
+    construct_count = len(constructs)
+    if segment_size != construct_count:
+        raise VerifyException(
+            f"{get_construct_name(construct)} count ({construct_count}) does not match "
+            f"with the total size ({segment_size}) specified in attribute "
+            f"'{option.attribute_name}'"
+        )
 
 
 def verify_variadic_same_size(
@@ -1597,11 +1608,8 @@ def irdl_build_arg_list(
     return res, arg_sizes
 
 
-_OperandArg: TypeAlias = SSAValue | Operation
-
-
 def irdl_build_operations_arg(
-    operand: _OperandArg | Sequence[_OperandArg] | None,
+    operand: OperandArg | Sequence[OperandArg] | None,
 ) -> SSAValue | list[SSAValue]:
     if operand is None:
         return []
@@ -1653,7 +1661,7 @@ def irdl_op_init(
     self: IRDLOperation,
     op_def: OpDef,
     *,
-    operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None],
+    operands: Sequence[OperandArg | Sequence[OperandArg] | None],
     result_types: Sequence[Attribute | Sequence[Attribute] | None],
     properties: Mapping[str, Attribute | None],
     attributes: Mapping[str, Attribute | None],

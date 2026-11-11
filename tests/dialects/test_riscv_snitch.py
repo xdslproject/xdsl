@@ -114,6 +114,15 @@ def test_exclude_registers():
     }
 
 
+def test_vfmac_default_fastmath():
+    acc = create_ssa_value(riscv.Registers.FT3)
+    lhs = create_ssa_value(riscv.Registers.FT0)
+    rhs = create_ssa_value(riscv.Registers.FT1)
+    op = riscv_snitch.VFMacSOp(acc, lhs, rhs)
+    op.verify()
+    assert op.fastmath == riscv.FastMathFlagsAttr("none")
+
+
 def test_effect_traits():
     """
     Check effects of operations in the riscv_snitch dialect.

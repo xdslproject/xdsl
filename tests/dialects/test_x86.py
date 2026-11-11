@@ -70,13 +70,24 @@ def test_register(
     register: x86.registers.Reg64Type | x86.registers.Reg32Type, name: str
 ):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
+
+
+def test_register_widths_are_distinct():
+    registers = (
+        x86.registers.RAX,
+        x86.registers.EAX,
+        x86.registers.AX,
+        x86.registers.AL,
+    )
+    assert len({register.index for register in registers}) == 1
+    assert len(set(registers)) == 4
 
 
 def test_rflags_register():
     rflags = x86.registers.RFLAGS
     assert rflags.is_allocated
-    assert rflags.register_name.data == "rflags"
+    assert rflags.register_name == "rflags"
 
 
 @pytest.mark.parametrize(
@@ -118,7 +129,7 @@ def test_rflags_register():
 )
 def test_avx512_register(register: x86.registers.AVX512RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(
@@ -144,7 +155,7 @@ def test_avx512_register(register: x86.registers.AVX512RegisterType, name: str):
 )
 def test_avx2_register(register: x86.registers.AVX2RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(
@@ -170,7 +181,7 @@ def test_avx2_register(register: x86.registers.AVX2RegisterType, name: str):
 )
 def test_sse_register(register: x86.registers.SSERegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name.data == name
+    assert register.register_name == name
 
 
 @pytest.mark.parametrize(
@@ -206,14 +217,14 @@ def test_rrr_vops(
     param1 = create_ssa_value(operand1)
     param2 = create_ssa_value(operand2)
     op = OpClass(
-        source2=output,
-        register_in=param1,
-        source1=param2,
+        register_in=output,
+        source1=param1,
+        source2=param2,
         register_out=dest,
     )
-    assert op.register_in.type == operand1
-    assert op.source1.type == operand2
-    assert op.source2.type == dest
+    assert op.register_in.type == op.register_out.type == dest
+    assert op.source1.type == operand1
+    assert op.source2.type == operand2
 
 
 @pytest.mark.parametrize(

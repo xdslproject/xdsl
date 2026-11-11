@@ -3,7 +3,7 @@
 builtin.module {
 "csl.module"() <{"kind" = #csl<module_kind program>}> ({
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT: "csl.module"() <{kind = #csl<module_kind program>}> ({
+// CHECK-NEXT: "csl.module"() <{kind = #csl<module_kind program>, sym_name = "program"}> ({
 
   %0 = "test.op"() : () -> (index)
   %a = memref.alloc() {"alignment" = 64 : i64} : memref<512xf32>
@@ -136,5 +136,5 @@ csl.store_var %33 : !csl.var<memref<512xf32>> = %34 : memref<512xf32>
 
 }) {sym_name = "program"} :  () -> ()
 }
-// CHECK-NEXT: }) {sym_name = "program"} :  () -> ()
+// CHECK-NEXT: }) :  () -> ()
 // CHECK-NEXT: }

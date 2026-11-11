@@ -1,6 +1,6 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func
-from xdsl.dialects.builtin import ModuleOp, StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, SymbolRefAttr, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
@@ -28,7 +28,9 @@ def test_nested_symbol_lookup():
     interpreter = Interpreter(outer_module)
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
-    assert interpreter.call_op(SymbolRefAttr("nested", ("nested_func",)), ()) == (42,)
+    assert interpreter.call_op(SymbolRefAttr("nested", ("nested_func",)), ()) == (
+        IntegerAttr(42, i32),
+    )
     call_op = outer_module.regions[0].block.last_op
     assert isinstance(call_op, func.CallOp)
-    assert interpreter.run_op(call_op, ()) == (42,)
+    assert interpreter.run_op(call_op, ()) == (IntegerAttr(42, i32),)

@@ -27,6 +27,59 @@ except NotImplementedError as e:
     print(e)
 
 
+# CHECK: Unsupported Python AST node {{(<ast\.)?If}}
+@ctx.parse_program
+def test_if_unsupported(end: c_size_t) -> None:
+    if end:
+        pass
+    return
+
+
+try:
+    test_if_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+# CHECK: Unsupported Python AST node {{(<ast\.)?AnnAssign}}
+@ctx.parse_program
+def test_annotated_assignment_unsupported(end: c_size_t) -> c_size_t:
+    x: c_size_t = end
+    return x
+
+
+try:
+    test_annotated_assignment_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+# CHECK: Unsupported comparison operation 'Is'.
+@ctx.parse_program
+def test_is_unsupported(x: c_size_t) -> None:
+    assert x is x
+    return
+
+
+try:
+    test_is_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+# CHECK: Unsupported constant 'b'bytes'' of type 'bytes'.
+@ctx.parse_program
+def test_bytes_unsupported(x: c_size_t) -> None:
+    assert b"bytes"
+    return
+
+
+try:
+    test_bytes_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
 # CHECK: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:

@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     f32,
     i32,
+    i64,
 )
 from xdsl.dialects.test import Test, TestType
 from xdsl.dialects.utils import DynamicIndexList
@@ -46,21 +47,25 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    AttrSizedSuccessorSegments,
     BaseAttr,
     EqAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
+    OptRegion,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
     SameVariadicOperandSize,
     SameVariadicResultSize,
+    Successor,
     VarConstraint,
     VarOperand,
     VarOpResult,
+    VarRegion,
+    VarSuccessor,
     attr_def,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -84,10 +89,14 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     AttributeVariable,
     CustomDirective,
+    Directive,
     FormatProgram,
     FunctionalTypeDirective,
+    KeywordDirective,
     OperandsDirective,
     OperandVariable,
+    OptionalOperandVariable,
+    OptionalUnitAttrVariable,
     ParsingState,
     PrintingState,
     PunctuationDirective,
@@ -96,6 +105,7 @@ from xdsl.irdl.declarative_assembly_format import (
     SuccessorVariable,
     TypeDirective,
     VariadicOperandVariable,
+    WhitespaceDirective,
     irdl_custom_directive,
 )
 from xdsl.parser import Parser
@@ -2194,6 +2204,53 @@ def test_functional_type_optional(
     parser.parse_keyword("next")
 
 
+@pytest.mark.parametrize("in_else", [False, True])
+@pytest.mark.parametrize("signature", [None, "() -> ()", "(i32, f32) -> i64"])
+def test_optional_group_functional_type(in_else: bool, signature: str | None):
+    @irdl_op_definition
+    class OptionalSignatureOp(IRDLOperation):
+        name = "test.optional_signature"
+        args = var_operand_def()
+        res = var_result_def()
+        flag = opt_prop_def(UnitAttr)
+
+        assembly_format = (
+            "(`empty` $flag^):(functional-type($args, $res) `args` $args)? attr-dict"
+            if in_else
+            else "(`signature` functional-type($args, $res) `args` $args $flag^)? attr-dict"
+        )
+
+    ctx = Context()
+    ctx.load_dialect(Test)
+    ctx.load_op(OptionalSignatureOp)
+    if signature is None:
+        program = "test.optional_signature" + (" empty" if in_else else "")
+        expected_operands: tuple[Attribute, ...] = ()
+        expected_results: tuple[Attribute, ...] = ()
+    else:
+        prefix = "" if in_else else " signature"
+        program = f"test.optional_signature{prefix} {signature} args"
+        expected_operands = ()
+        expected_results = ()
+        if signature != "() -> ()":
+            program = (
+                '%0, %1 = "test.op"() : () -> (i32, f32)\n%2 = ' + program + " %0, %1"
+            )
+            expected_operands = (i32, f32)
+            expected_results = (IntegerType(64),)
+
+    parser = Parser(ctx, program)
+    op = parser.parse_operation()
+    if signature == "(i32, f32) -> i64":
+        op = parser.parse_operation()
+    assert isinstance(op, OptionalSignatureOp)
+    op.verify()
+    assert op.operand_types == expected_operands
+    assert op.result_types == expected_results
+    assert (op.flag is not None) == (in_else == (signature is None))
+    check_roundtrip(program, ctx)
+
+
 @pytest.mark.parametrize(
     "program",
     [
@@ -2366,13 +2423,28 @@ def test_regions(format: str, program: str, generic_program: str):
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}, {\n  "test.op"() : () -> ()\n}',
             '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
+        ),
+        (
+            "$region attr-dict",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n} {tag = "regions"}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {}) {tag = "regions"} : () -> ()',
+        ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}, {\n}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {}) : () -> ()',
+        ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            "test.variadic_region",
+            '"test.variadic_region"() : () -> ()',
         ),
     ],
 )
@@ -2427,8 +2499,11 @@ def test_optional_region(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
-def test_multiple_optional_regions():
-    """Test that a variadic region variable cannot directly follow another variadic region variable."""
+@pytest.mark.parametrize("test_region_def", [opt_region_def, var_region_def])
+def test_multiple_optional_regions(
+    test_region_def: Callable[[], OptRegion | VarRegion],
+):
+    """An optional or variadic region must not consume the following region."""
     with pytest.raises(
         PyRDLOpDefinitionError,
         match=re.escape(
@@ -2440,7 +2515,7 @@ def test_multiple_optional_regions():
         class OptionalRegionsOp(IRDLOperation):
             name = "test.optional_regions"
             irdl_options = (AttrSizedRegionSegments(),)
-            region1 = opt_region_def()
+            region1 = test_region_def()
             region2 = opt_region_def()
 
             assembly_format = "attr-dict-with-keyword $region1 $region2"
@@ -2953,7 +3028,7 @@ def test_variadic_length_inference():
     @irdl_op_definition
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
-        T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
+        T: ClassVar = RangeVarConstraint.get("T")
         ins = var_operand_def(T)
         outs = var_result_def(T)
 
@@ -2981,8 +3056,8 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
-        outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
+        ins = var_operand_def(RangeOf.get(IndexType()).of_length(T))
+        outs = var_result_def(RangeOf.get(i64).of_length(T))
 
         assembly_format = "$ins attr-dict"
 
@@ -3015,14 +3090,17 @@ def test_int_var_inference():
         (var_operand_def, "$variadic `,` type($variadic) attr-dict"),
         (var_operand_def, "$variadic `:` type($variadic) `,` attr-dict"),
         (var_result_def, "type($variadic) `,` attr-dict"),
+        (var_region_def, "$variadic `,` attr-dict"),
     ],
 )
 def test_variadic_comma_safeguard(
-    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+    variadic_def: Callable[[], VarOperand | VarOpResult | VarRegion], format: str
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match=re.escape("A variadic directive cannot be followed by a comma literal."),
+        match=re.escape(
+            "A comma-separated list directive cannot be followed by a comma literal."
+        ),
     ):
 
         @irdl_op_definition
@@ -3106,6 +3184,38 @@ def test_chained_variadic_operands_safeguard(
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
             irdl_options = (AttrSizedOperandSegments(),)
+
+
+@pytest.mark.parametrize(
+    "successor_def_one, successor_def_two",
+    [
+        (var_successor_def, var_successor_def),
+        (opt_successor_def, successor_def),
+    ],
+)
+@pytest.mark.parametrize("separator", ["", "` `"])
+def test_chained_variadic_successors_safeguard(
+    successor_def_one: Callable[[], Successor | VarSuccessor | None],
+    successor_def_two: Callable[[], Successor | VarSuccessor],
+    separator: str,
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=re.escape(
+            "An optional/variadic successor variable cannot be followed by another "
+            "successor variable."
+        ),
+    ):
+
+        @irdl_op_definition
+        class VarSuccessorGuardOp(IRDLOperation):
+            name = "test.variadic_successor_safeguard"
+
+            successor_one = successor_def_one()
+            successor_two = successor_def_two()
+            assembly_format = f"$successor_one {separator} $successor_two attr-dict"
+
+            irdl_options = (AttrSizedSuccessorSegments(),)
 
 
 @pytest.mark.parametrize(
@@ -3339,6 +3449,73 @@ def test_optional_group_variadic_result_anchor(
 
 
 @pytest.mark.parametrize(
+    "separator",
+    [
+        "(`tag` $flag^)?",
+        "(`tag` $flag^):(` `)?",
+        "` ` (`tag` $flag^)? ` `",
+    ],
+)
+def test_optional_operands_need_nonempty_separator(separator: str):
+    """
+    Without a separator, a right-only operand would roundtrip as a left-only operand.
+    """
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="An optional/variadic operand variable cannot be followed by another operand variable",
+    ):
+
+        @irdl_op_definition
+        class AmbiguousOperandsOp(IRDLOperation):
+            name = "test.ambiguous_operands"
+            left = opt_operand_def(i32)
+            right = opt_operand_def(i32)
+            flag = opt_prop_def(UnitAttr)
+            irdl_options = (AttrSizedOperandSegments(),)
+
+            assembly_format = f"$left {separator} $right attr-dict"
+
+
+@pytest.mark.parametrize(
+    "format, separator, flag_present",
+    [
+        ("$left `tag` $right (`flag` $flag^)? attr-dict", "tag", False),
+        ("$left (`tag` $flag^):(`plain`)? $right attr-dict", "plain", False),
+        ("$left (`tag` $flag^):(`plain`)? $right attr-dict", "tag", True),
+        ("$left (`tag` $flag^)? `between` $right attr-dict", "between", False),
+    ],
+)
+def test_optional_operands_with_required_separator(
+    format: str, separator: str, flag_present: bool
+):
+    """A required keyword, including one in an else branch, separates the operands."""
+
+    @irdl_op_definition
+    class SeparatedOperandsOp(IRDLOperation):
+        name = "test.separated_operands"
+        left = opt_operand_def(i32)
+        right = opt_operand_def(i32)
+        flag = opt_prop_def(UnitAttr)
+        irdl_options = (AttrSizedOperandSegments(),)
+
+        assembly_format = format
+
+    ctx = Context()
+    ctx.load_dialect(Test)
+    ctx.load_op(SeparatedOperandsOp)
+    program = f'%0 = "test.op"() : () -> i32\ntest.separated_operands {separator} %0'
+    parser = Parser(ctx, program)
+    value = parser.parse_operation().results[0]
+    op = parser.parse_operation()
+    assert isinstance(op, SeparatedOperandsOp)
+    op.verify()
+    assert op.left is None
+    assert op.right is value
+    assert (op.flag is not None) == flag_present
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
     "format, error",
     [
         ("()?", "An optional group must have a non-whitespace directive"),
@@ -3357,6 +3534,10 @@ def test_optional_group_variadic_result_anchor(
         ),
         (
             "($optional_unit_arg^)?",
+            "First element of an optional group must be optionally parsable.",
+        ),
+        (
+            "((`keyword` $optional_unit_arg^)? $args^)?",
             "First element of an optional group must be optionally parsable.",
         ),
     ],
@@ -3721,9 +3902,9 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop = prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    outs = var_result_def(RangeOf(eq(IndexType())).of_length(_I))
+    outs = var_result_def(RangeOf.get(IndexType()).of_length(_I))
 
     assembly_format = "$prop attr-dict"
 
@@ -3766,11 +3947,11 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop = prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
+    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=IndexType()))
 
-    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
+    ins = var_operand_def(RangeOf.get(IndexType()).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
@@ -3874,6 +4055,72 @@ def test_qualified_attr():
 ################################################################################
 
 
+def test_legacy_is_variadic_like_override():
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_variadic_like(), which has been renamed. "
+            "Override is_comma_separated_list() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(CustomDirective):
+            def is_variadic_like(self) -> bool:
+                return True
+
+
+def test_inherited_legacy_is_variadic_like_override():
+    class LegacyMixin:
+        def is_variadic_like(self) -> bool:
+            return True
+
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_variadic_like(), which has been renamed. "
+            "Override is_comma_separated_list() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(LegacyMixin, CustomDirective):
+            pass
+
+
+def test_legacy_is_optional_like_override():
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_optional_like(), which has been removed. "
+            "Override can_parse_empty() and/or can_start_optional_group() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(CustomDirective):
+            def is_optional_like(self) -> bool:
+                return True
+
+
+def test_inherited_legacy_is_optional_like_override():
+    class LegacyMixin:
+        def is_optional_like(self) -> bool:
+            return True
+
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "LegacyDirective overrides is_optional_like(), which has been removed. "
+            "Override can_parse_empty() and/or can_start_optional_group() instead."
+        ),
+    ):
+
+        @irdl_custom_directive
+        class LegacyDirective(LegacyMixin, CustomDirective):
+            pass
+
+
 @irdl_custom_directive
 class Hello(CustomDirective):
     def parse(self, parser: Parser, state: ParsingState):
@@ -3905,6 +4152,77 @@ def test_custom_directive(program: str):
     ctx.load_op(CustomDirectiveOp)
     ctx.load_dialect(Test)
     check_roundtrip(program, ctx)
+
+
+@pytest.mark.filterwarnings("error")
+def test_optional_group_custom_directive():
+    @irdl_custom_directive
+    class OptionalHello(Hello):
+        def parse_optional(self, parser: Parser, state: ParsingState):
+            parser.parse_optional_keyword("hello")
+
+        def can_start_optional_group(self) -> bool:
+            return True
+
+    @irdl_op_definition
+    class OptionalHelloOp(IRDLOperation):
+        name = "test.optional_hello"
+        present = opt_prop_def(UnitAttr)
+
+        assembly_format = "(custom<OptionalHello>() $present^)? attr-dict"
+        custom_directives = (OptionalHello,)
+
+    ctx = Context()
+    ctx.load_op(OptionalHelloOp)
+    for program, properties in (
+        ("test.optional_hello", {}),
+        ("test.optional_hello hello", {"present": UnitAttr()}),
+    ):
+        check_roundtrip(program, ctx)
+        op = Parser(ctx, program).parse_operation()
+        op.verify()
+        assert op.properties == properties
+
+    # Optional-group eligibility does not make normal parsing accept empty input.
+    @irdl_op_definition
+    class RequiredHelloOp(IRDLOperation):
+        name = "test.required_hello"
+        lhs = opt_operand_def(I32)
+        rhs = operand_def(I32)
+
+        assembly_format = "$lhs custom<OptionalHello>() $rhs attr-dict"
+        custom_directives = (OptionalHello,)
+
+    ctx.load_op(RequiredHelloOp)
+    for program in (
+        "test.required_hello hello %0",
+        "test.required_hello %0 hello %1",
+    ):
+        check_roundtrip(program, ctx)
+        Parser(ctx, program).parse_operation().verify()
+
+
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize(
+    "directive, can_parse_empty, can_start_optional_group",
+    [
+        (Directive(), False, False),
+        (VariadicOperandVariable("args", 0), True, True),
+        (KeywordDirective("hello"), False, True),
+        (PunctuationDirective(":"), False, True),
+        (RegionVariable("body", 0), False, True),
+        (TypeDirective(OptionalOperandVariable("arg", 0)), True, True),
+        (AttrDictDirective(False, set(), set()), True, True),
+        (AttributeVariable("attr", False, True, None), True, True),
+        (OptionalUnitAttrVariable("flag", False), True, False),
+        (WhitespaceDirective(" "), True, False),
+    ],
+)
+def test_directive_optionality(
+    directive: Directive, can_parse_empty: bool, can_start_optional_group: bool
+):
+    assert directive.can_parse_empty() is can_parse_empty
+    assert directive.can_start_optional_group() is can_start_optional_group
 
 
 @irdl_custom_directive

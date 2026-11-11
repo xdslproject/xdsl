@@ -28,97 +28,97 @@ builtin.module {
     }) : () -> ()
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 1 : i64}> ({
       "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-      ^bb1(%arg7_1: i32):
+      ^bb1(%arg7: i32):
         omp.yield
       }) : (i32, i32, i32) -> ()
     }) : () -> ()
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 2 : i64}> ({
       "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-      ^bb2(%arg7_2: i32):
+      ^bb2(%arg7: i32):
         omp.yield
       }) : (i32, i32, i32) -> ()
     }) : () -> ()
     func.return
   }
-  func.func @omp_wsloop(%arg0_1: index, %arg1_1: index, %arg2_1: index, %arg3_1: memref<1xi32>, %arg4_1: i32, %arg5_1: i32) {
+  func.func @omp_wsloop(%arg0: index, %arg1: index, %arg2: index, %arg3: memref<1xi32>, %arg4: i32, %arg5: i32) {
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 1 : i64}> ({
-      "omp.loop_nest"(%arg0_1, %arg1_1, %arg2_1) ({
-      ^bb3(%arg6_1: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb3(%arg6: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
-    "omp.wsloop"(%arg3_1, %arg4_1) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
-      "omp.loop_nest"(%arg0_1, %arg1_1, %arg2_1) ({
-      ^bb4(%arg6_2: index):
+    "omp.wsloop"(%arg3, %arg4) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb4(%arg6: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32) -> ()
-    "omp.wsloop"(%arg3_1, %arg3_1, %arg4_1, %arg4_1) <{operandSegmentSizes = array<i32: 0, 0, 2, 2, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
-      "omp.loop_nest"(%arg0_1, %arg1_1, %arg2_1) ({
-      ^bb5(%arg6_3: index):
+    "omp.wsloop"(%arg3, %arg3, %arg4, %arg4) <{operandSegmentSizes = array<i32: 0, 0, 2, 2, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb5(%arg6: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, memref<1xi32>, i32, i32) -> ()
-    "omp.wsloop"(%arg3_1, %arg4_1, %arg5_1) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_kind" = #omp<schedulekind dynamic>}> ({
-      "omp.loop_nest"(%arg0_1, %arg1_1, %arg2_1) ({
-      ^bb6(%arg6_4: index):
+    "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_kind" = #omp<schedulekind dynamic>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb6(%arg6: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32, i32) -> ()
     "omp.wsloop"() <{"nowait", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, "schedule_kind" = #omp<schedulekind auto>}> ({
-      "omp.loop_nest"(%arg0_1, %arg1_1, %arg2_1) ({
-      ^bb7(%arg6_5: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb7(%arg6: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
     func.return
   }
-  func.func @omp_wsloop_pretty(%arg0_2: index, %arg1_2: index, %arg2_2: index, %arg3_2: memref<1xi32>, %arg4_2: i32, %arg5_2: i32, %arg6_6: i16) {
+  func.func @omp_wsloop_pretty(%arg0: index, %arg1: index, %arg2: index, %arg3: memref<1xi32>, %arg4: i32, %arg5: i32, %arg6: i16) {
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 2 : i64}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb8(%arg7_3: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb8(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
-    "omp.wsloop"(%arg3_2, %arg4_2) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb9(%arg7_4: index):
+    "omp.wsloop"(%arg3, %arg4) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>, "schedule_kind" = #omp<schedulekind static>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb9(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32) -> ()
-    "omp.wsloop"(%arg3_2, %arg4_2, %arg5_2) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_kind" = #omp<schedulekind static>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb10(%arg7_5: index):
+    "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_kind" = #omp<schedulekind static>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb10(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32, i32) -> ()
-    "omp.wsloop"(%arg3_2, %arg4_2, %arg5_2) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_mod" = #omp<sched_mod nonmonotonic>, "schedule_kind" = #omp<schedulekind dynamic>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb11(%arg7_6: index):
+    "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_mod" = #omp<sched_mod nonmonotonic>, "schedule_kind" = #omp<schedulekind dynamic>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb11(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32, i32) -> ()
-    "omp.wsloop"(%arg3_2, %arg4_2, %arg6_6) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_mod" = #omp<sched_mod monotonic>, "schedule_kind" = #omp<schedulekind dynamic>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb12(%arg7_7: index):
+    "omp.wsloop"(%arg3, %arg4, %arg6) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 1>, ordered = 2 : i64, "schedule_mod" = #omp<sched_mod monotonic>, "schedule_kind" = #omp<schedulekind dynamic>}> ({
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb12(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : (memref<1xi32>, i32, i16) -> ()
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb13(%arg7_8: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb13(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
     "omp.wsloop"() <{"nowait", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb15(%arg7_10: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb15(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
     "omp.wsloop"() <{"nowait", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, order = #omp<orderkind concurrent>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^bb16(%arg7_11: index):
+      "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+      ^bb16(%arg7: index):
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()

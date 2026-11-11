@@ -162,7 +162,7 @@ x86.m.dec [%rax + 8] : (!x86.reg64<rax>) -> ()
 %m_imul_rdx, %m_imul_rax = x86.m.imul [%2 + 8], %m_idiv_rax2 : (!x86.reg64<rcx>, !x86.reg64<rax>) -> (!x86.reg64<rdx>, !x86.reg64<rax>)
 // CHECK-NEXT: imul [rcx+8]
 
-x86.directive ".text"
+x86.directive ".text" ""
 // CHECK-NEXT: .text
 x86.directive ".align" "2"
 // CHECK-NEXT: .align 2

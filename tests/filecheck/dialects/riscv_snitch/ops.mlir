@@ -11,43 +11,43 @@ riscv_func.func @xfrep() {
   riscv_snitch.scfgwi %0, 42 : (!riscv.reg) -> ()
   // CHECK-NEXT: riscv_snitch.scfgwi %0, 42 : (!riscv.reg) -> ()
 
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg {
     %add_o = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
   }
-  // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_outer %0 : !riscv.reg {
   // CHECK-NEXT:    %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
   // CHECK-NEXT:  }
 
-  riscv_snitch.frep_inner %0 {
+  riscv_snitch.frep_inner %0 : !riscv.reg {
     %add_i = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
   }
-  // CHECK-NEXT:  riscv_snitch.frep_inner %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_inner %0 : !riscv.reg {
   // CHECK-NEXT:    %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
   // CHECK-NEXT:  }
 
   %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
-  riscv_snitch.frep_outer %0 {
+  riscv_snitch.frep_outer %0 : !riscv.reg {
     %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
     riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   }
   // CHECK-NEXT:  %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   // CHECK-NEXT:  %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
-  // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
+  // CHECK-NEXT:  riscv_snitch.frep_outer %0 : !riscv.reg {
   // CHECK-NEXT:    %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
   // CHECK-NEXT:    %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
   // CHECK-NEXT:    riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   // CHECK-NEXT:  }
 
   %init = "test.op"() : () -> (!riscv.freg<ft3>)
-  %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+  %z = riscv_snitch.frep_outer %0 : !riscv.reg iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
     %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
     riscv_snitch.frep_yield %res : !riscv.freg<ft3>
   }
 
   // CHECK-NEXT:  %init = "test.op"() : () -> !riscv.freg<ft3>
-  // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+  // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 : !riscv.reg iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
   // CHECK-NEXT:      %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
   // CHECK-NEXT:      riscv_snitch.frep_yield %res : !riscv.freg<ft3>
   // CHECK-NEXT:    }
@@ -92,7 +92,7 @@ riscv_func.func @simd() {
   // CHECK: %v = riscv.get_float_register : !riscv.freg
   // CHECK: %v1 = riscv.get_float_register : !riscv.freg
 
-  %vfmul_s = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfmul_s = riscv_snitch.vfmul.s %v, %v fastmath<none> : (!riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %vfmul_s = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
   %vfadd_s = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
@@ -104,8 +104,11 @@ riscv_func.func @simd() {
   %vfcpka_s_s = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %vfcpka_s_s = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %vfmac_s = riscv_snitch.vfmac.s %v1, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfmac_s = riscv_snitch.vfmac.s %v1, %v, %v fastmath<none> : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %vfmac_s = riscv_snitch.vfmac.s %v1, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+
+  %vfmac_flags = riscv_snitch.vfmac.s %vfmac_s, %v, %v1 fastmath<nnan,contract> {comment = "accumulate"} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfmac_flags = riscv_snitch.vfmac.s %vfmac_s, %v, %v1 fastmath<nnan,contract> {comment = "accumulate"} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 
   %vfsum_s = riscv_snitch.vfsum.s %vfmac_s, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %vfsum_s = riscv_snitch.vfsum.s %vfmac_s, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
@@ -127,11 +130,11 @@ riscv_func.func @simd() {
 
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "xfrep", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:     %0 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:     "riscv_snitch.scfgwi"(%0) {immediate = 42 : si12} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.scfgwi"(%0) <{immediate = 42 : si12}> : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    "riscv_snitch.frep_outer"(%{{.*}}) ({
 // CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"() : () -> ()
@@ -151,12 +154,12 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:    %init = "test.op"() : () -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:    %z = "riscv_snitch.frep_outer"(%0, %init) ({
 // CHECK-GENERIC-NEXT:    ^bb0(%acc: !riscv.freg<ft3>):
-// CHECK-GENERIC-NEXT:      %res = "riscv.fadd.d"(%acc, %acc) {fastmath = #riscv.fastmath<none>} : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
+// CHECK-GENERIC-NEXT:      %res = "riscv.fadd.d"(%acc, %acc) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"(%res) : (!riscv.freg<ft3>) -> ()
 // CHECK-GENERIC-NEXT:    }) {stagger_mask = 0 : i4, stagger_count = 0 : i3} : (!riscv.reg, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "xfrep", function_type = () -> ()} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "xdma", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:     %reg = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmsrc"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
@@ -167,20 +170,32 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmcpyi"(%reg) <{config = 0 : ui5}> : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmstati"() <{status = 0 : ui5}> : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {sym_name = "xdma", function_type = () -> ()} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:   }) : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() <{sym_name = "simd", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       %v = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %v1 = "riscv.get_float_register"() : () -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmul_s = "riscv_snitch.vfmul.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfadd_s = "riscv_snitch.vfadd.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfsub_s = "riscv_snitch.vfsub.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmul_s = "riscv_snitch.vfmul.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfadd_s = "riscv_snitch.vfadd.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfsub_s = "riscv_snitch.vfsub.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfcpka_s_s = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmac_s = "riscv_snitch.vfmac.s"(%v1, %v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmac_s = "riscv_snitch.vfmac.s"(%v1, %v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmac_flags = "riscv_snitch.vfmac.s"(%vfmac_s, %v, %v1) <{fastmath = #riscv.fastmath<nnan,contract>}> {comment = "accumulate"} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %vfsum_s = "riscv_snitch.vfsum.s"(%vfmac_s, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfadd_h = "riscv_snitch.vfadd.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfsub_h = "riscv_snitch.vfsub.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmul_h = "riscv_snitch.vfmul.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %vfmax_s = "riscv_snitch.vfmax.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfadd_h = "riscv_snitch.vfadd.h"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfsub_h = "riscv_snitch.vfsub.h"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmul_h = "riscv_snitch.vfmul.h"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmax_s = "riscv_snitch.vfmax.s"(%v, %v) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:     }) {sym_name = "simd", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
+
+// -----
+
+// The repetition count can be a forward reference with an allocated register type.
+riscv_snitch.frep_outer %count : !riscv.reg<a0> {
+}
+%count = rv32.li 4 : !riscv.reg<a0>
+
+// CHECK:      riscv_snitch.frep_outer %count : !riscv.reg<a0> {
+// CHECK-NEXT: }
+// CHECK-NEXT: %count = rv32.li 4 : !riscv.reg<a0>

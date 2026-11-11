@@ -34,6 +34,21 @@ func.func @test_const_const() {
     // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (f32, f32, f32, f32) -> ()
 }
 
+func.func @test_const_const_overflow() {
+    %a = arith.constant 3.0e38 : f32
+    %b = arith.constant -3.0e38 : f32
+    %1 = arith.mulf %a, %a : f32
+    %2 = arith.mulf %a, %b : f32
+    "test.op"(%1, %2) : (f32, f32) -> ()
+
+    return
+
+    // CHECK-LABEL: @test_const_const_overflow
+    // CHECK-NEXT:   %0 = arith.constant 0x7f800000 : f32
+    // CHECK-NEXT:   %1 = arith.constant 0xff800000 : f32
+    // CHECK-NEXT:   "test.op"(%0, %1) : (f32, f32) -> ()
+}
+
 func.func @test_const_var_const() {
     %0, %1 = "test.op"() : () -> (f32, f32)
     %a = arith.constant 2.9979 : f32
@@ -165,29 +180,29 @@ func.func @test_fold_cmpf_select() {
   %one, %two = "test.op"() : () -> (f64, f64)
   // CHECK-NEXT:  %one, %two = "test.op"() : () -> (f64, f64)
 
-  %cond_0 = arith.cmpf ogt, %one, %two fastmath<nnan,nsz> : f64
-  %sel_0 = arith.select %cond_0, %one, %two : f64
-  // CHECK-NEXT:  %sel = arith.maximumf %one, %two fastmath<nnan,nsz> : f64
+  %ogt = arith.cmpf ogt, %one, %two fastmath<nnan,nsz> : f64
+  %max_ogt = arith.select %ogt, %one, %two : f64
+  // CHECK-NEXT:  %max_ogt = arith.maximumf %one, %two fastmath<nnan,nsz> : f64
 
-  %cond_1 = arith.cmpf olt, %sel_0, %one fastmath<nnan,nsz> : f64
-  %sel_1 = arith.select %cond_1, %sel_0, %one : f64
-  // CHECK-NEXT:  %sel_1 = arith.minimumf %sel, %one fastmath<nnan,nsz> : f64
+  %olt = arith.cmpf olt, %max_ogt, %one fastmath<nnan,nsz> : f64
+  %min_olt = arith.select %olt, %max_ogt, %one : f64
+  // CHECK-NEXT:  %min_olt = arith.minimumf %max_ogt, %one fastmath<nnan,nsz> : f64
 
-  %cond_2 = arith.cmpf uge, %sel_1, %one fastmath<nnan,nsz> : f64
-  %sel_2 = arith.select %cond_2, %sel_1, %one : f64
-  // CHECK-NEXT:  %sel_2 = arith.maximumf %sel_1, %one fastmath<nnan,nsz> : f64
+  %uge = arith.cmpf uge, %min_olt, %one fastmath<nnan,nsz> : f64
+  %max_uge = arith.select %uge, %min_olt, %one : f64
+  // CHECK-NEXT:  %max_uge = arith.maximumf %min_olt, %one fastmath<nnan,nsz> : f64
 
-  %cond_3 = arith.cmpf ule, %sel_2, %two fastmath<nnan,nsz> : f64
-  %sel_3 = arith.select %cond_3, %sel_2, %two : f64
-  // CHECK-NEXT:  %sel_3 = arith.minimumf %sel_2, %two fastmath<nnan,nsz> : f64
+  %ule = arith.cmpf ule, %max_uge, %two fastmath<nnan,nsz> : f64
+  %min_ule_fm = arith.select %ule, %max_uge, %two : f64
+  // CHECK-NEXT:  %min_ule_fm = arith.minimumf %max_uge, %two fastmath<nnan,nsz> : f64
 
-  %cond_4 = arith.cmpf ule, %sel_3, %two : f64
-  %sel_4 = arith.select %cond_4, %sel_3, %two : f64
-  // CHECK-NEXT:  %cond_1 = arith.cmpf ule, %sel_3, %two : f64
-  // CHECK-NEXT:  %sel_4 = arith.select %cond_1, %sel_3, %two : f64
+  %ule_no_fm = arith.cmpf ule, %min_ule_fm, %two : f64
+  %selected = arith.select %ule_no_fm, %min_ule_fm, %two : f64
+  // CHECK-NEXT:  %ule_no_fm = arith.cmpf ule, %min_ule_fm, %two : f64
+  // CHECK-NEXT:  %selected = arith.select %ule_no_fm, %min_ule_fm, %two : f64
 
-  "test.op"(%sel_4) : (f64) -> ()
-  // CHECK-NEXT:  "test.op"(%sel_4) : (f64) -> ()
+  "test.op"(%selected) : (f64) -> ()
+  // CHECK-NEXT:  "test.op"(%selected) : (f64) -> ()
 
   return
 }

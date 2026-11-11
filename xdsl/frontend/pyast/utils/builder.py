@@ -5,6 +5,13 @@ from typing import Any
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGenerationVisitor
+from xdsl.frontend.pyast.lowering import (
+    FunctionDefinitionConstructor,
+    PyLowering,
+    ReturnConstructor,
+    build_func,
+    build_return,
+)
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     LiteralRegistry,
@@ -42,6 +49,12 @@ class PyASTBuilder:
     post_transforms: PassPipeline
     """An ordered list of passes and callbacks to apply to the built module."""
 
+    function_definition_constructor: FunctionDefinitionConstructor = build_func
+    """Construct the operation for each function."""
+
+    return_constructor: ReturnConstructor = build_return
+    """Construct return operations, optionally omitting the terminator."""
+
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
         # Convert the Python AST into xDSL IR objects
@@ -52,9 +65,17 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(type_converter, module, self.file).visit(
-            self.function_ast
-        )
+        CodeGenerationVisitor(module, self.file).visit(self.function_ast)
+
+        # Lower the generated `py` operations to the registered operations. This is
+        # done here rather than as a post transform because it needs the function's
+        # globals as well as the registries, and the module only verifies once lowered.
+        PyLowering(
+            type_converter,
+            self.file,
+            self.function_definition_constructor,
+            self.return_constructor,
+        ).lower(module)
         module.verify()
 
         self.post_transforms.apply(self.build_context.clone(), module)

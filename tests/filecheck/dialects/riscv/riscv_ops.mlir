@@ -10,6 +10,8 @@
     // Integer Register-Immediate Instructions
     %addi = riscv.addi %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.addi %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
+    %addi_lo = riscv.addi %0, "%lo(label)" : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.addi %0, "%lo(label)" : (!riscv.reg) -> !riscv.reg
     %slti = riscv.slti %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.slti %0, 1 : (!riscv.reg) -> !riscv.reg
     %sltiu = riscv.sltiu %0, 1: (!riscv.reg) -> !riscv.reg
@@ -22,6 +24,8 @@
     // CHECK-NEXT: %{{.*}} = riscv.xori %0, 1 : (!riscv.reg) -> !riscv.reg
     %lui = riscv.lui 1 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.lui 1 : () -> !riscv.reg
+    %lui_hi = riscv.lui "%hi(label)" : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.lui "%hi(label)" : () -> !riscv.reg
     %auipc = riscv.auipc 1 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg
     %mv = riscv.mv %0 : (!riscv.reg) -> !riscv.reg
@@ -38,6 +42,10 @@
     // CHECK: %{{.*}} = riscv.sext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
     %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sraiw %0, 1 : (!riscv.reg) -> !riscv.reg
+
+    // Bit-Manipulation Register-Immediate Instructions
+    %roriw = riscv.roriw %0, 17 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.roriw %0, 17 : (!riscv.reg) -> !riscv.reg
 
     // Integer Register-Register Operations
     %add = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -82,11 +90,17 @@
     // CHECK-NEXT: riscv.jal 1, !riscv.reg
     riscv.jal "label"
     // CHECK-NEXT: riscv.jal "label"
+    riscv.jal -524288 {comment = "tail call"}
+    // CHECK-NEXT: riscv.jal -524288 {comment = "tail call"}
+    riscv.jal 524287, !riscv.reg<ra> {comment = "call"}
+    // CHECK-NEXT: riscv.jal 524287, !riscv.reg<ra> {comment = "call"}
 
     riscv.j 1
     // CHECK-NEXT: riscv.j 1
     riscv.j "label"
     // CHECK-NEXT: riscv.j "label"
+    riscv.j "label", !riscv.reg<zero> {extra = "metadata"}
+    // CHECK-NEXT: riscv.j "label", !riscv.reg<zero> {extra = "metadata"}
 
     riscv.jalr %0, 1: (!riscv.reg) -> ()
     // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg) -> ()
@@ -94,6 +108,8 @@
     // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg : (!riscv.reg) -> ()
     riscv.jalr %0, "label" : (!riscv.reg) -> ()
     // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg) -> ()
+    riscv.jalr %0, -2048, !riscv.reg<ra> {comment = "indirect call"} : (!riscv.reg) -> ()
+    // CHECK-NEXT: riscv.jalr %0, -2048, !riscv.reg<ra> {comment = "indirect call"} : (!riscv.reg) -> ()
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
@@ -103,6 +119,8 @@
     // Conditional Branch Instructions
     riscv.beq %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
     // CHECK-NEXT: riscv.beq %{{.*}}, %{{.*}}, 1 : (!riscv.reg, !riscv.reg) -> ()
+    riscv.beq %0, %1, "label" : (!riscv.reg, !riscv.reg) -> ()
+    // CHECK-NEXT: riscv.beq %0, %1, "label" : (!riscv.reg, !riscv.reg) -> ()
     riscv.bne %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
     // CHECK-NEXT: riscv.bne %{{.*}}, %{{.*}}, 1 : (!riscv.reg, !riscv.reg) -> ()
     riscv.blt %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
@@ -135,18 +153,18 @@
 
     // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
-    %csrrw_rw = riscv.csrrw %0 1024 : (!riscv.reg) -> !riscv.reg
+    %csrrw_rw = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrw_w = riscv.csrrw %0 1024, "w" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024, "w" : (!riscv.reg) -> !riscv.reg
+    %csrrw_w = riscv.csrrw %0, 1024 writeonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 writeonly : (!riscv.reg) -> !riscv.reg
     %csrrs_rw = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrs_r = riscv.csrrs %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
+    %csrrs_r = riscv.csrrs %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
     %csrrc_rw = riscv.csrrc %0, 1024 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 : (!riscv.reg) -> !riscv.reg
-    %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024, "r" : (!riscv.reg) -> !riscv.reg
+    %csrrc_r = riscv.csrrc %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 readonly : (!riscv.reg) -> !riscv.reg
     %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 8 : () -> !riscv.reg
     %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg
@@ -155,10 +173,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 8 : () -> !riscv.reg
     %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : () -> !riscv.reg
-    %csrrwi_rw = riscv.csrrwi 1024, 1 : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1 : () -> !riscv.reg
-    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg
+    %csrrwi_rw = riscv.csrrwi 0, 0 : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 0, 0 : () -> !riscv.reg
+    %csrrwi_w = riscv.csrrwi 4095, 31 writeonly : () -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 4095, 31 writeonly : () -> !riscv.reg
 
     // Machine Mode Privileged Instructions
     riscv.wfi
@@ -275,10 +293,14 @@
     // CHECK-NEXT: riscv.ecall
     riscv.ebreak
     // CHECK-NEXT: riscv.ebreak
-    riscv.directive ".bss"
-    // CHECK-NEXT: riscv.directive ".bss"
+    riscv.directive ".bss" ""
+    // CHECK-NEXT: riscv.directive ".bss" ""
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
+    riscv.directive ".bss" "" {tag = "keep"}
+    // CHECK-NEXT: riscv.directive ".bss" "" {tag = "keep"}
+    riscv.directive ".align" "2" {tag = "keep"}
+    // CHECK-NEXT: riscv.directive ".align" "2" {tag = "keep"}
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       riscv.nop
     }
@@ -385,6 +407,8 @@
 
     %flw = riscv.flw %0, 1 : (!riscv.reg) -> !riscv.freg
     // CHECK-NEXT: %{{.*}} = riscv.flw %{{.*}}, 1 : (!riscv.reg) -> !riscv.freg
+    %flw_lo = riscv.flw %0, "%lo(label)" : (!riscv.reg) -> !riscv.freg
+    // CHECK-NEXT: %{{.*}} = riscv.flw %0, "%lo(label)" : (!riscv.reg) -> !riscv.freg
     riscv.fsw %0, %f0, 1 : (!riscv.reg, !riscv.freg) -> ()
     // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg, !riscv.freg) -> ()
 
@@ -451,24 +475,27 @@
 }) : () -> ()
 
 // CHECK-GENERIC:       "builtin.module"() ({
-// CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:    "riscv_func.func"() <{sym_name = "main", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:      %0 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %1 = "rv32.get_register"() : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %slti = "riscv.slti"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %sltiu = "riscv.sltiu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %andi = "riscv.andi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %ori = "riscv.ori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %xori = "riscv.xori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() {immediate = 1 : i20} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() {immediate = 1 : i20} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %addi_lo = "riscv.addi"(%0) <{immediate = "%lo(label)"}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %slti = "riscv.slti"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %sltiu = "riscv.sltiu"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %andi = "riscv.andi"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %ori = "riscv.ori"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %xori = "riscv.xori"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() <{immediate = 1 : i20}> : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lui_hi = "riscv.lui"() <{immediate = "%hi(label)"}> : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() <{immediate = 1 : i20}> : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %seqz = "riscv.seqz"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %snez = "riscv.snez"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %roriw = "riscv.roriw"(%0) <{immediate = 17 : ui5}> : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slt = "riscv.slt"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sltu = "riscv.sltu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -485,42 +512,47 @@
 // CHECK-GENERIC-NEXT:      %srlw = "riscv.srlw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraw = "riscv.sraw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.nop"() : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = 1 : si20} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = 1 : si20, rd = !riscv.reg} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jal"() {immediate = #riscv.label<"label">} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.j"() {immediate = 1 : si20} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.j"() {immediate = #riscv.label<"label">} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12} : (!riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12, rd = !riscv.reg} : (!riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = #riscv.label<"label">} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() <{immediate = 1 : si20}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() <{immediate = 1 : si20, rd = !riscv.reg}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() <{immediate = "label"}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() <{immediate = -524288 : si20}> {comment = "tail call"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jal"() <{immediate = 524287 : si20, rd = !riscv.reg<ra>}> {comment = "call"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.j"() <{immediate = 1 : si20}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.j"() <{immediate = "label"}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.j"() <{immediate = "label", rd = !riscv.reg<zero>}> {extra = "metadata"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) <{immediate = 1 : si12, rd = !riscv.reg}> : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) <{immediate = "label"}> : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) <{immediate = -2048 : si12, rd = !riscv.reg<ra>}> {comment = "indirect call"} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ret"() : () -> ()
 // CHECK-GENERIC-NEXT:    ^bb1(%2: !riscv.reg, %3: !riscv.reg):
-// CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.bne"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.blt"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.bge"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.bltu"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.bgeu"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      %lb = "riscv.lb"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %lbu = "riscv.lbu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %lh = "riscv.lh"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %lhu = "riscv.lhu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %lw = "riscv.lw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      "riscv.sb"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.sh"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      "riscv.sw"(%0, %1) {immediate = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      %csrrw_rw = "riscv.csrrw"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrw_w = "riscv.csrrw"(%0) {csr = 1024 : i32, writeonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrs_rw = "riscv.csrrs"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrs_r = "riscv.csrrs"(%0) {csr = 1024 : i32, readonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrc_rw = "riscv.csrrc"(%0) {csr = 1024 : i32} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrc_r = "riscv.csrrc"(%0) {csr = 1024 : i32, readonly} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrsi_rw = "riscv.csrrsi"() {csr = 1024 : i32, immediate = 8 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrsi_r = "riscv.csrrsi"() {csr = 1024 : i32, immediate = 0 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrci_rw = "riscv.csrrci"() {csr = 1024 : i32, immediate = 8 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrci_r = "riscv.csrrci"() {csr = 1024 : i32, immediate = 0 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrwi_rw = "riscv.csrrwi"() {csr = 1024 : i32, immediate = 1 : i32} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %csrrwi_w = "riscv.csrrwi"() {csr = 1024 : i32, immediate = 1 : i32, writeonly} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) <{offset = "label"}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.bne"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.blt"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.bge"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.bltu"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.bgeu"(%0, %1) <{offset = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      %lb = "riscv.lb"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lbu = "riscv.lbu"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lh = "riscv.lh"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lhu = "riscv.lhu"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %lw = "riscv.lw"(%0) <{immediate = 1 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      "riscv.sb"(%0, %1) <{immediate = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.sh"(%0, %1) <{immediate = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      "riscv.sw"(%0, %1) <{immediate = 1 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      %csrrw_rw = "riscv.csrrw"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrw_w = "riscv.csrrw"(%0) {csr = 1024 : ui12, writeonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrs_rw = "riscv.csrrs"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrs_r = "riscv.csrrs"(%0) {csr = 1024 : ui12, readonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrc_rw = "riscv.csrrc"(%0) {csr = 1024 : ui12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrc_r = "riscv.csrrc"(%0) {csr = 1024 : ui12, readonly} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrsi_rw = "riscv.csrrsi"() {csr = 1024 : ui12, immediate = 8 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrsi_r = "riscv.csrrsi"() {csr = 1024 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrci_rw = "riscv.csrrci"() {csr = 1024 : ui12, immediate = 8 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrci_r = "riscv.csrrci"() {csr = 1024 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrwi_rw = "riscv.csrrwi"() {csr = 0 : ui12, immediate = 0 : ui5} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %csrrwi_w = "riscv.csrrwi"() {csr = 4095 : ui12, immediate = 31 : ui5, writeonly} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.wfi"() : () -> ()
 // CHECK-GENERIC-NEXT:      %mul = "riscv.mul"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mulh = "riscv.mulh"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -570,14 +602,16 @@
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:      "riscv.directive"() <{directive = ".bss", value = ""}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() <{directive = ".align", value = "2"}> : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() <{directive = ".bss", value = ""}> {tag = "keep"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.directive"() <{directive = ".align", value = "2"}> {tag = "keep"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() <{directive = ".text"}> ({
 // CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
-// CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
-// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:      }) {foo = i32} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() <{directive = ".text"}> ({
 // CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
-// CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
+// CHECK-GENERIC-NEXT:      }) : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %f1 = "riscv.get_float_register"() : () -> !riscv.freg
@@ -587,59 +621,60 @@
 // CHECK-GENERIC-NEXT:      %fmsub_s = "riscv.fmsub.s"(%f0, %f1, %f2) : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fnmsub_s = "riscv.fnmsub.s"(%f0, %f1, %f2) : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fnmadd_s = "riscv.fnmadd.s"(%f0, %f1, %f2) : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fadd_s = "riscv.fadd.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fsub_s = "riscv.fsub.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmul_s = "riscv.fmul.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fdiv_s = "riscv.fdiv.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fadd_s_fm = "riscv.fadd.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fsub_s_fm = "riscv.fsub.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmul_s_fm = "riscv.fmul.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fdiv_s_fm = "riscv.fdiv.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fadd_s = "riscv.fadd.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fsub_s = "riscv.fsub.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmul_s = "riscv.fmul.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fdiv_s = "riscv.fdiv.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fadd_s_fm = "riscv.fadd.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fsub_s_fm = "riscv.fsub.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmul_s_fm = "riscv.fmul.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fdiv_s_fm = "riscv.fdiv.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fsqrt_s = "riscv.fsqrt.s"(%f0) : (!riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fsgnj_s = "riscv.fsgnj.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fsgnjn_s = "riscv.fsgnjn.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fsgnjx_s = "riscv.fsgnjx.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmin_s = "riscv.fmin.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmax_s = "riscv.fmax.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmin_s_fm = "riscv.fmin.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmax_s_fm = "riscv.fmax.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmin_s = "riscv.fmin.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmax_s = "riscv.fmax.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmin_s_fm = "riscv.fmin.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmax_s_fm = "riscv.fmax.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_w_s = "riscv.fcvt.w.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %fcvt_wu_s = "riscv.fcvt.wu.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %fmv_x_w = "riscv.fmv.x.w"(%f0) : (!riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %feq_s = "riscv.feq.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %flt_s = "riscv.flt.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %fle_s = "riscv.fle.s"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %feq_s_fm = "riscv.feq.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %flt_s_fm = "riscv.flt.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %fle_s_fm = "riscv.fle.s"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %feq_s = "riscv.feq.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %flt_s = "riscv.flt.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %fle_s = "riscv.fle.s"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %feq_s_fm = "riscv.feq.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %flt_s_fm = "riscv.flt.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %fle_s_fm = "riscv.fle.s"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %fclass_s = "riscv.fclass.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %fcvt_s_w = "riscv.fcvt.s.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_s_wu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %flw = "riscv.flw"(%0) {immediate = 1 : i12} : (!riscv.reg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      "riscv.fsw"(%0, %f0) {immediate = 1 : i12} : (!riscv.reg, !riscv.freg) -> ()
-// CHECK-GENERIC-NEXT:      %fld = "riscv.fld"(%0) {immediate = 1 : i12} : (!riscv.reg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      "riscv.fsd"(%0, %f0) {immediate = 1 : i12} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-GENERIC-NEXT:      %flw = "riscv.flw"(%0) <{immediate = 1 : i12}> : (!riscv.reg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %flw_lo = "riscv.flw"(%0) <{immediate = "%lo(label)"}> : (!riscv.reg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      "riscv.fsw"(%0, %f0) <{immediate = 1 : i12}> : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-GENERIC-NEXT:      %fld = "riscv.fld"(%0) <{immediate = 1 : i12}> : (!riscv.reg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      "riscv.fsd"(%0, %f0) <{immediate = 1 : i12}> : (!riscv.reg, !riscv.freg) -> ()
 // CHECK-GENERIC-NEXT:      %fmv_d = "riscv.fmv.d"(%f0) : (!riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %vfadd_s = "riscv.vfadd.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fadd_d = "riscv.fadd.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fsub_d = "riscv.fsub.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmul_d = "riscv.fmul.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fdiv_d = "riscv.fdiv.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fadd_d_fm = "riscv.fadd.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fsub_d_fm = "riscv.fsub.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmul_d_fm = "riscv.fmul.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fdiv_d_fm = "riscv.fdiv.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fadd_d = "riscv.fadd.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fsub_d = "riscv.fsub.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmul_d = "riscv.fmul.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fdiv_d = "riscv.fdiv.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fadd_d_fm = "riscv.fadd.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fsub_d_fm = "riscv.fsub.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmul_d_fm = "riscv.fmul.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fdiv_d_fm = "riscv.fdiv.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fmadd_d = "riscv.fmadd.d"(%f0, %f1, %f2) : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fmsub_d = "riscv.fmsub.d"(%f0, %f1, %f2) : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmin_d = "riscv.fmin.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmax_d = "riscv.fmax.d"(%f0, %f1) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmin_d_fm = "riscv.fmin.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %fmax_d_fm = "riscv.fmax.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmin_d = "riscv.fmin.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmax_d = "riscv.fmax.d"(%f0, %f1) <{fastmath = #riscv.fastmath<none>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmin_d_fm = "riscv.fmin.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %fmax_d_fm = "riscv.fmax.d"(%f0, %f1) <{fastmath = #riscv.fastmath<fast>}> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_w = "riscv.fcvt.d.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_wu = "riscv.fcvt.d.wu"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) <{input_widths = array<i32: 64, 32, 64, 32>}> : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()

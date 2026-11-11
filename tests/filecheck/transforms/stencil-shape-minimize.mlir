@@ -61,11 +61,11 @@ func.func @stencil_missing_dims(%in: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 
 // CHECK:      func.func @stencil_missing_dims(%in: !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>, %ybuf: !stencil.field<[-1,63]xf64>, %zbuf: !stencil.field<[-1,63]xf64>, %out: !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>) {
 // CHECK-NEXT:   %intemp = stencil.load %in : !stencil.field<[0,1]x[-1,1]x[-1,64]xf64> -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
-// CHECK-NEXT:   %0 = "dmp.swap"(%intemp) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>) -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
+// CHECK-NEXT:   %0 = "dmp.swap"(%intemp) <{swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>], strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>}> : (!stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>) -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
 // CHECK-NEXT:   %ybuf_t = stencil.load %ybuf : !stencil.field<[-1,63]xf64> -> !stencil.temp<[-1,0]xf64>
-// CHECK-NEXT:   %1 = "dmp.swap"(%ybuf_t) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,0]xf64>) -> !stencil.temp<[-1,0]xf64>
+// CHECK-NEXT:   %1 = "dmp.swap"(%ybuf_t) <{swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>], strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>}> : (!stencil.temp<[-1,0]xf64>) -> !stencil.temp<[-1,0]xf64>
 // CHECK-NEXT:   %zbuf_t = stencil.load %zbuf : !stencil.field<[-1,63]xf64> -> !stencil.temp<[-1,63]xf64>
-// CHECK-NEXT:   %2 = "dmp.swap"(%zbuf_t) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = []} : (!stencil.temp<[-1,63]xf64>) -> !stencil.temp<[-1,63]xf64>
+// CHECK-NEXT:   %2 = "dmp.swap"(%zbuf_t) <{swaps = [], strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>}> : (!stencil.temp<[-1,63]xf64>) -> !stencil.temp<[-1,63]xf64>
 // CHECK-NEXT:   %res = stencil.apply(%inarg = %0 : !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>, %ybuf_arg = %1 : !stencil.temp<[-1,0]xf64>, %zbuf_arg = %2 : !stencil.temp<[-1,63]xf64>) -> (!stencil.temp<[0,1]x[0,1]x[0,64]xf64>) {
 // CHECK-NEXT:     %3 = stencil.access %ybuf_arg[_, -1, _] : !stencil.temp<[-1,0]xf64>
 // CHECK-NEXT:     %4 = stencil.access %zbuf_arg[_, _, -1] : !stencil.temp<[-1,63]xf64>

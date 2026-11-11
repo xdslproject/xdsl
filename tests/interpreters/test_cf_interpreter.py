@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, cf, func
-from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.cf import CfFunctions
@@ -59,8 +59,8 @@ def sum_to_interp(n: int) -> int:
     interpreter.register_implementations(CfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op("sum_to", (n,))
-    return result
+    (result,) = interpreter.call_op("sum_to", (IntegerAttr(n, i32),))
+    return result.value.data
 
 
 @pytest.mark.parametrize("n", [0, 1, 2, 3, 4])

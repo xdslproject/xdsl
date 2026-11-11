@@ -16,7 +16,7 @@ def test_get_name_if_symbol():
     symbol = TestSymbolOp(properties={"sym_name": StringAttr("a")})
     not_symbol = TestOp()
 
-    assert get_name_if_symbol(symbol) == "a"
+    assert get_name_if_symbol(symbol) == StringAttr("a")
     assert get_name_if_symbol(not_symbol) is None
 
 

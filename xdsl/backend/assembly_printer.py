@@ -8,7 +8,7 @@ from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 
 
-class AssemblyPrinter(BasePrinter):
+class AssemblyPrinter(BasePrinter[str]):
     _current_section: str | None = None
 
     def emit_section(self, new_section: str):
@@ -103,7 +103,7 @@ def reg(value: SSAValue, spec: RegisterNameSpec | None = None) -> str:
 
     assert isinstance(value.type, RegisterType)
     if spec is None:
-        name = value.type.register_name.data
+        name = value.type.register_name
     else:
         index = value.type.index
         assert isinstance(index, IntAttr)

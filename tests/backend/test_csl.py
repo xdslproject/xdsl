@@ -12,8 +12,10 @@ from xdsl.ir import Attribute, Block, Operation, Region
 def layout():
     return csl.CslModuleOp(
         regions=[Region(Block([]))],
-        properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
-        attributes={"sym_name": bi.StringAttr("layout")},
+        properties={
+            "kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT),
+            "sym_name": bi.StringAttr("layout"),
+        },
     )
 
 
@@ -21,8 +23,10 @@ def layout():
 def program():
     return csl.CslModuleOp(
         regions=[Region(Block([]))],
-        properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
-        attributes={"sym_name": bi.StringAttr("program")},
+        properties={
+            "kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM),
+            "sym_name": bi.StringAttr("program"),
+        },
     )
 
 
@@ -56,6 +60,41 @@ def test_csl_printer_extension(layout: csl.CslModuleOp, program: csl.CslModuleOp
 // FILE: program
 const v0 : i32 = test;
 const v1 : Test = v0;
+// -----
+// FILE: layout
+"""
+    assert io.getvalue() == expected
+
+
+def test_csl_printer_extension_nested(
+    layout: csl.CslModuleOp, program: csl.CslModuleOp
+):
+    """
+    Sub-contexts created when descending into nested blocks keep the type of the
+    printer, so extensions also apply inside e.g. functions.
+    """
+    io = StringIO()
+    io.write("\n")
+    body = Block([first := test.TestOp(result_types=[bi.i32])])
+    body.add_ops(
+        [
+            test.TestOp(
+                operands=[first.results[0]], result_types=[test.TestType("Test")]
+            ),
+            csl.ReturnOp(),
+        ]
+    )
+    program.body.block.add_op(csl.FuncOp("f", ((), None), Region(body)))
+    mod = bi.ModuleOp([program, layout])
+    print_csl.print_to_csl(mod, io, NewPrinter)
+    expected = r"""
+// FILE: program
+
+fn f() void {
+  const v0 : i32 = test;
+  const v1 : Test = v0;
+  return;
+}
 // -----
 // FILE: layout
 """

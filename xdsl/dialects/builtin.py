@@ -14,13 +14,14 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
+    Self,
     TypeAlias,
     cast,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
+from typing_extensions import TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -33,6 +34,7 @@ from xdsl.ir import (
     Data,
     DataElement,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -72,7 +74,6 @@ from xdsl.irdl import (
     get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
-    irdl_to_attr_constraint,
     opt_prop_def,
     param_def,
     region_def,
@@ -88,6 +89,7 @@ from xdsl.traits import (
     OpTrait,
     SymbolTable,
 )
+from xdsl.utils.bitwise_casts import convert_f64_to_u64
 from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
@@ -246,9 +248,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
         else:
-            object.__setattr__(
-                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
-            )
+            object.__setattr__(self, "elem_range_constraint", RangeOf.get(constr))
 
     def verify(
         self,
@@ -343,8 +343,8 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         super().__init__(root, nested)
 
     @staticmethod
-    def get(value: str | SymbolRefAttr) -> SymbolRefAttr:
-        if isinstance(value, str):
+    def get(value: str | StringAttr | SymbolRefAttr) -> SymbolRefAttr:
+        if isinstance(value, str | StringAttr):
             return SymbolRefAttr(value)
         return value
 
@@ -355,10 +355,10 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         return root
 
     def print_builtin(self, printer: Printer):
-        printer.print_symbol_name(self.root_reference.data)
+        printer.print_symbol_name(self.root_reference)
         for ref in self.nested_references.data:
             printer.print_string("::")
-            printer.print_symbol_name(ref.data)
+            printer.print_symbol_name(ref)
 
 
 class EmptyArrayAttrConstraint(AttrConstraint):
@@ -851,9 +851,6 @@ _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=Intege
 AnySignlessIntegerType: TypeAlias = IntegerType[int, Literal[Signedness.SIGNLESS]]
 """Type alias constrained to signless IntegerType."""
 
-SignlessIntegerConstraint = irdl_to_attr_constraint(AnySignlessIntegerType)
-"""Type constraint for signless IntegerType."""
-
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
@@ -958,7 +955,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
 
     def print_builtin(self, printer: Printer) -> None:
         with printer.in_location():
-            printer.print_string_literal(self.filename.data)
+            printer.print_attribute(self.filename)
             printer.print_string(":")
             printer.print_int(self.line.data)
             printer.print_string(":")
@@ -1039,8 +1036,6 @@ class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]
         return "<q"
 
 
-IndexTypeConstr = BaseAttr(IndexType)
-
 _IntegerAttrTypeCovT = TypeVar(
     "_IntegerAttrTypeCovT",
     bound=IntegerType | IndexType,
@@ -1048,7 +1043,6 @@ _IntegerAttrTypeCovT = TypeVar(
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
-IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 
 
 @irdl_attr_definition
@@ -1104,7 +1098,7 @@ class IntegerAttr(
 
     @staticmethod
     def from_bool(value: bool) -> BoolAttr:
-        return IntegerAttr(value, 1)
+        return IntegerAttr(value, i1)
 
     def print_builtin(self, printer: Printer) -> None:
         ty = self.type
@@ -1135,7 +1129,7 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrTypeCovT] = IndexType | IntegerType,
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrTypeCovT]]:
@@ -1170,7 +1164,7 @@ class IntegerAttr(
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
-BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
+BoolAttr: TypeAlias = IntegerAttr[I1]
 
 
 class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
@@ -1182,6 +1176,20 @@ class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     def print_builtin(self, printer: Printer) -> None:
         # All float types just print their name
         printer.print_string(self.name)
+
+    def round(self, value: float) -> float:
+        """
+        Round `value` to the nearest value representable in this type, with ties to
+        even.
+        Magnitudes that are too large for the type round to infinity, or to the
+        value the type uses on overflow if it has no infinities.
+        """
+        try:
+            (rounded,) = self.unpack(self.pack((value,)), 1)
+        except OverflowError:
+            # `struct` raises on overflow instead of rounding to infinity (f16, f32).
+            return math.copysign(math.inf, value)
+        return rounded
 
 
 class FloatNonfiniteBehavior(Enum):
@@ -1511,20 +1519,34 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
     @staticmethod
     def _encode(value: float) -> bytes:
         """
-        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
-        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
-        quiet-NaN preservation; matches LLVM APFloat semantics.
+        Encode a Python binary64 float directly as bf16 bytes, little-endian.
+        Round to nearest, ties to even, preserving signed zeros and quieting NaNs.
         """
-        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
-        # NaN must remain a NaN after truncation; force the quiet bit on so a
-        # signaling NaN with mantissa entirely in the truncated bits doesn't
-        # become inf.
-        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
-            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        f64_bits = struct.unpack("<Q", struct.pack("<d", value))[0]
+        sign = (f64_bits >> 48) & 0x8000
+        exponent = ((f64_bits >> 52) & 0x7FF) - 1023
+        fraction = f64_bits & ((1 << 52) - 1)
+        if exponent == 1024:
+            bits = 0x7F80
+            if fraction:
+                # Preserve high payload bits and force a quiet, nonzero NaN.
+                bits |= (fraction >> 45) | 0x0040
+        elif exponent < -134:
+            # Below half the smallest bf16 subnormal, including binary64 zero.
+            bits = 0
+        elif exponent < -126:
+            # Subnormals are multiples of 2**-133. The binary64 significand
+            # represents a multiple of 2**(exponent - 52).
+            bits = FloatSemantics.round_half_even(
+                (1 << 52) | fraction, -133 - (exponent - 52)
+            )
         else:
-            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
-            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
-        return bits.to_bytes(2, "little")
+            # Keep seven fraction bits; a carry increments the bf16 exponent.
+            bits = ((exponent + 127) << 7) + FloatSemantics.round_half_even(
+                fraction, 52 - 7
+            )
+            bits = min(bits, 0x7F80)  # Overflow rounds to infinity.
+        return (sign | bits).to_bytes(2, "little")
 
     @staticmethod
     def _decode(raw: ReadableBuffer) -> float:
@@ -1621,6 +1643,10 @@ class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     def format(self) -> str:
         raise NotImplementedError()
 
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f80.
+        return value
+
 
 @irdl_attr_definition
 class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
@@ -1633,6 +1659,10 @@ class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float])
     @property
     def format(self) -> str:
         raise NotImplementedError()
+
+    def round(self, value: float) -> float:
+        # Every f64 value is exactly representable in f128.
+        return value
 
 
 @irdl_attr_definition
@@ -1790,26 +1820,6 @@ AnyFloat: TypeAlias = (
     | Float6E3M2FNType
     | Float4E2M1FNType
 )
-AnyFloatConstr = (
-    BaseAttr(BFloat16Type)
-    | BaseAttr(Float16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(Float64Type)
-    | BaseAttr(Float80Type)
-    | BaseAttr(Float128Type)
-    | BaseAttr(FloatTF32Type)
-    | BaseAttr(Float8E5M2Type)
-    | BaseAttr(Float8E4M3Type)
-    | BaseAttr(Float8E4M3FNType)
-    | BaseAttr(Float8E5M2FNUZType)
-    | BaseAttr(Float8E4M3FNUZType)
-    | BaseAttr(Float8E4M3B11FNUZType)
-    | BaseAttr(Float8E3M4Type)
-    | BaseAttr(Float8E8M0FNUType)
-    | BaseAttr(Float6E2M3FNType)
-    | BaseAttr(Float6E3M2FNType)
-    | BaseAttr(Float4E2M1FNType)
-)
 
 
 @irdl_attr_definition
@@ -1826,19 +1836,13 @@ class FloatData(Data[float]):
             printer.print_string(f"{self.data}")
 
     def __eq__(self, other: object) -> bool:
+        """Compare stored bits, distinguishing signed zeros and NaN encodings."""
         if not isinstance(other, FloatData):
             return False
-        if math.isnan(self.data) and math.isnan(other.data):
-            # Treat all NaNs as equal
-            return True
-        if math.copysign(1.0, self.data) != math.copysign(1.0, other.data):
-            # Avoid dropping sign on -0.0
-            return False
-        # If the floats are not NaNs or +-0.0, use float equality
-        return self.data == other.data
+        return convert_f64_to_u64(self.data) == convert_f64_to_u64(other.data)
 
     def __hash__(self):
-        return hash(self.data)
+        return hash(convert_f64_to_u64(self.data))
 
 
 _FloatAttrTypeCovT = TypeVar(
@@ -1878,17 +1882,8 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
                 raise ValueError(f"Invalid bitwidth: {type}")
 
         value: float = data.data if isinstance(data, FloatData) else data
-        # for supported types, constrain value to precision of floating point type
-        # else, allow full python float precision
-        if isinstance(
-            type,
-            Float64Type
-            | Float32Type
-            | Float16Type
-            | BFloat16Type
-            | ReducedPrecisionFloatType,
-        ):
-            value = type.unpack(type.pack((value,)), 1)[0]
+        # constrain value to precision of floating point type
+        value = type.round(value)
 
         data_attr = FloatData(value)
 
@@ -1931,7 +1926,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
 
     @staticmethod
     def constr(
-        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloatConstr,
+        type: IRDLAttrConstraint[_FloatAttrTypeCovT] = AnyFloat,
     ) -> AttrConstraint[FloatAttr[_FloatAttrTypeCovT]]:
         return cast(
             AttrConstraint[FloatAttr[_FloatAttrTypeCovT]],
@@ -2225,10 +2220,6 @@ class TensorType(
         )
 
 
-AnyTensorType: TypeAlias = TensorType[Attribute]
-AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
-
-
 @irdl_attr_definition
 class UnrankedTensorType(
     ParametrizedAttribute,
@@ -2247,10 +2238,6 @@ class UnrankedTensorType(
     def print_builtin(self, printer: Printer):
         with printer.delimited("tensor<*x", ">"):
             printer.print_attribute(self.element_type)
-
-
-AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
-AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
 def container_of(
@@ -2737,7 +2724,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
+    def get(inputs: Sequence[OperandArg], result_type: Sequence[Attribute]):
         return UnrealizedConversionCastOp.build(
             operands=[inputs],
             result_types=[result_type],
@@ -2996,7 +2983,7 @@ class ModuleOp(IRDLOperation):
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
             printer.print_string(" ")
-            printer.print_symbol_name(self.sym_name.data)
+            printer.print_symbol_name(self.sym_name)
 
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -3234,8 +3221,6 @@ class UnrankedMemRefType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-
-AnyUnrankedMemRefTypeConstr = BaseAttr[UnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]

@@ -101,12 +101,12 @@
 %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>, !riscv.reg<a2>, !riscv.reg<a3>)
 
 "test.op"() ({
-    riscv_cf.branch ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
-  ^bb0(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a1>):
-    riscv_cf.j ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
+    riscv_cf.branch ^missing_label(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
+  ^missing_label(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a1>):
+    riscv_cf.j ^missing_label(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
 }) : () -> ()
 
-// CHECK: Operation does not verify: riscv_cf.j operation successor must have a riscv.label operation as a first argument, found JOp(riscv_cf.j ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>))
+// CHECK: Operation does not verify: riscv_cf.j operation successor must have a riscv.label operation as a first argument, found JOp(riscv_cf.j ^missing_label(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>))
 
 // -----
 

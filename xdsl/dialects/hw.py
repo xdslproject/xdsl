@@ -20,24 +20,24 @@ from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
     ArrayAttr,
     ContainerType,
-    FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
     IntegerAttr,
     IntegerType,
     LocationAttr,
     Signedness,
-    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
 )
+from xdsl.dialects.llvm import param_def
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
     OpaqueSyntaxAttribute,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -56,6 +56,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -121,7 +122,7 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: FlatSymbolRefAttr
+    module_ref: SymbolRefAttr = param_def(FlatSymbolRefAttrConstr)
     # NB. upstream defines as “name” which clashes with Attribute.name
     sym_name: StringAttr
 
@@ -161,9 +162,9 @@ class InnerRefAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_symbol_name(self.module_ref.root_reference.data)
+            printer.print_attribute(self.module_ref)
             printer.print_string("::")
-            printer.print_symbol_name(self.sym_name.data)
+            printer.print_symbol_name(self.sym_name)
 
 
 @dataclass(frozen=True)
@@ -564,7 +565,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
         def print_port(port: ModulePort):
             port.dir.data.print(printer)
             printer.print_string(" ")
-            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print_identifier_or_string_literal(port.port_name)
             printer.print_string(" : ")
             printer.print_attribute(port.type)
 
@@ -625,7 +626,7 @@ class ParamDeclAttr(ParametrizedAttribute):
         if print_name_as_string_literal:
             printer.print_attribute(self.port_name)
         else:
-            printer.print_identifier_or_string_literal(self.port_name.data)
+            printer.print_identifier_or_string_literal(self.port_name)
         printer.print_string(": ")
         printer.print_attribute(self.type)
 
@@ -838,7 +839,7 @@ def print_module_header(
         printer.print_string(" ")
         printer.print_string(visibility.data)
     printer.print_string(" ")
-    printer.print_symbol_name(module_name.data)
+    printer.print_symbol_name(module_name)
 
     # Print parameters
     if parameters is not None and len(parameters.data) != 0:
@@ -866,9 +867,9 @@ def print_module_header(
                 used_name = ssa_arg
             if port.port_name.data != used_name:
                 printer.print_string(" ")
-                printer.print_identifier_or_string_literal(port.port_name.data)
+                printer.print_identifier_or_string_literal(port.port_name)
         else:
-            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print_identifier_or_string_literal(port.port_name)
         printer.print_string(": ")
         printer.print_attribute(port.type)
 
@@ -906,10 +907,10 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
 
     body = region_def("single_block")
 
@@ -930,19 +931,16 @@ class HWModuleOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
 
         return super().__init__(
-            attributes=attributes,
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            },
             regions=[body],
         )
 
@@ -1023,10 +1021,10 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
     verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
     traits = lazy_traits_def(
@@ -1043,18 +1041,16 @@ class HWModuleExternOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
-            "sym_name": sym_name,
-            "module_type": module_type,
-            "parameters": parameters,
-        }
-
-        if visibility:
-            if isinstance(visibility, str):
-                visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
-
-        return super().__init__(attributes=attributes)
+        return super().__init__(
+            properties={
+                "sym_name": sym_name,
+                "module_type": module_type,
+                "parameters": parameters,
+                "sym_visibility": None
+                if visibility is None
+                else StringAttr.get(visibility),
+            }
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> HWModuleExternOp:
@@ -1119,7 +1115,7 @@ class InstanceOp(IRDLOperation):
     def __init__(
         self,
         instance_name: str,
-        module_name: FlatSymbolRefAttr,
+        module_name: SymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
         inner_sym: InnerSymAttr | None = None,
@@ -1287,31 +1283,30 @@ class InstanceOp(IRDLOperation):
             printer.print_string(" ")
         printer.print_attribute(self.module_name)
 
-        def print_input_port(name: str, operand: SSAValue):
+        def print_input_port(port: tuple[StringAttr, SSAValue]):
+            name, operand = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_operand(operand)
             printer.print_string(": ")
             printer.print_attribute(operand.type)
 
-        def print_output_port(name: str, port_type: Attribute):
+        def print_output_port(port: tuple[StringAttr, Attribute]):
+            name, port_type = port
             printer.print_identifier_or_string_literal(name)
             printer.print_string(": ")
             printer.print_attribute(port_type)
 
         with printer.in_parens():
             printer.print_list(
-                zip((name.data for name in self.arg_names), self.operands),
-                lambda x: print_input_port(*x),
+                zip(self.arg_names, self.operands),
+                print_input_port,
             )
         printer.print_string(" -> ")
         with printer.in_parens():
             printer.print_list(
-                zip(
-                    (name.data for name in self.result_names),
-                    self.result_types,
-                ),
-                lambda x: print_output_port(*x),
+                zip(self.result_names, self.result_types),
+                print_output_port,
             )
         printer.print_op_attributes(
             self.attributes,
@@ -1333,7 +1328,7 @@ class OutputOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
-    def __init__(self, ops: Sequence[SSAValue | Operation]):
+    def __init__(self, ops: Sequence[OperandArg]):
         super().__init__(operands=[ops])
 
     def verify_(self) -> None:
@@ -1395,9 +1390,7 @@ class ArrayCreateOp(IRDLOperation):
     inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
-    def __init__(
-        self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
-    ):
+    def __init__(self, first_input: OperandArg, *other_inputs: OperandArg):
         inputs = (first_input, *other_inputs)
         el_type = SSAValue.get(
             first_input, type=AnySignlessIntegerType | ArrayType
@@ -1436,7 +1429,7 @@ class ArrayGetOp(IRDLOperation):
     index = operand_def(IntegerType)
     result = result_def(IntegerType | ArrayType)
 
-    def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
+    def __init__(self, input: OperandArg, index: OperandArg):
         typ = SSAValue.get(input, type=ArrayType).type
         assert isinstance(typ, ArrayType)
         out_type = typ.get_element_type()
@@ -1487,7 +1480,7 @@ class BitcastOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` functional-type($input, $result)"
 
-    def __init__(self, inp: SSAValue | Operation, out_t: Attribute):
+    def __init__(self, inp: OperandArg, out_t: Attribute):
         super().__init__(
             operands=[SSAValue.get(inp)],
             result_types=[out_t],
@@ -1497,9 +1490,9 @@ class BitcastOp(IRDLOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "hw.constant"
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint.get("T", AnySignlessIntegerType)
     result = result_def(_T)
-    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+    value = prop_def(IntegerAttr.constr(_T))
 
     assembly_format = "attr-dict $value"
 

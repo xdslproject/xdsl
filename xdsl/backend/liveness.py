@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import KW_ONLY, dataclass, replace
-
-from typing_extensions import Self
+from typing import Self
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.ir import Block, Operation, Region, SSAValue

@@ -10,9 +10,9 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region
 from xdsl.irdl import (
-    attr_def,
     irdl_op_definition,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     traits_def,
 )
@@ -49,10 +49,10 @@ class FuncOp(arm.ops.ARMAsmOperation):
     """ARM function definition operation"""
 
     name = "arm_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    sym_visibility = opt_prop_def(StringAttr)
 
     traits = traits_def(
         SymbolOpInterface(),
@@ -72,13 +72,13 @@ class FuncOp(arm.ops.ARMAsmOperation):
             function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
             "sym_visibility": visibility,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(properties=properties, regions=[region])
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -140,7 +140,7 @@ class RetOp(arm.ops.ARMInstruction):
             comment = StringAttr(comment)
 
         super().__init__(
-            attributes={
+            properties={
                 "comment": comment,
             },
         )

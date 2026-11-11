@@ -4,14 +4,16 @@ import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.context import Context
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, rv32, rv64
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     ModuleOp,
     Signedness,
+    StringAttr,
     i32,
 )
+from xdsl.dialects.riscv.attrs import ui5, ui12
 from xdsl.parser import Parser
 from xdsl.traits import (
     MemoryEffect,
@@ -35,11 +37,11 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.register_name.data == "a0"
+    assert a0.type.register_name == "a0"
     assert a0.type.index == IntAttr(10)
-    assert a1.type.register_name.data == "a1"
+    assert a1.type.register_name == "a1"
     assert a1.type.index == IntAttr(11)
-    assert a2.type.register_name.data == "a2"
+    assert a2.type.register_name == "a2"
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
@@ -66,7 +68,7 @@ def test_is_non_zero():
 def test_csr_op():
     a1 = create_ssa_value(riscv.Registers.A1)
     zero = create_ssa_value(riscv.Registers.ZERO)
-    csr = IntegerAttr(16, i32)
+    csr = IntegerAttr(16, ui12)
     # CsrrwOp
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.ZERO).verify()
@@ -87,35 +89,74 @@ def test_csr_op():
         riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     # CsrrwiOp
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.ZERO
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.ZERO
     ).verify()
     riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), writeonly=True, rd=riscv.Registers.ZERO
+        csr=csr, immediate=IntegerAttr(0, ui5), writeonly=True, rd=riscv.Registers.ZERO
     ).verify()
     with pytest.raises(VerifyException):
         riscv.CsrrwiOp(
             csr=csr,
-            immediate=IntegerAttr(0, i32),
+            immediate=IntegerAttr(0, ui5),
             writeonly=True,
             rd=riscv.Registers.A2,
         ).verify()
     # CsrrsiOp
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
     # CsrrciOp
     riscv.CsrrciOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
     riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
+        csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
+
+
+@pytest.mark.parametrize("name, expected_type", [("csr", "ui12"), ("immediate", "ui5")])
+def test_csr_attribute_types(name: str, expected_type: str):
+    op = riscv.CsrrwiOp(IntegerAttr(1, ui12), IntegerAttr(1, ui5))
+    op.attributes[name] = IntegerAttr(1, i32)
+    with pytest.raises(VerifyException, match=expected_type):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    "source, expected_type",
+    [
+        ("riscv.csrrw %0, -1 : (!riscv.reg) -> !riscv.reg", "ui12"),
+        ("riscv.csrrs %0, 4096 : (!riscv.reg) -> !riscv.reg", "ui12"),
+        ("riscv.csrrwi 0, -1 : () -> !riscv.reg", "ui5"),
+        ("riscv.csrrsi 0, 32 : () -> !riscv.reg", "ui5"),
+    ],
+)
+def test_csr_immediate_out_of_range(source: str, expected_type: str):
+    ctx = Context()
+    ctx.load_dialect(riscv.RISCV)
+    with pytest.raises(VerifyException, match=f"out of range for type {expected_type}"):
+        Parser(ctx, source).parse_operation()
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'riscv.csrrw %0, 16, "w" : (!riscv.reg) -> !riscv.reg',
+        'riscv.csrrs %0, 16, "r" : (!riscv.reg) -> !riscv.reg',
+        'riscv.csrrwi 16, 1, "w" : () -> !riscv.reg',
+    ],
+)
+def test_csr_reject_legacy_flags(source: str):
+    ctx = Context()
+    ctx.load_dialect(riscv.RISCV)
+    with pytest.raises(ParseError, match="Expected ':'"):
+        Parser(ctx, source).parse_operation()
 
 
 def test_comment_op():
@@ -127,11 +168,13 @@ def test_comment_op():
     assert code == "    # my comment\n"
 
 
-def test_label_op_without_comment():
+@pytest.mark.parametrize("label", ["mylabel", StringAttr("mylabel")])
+def test_label_op_without_comment(label: str | StringAttr):
     label_str = "mylabel"
-    label_op = riscv.LabelOp(label_str)
+    label_op = riscv.LabelOp(label)
+    label_op.verify()
 
-    assert label_op.label.data == label_str
+    assert label_op.label == StringAttr(label_str)
 
     code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n"
@@ -220,12 +263,12 @@ def test_immediate_jalr_inst():
 
 def test_float_register():
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Invalid register name ft9 for register type riscv.reg."),
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Invalid register name a0 for register type riscv.freg."),
     ):
         riscv.FloatRegisterType.from_name("a0")
@@ -240,13 +283,66 @@ def test_float_register():
     riscv.FAddSOp(f1, f2).verify()
 
 
-def test_riscv_parse_immediate_value():
-    ctx = Context()
-    ctx.load_dialect(riscv.RISCV)
+@pytest.mark.parametrize("op_type", [riscv.FAddSOp, riscv.FeqSOp])
+def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
+    lhs = create_ssa_value(riscv.Registers.FT0)
+    rhs = create_ssa_value(riscv.Registers.FT1)
+    op = op_type(lhs, rhs)
+    op.verify()
+    assert op.fastmath == riscv.FastMathFlagsAttr("none")
 
-    prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""
+
+@pytest.mark.parametrize(
+    "prog, message",
+    [
+        (
+            "riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()",
+            "Expected immediate",
+        ),
+        ("riscv.jal -524289", "out of range for type si20"),
+        ("riscv.jal 524288", "out of range for type si20"),
+        (
+            "riscv.jalr %0, 2048 : (!riscv.reg) -> ()",
+            "out of range for type si12",
+        ),
+        (
+            "riscv.jalr %0, -2049 : (!riscv.reg) -> ()",
+            "out of range for type si12",
+        ),
+        ("riscv.addi %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        ("riscv.flw %0 17 : (!riscv.reg) -> !riscv.freg", "Expected ','"),
+        ("riscv.roriw %0 17 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        (
+            'riscv.beq %0, %1 "target" : (!riscv.reg, !riscv.reg) -> ()',
+            "Expected ','",
+        ),
+        ("riscv.jalr %0 17 : (!riscv.reg) -> ()", "Expected ','"),
+        ("riscv.csrrw %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        ("riscv.csrrs %0 16 : (!riscv.reg) -> !riscv.reg", "Expected ','"),
+        (
+            "riscv.addi %0, 2048 : (!riscv.reg) -> !riscv.reg",
+            "out of range for type si12",
+        ),
+        (
+            "riscv.flw %0, 4096 : (!riscv.reg) -> !riscv.freg",
+            "out of range for type i12",
+        ),
+        (
+            "riscv.roriw %0, -1 : (!riscv.reg) -> !riscv.reg",
+            "out of range for type ui5",
+        ),
+        ("riscv.lui 1048576 : () -> !riscv.reg", "out of range for type i20"),
+        ("rv32.li 4294967296 : !riscv.reg", "out of range for type i32"),
+        ("rv64.li 18446744073709551616 : !riscv.reg", "out of range for type i64"),
+    ],
+)
+def test_riscv_parse_immediate_value(prog: str, message: str):
+    ctx = Context()
+    for dialect in (riscv.RISCV, rv32.RV32, rv64.RV64):
+        ctx.load_dialect(dialect)
+
     parser = Parser(ctx, prog)
-    with pytest.raises(ParseError, match="Expected immediate"):
+    with pytest.raises(ParseError, match=message):
         parser.parse_operation()
 
 
@@ -297,8 +393,16 @@ def test_int_from_index():
     assert riscv.IntRegisterType.from_index(10) == riscv.Registers.A0
     assert riscv.IntRegisterType.from_index(20) == riscv.Registers.S4
     assert riscv.IntRegisterType.from_index(30) == riscv.Registers.T5
+    assert (
+        riscv.IntRegisterType.from_index(8)
+        == riscv.IntRegisterType.from_name("x8")
+        == riscv.Registers.FP
+        == riscv.Registers.S0
+    )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        ValueError, match=re.escape("Invalid index 40 for register type riscv.reg.")
+    ):
         riscv.IntRegisterType.from_index(40)
 
     assert riscv.IntRegisterType.from_index(
@@ -349,7 +453,9 @@ def test_float_from_index():
     assert riscv.FloatRegisterType.from_index(20) == riscv.Registers.FS4
     assert riscv.FloatRegisterType.from_index(30) == riscv.Registers.FT10
 
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        ValueError, match=re.escape("Invalid index 40 for register type riscv.freg.")
+    ):
         riscv.FloatRegisterType.from_index(40)
 
     assert riscv.FloatRegisterType.from_index(

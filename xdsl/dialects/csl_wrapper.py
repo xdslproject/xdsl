@@ -17,7 +17,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -56,7 +56,7 @@ class ParamAttribute(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string_literal(self.key.data)
+            printer.print_attribute(self.key)
             if not isinstance(self.value, NoneAttr):
                 printer.print_string(" default=")
                 printer.print_attribute(self.value)
@@ -108,10 +108,8 @@ class ImportOp(IRDLOperation):
     fields = prop_def(ArrayAttr[StringAttr])
     result = result_def(csl.ImportedModuleType)
 
-    def __init__(
-        self, module: str, field_name_mapping: dict[str, Operation | SSAValue]
-    ):
-        ops: list[Operation | SSAValue] = []
+    def __init__(self, module: str, field_name_mapping: dict[str, OperandArg]):
+        ops: list[OperandArg] = []
         fields: list[StringAttr] = []
         for field, op in field_name_mapping.items():
             ops.append(op)
@@ -387,7 +385,7 @@ class YieldOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation],
+        operands: Sequence[OperandArg],
         args: Sequence[str] | ArrayAttr[StringAttr],
     ):
         if not isinstance(args, ArrayAttr):
@@ -400,8 +398,8 @@ class YieldOp(IRDLOperation):
         )
 
     @staticmethod
-    def from_field_name_mapping(field_name_mapping: dict[str, Operation | SSAValue]):
-        operands: list[Operation | SSAValue] = []
+    def from_field_name_mapping(field_name_mapping: dict[str, OperandArg]):
+        operands: list[OperandArg] = []
         attributes: list[StringAttr] = []
         for attr, op in field_name_mapping.items():
             attributes.append(StringAttr(attr))

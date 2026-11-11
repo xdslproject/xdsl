@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import itertools
 import re
+import warnings
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Generic, Literal, cast, overload
+
+from typing_extensions import deprecated
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
@@ -99,10 +102,11 @@ class Parser(AttrParser):
     def __init__(
         self,
         ctx: Context,
-        input: str,
+        input: str | bytes,
         name: str = "<unknown>",
     ) -> None:
-        super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
+        text = input.decode("utf-8") if isinstance(input, bytes) else input
+        super().__init__(ParserState(MLIRLexer(Input(text, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = defaultdict(list)
@@ -358,10 +362,39 @@ class Parser(AttrParser):
 
         return affine_map, operands
 
-    def parse_optional_operand(self) -> SSAValue | None:
+    @overload
+    def parse_optional_operand(
+        self, type: AttributeInvT
+    ) -> SSAValue[AttributeInvT] | None: ...
+
+    @overload
+    @deprecated(
+        "Pass an operand type, or use parse_optional_unresolved_operand() and "
+        "resolve_operand() when the type is parsed later."
+    )
+    def parse_optional_operand(self, type: None = None) -> SSAValue | None: ...
+
+    def parse_optional_operand(self, type: Attribute | None = None) -> SSAValue | None:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        Resolve it with the given type, allowing forward references.
+        Omitting the type is deprecated and requires the value to be defined already.
         """
+        if type is None:
+            warnings.warn(
+                "Calling parse_optional_operand() without a type is deprecated. "
+                "Pass an operand type, or use parse_optional_unresolved_operand() "
+                "and resolve_operand() when the type is parsed later.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self._parse_optional_operand_without_type()
+
+        operand = self.parse_optional_unresolved_operand()
+        return None if operand is None else self.resolve_operand(operand, type)
+
+    def _parse_optional_operand_without_type(self) -> SSAValue | None:
+        """Parse an already-defined operand for the deprecated untyped API."""
         unresolved_operand = self.parse_optional_unresolved_operand()
         if unresolved_operand is None:
             return None
@@ -384,9 +417,41 @@ class Parser(AttrParser):
 
         return self.ssa_values[name][index]
 
-    def parse_operand(self, msg: str = "Expected an operand.") -> SSAValue:
-        """Parse an operand with format `%<value-id>`."""
-        return self.expect(self.parse_optional_operand, msg)
+    @overload
+    def parse_operand(
+        self, type: AttributeInvT, *, msg: str = "Expected an operand."
+    ) -> SSAValue[AttributeInvT]: ...
+
+    @overload
+    @deprecated(
+        "Pass an operand type, or use parse_unresolved_operand() and "
+        "resolve_operand() when the type is parsed later."
+    )
+    def parse_operand(
+        self, type: str | None = None, *, msg: str = "Expected an operand."
+    ) -> SSAValue: ...
+
+    def parse_operand(
+        self, type: Attribute | str | None = None, *, msg: str = "Expected an operand."
+    ) -> SSAValue:
+        """
+        Parse an operand with format `%<value-id>(#<int-literal>)?`.
+        Resolve it with the given type, allowing forward references.
+        Omitting the type is deprecated and requires the value to be defined already.
+        """
+        if isinstance(type, Attribute):
+            return self.resolve_operand(self.parse_unresolved_operand(msg), type)
+
+        warnings.warn(
+            "Calling parse_operand() without a type is deprecated. "
+            "Pass an operand type, or use parse_unresolved_operand() and "
+            "resolve_operand() when the type is parsed later.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(type, str):
+            msg = type
+        return self.expect(self._parse_optional_operand_without_type, msg)
 
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
@@ -533,7 +598,7 @@ class Parser(AttrParser):
         return arg
 
     def parse_optional_region(
-        self, arguments: Iterable[Argument] | None = None
+        self, arguments: Sequence[Argument] | None = None
     ) -> Region | None:
         """
         Parse a region, if present, with format:
@@ -625,7 +690,7 @@ class Parser(AttrParser):
 
         return region
 
-    def parse_region(self, arguments: Iterable[Argument] | None = None) -> Region:
+    def parse_region(self, arguments: Sequence[Argument] | None = None) -> Region:
         """
         Parse a region with format:
           region ::= `{` entry-block? block* `}`
@@ -667,8 +732,11 @@ class Parser(AttrParser):
         """
         if self.parse_optional_keyword("attributes") is None:
             return None
-        return self.parse_optional_attr_dict_with_reserved_attr_names(
-            reserved_attr_names
+        return self.expect(
+            lambda: self.parse_optional_attr_dict_with_reserved_attr_names(
+                reserved_attr_names
+            ),
+            "Expected attribute dictionary after 'attributes'",
         )
 
     def parse_optional_attr_dict_with_reserved_attr_names(
@@ -682,7 +750,9 @@ class Parser(AttrParser):
         already passed through the operation custom assembly format.
         """
         begin_pos = self.lexer.pos
-        attr = self._parse_builtin_dict_attr()
+        attr = self._parse_optional_builtin_dict_attr()
+        if attr is None:
+            return None
 
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:

@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     NoneAttr,
     StridedLayoutAttr,
-    SymbolRefAttr,
     UnrealizedConversionCastOp,
     i32,
 )
@@ -54,7 +53,7 @@ class ConvertMemRefAllocOp(RewritePattern):
                 size_op := rv32.LiOp(size, comment="memref alloc size"),
                 move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
                 call := riscv_func.CallOp(
-                    SymbolRefAttr("malloc"),
+                    "malloc",
                     (move_op.rd,),
                     (riscv.Registers.A0,),
                 ),
@@ -77,7 +76,7 @@ class ConvertMemRefDeallocOp(RewritePattern):
                 ),
                 move_op := riscv.MVOp(ptr.results[0], rd=riscv.Registers.A0),
                 riscv_func.CallOp(
-                    SymbolRefAttr("free"),
+                    "free",
                     (move_op.rd,),
                     (),
                 ),
@@ -277,7 +276,7 @@ class ConvertMemRefGlobalOp(RewritePattern):
 
         section = riscv.AssemblySectionOp(".data")
         with ImplicitBuilder(section.data):
-            riscv.LabelOp(op.sym_name.data)
+            riscv.LabelOp(op.sym_name)
             riscv.DirectiveOp(".word", text)
 
         rewriter.replace(op, section)

@@ -17,8 +17,6 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyTensorType,
-    AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BoolAttr,
@@ -80,13 +78,17 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import base
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
+
+_DenseLiteralConstr = irdl_to_attr_constraint(
+    RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]
+)
 
 
 @dataclass
@@ -729,7 +731,7 @@ class AttrParser(BaseParser):
 
         return VectorType(type, dims, scalable_dims_attr)
 
-    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> TensorType | UnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:
@@ -870,9 +872,7 @@ class AttrParser(BaseParser):
     ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
-        if not (
-            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
-        ).verifies(
+        if not _DenseLiteralConstr.verifies(
             type,
         ):
             self.raise_error(
@@ -999,7 +999,7 @@ class AttrParser(BaseParser):
     def _parse_dialect_resource_handle(
         self, dialect_name: str, interface: OpAsmDialectInterface
     ) -> str:
-        key = self.parse_identifier(" for resource handle")
+        key = self.parse_identifier(context_msg=" for resource handle")
 
         if (dialect_name, key) not in self.dialect_resources:
             key = interface.declare_resource(key)
@@ -1406,14 +1406,19 @@ class AttrParser(BaseParser):
                 case "callsite":
                     with self.in_parens():
                         callee = self._parse_location()
-                        self.parse_identifier("at")
+                        self.parse_keyword("at")
                         caller = self._parse_location()
                         return CallSiteLoc(callee, caller)
                 case "fused":
+                    if self.parse_optional_punctuation("<"):
+                        metadata = self.parse_attribute()
+                        self.parse_punctuation(">")
+                    else:
+                        metadata = NoneAttr()
                     locs = self.parse_comma_separated_list(
                         self.Delimiter.SQUARE, lambda: self._parse_location()
                     )
-                    return FusedLoc(tuple(locs), NoneAttr())
+                    return FusedLoc(tuple(locs), metadata)
                 case _:
                     self.raise_error("Unsupported location type.")
 
@@ -1433,6 +1438,7 @@ class AttrParser(BaseParser):
     def parse_optional_builtin_int_or_float_attr(
         self,
     ) -> IntegerAttr | FloatAttr | None:
+        literal_span = self._current_token.span
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
@@ -1455,6 +1461,13 @@ class AttrParser(BaseParser):
         if isinstance(type, AnyFloat):
             if is_hexadecimal_token:
                 assert isinstance(value, int)
+                # Check that the encoded bits fit within the bit pattern of the float
+                if value.bit_length() > type.bitwidth:
+                    self.raise_error(
+                        "Hexadecimal float constant out of range for type",
+                        literal_span,
+                    )
+                # The compile time size is at least the bitwidth
                 raw = value.to_bytes(type.compile_time_size, "little")
                 return FloatAttr(next(type.iter_unpack(raw)), type)
             return FloatAttr(float(value), type)

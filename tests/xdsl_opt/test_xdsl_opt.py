@@ -5,7 +5,8 @@ test functions below.
 
 import re
 from contextlib import redirect_stdout
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
+from pathlib import Path
 from typing import IO
 
 import pytest
@@ -28,6 +29,49 @@ def test_opt():
     assert opt.available_frontends.keys()
     assert opt.available_targets.keys()
     assert opt.available_passes.keys()
+
+
+@pytest.mark.parametrize("stdin", [False, True])
+def test_binary_input_stream(
+    stdin: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    source = b"// \xff\r\nbuiltin.module {}\r\n"
+    if stdin:
+        monkeypatch.setattr(
+            "sys.stdin", TextIOWrapper(BytesIO(source), encoding="utf-8")
+        )
+        args = []
+    else:
+        path = tmp_path / "input.mlir"
+        path.write_bytes(source)
+        args = [str(path)]
+
+    opt = xDSLOptMain(args=args)
+    stream, extension = opt.get_input_stream()
+    with stream:
+        assert stream.read() == source
+    assert extension == "mlir"
+
+
+def test_binary_split_input(tmp_path: Path):
+    first = "// é😀\r\nbuiltin.module {}\r\n".encode()
+    second = b"\r\nbuiltin.module {}\r\n"
+    path = tmp_path / "input.mlir"
+    path.write_bytes(first + b"// -----" + second)
+
+    opt = xDSLOptMain(args=[str(path), "--split-input-file"])
+    chunks, extension = opt.prepare_input()
+
+    assert extension == "mlir"
+    assert len(chunks) == 2
+    for (stream, offset), (source, expected_offset) in zip(
+        chunks, ((first, 0), (second, 2)), strict=True
+    ):
+        with stream:
+            assert stream.read() == source
+            assert offset == expected_offset
+            stream.seek(0)
+            assert opt.parse_chunk(stream, extension) is not None
 
 
 def test_empty_program():
@@ -109,6 +153,26 @@ def test_error_on_unknown_target(capsys: pytest.CaptureFixture[str]):
         xDSLOptMain(args=["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"])
     _, err = capsys.readouterr()
     assert "invalid choice: 'wrong'" in err
+
+
+@pytest.mark.parametrize("flag", ["--version", "-v"])
+def test_version(flag: str, capsys: pytest.CaptureFixture[str]):
+    with pytest.raises(SystemExit) as e:
+        xDSLOptMain(args=[flag])
+    assert e.value.code == 0
+    out, _ = capsys.readouterr()
+    assert re.fullmatch(r"xdsl-opt built from xdsl version \S+\n", out)
+
+
+def test_custom_version(capsys: pytest.CaptureFixture[str]):
+    class MyOptMain(xDSLOptMain):
+        version_format = "my-opt version 1.2.3 (xdsl {xdsl_version})"
+
+    with pytest.raises(SystemExit) as e:
+        MyOptMain(args=["--version"])
+    assert e.value.code == 0
+    out, _ = capsys.readouterr()
+    assert re.fullmatch(r"my-opt version 1\.2\.3 \(xdsl \S+\)\n", out)
 
 
 def test_print_to_file():
@@ -200,8 +264,8 @@ def test_verify_diagnostics_output():
 
             self.available_targets["fail"] = _my_target
 
-        def get_input_stream(self) -> tuple[IO[str], str]:
-            fake_input = StringIO("builtin.module {}")
+        def get_input_stream(self) -> tuple[IO[bytes], str]:
+            fake_input = BytesIO(b"builtin.module {}")
             return (fake_input, "mlir")
 
     opt = TestMain(args=["-t", "fail"])

@@ -23,6 +23,7 @@
                 mlir_xdsl.llvm
                 mlir_xdsl.mlir
                 mlir_xdsl.tblgen
+                markdownlint-cli2
               ];
               LLVM_SYMBOLIZER_PATH = "${mlir_xdsl.llvm}/bin/llvm-symbolizer";
               XDSL_MLIR_OPT = "${mlir_xdsl.mlir}/bin/mlir-opt";

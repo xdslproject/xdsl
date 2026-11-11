@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar
-
-from typing_extensions import Self
+from typing import ClassVar, Self
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     DenseArrayBase,
     IndexType,
     IntegerType,
-    SignlessIntegerConstraint,
+    i1,
     i64,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
-    parse_for_op_like,
-    print_for_op_like,
+    parse_assignment,
+    print_assignment,
 )
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
@@ -30,7 +30,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -41,7 +40,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -70,7 +69,7 @@ class WhileOp(IRDLOperation):
 
     def __init__(
         self,
-        arguments: Sequence[SSAValue | Operation],
+        arguments: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
@@ -271,7 +270,7 @@ class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class IfOp(IRDLOperation):
     name = "scf.if"
     output = var_result_def()
-    cond = operand_def(IntegerType(1))
+    cond = operand_def(i1)
 
     true_region = region_def("single_block")
     # TODO this should be optional under certain conditions
@@ -286,7 +285,7 @@ class IfOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: SSAValue | Operation,
+        cond: OperandArg,
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
@@ -319,7 +318,7 @@ class IfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        cond = parser.parse_operand()
+        cond = parser.parse_operand(i1)
         return_types = []
         if parser.parse_optional_punctuation("->"):
             return_types = parser.parse_comma_separated_list(
@@ -383,7 +382,7 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ForOp(IRDLOperation):
     name = "scf.for"
 
-    T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get("T", IndexType | AnySignlessIntegerType)
 
     lb = operand_def(T)
     ub = operand_def(T)
@@ -403,10 +402,10 @@ class ForOp(IRDLOperation):
 
     def __init__(
         self,
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
-        step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
+        lb: OperandArg,
+        ub: OperandArg,
+        step: OperandArg,
+        iter_args: Sequence[OperandArg],
         body: Region | Sequence[Operation] | Sequence[Block] | Block,
     ):
         if isinstance(body, Block):
@@ -463,24 +462,80 @@ class ForOp(IRDLOperation):
                     )
 
     def print(self, printer: Printer):
-        print_for_op_like(
-            printer,
-            self.lb,
-            self.ub,
-            self.step,
-            self.iter_args,
+        indvar, *iter_args = self.body.block.args
+        printer.print_string(" ")
+        printer.print_ssa_value(indvar)
+        printer.print_string(" = ")
+        printer.print_ssa_value(self.lb)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.ub)
+        printer.print_string(" step ")
+        printer.print_ssa_value(self.step)
+        if iter_args:
+            printer.print_string(" iter_args(")
+            printer.print_list(
+                zip(iter_args, self.iter_args),
+                lambda pair: print_assignment(printer, *pair),
+            )
+            printer.print_string(") -> (")
+            printer.print_list((arg.type for arg in iter_args), printer.print_attribute)
+            printer.print_string(")")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(" : ")
+            printer.print_attribute(indvar.type)
+        printer.print_string(" ")
+        printer.print_region(
             self.body,
-            IndexType,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(self.iter_args),
         )
         printer.print_op_attributes(self.attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser, IndexType())
-        _, *iter_args = body.block.args
+        unresolved_indvar = parser.parse_argument(expect_type=False)
+        parser.parse_punctuation("=")
+        lb = parser.parse_unresolved_operand()
+        parser.parse_keyword("to")
+        ub = parser.parse_unresolved_operand()
+        parser.parse_keyword("step")
+        step = parser.parse_unresolved_operand()
+
+        pos = parser.pos
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
+        iter_arg_unresolved_operands: list[UnresolvedOperand] = []
+        iter_arg_types: list[Attribute] = []
+        if parser.parse_optional_keyword("iter_args"):
+            for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
+                Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
+            ):
+                unresolved_iter_args.append(iter_arg)
+                iter_arg_unresolved_operands.append(iter_arg_operand)
+            parser.parse_punctuation("->")
+            iter_arg_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.PAREN, parser.parse_attribute
+            )
+
+        iter_arg_operands = parser.resolve_operands(
+            iter_arg_unresolved_operands, iter_arg_types, pos
+        )
+        iter_args = [
+            arg.resolve(typ) for arg, typ in zip(unresolved_iter_args, iter_arg_types)
+        ]
+        indvar_type = (
+            parser.parse_type()
+            if parser.parse_optional_punctuation(":")
+            else IndexType()
+        )
+        resolved_lb = parser.resolve_operand(lb, indvar_type)
+        resolved_ub = parser.resolve_operand(ub, indvar_type)
+        resolved_step = parser.resolve_operand(step, indvar_type)
+        indvar = unresolved_indvar.resolve(indvar_type)
+        body = parser.parse_region((indvar, *iter_args))
         attrs = parser.parse_optional_attr_dict()
 
-        for_op = cls(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(resolved_lb, resolved_ub, resolved_step, iter_arg_operands, body)
         for_op.attributes |= attrs
 
         if not iter_args:
@@ -512,11 +567,11 @@ class ParallelOp(IRDLOperation):
 
     def __init__(
         self,
-        lower_bounds: Sequence[SSAValue | Operation],
-        upper_bounds: Sequence[SSAValue | Operation],
-        steps: Sequence[SSAValue | Operation],
+        lower_bounds: Sequence[OperandArg],
+        upper_bounds: Sequence[OperandArg],
+        steps: Sequence[OperandArg],
         body: Region | Sequence[Block] | Sequence[Operation],
-        init_vals: Sequence[SSAValue | Operation] = (),
+        init_vals: Sequence[OperandArg] = (),
     ):
         super().__init__(
             operands=[lower_bounds, upper_bounds, steps, init_vals],
@@ -618,7 +673,7 @@ class ReduceOp(IRDLOperation):
 
     def __init__(
         self,
-        args: Sequence[SSAValue | Operation] = (),
+        args: Sequence[OperandArg] = (),
         regions: Sequence[Region] = (),
     ):
         super().__init__(operands=(args,), regions=(regions,))
@@ -670,7 +725,7 @@ class ReduceReturnOp(IRDLOperation):
 
     assembly_format = "$result attr-dict `:` type($result)"
 
-    def __init__(self, result: SSAValue | Operation):
+    def __init__(self, result: OperandArg):
         super().__init__(operands=[result])
 
 
@@ -686,8 +741,8 @@ class ConditionOp(IRDLOperation):
 
     def __init__(
         self,
-        condition: SSAValue | Operation,
-        *args: SSAValue | Operation,
+        condition: OperandArg,
+        *args: OperandArg,
     ):
         super().__init__(operands=(condition, args))
 
@@ -708,7 +763,7 @@ class IndexSwitchOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         cases: DenseArrayBase,
         default_region: Region,
         case_regions: Sequence[Region],
@@ -774,7 +829,7 @@ class IndexSwitchOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        arg = parser.parse_operand()
+        arg = parser.parse_operand(IndexType())
         attr_dict = parser.parse_optional_attr_dict()
         result_types: list[TypeAttribute] = []
         if parser.parse_optional_punctuation("->"):

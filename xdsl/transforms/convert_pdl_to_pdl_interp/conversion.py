@@ -2098,7 +2098,7 @@ class MatcherGenerator:
         if root:
             defining_op = root.owner
             if isinstance(defining_op, pdl.OperationOp) and defining_op.opName:
-                root_kind = StringAttr(defining_op.opName.data)
+                root_kind = defining_op.opName
 
         # Create the RecordMatchOp
         record_op = pdl_interp.RecordMatchOp(
@@ -2219,7 +2219,7 @@ class MatcherGenerator:
                 args.append(map_rewrite_value(rewriter_op.root))
             args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
 
-            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name_.data, args)
+            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name_, args)
             self.rewriter_builder.insert(apply_op)
         else:
             # Otherwise, this is a DAG rewriter defined using PDL operations.

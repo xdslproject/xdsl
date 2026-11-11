@@ -5,7 +5,6 @@ from typing import TypeAlias, cast
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     I64,
-    AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
     Float32Type,
@@ -21,7 +20,7 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
 )
@@ -123,9 +122,7 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil = operand_def(
-        stencil.StencilTypeConstr | MemRefType.constr() | AnyTensorTypeConstr
-    )
+    input_stencil = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
@@ -133,11 +130,11 @@ class PrefetchOp(IRDLOperation):
 
     num_chunks = prop_def(IntegerAttr)
 
-    result = result_def(MemRefType.constr() | AnyTensorTypeConstr)
+    result = result_def(MemRefType | TensorType)
 
     def __init__(
         self,
-        input_stencil: SSAValue | Operation,
+        input_stencil: OperandArg,
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
@@ -447,9 +444,7 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(
-        MemRefType.constr() | stencil.StencilTypeConstr | AnyTensorTypeConstr
-    )
+    op = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType | MemRefType)
@@ -499,7 +494,7 @@ class AccessOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        temp = parser.parse_operand()
+        temp = parser.parse_unresolved_operand()
 
         index = 0
         offset = list[int]()
@@ -528,13 +523,13 @@ class AccessOp(IRDLOperation):
         res_type = parser.parse_attribute()
         if stencil.StencilTypeConstr.verifies(res_type):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[res_type.get_element_type()],
                 properties=props,
             )
         elif isa(res_type, TensorType):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[
                     TensorType(res_type.element_type, res_type.get_shape()[-1:])
                 ],
@@ -542,7 +537,7 @@ class AccessOp(IRDLOperation):
             )
         elif MemRefType.constr().verifies(res_type):
             return cls.build(
-                operands=[temp],
+                operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[
                     memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
                 ],

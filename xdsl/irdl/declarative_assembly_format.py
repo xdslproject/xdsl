@@ -267,6 +267,21 @@ class FormatProgram:
 class Directive(ABC):
     """An assembly format directive"""
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Reject legacy overrides, including inherited ones, rather than ignoring them.
+        if hasattr(cls, "is_variadic_like"):
+            raise TypeError(
+                f"{cls.__name__} overrides is_variadic_like(), which has been renamed. "
+                "Override is_comma_separated_list() instead."
+            )
+        # The old optionality predicate cannot express both new contracts.
+        if hasattr(cls, "is_optional_like"):
+            raise TypeError(
+                f"{cls.__name__} overrides is_optional_like(), which has been removed. "
+                "Override can_parse_empty() and/or can_start_optional_group() instead."
+            )
+
     def is_present(self, op: IRDLOperation) -> bool:
         """
         Check if the directive is present in the input.
@@ -279,19 +294,32 @@ class Directive(ABC):
         """
         return False
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         """
-        Variadic-like format directives parse a comma separated list, and cannot be
-        followed by `,` directive.
+        Whether this directive parses a possibly empty, undelimited comma-separated list.
+        A comma-separated list followed by a `,` directive is ambiguous.
         """
         return False
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         """
-        Directives that successfully parse the empty string.
-        The first element in an optional group must be optional-like.
+        Whether the directive's syntax accepts empty input, without an optional probe.
         """
-        return self.is_variadic_like()
+        return self.is_comma_separated_list()
+
+    def can_start_optional_group(self) -> bool:
+        """
+        Whether this can be the first non-whitespace directive used to determine
+        an optional group's presence through `parse_optional`, consuming input
+        only when present. For typeable directives, this describes the corresponding
+        `type(...)` syntax.
+
+        This does not require normal parsing to accept empty input: keywords,
+        punctuation, and required regions have a separate optional parser.
+        Leading whitespace is allowed but ignored when probing for a group;
+        it cannot itself determine whether the group is present.
+        """
+        return self.can_parse_empty()
 
 
 class FormatDirective(Directive, ABC):
@@ -412,11 +440,14 @@ class TypeDirective(FormatDirective):
     def is_anchorable(self) -> bool:
         return self.inner.is_anchorable()
 
-    def is_variadic_like(self) -> bool:
-        return self.inner.is_variadic_like()
+    def is_comma_separated_list(self) -> bool:
+        return self.inner.is_comma_separated_list()
 
-    def is_optional_like(self) -> bool:
-        return self.inner.is_optional_like()
+    def can_parse_empty(self) -> bool:
+        return self.inner.can_parse_empty()
+
+    def can_start_optional_group(self) -> bool:
+        return self.inner.can_start_optional_group()
 
     def set_empty(self, state: ParsingState):
         self.set(state, ())
@@ -443,7 +474,7 @@ class VariadicVariable(VariableDirective, ABC):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         return True
 
 
@@ -454,7 +485,7 @@ class OptionalVariable(VariableDirective, ABC):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return True
 
 
@@ -536,7 +567,7 @@ class AttrDictDirective(FormatDirective):
             state.last_was_punctuation = False
             state.should_emit_space = True
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return True
 
 
@@ -687,7 +718,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
     Base class for the 'operands' and 'results' directives.
     """
 
-    def is_variadic_like(self) -> bool:
+    def is_comma_separated_list(self) -> bool:
         return True
 
     def is_anchorable(self) -> bool:
@@ -932,8 +963,8 @@ class FunctionalTypeDirective(FormatDirective):
         leave the parser and state unchanged. Once it is present, require the
         complete signature.
 
-        This supports direct Python API use. The directive is not yet optional-like
-        and cannot be the first element of a declarative optional group.
+        This supports direct Python API use. The directive cannot yet be the first
+        element of a declarative optional group.
         """
         if parser.parse_optional_punctuation("("):
             self._parse_suffix(parser, state)
@@ -941,6 +972,10 @@ class FunctionalTypeDirective(FormatDirective):
     def parse(self, parser: Parser, state: ParsingState):
         parser.parse_punctuation("(")
         self._parse_suffix(parser, state)
+
+    def set_empty(self, state: ParsingState):
+        self.operand_typeable_directive.set_types(state, ())
+        self.result_typeable_directive.set_types(state, ())
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -999,7 +1034,7 @@ class RegionVariable(RegionDirective, VariableDirective):
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(self.get(op).blocks)
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1016,13 +1051,10 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         state.regions[self.index] = region
 
     def parse(self, parser: Parser, state: ParsingState):
-        regions: list[Region] = []
-        current_region = parser.parse_optional_region()
-        while current_region is not None:
-            regions.append(current_region)
-            current_region = parser.parse_optional_region()
-
-        self.set(state, regions)
+        regions = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_region, parser.parse_region
+        )
+        self.set(state, () if regions is None else regions)
 
     def parse_optional(self, parser: Parser, state: ParsingState):
         self.parse(parser, state)
@@ -1035,7 +1067,7 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         if not region:
             return
         state.print_whitespace(printer)
-        printer.print_list(region, printer.print_region, delimiter=" ")
+        printer.print_list(region, printer.print_region)
 
     def set_empty(self, state: ParsingState):
         self.set(state, ())
@@ -1221,7 +1253,7 @@ class AttributeVariable(FormatDirective):
     def is_anchorable(self) -> bool:
         return self.is_optional or self.default_value is not None
 
-    def is_optional_like(self) -> bool:
+    def can_parse_empty(self) -> bool:
         return self.is_optional
 
 
@@ -1318,7 +1350,7 @@ class SymbolNameAttributeVariable(AttributeVariable):
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, StringAttr)
-        return printer.print_symbol_name(attr.data)
+        return printer.print_symbol_name(attr)
 
 
 class OptionalUnitAttrVariable(AttributeVariable):
@@ -1340,7 +1372,7 @@ class OptionalUnitAttrVariable(AttributeVariable):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         return
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return False
 
 
@@ -1383,6 +1415,12 @@ class WhitespaceDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_whitespace(printer, state, self.whitespace)
 
+    def can_parse_empty(self) -> bool:
+        return True
+
+    def can_start_optional_group(self) -> bool:
+        return False
+
 
 @dataclass(frozen=True)
 class PunctuationDirective(FormatDirective):
@@ -1422,7 +1460,7 @@ class PunctuationDirective(FormatDirective):
         state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
         state.last_was_punctuation = True
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1447,7 +1485,7 @@ class KeywordDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         _print_keyword(printer, state, self.keyword)
 
-    def is_optional_like(self) -> bool:
+    def can_start_optional_group(self) -> bool:
         return True
 
 
@@ -1492,6 +1530,14 @@ class OptionalGroupDirective(FormatDirective):
             element.set_empty(state)
         for element in self.else_elements:
             element.set_empty(state)
+
+    def can_parse_empty(self) -> bool:
+        return all(element.can_parse_empty() for element in self.else_elements)
+
+    def can_start_optional_group(self) -> bool:
+        # The inner group may be absent even when the outer group's anchor is
+        # present, so probing it cannot determine the outer group's presence.
+        return False
 
 
 # ===========================================================================

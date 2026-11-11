@@ -9,12 +9,17 @@ from xdsl.backend.register_allocatable import (
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
-from xdsl.interfaces import HasFolderInterface
+from xdsl.interfaces import (
+    HasFolderInterface,
+    RegionBranchOpInterface,
+    RegionBranchTerminatorOpInterface,
+)
 from xdsl.ir import (
     Attribute,
     Block,
     Data,
     Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
@@ -43,6 +48,8 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    RegionBranchPoint,
+    RegionSuccessor,
     SymbolOpInterface,
 )
 
@@ -68,7 +75,7 @@ class TestOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -109,7 +116,7 @@ class TestTermOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -152,7 +159,7 @@ class TestPureOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -195,7 +202,7 @@ class TestReadOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -238,7 +245,7 @@ class TestWriteOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -319,7 +326,7 @@ class TestSymbolOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -367,6 +374,48 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
         )
 
 
+@irdl_op_definition
+class TestRegionBranchOp(IRDLOperation, RegionBranchOpInterface):
+    """
+    This operation can take an arbitrary number of operands, results and regions.
+    It implements RegionBranchOpInterface, and is used in filecheck testing of
+    the RegionBranchOpTrait verifier.
+    """
+
+    name = "test.region_branch_op"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+
+    def successor_regions(self, point: RegionBranchPoint) -> Sequence[RegionSuccessor]:
+        """
+        Enters the first region, if any. Every region branches back to the parent
+        operation.
+        """
+        if point.is_parent() and self.regions:
+            return [RegionSuccessor(self.regions[0])]
+        return [RegionSuccessor(self)]
+
+
+@irdl_op_definition
+class TestRegionBranchTerminatorOp(IRDLOperation, RegionBranchTerminatorOpInterface):
+    """
+    This terminator can take an arbitrary number of operands, results and
+    successors. It implements RegionBranchTerminatorOpInterface, and is used in
+    filecheck testing of the RegionBranchTerminatorOpTrait verifier, which rejects
+    results and successors.
+    """
+
+    name = "test.region_branch_terminator"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    successor = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+
+
 @irdl_attr_definition
 class TestRegisterType(RegisterType):
     name = "test.reg"
@@ -390,6 +439,8 @@ Test = Dialect(
         TestWriteOp,
         TestSymbolOp,
         TestAllocatableOp,
+        TestRegionBranchOp,
+        TestRegionBranchTerminatorOp,
     ],
     [
         TestType,

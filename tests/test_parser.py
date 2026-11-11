@@ -1,5 +1,6 @@
 import builtins
 import re
+import warnings
 from collections.abc import Sequence
 from io import StringIO
 from typing import cast
@@ -30,6 +31,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnknownLoc,
     bf16,
+    f4E2M1FN,
     i32,
     i64,
 )
@@ -55,6 +57,104 @@ from xdsl.utils.mlir_lexer import (
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
+
+
+def test_utf8_input():
+    source = '// comment\r\n"é😀"'
+    parser = Parser(Context(), source.encode("utf-8"))
+
+    assert parser.lexer.input.content == source
+    assert parser.parse_attribute() == StringAttr("é😀")
+
+
+def test_invalid_utf8_input():
+    with pytest.raises(UnicodeDecodeError):
+        Parser(Context(), b"// \xff")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("defined", [False, True])
+def test_parse_typed_operand(optional: bool, defined: bool):
+    parser = Parser(Context(), "%x#1 %x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    if defined:
+        parser.ssa_values["x"] = tuple(values)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        if optional:
+            value = assert_type(
+                parser.parse_optional_operand(IndexType()), SSAValue[IndexType] | None
+            )
+            repeated = parser.parse_optional_operand(IndexType())
+        else:
+            value = assert_type(parser.parse_operand(IndexType()), SSAValue[IndexType])
+            repeated = parser.parse_operand(IndexType())
+
+    assert value is not None
+    assert value.type == IndexType()
+    assert repeated is value
+    if defined:
+        assert value is values[1]
+    else:
+        assert value is parser.forward_ssa_references["x"][1]
+
+
+def test_parse_optional_typed_operand_absent():
+    parser = Parser(Context(), ",")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert parser.parse_optional_operand(IndexType()) is None
+    parser.parse_punctuation(",")
+
+
+def test_parse_typed_operand_custom_message():
+    parser = Parser(Context(), "")
+    with pytest.raises(ParseError, match="Expected an index operand"):
+        parser.parse_operand(IndexType(), msg="Expected an index operand")
+
+
+@pytest.mark.parametrize("optional", [False, True])
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_parse_operand_deprecated(optional: bool, explicit_none: bool):
+    parser = Parser(Context(), "%x#1")
+    values = TestOp.create(result_types=[i32, IndexType()]).results
+    parser.ssa_values["x"] = tuple(values)
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+
+    with pytest.warns(DeprecationWarning, match="without a type") as warnings:
+        value = parse(None) if explicit_none else parse()
+
+    assert value is values[1]
+    assert len(warnings) == 1
+    assert warnings[0].filename == __file__
+
+
+@pytest.mark.parametrize("positional_message", [False, True])
+def test_parse_operand_deprecated_custom_message(positional_message: bool):
+    parser = Parser(Context(), "")
+    message = "Expected a legacy operand"
+    if positional_message:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(message)  # pyright: ignore[reportDeprecated]
+    else:
+        with (
+            pytest.warns(DeprecationWarning, match="without a type"),
+            pytest.raises(ParseError, match=message),
+        ):
+            parser.parse_operand(msg=message)  # pyright: ignore[reportDeprecated]
+
+
+@pytest.mark.parametrize("optional", [False, True])
+def test_parse_operand_deprecated_forward_reference(optional: bool):
+    parser = Parser(Context(), "%x")
+    parse = parser.parse_optional_operand if optional else parser.parse_operand
+    with pytest.warns(DeprecationWarning, match="without a type"):
+        with pytest.raises(ParseError, match="SSA value used before assignment"):
+            parse()
 
 
 @pytest.mark.parametrize("defined", [False, True])
@@ -208,11 +308,14 @@ def test_dictionary_attr(data: dict[str, Attribute]):
 
     attr1 = Parser(ctx, text).parse_attribute()
     attr2 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    attr3 = Parser(ctx, text).parse_optional_attr_dict_with_reserved_attr_names()
     assert isinstance(attr1, DictionaryAttr)
     assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
     assert attr1.data == data
     assert attr2.data == data
+    assert attr3.data == data
 
 
 @pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
@@ -220,7 +323,24 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = Context()
     ctx.load_dialect(Builtin)
 
-    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
+    parser = Parser(ctx, text)
+    pos = parser.pos
+    assert parser.parse_optional_attr_dict_with_keyword() is None
+    assert parser.pos == pos
+
+
+@pytest.mark.parametrize("text", ["", ":", "next"])
+def test_dictionary_attr_with_reserved_names_missing(text: str):
+    parser = Parser(Context(), text)
+    pos = parser.pos
+    assert parser.parse_optional_attr_dict_with_reserved_attr_names(("value",)) is None
+    assert parser.pos == pos
+
+
+@pytest.mark.parametrize("text", ["attributes", "attributes :", "attributes {"])
+def test_dictionary_attr_with_keyword_incomplete(text: str):
+    with pytest.raises(ParseError):
+        Parser(Context(), text).parse_optional_attr_dict_with_keyword()
 
 
 @pytest.mark.parametrize(
@@ -1008,6 +1128,44 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
 
 
 @pytest.mark.parametrize(
+    "text, allow_negative, expected",
+    [
+        ("0.0", True, 0.0),
+        ("1.5", False, 1.5),
+        ("-2.25", True, -2.25),
+        ("-2.25", False, None),
+        ("-", False, None),
+        ("end", True, None),
+        ("1", True, None),
+    ],
+)
+def test_parse_float(text: str, allow_negative: bool, expected: float | None):
+    parser = Parser(Context(), text)
+    pos = parser.pos
+    assert parser.parse_optional_float(allow_negative=allow_negative) == expected
+    if expected is None:
+        assert parser.pos == pos
+
+    parser = Parser(Context(), text)
+    if expected is None:
+        with pytest.raises(ParseError, match="Expected float literal"):
+            parser.parse_float(allow_negative=allow_negative)
+    else:
+        assert parser.parse_float(allow_negative=allow_negative) == expected
+
+
+@pytest.mark.parametrize("text", ["-", "- end", "-1", "--1.0"])
+def test_parse_float_malformed(text: str):
+    parser = Parser(Context(), text)
+    with pytest.raises(ParseError, match="Expected float literal after '-'"):
+        parser.parse_optional_float()
+
+    parser = Parser(Context(), text)
+    with pytest.raises(ParseError, match="Expected float literal after '-'"):
+        parser.parse_float()
+
+
+@pytest.mark.parametrize(
     "text, allow_boolean, expected_value",
     [
         ("42", False, 42),
@@ -1045,6 +1203,18 @@ def test_parse_number(
 
 
 @pytest.mark.parametrize(
+    "text",
+    ["0x100000000 : f32", "0x10000 : bf16", "0x10 : f4E2M1FN"],
+)
+def test_parse_hex_float_out_of_range(text: str):
+    parser = Parser(Context(), text)
+    with pytest.raises(
+        ParseError, match="Hexadecimal float constant out of range for type"
+    ):
+        parser.parse_attribute()
+
+
+@pytest.mark.parametrize(
     "text, expected_value",
     [
         ("3: i16", IntegerAttr(3, 16)),
@@ -1053,6 +1223,8 @@ def test_parse_number(
         ("-64: i64", IntegerAttr(-64, 64)),
         ("-64.4: f64", FloatAttr(-64.4, 64)),
         ("32.4: f32", FloatAttr(32.4, 32)),
+        ("0x00003c00 : f16", FloatAttr(1.0, 16)),
+        ("0xf : f4E2M1FN", FloatAttr(-6.0, f4E2M1FN)),
         ("0x7e00 : f16", FloatAttr(float("nan"), 16)),
         ("0x7c00 : f16", FloatAttr(float("inf"), 16)),
         ("0xfc00 : f16", FloatAttr(float("-inf"), 16)),
@@ -1160,8 +1332,25 @@ def test_parse_location():
         NameLoc(StringAttr("caller"), NoneAttr()),
     )
 
+    with pytest.raises(ParseError, match="Expected 'at'"):
+        Parser(ctx, 'loc(callsite("callee" not_at "caller"))').parse_optional_location()
+
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
+
+    attr = Parser(ctx, 'loc(fused<"metadata">[unknown])').parse_optional_location()
+    assert attr == FusedLoc((UnknownLoc(),), StringAttr("metadata"))
+
+    attr = Parser(
+        ctx, 'loc(fused<{tag = "example"}>["source":2:3])'
+    ).parse_optional_location()
+    assert attr == FusedLoc(
+        (FileLineColLoc(StringAttr("source"), IntAttr(2), IntAttr(3)),),
+        DictionaryAttr({"tag": StringAttr("example")}),
+    )
+
+    with pytest.raises(ParseError, match="Expected '>'"):
+        Parser(ctx, 'loc(fused<"metadata"[unknown])').parse_optional_location()
 
     with pytest.raises(ParseError, match=re.escape("Unsupported location type.")):
         Parser(ctx, "loc(unexpected)").parse_optional_location()

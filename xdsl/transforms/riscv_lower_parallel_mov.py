@@ -7,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import move_ops_for_value
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, SSAValue, SSAValues
+from xdsl.ir import OperandArg, Operation, SSAValue, SSAValues
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -22,7 +22,7 @@ ALLOWED_INT_WIDTHS = [32, 64]
 
 def _insert_mv_op(
     rewriter: PatternRewriter,
-    src: SSAValue | Operation,
+    src: OperandArg,
     dst: riscv.RISCVRegisterType,
     src_width: int,
 ):

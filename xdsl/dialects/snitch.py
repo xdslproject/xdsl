@@ -22,20 +22,19 @@ from xdsl.dialects.riscv import IntRegisterType
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
-    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
-    AttrConstraint,
+    IRDLAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -61,7 +60,7 @@ class ReadableStreamType(
 
     @staticmethod
     def constr(
-        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return cast(
             ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]],
@@ -85,7 +84,7 @@ class WritableStreamType(
 
     @staticmethod
     def constr(
-        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return cast(
             ParamAttrConstraint[WritableStreamType[_StreamTypeElement]],
@@ -110,18 +109,18 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     """
 
     value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
-    dimension = attr_def(IntAttr)
+    dm = prop_def(IntAttr)
+    dimension = prop_def(IntAttr)
 
     def __init__(
         self,
-        value: Operation | SSAValue,
+        value: OperandArg,
         dm: IntAttr,
         dimension: IntAttr,
     ):
         super().__init__(
             operands=[value],
-            attributes={
+            properties={
                 "dm": dm,
                 "dimension": dimension,
             },
@@ -142,12 +141,12 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     """
 
     value = operand_def(IntRegisterType)
-    dm = attr_def(IntAttr)
+    dm = prop_def(IntAttr)
 
-    def __init__(self, value: Operation | SSAValue, dm: IntAttr):
+    def __init__(self, value: OperandArg, dm: IntAttr):
         super().__init__(
             operands=[value],
-            attributes={
+            properties={
                 "dm": dm,
             },
         )

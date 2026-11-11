@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, Literal, TypeAlias, cast
+from typing import ClassVar, Literal, Self, TypeAlias, cast
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
@@ -26,13 +26,10 @@ from xdsl.dialects.riscv import (
     IntRegisterType,
     RdRsRsOperation,
     RISCVAsmOperation,
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     RISCVRegallocOperation,
     RISCVRegisterType,
     RsRsIntegerOperation,
-    parse_immediate_value,
-    print_immediate_value,
     si12,
     ui5,
 )
@@ -41,17 +38,14 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, OperandArg, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    BaseAttr,
     VarConstraint,
     attr_def,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
-    opt_attr_def,
     prop_def,
     region_def,
     result_def,
@@ -107,7 +101,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
 
 @irdl_op_definition
-class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
+class ScfgwiOp(RISCVInstruction):
     """
     Write the value in rs to the Snitch stream configuration location pointed by
     immediate value in the memory-mapped address space.
@@ -120,13 +114,17 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.scfgwi"
 
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12])
+    immediate = prop_def(IntegerAttr[SI12])
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+    )
 
     traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12],
         *,
         comment: str | StringAttr | None = None,
@@ -137,25 +135,14 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
             comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> set[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
 
 @irdl_op_definition
@@ -327,9 +314,9 @@ class FRepOperation(RISCVInstruction):
 
     def __init__(
         self,
-        max_rep: SSAValue | Operation,
+        max_rep: OperandArg,
         body: Sequence[Operation] | Sequence[Block] | Region,
-        iter_args: Sequence[SSAValue | Operation] = (),
+        iter_args: Sequence[OperandArg] = (),
         stagger_mask: IntegerAttr[I4] | None = None,
         stagger_count: IntegerAttr[I3] | None = None,
     ):
@@ -364,7 +351,9 @@ class FRepOperation(RISCVInstruction):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        max_rep = parser.parse_operand()
+        max_rep_operand = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        max_rep = parser.resolve_operand(max_rep_operand, parser.parse_type())
         if parser.parse_optional_punctuation(","):
             stagger_mask = parser.parse_integer(False, False)
             parser.parse_punctuation(",")
@@ -420,6 +409,8 @@ class FRepOperation(RISCVInstruction):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_ssa_value(self.max_rep)
+        printer.print_string(" : ")
+        printer.print_attribute(self.max_rep.type)
         if self.stagger_count.value.data and self.stagger_mask.value.data:
             printer.print_string(", ")
             printer.print_int(self.stagger_count.value.data)
@@ -598,8 +589,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        snitch.ReadableStreamType.constr(riscv.FloatRegisterType)
+        | snitch.WritableStreamType.constr(riscv.FloatRegisterType)
     )
 
     traits = traits_def(NoMemoryEffect())
@@ -642,7 +633,7 @@ class DMSourceOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -663,7 +654,7 @@ class DMDestinationOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -684,7 +675,7 @@ class DMStrideOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
+    def __init__(self, srcstrd: OperandArg, dststrd: OperandArg):
         super().__init__(operands=[srcstrd, dststrd])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -704,7 +695,7 @@ class DMRepOp(RISCVInstruction):
         MemoryWriteEffect(),
     )
 
-    def __init__(self, reps: SSAValue | Operation):
+    def __init__(self, reps: OperandArg):
         super().__init__(operands=[reps])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -749,8 +740,8 @@ class DMCopyOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
-        config: SSAValue | Operation,
+        size: OperandArg,
+        config: OperandArg,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[size, config], result_types=[result_type])
@@ -775,7 +766,7 @@ class DMStatOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: SSAValue | Operation,
+        status: OperandArg,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[status], result_types=[result_type])
@@ -822,7 +813,7 @@ class DMCopyImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
+        size: OperandArg,
         config: int | IntegerAttr[UI5],
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
@@ -1033,17 +1024,15 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = traits_def(AlwaysSpeculatable())
 
 
-class RdRsRsAccumulatingFloatOperationWithFastMath(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
+class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and two source floating-point registers and can
     be annotated with fastmath flags.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
@@ -1051,15 +1040,20 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
 
-    fastmath = opt_attr_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = (
+        "$rd_in `,` $rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
+        "functional-type(operands, results)"
+    )
 
     traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rd: OperandArg,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         fastmath: FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
@@ -1071,8 +1065,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
 
         super().__init__(
             operands=[rd, rs1, rs2],
+            properties={"fastmath": fastmath},
             attributes={
-                "fastmath": fastmath,
                 "comment": comment,
             },
             result_types=[rd.type],
@@ -1081,47 +1075,34 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd_in, self.rs1, self.rs2
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        flags = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        attributes["fastmath"] = flags
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> set[str]:
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print_string(" fastmath")
-            self.fastmath.print_parameter(printer)
-        return {"fastmath"}
-
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
             (self.rs1, self.rs2), (), ((self.rd_in, self.rd_out),)
         )
 
 
-class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and a source floating-point register.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
 
+    assembly_format = "$rd_in `,` $rs attr-dict `:` functional-type(operands, results)"
+
     traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs: Operation | SSAValue,
+        rd: OperandArg,
+        rs: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):

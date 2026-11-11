@@ -14,6 +14,8 @@ mapping using `register_type`, `register_function`, and `register_literal`
 respectively.
 All function arguments and return types must be annotated.
 Use `-> None` for functions that return no value.
+An explicit `return` must be the final statement directly in the function body, early
+returns are not supported.
 Using this, we can write our first simple program:
 
 ```python
@@ -55,24 +57,40 @@ builtin.module {
 ```text
 .
 ├── utils
-│   ├── builder.py            : Build a module from a function AST, verify it,
-│   │                           and apply the configured transformation passes
-│   ├── exceptions.py         : Custom exceptions for the frontend and code
-│   │                           generation
-│   ├── op_inserter.py        : Helper class to add operations from a stack to
-│   │                           the end of an operation/region/block
-│   └── type_conversion.py    : Map between Python objects, Python AST nodes,
-│                               and xDSL IR for the types and functions
-├── code_generation.py        : Walk AST to generate xDSL from nodes. Simple
-│                               operands and control flow supported. Explicitly
-│                               no support for assignment. Implicitly no support
-│                               for complex structures such as classes
-├── context.py                : Configure mappings and transformations, and
-│                               decorate functions with parse_program
-├── program.py                : Callable function wrapper with lazily built
-│                               and cached IR accessible through module
+│   ├── builder.py
+│   ├── exceptions.py
+│   ├── op_inserter.py
+│   └── type_conversion.py
+├── code_generation.py
+├── context.py
+├── lowering.py
+├── program.py
 └── README.md
 ```
+
+- `utils/builder.py`:
+  Builds a module from a function AST.
+  It generates the module, lowers its `py` operations and verifies it.
+  Then it applies the configured transformation passes.
+- `utils/exceptions.py`:
+  Custom exceptions for the frontend and code generation.
+- `utils/op_inserter.py`:
+  Adds operations from a stack to the end of an operation, region or block.
+- `utils/type_conversion.py`:
+  Maps between Python objects, AST nodes and xDSL IR for types and functions.
+- `code_generation.py`:
+  Walks the AST to generate `py` from its nodes, without the registered mappings.
+  Simple operands are supported, with no control flow.
+  Assignment is only to variables or tuples of them.
+  There is implicitly no support for complex structures such as classes.
+- `context.py`:
+  Configures the mappings and transformations.
+  Decorates functions with `parse_program`.
+- `lowering.py`:
+  Lowers `py` to the operations registered in the context.
+- `program.py`:
+  Wraps a function as a callable.
+  Its IR is built lazily, cached, and accessible through `module`.
 
 ## Future development
 
@@ -84,14 +102,15 @@ builtin.module {
 2. Add support for more Python functionality by implementing code generation for
    each AST node:
    - [x] `Assert`
-   - [ ] `AnnAssign`/`Assign`
+   - [ ] `AnnAssign`
+   - [x] `Assign` (to a variable or a tuple of variables)
    - [x] `BinOp`
    - [ ] `Break`
    - [x] `Call`
    - [x] `Compare`
    - [ ] `For`
    - [x] `FunctionDef`
-   - [x] `If`/`IfExp`
+   - [ ] `If`/`IfExp`
    - [x] `Pass`
    - [x] `Return`
    - [ ] `While`
@@ -100,6 +119,6 @@ builtin.module {
    - [ ] `None`
    - [ ] `string`
    - [ ] `list`
-   - [ ] `tuple`
+   - [x] `tuple` (unpacked only)
    - [ ] `dict`
    - [ ] `set`

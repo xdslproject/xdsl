@@ -506,7 +506,7 @@ func.func @gauss_seidel_func(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf3
 }
 
 // CHECK:      func.func @gauss_seidel_func(%a: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b: !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
-// CHECK-NEXT:   "dmp.swap"(%a) {strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
+// CHECK-NEXT:   "dmp.swap"(%a) <{strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]}> : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-NEXT:   stencil.apply(%0 = %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:     %1 = arith.constant dense<1.666600e-01> : tensor<510xf32>
 // CHECK-NEXT:     %2 = stencil.access %0[1, 0] : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>

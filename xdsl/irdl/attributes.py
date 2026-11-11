@@ -25,7 +25,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform
+from typing_extensions import TypeVar, dataclass_transform, deprecated
 
 if sys.version_info >= (3, 14, 0):
     from typing_extensions import TypeForm
@@ -567,7 +567,10 @@ def irdl_to_attr_constraint(
         return attr_data.base_constr()
 
     if origin is Literal:
-        return AnyOf.get(*get_args(irdl))
+        literal_args = get_args(irdl)
+        if any(isinstance(value, bool) for value in literal_args):
+            raise PyRDLTypeError("Boolean literals are currently not supported")
+        return AnyOf.get(*literal_args)
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
@@ -580,6 +583,7 @@ def irdl_to_attr_constraint(
     raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
+@deprecated("Use constraint `.get` constructors or irdl_to_attr_constraint directly")
 def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
     """
     Converts an attribute type into the equivalent constraint, detecting generic
@@ -588,6 +592,7 @@ def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
     return irdl_to_attr_constraint(irdl)
 
 
+@deprecated("Use constraint `.get` constructors or irdl_to_attr_constraint directly")
 def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     """
     Converts an attribute instance into the equivalent constraint.
@@ -599,7 +604,11 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
     """
     If the input is an int or an int type, return the corresponding constraint,
     otherwise return None.
+    Boolean literals are currently unsupported and raise `PyRDLTypeError`.
     """
+    if isinstance(arg, bool):
+        raise PyRDLTypeError("Boolean literals are currently not supported")
+
     if isinstance(arg, int):
         return EqIntConstraint(arg)
 
@@ -608,27 +617,25 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
 
     if get_origin(arg) is Literal:
         literal_args = get_args(arg)
+        if any(isinstance(value, bool) for value in literal_args):
+            raise PyRDLTypeError("Boolean literals are currently not supported")
 
         if all(isinstance(literal_arg, int) for literal_arg in literal_args):
-            if len(literal_args) == 1:
-                return EqIntConstraint(literal_args[0])
-            else:
-                ints = frozenset(literal_arg for literal_arg in literal_args)
-                return IntSetConstraint(ints)
+            return IntSetConstraint.get(*literal_args)
 
-    if get_origin(arg) is Union:
-        union_args = get_args(arg)
-        if all(
-            (get_origin(union_arg) is Literal)
-            and all(isinstance(literal_arg, int) for literal_arg in get_args(union_arg))
-            for union_arg in union_args
-        ):
-            ints = frozenset(
-                literal_arg
-                for union_arg in union_args
-                for literal_arg in get_args(union_arg)
-            )
-            return IntSetConstraint(ints)
+    if get_origin(arg) in (Union, UnionType):
+        # Check every member before returning None for a non-integer constraint.
+        constraints = [get_optional_int_constraint(member) for member in get_args(arg)]
+        ints: set[int] = set()
+        for constraint in constraints:
+            match constraint:
+                case EqIntConstraint():
+                    ints.add(constraint.value)
+                case IntSetConstraint():
+                    ints.update(constraint.values)
+                case _:
+                    return None
+        return IntSetConstraint.get(*ints)
 
     if (
         isinstance(arg, TypeVar)
@@ -658,13 +665,13 @@ def range_constr_coercion(
 ) -> RangeConstraint[AttributeCovT]:
     if isinstance(attr, RangeConstraint):
         return attr
-    return RangeOf(irdl_to_attr_constraint(attr))
+    return RangeOf.get(attr)
 
 
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
-    return RangeOf(irdl_to_attr_constraint(attr)).of_length(1)
+    return RangeOf.get(attr).of_length(1)
 
 
 @overload

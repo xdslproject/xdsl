@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects import riscv_cf
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -39,11 +40,11 @@ class RiscvCfFunctions(InterpreterFunctions):
         self,
         interpreter: Interpreter,
         op: riscv_cf.ConditionalBranchOperation,
-        lhs: int,
-        rhs: int,
+        lhs: IntegerAttr,
+        rhs: IntegerAttr,
         bitwidth: int,
     ) -> tuple[Successor, PythonValues]:
-        cond = op.const_evaluate(lhs, rhs, bitwidth)
+        cond = op.const_evaluate(lhs.value.data, rhs.value.data, bitwidth)
         if cond:
             block_args = interpreter.get_values(op.then_arguments)
             return Successor(op.then_block, block_args), ()

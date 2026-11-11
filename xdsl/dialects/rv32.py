@@ -11,9 +11,7 @@ from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
 from xdsl.dialects.riscv import (
     UI5,
     IntRegisterType,
-    LabelAttr,
     Registers,
-    parse_immediate_value,
     ui5,
 )
 from xdsl.dialects.riscv.abstract_ops import (
@@ -22,17 +20,15 @@ from xdsl.dialects.riscv.abstract_ops import (
     LiOperation,
     RdRsImmShiftOperation,
 )
+from xdsl.dialects.riscv.attrs import ImmediateI32
 from xdsl.ir import (
-    Attribute,
     Dialect,
-    Operation,
-    SSAValue,
+    OperandArg,
 )
 from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
 )
-from xdsl.parser import Parser
 
 
 @irdl_op_definition
@@ -47,9 +43,12 @@ class LiOp(LiOperation[I32]):
 
     name = "rv32.li"
 
+    assembly_format = "custom<ImmediateI32>($immediate) attr-dict `:` type($rd)"
+    custom_directives = (ImmediateI32,)
+
     def __init__(
         self,
-        immediate: int | IntegerAttr[I32] | str | LabelAttr,
+        immediate: int | IntegerAttr[I32] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -57,12 +56,6 @@ class LiOp(LiOperation[I32]):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         super().__init__(immediate, rd=rd, comment=comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i32)
-        return attributes
 
 
 class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
@@ -74,7 +67,7 @@ class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,

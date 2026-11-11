@@ -51,8 +51,8 @@ from xdsl.irdl import (
     TypeVarConstraint,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
     param_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -1022,7 +1022,7 @@ def test_irdl_definition():
 class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
-    arg1: Attribute = param_def(base(IntAttr))
+    arg1: Attribute = param_def(BaseAttr(IntAttr))
     arg2: BoolData
 
     # Check that we can define methods in attribute definition
@@ -1122,7 +1122,7 @@ def test_generic_attr():
         ],
     )
 
-    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+    assert irdl_to_attr_constraint(GenericAttr[IntAttr]) == ParamAttrConstraint(
         GenericAttr, (BaseAttr(IntAttr),)
     )
 

@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Data, Dialect, Operation, SSAValue
+from xdsl.ir import Data, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -26,8 +26,9 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
+    prop_def,
     result_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -53,17 +54,17 @@ class ClockDividerOp(IRDLOperation):
 
     name = "seq.clock_div"
 
-    pow2 = attr_def(IntegerAttr[I8])
+    pow2 = prop_def(IntegerAttr[I8])
     clockIn = operand_def(clock)
     clockOut = result_def(clock)
 
     assembly_format = "$clockIn `by` $pow2 attr-dict"
 
-    def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
+    def __init__(self, clockIn: OperandArg, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
             pow2 = IntegerAttr(pow2, i8)
         super().__init__(
-            operands=[clockIn], attributes={"pow2": pow2}, result_types=[clock]
+            operands=[clockIn], properties={"pow2": pow2}, result_types=[clock]
         )
 
     def verify_(self) -> None:
@@ -83,7 +84,7 @@ class CompRegOp(IRDLOperation):
 
     DATA_TYPE: ClassVar = VarConstraint("DataType", AnyAttr())
 
-    inner_sym = opt_attr_def(InnerSymAttr)
+    inner_sym = opt_prop_def(InnerSymAttr)
     input = operand_def(DATA_TYPE)
     clk = operand_def(clock)
     reset = opt_operand_def(i1)

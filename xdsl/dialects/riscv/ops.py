@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
 from typing import ClassVar, cast
 
 from xdsl.backend.assembly_printer import (
@@ -76,7 +75,6 @@ from .abstract_ops import (
     RdRsRsIntegerOperation,
     RdRsRsRsFloatOperation,
     RISCVAsmOperation,
-    RISCVCustomFormatOperation,
     RISCVInstruction,
     RISCVRegallocOperation,
     RsRsImmFloatOperation,
@@ -87,7 +85,6 @@ from .abstract_ops import (
 from .attrs import (
     SI20,
     FastMathFlagsAttr,
-    LabelAttr,
 )
 from .registers import (
     FloatRegisterType,
@@ -581,11 +578,12 @@ class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseAndByComplement,
             BitwiseAndBySelf,
             BitwiseAndByZero,
         )
 
-        return (BitwiseAndByZero(), BitwiseAndBySelf())
+        return (BitwiseAndByComplement(), BitwiseAndByZero(), BitwiseAndBySelf())
 
 
 @irdl_op_definition
@@ -769,7 +767,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | IntegerAttr[SI20] | str | LabelAttr,
+        immediate: int | IntegerAttr[SI20] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2042,7 +2040,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2051,23 +2049,25 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
     """
 
     name = "riscv.label"
-    label = attr_def(LabelAttr)
+    label = prop_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
 
     def __init__(
         self,
-        label: str | LabelAttr,
+        label: str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(label, str):
-            label = LabelAttr(label)
+            label = StringAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
+            properties={"label": label},
             attributes={
-                "label": label,
                 "comment": comment,
             },
         )
@@ -2075,47 +2075,28 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
     def assembly_line(self) -> str | None:
         return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.label.data)
-        return {"label"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
-
 
 @irdl_op_definition
-class DirectiveOp(
-    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
-):
+class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
+    Directives without an argument use an empty string value.
     A more complete list of directives can be found here:
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
     """
 
     name = "riscv.directive"
-    directive = attr_def(StringAttr)
-    value = opt_attr_def(StringAttr)
+    directive = prop_def(StringAttr)
+    value = prop_def(StringAttr)
+
+    assembly_format = "$directive $value attr-dict"
 
     def __init__(
         self,
         directive: str | StringAttr,
-        value: str | StringAttr | None,
+        value: str | StringAttr = "",
     ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
@@ -2123,48 +2104,21 @@ class DirectiveOp(
             value = StringAttr(value)
 
         super().__init__(
-            attributes={
+            properties={
                 "directive": directive,
                 "value": value,
             }
         )
 
     def assembly_line(self) -> str | None:
-        if self.value is not None and self.value.data:
-            arg_str = assembly_arg_str(self.value.data)
+        if self.value.data:
+            arg_str = assembly_arg_str(self.value)
         else:
             arg_str = ""
 
         return AssemblyPrinter.assembly_line(
             self.directive.data, arg_str, is_indented=False
         )
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["directive"] = StringAttr(
-            parser.parse_str_literal("Expected directive")
-        )
-        if (value := parser.parse_optional_str_literal()) is not None:
-            attributes["value"] = StringAttr(value)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.directive.data)
-        if self.value is not None:
-            printer.print_string(" ")
-            printer.print_string_literal(self.value.data)
-        return {"directive", "value"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 @irdl_op_definition
@@ -2181,7 +2135,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
 
     name = "riscv.assembly_section"
-    directive = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
     data = region_def("single_block")
 
     traits = traits_def(NoTerminator(), IsolatedFromAbove())
@@ -2198,7 +2152,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
         super().__init__(
             regions=[region],
-            attributes={
+            properties={
                 "directive": directive,
             },
         )
@@ -2219,7 +2173,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print_string_literal(self.directive.data)
+        printer.print_attribute(self.directive)
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("directive",), print_keyword=True
         )
@@ -2232,7 +2186,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
 
 @irdl_op_definition
-class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
+class CustomAssemblyInstructionOp(RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
     emission.
@@ -2255,6 +2209,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     outputs = var_result_def()
     instruction_name = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
 
     def __init__(
         self,
@@ -2286,9 +2242,11 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+class CommentOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
+
+    assembly_format = "attr-dict `:` `(` `)` `->` `(` `)`"
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):
@@ -2344,9 +2302,9 @@ class ParallelMovOp(RISCVRegallocOperation):
     _L: ClassVar = IntVarConstraint("L", AnyInt())
 
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    inputs = var_operand_def(RangeOf.get(RISCVRegisterType).of_length(_L))
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
-        RangeOf(RISCVRegisterType).of_length(_L)
+        RangeOf.get(RISCVRegisterType).of_length(_L)
     )
     input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
@@ -3040,7 +2998,7 @@ class FLdOp(RdRsImmFloatOperation):
         value = assembly_arg_str(self.rd)
         imm = assembly_arg_str(self.immediate)
         offset = assembly_arg_str(self.rs1)
-        if isinstance(self.immediate, LabelAttr):
+        if isinstance(self.immediate, StringAttr):
             return AssemblyPrinter.assembly_line(
                 instruction_name, f"{value}, {imm}, {offset}", self.comment
             )
@@ -3315,7 +3273,6 @@ RISCV = Dialect(
     [
         IntRegisterType,
         FloatRegisterType,
-        LabelAttr,
         FastMathFlagsAttr,
     ],
 )

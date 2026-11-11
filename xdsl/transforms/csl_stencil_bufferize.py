@@ -14,8 +14,7 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     AnyDenseElement,
-    AnyTensorType,
-    AnyTensorTypeConstr,
+    BaseAttr,
     DenseIntOrFPElementsAttr,
     FunctionType,
     MemRefType,
@@ -55,7 +54,7 @@ def tensor_to_memref_type(
 
 def to_buffer_op(op: SSAValue) -> bufferization.ToBufferOp:
     """Creates a `bufferization.to_memref` operation."""
-    assert isa(op.type, AnyTensorType)
+    assert isa(op.type, TensorType)
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
@@ -196,7 +195,7 @@ class ApplyOpBufferize(RewritePattern):
                 arg_types=[
                     (
                         tensor_to_memref_type(arg.type)
-                        if AnyTensorTypeConstr.verifies(arg.type)
+                        if BaseAttr(TensorType).verifies(arg.type)
                         else arg.type
                     )
                     for arg in args

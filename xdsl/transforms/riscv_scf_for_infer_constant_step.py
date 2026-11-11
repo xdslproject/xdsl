@@ -9,8 +9,8 @@ comparison which always takes two registers.
 """
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_scf, rv32
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects import builtin, riscv_scf, rv32
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.riscv.attrs import si12
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -35,7 +35,7 @@ class InferConstantStep(RewritePattern):
             # Only support rv32.LiOp for now
             return
 
-        if isinstance(imm := owner.immediate, riscv.LabelAttr):
+        if isinstance(imm := owner.immediate, StringAttr):
             # Cannot support labels for now
             return
 

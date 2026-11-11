@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ModuleOp,
-    SymbolRefAttr,
     i32,
 )
 from xdsl.ir import (
@@ -79,7 +78,7 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
         self.counter += 1
         rewriter.inline_block(next_block, InsertPoint.at_start(next_func.body.block))
         rewriter.insert(
-            csl.CallOp(SymbolRefAttr(next_func.sym_name)),
+            csl.CallOp(next_func.sym_name),
             InsertPoint.before(terminator),
         )
         rewriter.insert(next_func, InsertPoint.after(parent_func))
@@ -195,10 +194,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             cond = arith.CmpiOp(iv_load, ub, "slt")
             branch = scf.IfOp(cond, [], Region(Block()), Region(Block()))
             with ImplicitBuilder(branch.true_region):
-                csl.CallOp(SymbolRefAttr(body_func.sym_name))
+                csl.CallOp(body_func.sym_name)
                 scf.YieldOp()
             with ImplicitBuilder(branch.false_region):
-                csl.CallOp(SymbolRefAttr(post_func.sym_name))
+                csl.CallOp(post_func.sym_name)
                 scf.YieldOp()
             csl.ReturnOp()
 
@@ -233,9 +232,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             InsertPoint.at_end(body_func.body.block),
             [v.res for v in body_vars],
         )
-        rewriter.insert(
-            csl.CallOp(SymbolRefAttr(inc_func.sym_name)), InsertPoint.before(terminator)
-        )
+        rewriter.insert(csl.CallOp(inc_func.sym_name), InsertPoint.before(terminator))
         rewriter.replace(terminator, csl.ReturnOp())
 
         # place funcs and erase now-empty for-loop

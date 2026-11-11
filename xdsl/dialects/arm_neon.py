@@ -19,13 +19,12 @@ from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
 )
 from xdsl.irdl import (
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -146,12 +145,12 @@ def vector_with_arrangement(
         reg = reg.type
     if index is None:
         return (
-            f"{reg.register_name.data}."
+            f"{reg.register_name}."
             f"{arrangement.data.num_elements}"
             f"{arrangement.data.name}"
         )
     else:
-        return f"{reg.register_name.data}.{arrangement.data.name}[{index}]"
+        return f"{reg.register_name}.{arrangement.data.name}[{index}]"
 
 
 def variadic_neon_reg_arg(
@@ -219,8 +218,8 @@ class DSSFMulOp(ARMInstruction):
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         d: NEONRegisterType,
         scalar_idx: IntegerAttr | None,
@@ -233,12 +232,10 @@ class DSSFMulOp(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(s1, s2),
-            attributes={
-                "comment": comment,
-            },
             properties={
                 "scalar_idx": scalar_idx,
                 "arrangement": arrangement,
+                "comment": comment,
             },
             result_types=(d,),
         )
@@ -272,8 +269,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
     """
 
-    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_NEON_REGISTER_TYPE", base(NEONRegisterType)
+    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_NEON_REGISTER_TYPE", NEONRegisterType
     )
 
     name = "arm_neon.dss.fmla"
@@ -291,9 +288,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
     def __init__(
         self,
-        d: Operation | SSAValue,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        d: OperandArg,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         res: NEONRegisterType,
         scalar_idx: IntegerAttr,
@@ -306,12 +303,10 @@ class DSSFmlaVecScalarOp(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(d, s1, s2),
-            attributes={
-                "comment": comment,
-            },
             properties={
                 "scalar_idx": scalar_idx,
                 "arrangement": arrangement,
+                "comment": comment,
             },
             result_types=(res,),
         )
@@ -344,7 +339,7 @@ class DSDupOp(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: NEONRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -356,7 +351,7 @@ class DSDupOp(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(s,),
-            attributes={
+            properties={
                 "comment": comment,
                 "arrangement": arrangement,
             },
@@ -391,7 +386,7 @@ class DSVecMovOp(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: IntRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -404,12 +399,10 @@ class DSVecMovOp(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(s,),
-            attributes={
-                "comment": comment,
-            },
             properties={
                 "arrangement": arrangement,
                 "scalar_idx": scalar_idx,
+                "comment": comment,
             },
             result_types=(d,),
         )
@@ -439,7 +432,7 @@ class DVarSLd1Op(ARMInstruction):
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         result_types: Sequence[Attribute],
         *,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -455,12 +448,7 @@ class DVarSLd1Op(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(s,),
-            attributes={
-                "comment": comment,
-            },
-            properties={
-                "arrangement": arrangement,
-            },
+            properties={"arrangement": arrangement, "comment": comment},
             result_types=[result_types],
         )
 
@@ -509,12 +497,7 @@ class DVarSSt1Op(ARMInstruction):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=[*src_regs],
-            attributes={
-                "comment": comment,
-            },
-            properties={
-                "arrangement": arrangement,
-            },
+            properties={"arrangement": arrangement, "comment": comment},
             result_types=(d,),
         )
 

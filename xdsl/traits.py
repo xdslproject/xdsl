@@ -5,7 +5,7 @@ from collections.abc import Iterator, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from typing_extensions import TypeVar
 
@@ -552,7 +552,7 @@ class MemoryEffectKind(Enum):
     """
     The kind of side effect an operation can have.
 
-    MLIR has a more detailed version of this, able to tie effects to specfic resources or
+    MLIR has a more detailed version of this, able to tie effects to specific resources or
     values. Here, everything has its effect on the universe.
     """
 
@@ -811,7 +811,7 @@ class Commutative(OpTrait):
 
 class HasInsnRepresentation(OpTrait, abc.ABC):
     """
-    A trait providing information on how to encode an operation using a .insn assember directive.
+    A trait providing information on how to encode an operation using a .insn assembler directive.
 
     The returned string contains python string.format placeholders where formatted operands are inserted during
     printing.
@@ -878,3 +878,402 @@ class SameOperandsAndResultType(OpTrait):
                 raise VerifyException(
                     f"'{op.name} requires the same encoding for all operands and results"
                 )
+
+
+@dataclass(frozen=True)
+class RegionSuccessor:
+    """
+    This class represents a successor of a region. A region successor can either target another
+    region or target an ancestor operation (at the moment, limited to the immediate parent
+    operation). In the latter case, the control flow branches after/out of the target operation.
+    """
+
+    successor: Region | Operation
+
+    @property
+    def region(self) -> Region | None:
+        """
+        The successor region. None if the successor is an operation.
+
+        Implements MLIR `RegionSuccessor::getSuccessor`.
+        """
+        from xdsl.ir import Region
+
+        return self.successor if isinstance(self.successor, Region) else None
+
+    @property
+    def operation(self) -> Operation | None:
+        """
+        The successor operation. None if the successor is a region.
+
+        Implements MLIR `RegionSuccessor::getSuccessorOp`.
+        """
+        from xdsl.ir import Operation
+
+        return self.successor if isinstance(self.successor, Operation) else None
+
+    def is_region(self) -> bool:
+        """
+        Return true if the successor is a region.
+
+        Implements MLIR `RegionSuccessor::isRegion`.
+        """
+        from xdsl.ir import Region
+
+        return isinstance(self.successor, Region)
+
+    def is_operation(self) -> bool:
+        """
+        Return true if the successor is an operation.
+
+        Implements MLIR `RegionSuccessor::isOperation`.
+        """
+        from xdsl.ir import Operation
+
+        return isinstance(self.successor, Operation)
+
+
+@dataclass(frozen=True, init=False)
+class RegionBranchPoint:
+    """
+    This class represents a point being branched from in the methods of the
+    `RegionBranchOpInterface`.
+
+    One can branch from one of two kinds of places:
+    * The parent operation (aka the `RegionBranchOpInterface` implementation)
+    * A `RegionBranchTerminatorOpInterface` inside a region within the parent operation.
+
+    Construct with the terminator being branched from. Use `RegionBranchPoint.PARENT` to branch
+    from the parent operation. Raises `ValueError` if the terminator does not implement
+    `RegionBranchTerminatorOpInterface`. The constructor implements MLIR
+    `RegionBranchPoint(RegionBranchTerminatorOpInterface)`.
+    """
+
+    predecessor: Operation | None
+
+    _interface: RegionBranchTerminatorOpTrait | None = field(compare=False, repr=False)
+    """The `RegionBranchTerminatorOpTrait` of `predecessor`."""
+
+    PARENT: ClassVar[RegionBranchPoint]
+    """
+    The `RegionBranchPoint` representing the parent operation.
+
+    Implements MLIR `RegionBranchPoint::parent`.
+    """
+
+    def __init__(self, predecessor: Operation) -> None:
+        interface = predecessor.get_trait(RegionBranchTerminatorOpTrait)
+        if interface is None:
+            raise ValueError(
+                f"'{predecessor.name}' does not implement RegionBranchTerminatorOpInterface."
+            )
+        object.__setattr__(self, "predecessor", predecessor)
+        object.__setattr__(self, "_interface", interface)
+
+    def is_parent(self) -> bool:
+        """
+        Returns true if branching from the parent op.
+
+        Implements MLIR `RegionBranchPoint::isParent`.
+        """
+        return self.predecessor is None
+
+    @property
+    def terminator(self) -> Operation | None:
+        """
+        The terminator if branching from a region. None otherwise.
+
+        Implements MLIR `RegionBranchPoint::getTerminatorPredecessorOrNull`.
+        """
+        return self.predecessor
+
+    @property
+    def terminator_predecessor_and_trait(
+        self,
+    ) -> tuple[Operation, RegionBranchTerminatorOpTrait] | None:
+        """
+        The terminator and its `RegionBranchTerminatorOpTrait` if branching from a
+        region. None otherwise.
+
+        Implements MLIR `RegionBranchPoint::getTerminatorPredecessorOrNull`, together with
+        `terminator`. MLIR returns a single interface handle that is both the op and its interface
+        methods. In xDSL the op and its trait are separate objects, and the trait methods take the
+        op as an argument, so this property returns both.
+        """
+        if self.predecessor is None or self._interface is None:
+            return None
+        return self.predecessor, self._interface
+
+
+# Mirrors MLIR's private default constructor: bypasses `__init__`, which rejects `None`.
+RegionBranchPoint.PARENT = object.__new__(RegionBranchPoint)
+object.__setattr__(RegionBranchPoint.PARENT, "predecessor", None)
+object.__setattr__(RegionBranchPoint.PARENT, "_interface", None)
+
+
+@dataclass(frozen=True)
+class InvocationBounds:
+    """
+    This class represents upper and lower bounds on the number of times a region of a
+    `RegionBranchOpInterface` can be invoked. The lower bound is at least zero, but the upper bound
+    may not be known.
+    """
+
+    lower: int
+    """
+    The minimum number of times the successor region will be invoked.
+
+    Implements MLIR `InvocationBounds::getLowerBound`.
+    """
+
+    upper: int | None
+    """
+    The maximum number of times the successor region will be invoked or `None` if an upper bound
+    is not known.
+
+    Implements MLIR `InvocationBounds::getUpperBound`.
+    """
+
+    UNKNOWN: ClassVar[InvocationBounds]
+    """
+    The unknown invocation bounds, i.e., there is no information on how many times a region may
+    be invoked.
+
+    Implements MLIR `InvocationBounds::getUnknown`.
+    """
+
+    def __post_init__(self) -> None:
+        """Implements the checks of MLIR `InvocationBounds` constructor."""
+        if self.lower < 0:
+            raise ValueError(
+                f"Invocation lower bound must be at least 0, got {self.lower}."
+            )
+        if self.upper is not None and self.upper < self.lower:
+            raise ValueError(
+                f"Invocation upper bound ({self.upper}) cannot be less than lower bound "
+                f"({self.lower})."
+            )
+
+
+InvocationBounds.UNKNOWN = InvocationBounds(0, None)
+
+
+class RegionBranchOpTrait(OpTrait):
+    """
+    This interface provides information for region-holding operations that exhibit branching
+    behavior between held regions. It models the control flow edges between regions (and between
+    the op and its regions), as well as the data flow (value propagation) that occurs along those
+    control flow edges.
+
+    This interface is meant to model well-defined cases of control-flow and value propagation,
+    where what occurs along control-flow edges is assumed to be side-effect free.
+
+    A "region branch point" indicates the point from which a branch (edge) originates. It can
+    indicate:
+    1. A `RegionBranchTerminatorOpInterface` terminator in any of the immediately nested regions
+       of this op.
+    2. `RegionBranchPoint.PARENT`: the branch originates from outside of the op, i.e., when
+       first executing this op.
+
+    When branching from a region branch point to a region successor, the "successor operands" to
+    be forwarded from the region branch point can be specified with `get_entry_successor_operands`
+    / `RegionBranchTerminatorOpInterface.get_successor_operands`.
+
+    A "region successor" indicates the target of a branch. It can indicate:
+    1. A region of this op.
+    2. A parent operation, i.e., the control flow leaves/resumes after that op.
+
+    The SSA values to which successor operands are forwarded are called "successor inputs".
+
+    By default, successor operands and successor block arguments/successor results must have the
+    same type. `are_types_compatible` can be implemented to allow non-equal types.
+
+    Note: This interface works in conjunction with `RegionBranchTerminatorOpInterface`. All
+    immediately nested block terminators that model branching between regions must implement the
+    `RegionBranchTerminatorOpInterface`. Otherwise, analyses/transformations may miss control flow
+    edges and produce incorrect results. Not every block terminator is necessarily a region branch
+    terminator: e.g., in the presence of unstructured control flow, a block terminator could
+    indicate a branch to a different block within the same region.
+
+    Example:
+
+    ```
+    %r = scf.for %iv = %lb to %ub step %step iter_args(%a = %b)
+        -> tensor<5xf32> {
+      ...
+      scf.yield %c : tensor<5xf32>
+    }
+    ```
+
+    `scf.for` has one region. There are two region branch points with two identical region
+    successors:
+    * parent => op(%r), region0(%a)
+    * `scf.yield` => op(%r), region0(%a)
+
+    `%a` and `%r` are successor inputs. `%b` is an entry successor operand. `%c` is a successor
+    operand.
+    """
+
+    @classmethod
+    def entry_successor_regions(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when first executing the op.
+
+        Unlike `successor_regions`, this method also receives the constant operands of this op
+        (one entry per operand, `None` if the operand has no/unknown constant value). The
+        implementation may use this information to filter out successors. By default, it simply
+        dispatches to `successor_regions`.
+
+        Note: The control flow does not necessarily have to enter any region of this op.
+
+        Example: In the above example, this method may return two region successors: the single
+        region of the `scf.for` op and the `scf.for` operation (that implements this interface). If
+        `%lb`, `%ub`, `%step` are constants and it can be determined the loop does not have any
+        iterations, this method may choose to return only this operation. Similarly, if it can be
+        determined that the loop has at least one iteration, this method may choose to return only
+        the region of the loop.
+        """
+        return cls.successor_regions(op, RegionBranchPoint.PARENT)
+
+    @classmethod
+    @abc.abstractmethod
+    def successor_regions(
+        cls, op: Operation, point: RegionBranchPoint
+    ) -> Sequence[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from `point`. These are the
+        regions that may be selected during the flow of control.
+
+        When `point = RegionBranchPoint.PARENT`, this method returns the region successors when
+        entering the operation. Otherwise, this method returns the successor regions when branching
+        from the region indicated by `point`.
+
+        Example: In the above example, this method returns the region of the `scf.for` and the
+        `scf.for` op itself for either region branch point. An implementation may choose to filter
+        out region successors when it is statically known (e.g., by examining the operands of this
+        op) that those successors are not branched to.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def successor_regions_from_region(
+        cls, op: Operation, region: Region
+    ) -> Iterator[RegionSuccessor]:
+        """
+        Returns all potential region successors when branching from any terminator in
+        `region`.
+        """
+        for block in region.blocks:
+            terminator = block.last_op
+            if terminator is not None and terminator.has_trait(
+                RegionBranchTerminatorOpTrait
+            ):
+                yield from cls.successor_regions(op, RegionBranchPoint(terminator))
+
+    @classmethod
+    def successor_inputs(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> Sequence[SSAValue]:
+        """
+        Return all successor inputs for the given region successor. If the given region
+        successor is a region, then the returned values are block arguments. Otherwise, if the
+        given region successor is an operation, the returned values are op results.
+        """
+        return ()
+
+    @classmethod
+    def predecessors(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> Iterator[RegionBranchPoint]:
+        """Returns all potential branching points (predecessors) for a given region successor."""
+        for point in cls.all_region_branch_points(op):
+            if successor in cls.successor_regions(op, point):
+                yield point
+
+    @classmethod
+    def region_invocation_bounds(
+        cls,
+        op: Operation,
+        operands: Sequence[Attribute | None],
+    ) -> Sequence[InvocationBounds]:
+        """
+        Returns the minimum and maximum number of times this operation will invoke the attached
+        regions (assuming the regions yield normally, i.e. do not abort or invoke an infinite
+        loop). The minimum number of invocations is at least 0. If the maximum number of
+        invocations cannot be statically determined, then it will be set to
+        `InvocationBounds.UNKNOWN`.
+
+        This method also passes along the constant operands of this op. `operands` contains an
+        entry for every operand of this op, with `None` if the operand has no constant value.
+
+        This method may be called speculatively on operations where the provided operands are not
+        necessarily the same as the operation's current operands. This may occur in analyses that
+        wish to determine "what would be the region invocations if these were the operands?"
+        """
+        return [InvocationBounds.UNKNOWN] * len(op.regions)
+
+    @classmethod
+    def are_types_compatible(
+        cls, op: Operation, lhs: Attribute, rhs: Attribute
+    ) -> bool:
+        """
+        This method is called to compare types along control-flow edges. By default, the types
+        are checked as equal.
+        """
+        return lhs == rhs
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.irdl import IRDLOperation
+
+        # MLIR rejects ops declared with zero regions, so an op with variadic regions
+        # may still have none at runtime.
+        if isinstance(op, IRDLOperation) and not op.get_irdl_definition().regions:
+            raise VerifyException(
+                f"'{op.name}' implements RegionBranchOpInterface but defines no regions."
+            )
+
+    @classmethod
+    def all_region_branch_points(cls, op: Operation) -> Iterator[RegionBranchPoint]:
+        """
+        Return all possible region branch points: the region branch op itself and all region
+        branch terminators.
+        """
+        yield RegionBranchPoint.PARENT
+        for region in op.regions:
+            for block in region.blocks:
+                terminator = block.last_op
+                if terminator is not None and terminator.has_trait(
+                    RegionBranchTerminatorOpTrait
+                ):
+                    yield RegionBranchPoint(terminator)
+
+
+class RegionBranchTerminatorOpTrait(OpTrait):
+    """
+    This interface provides information for branching terminator operations in the presence of a
+    parent `RegionBranchOpInterface` implementation. It acts as a marker for valid region branch
+    points and specifies which operands are passed to which region successor.
+
+    Note: If an operation does not implement the `RegionBranchTerminatorOpInterface`, then that op
+    has no region successors. (However, there may be other block terminators in the same region
+    that implement the `RegionBranchTerminatorOpInterface`, so the enclosing region may have region
+    successors.)
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not op.has_trait(IsTerminator):
+            raise VerifyException(f"Expected operation '{op.name}' to be a terminator.")
+        if op.results:
+            raise VerifyException(
+                f"Expected operation '{op.name}' to have zero results."
+            )
+        if op.successors:
+            raise VerifyException(
+                f"Expected operation '{op.name}' to have zero successors."
+            )
