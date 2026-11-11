@@ -940,7 +940,7 @@ acc.routine @rt_bind_bad func(@routine_bind_bad) bind(1 : i64)
 // constraint (independent of `NoTerminator`, which only relaxes the
 // terminator requirement).
 func.func @ke_multi_block() {
-  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
   ^bb0:
     "cf.br"()[^bb1] : () -> ()
   ^bb1:
@@ -954,7 +954,7 @@ func.func @ke_multi_block() {
 // `SizedRegion<1>` also rejects a 0-block body. Both upstream MLIR and
 // xDSL refuse the empty `({})` form.
 func.func @ke_no_block() {
-  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
   }) : () -> ()
   func.return
 }
@@ -962,7 +962,7 @@ func.func @ke_no_block() {
 
 // -----
 
-// The oilist directive lets the three clauses appear in any order, but
+// The oilist directive lets the four clauses appear in any order, but
 // each clause may appear at most once. Repeating a keyword fires the
 // directive's own diagnostic.
 func.func @ke_duplicate_async() {
@@ -972,6 +972,46 @@ func.func @ke_duplicate_async() {
   func.return
 }
 // CHECK: 'async' clause specified twice
+
+// -----
+
+func.func @ke_async_conflict(%a : i32) {
+  "acc.kernel_environment"(%a) <{asyncOnly, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> ({
+    "test.op"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+// CHECK: async-only cannot appear with async operand
+
+// -----
+
+func.func @ke_wait_conflict(%a : i32) {
+  "acc.kernel_environment"(%a) <{waitOnly, operandSegmentSizes = array<i32: 0, 0, 0, 1>}> ({
+    "test.op"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+// CHECK: wait-only cannot appear with wait operands or devnum
+
+// -----
+
+func.func @ke_wait_devnum_conflict(%a : i32) {
+  "acc.kernel_environment"(%a) <{waitOnly, operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "test.op"() : () -> ()
+  }) : (i32) -> ()
+  func.return
+}
+// CHECK: wait-only cannot appear with wait operands or devnum
+
+// -----
+
+func.func @ke_duplicate_wait_devnum(%a : i32) {
+  acc.kernel_environment wait_devnum(%a : i32) wait_devnum(%a : i32) {
+    "test.op"() : () -> ()
+  }
+  func.return
+}
+// CHECK: 'wait_devnum' clause specified twice
 
 // -----
 

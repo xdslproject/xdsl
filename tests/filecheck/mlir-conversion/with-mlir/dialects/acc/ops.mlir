@@ -443,19 +443,14 @@ builtin.module {
   // CHECK:       func.func @ke_async_bare() {
   // CHECK-NEXT:    acc.kernel_environment async {
 
-  // The bare `async([#acc.device_type<...>])` (keyword-only, no operand)
-  // form is omitted: upstream mlir-opt rejects that spelling on every
-  // compute construct (it requires a `,` after the dt-list). xDSL's
-  // ops.mlir still covers it.
-
   func.func @ke_async_operand(%a : i32) {
-    acc.kernel_environment async(%a : i32 [#acc.device_type<nvidia>]) {
+    acc.kernel_environment async(%a : i32) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK:       func.func @ke_async_operand(
-  // CHECK:         acc.kernel_environment async(%{{.*}} : i32 [#acc.device_type<nvidia>]) {
+  // CHECK:         acc.kernel_environment async(%{{.*}} : i32) {
 
   func.func @ke_wait_bare() {
     acc.kernel_environment wait {
@@ -467,28 +462,28 @@ builtin.module {
   // CHECK-NEXT:    acc.kernel_environment wait {
 
   func.func @ke_wait_devnum(%a : i64, %b : i32) {
-    acc.kernel_environment wait({devnum: %a : i64, %b : i32}) {
+    acc.kernel_environment wait_devnum(%a : i64) wait(%b : i32) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK:       func.func @ke_wait_devnum(
-  // CHECK:         acc.kernel_environment wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK:         acc.kernel_environment wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) {
 
   func.func @ke_full(%a : i32, %w : i64, %m : memref<10xf32>) {
     %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
-    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait({%w : i64}) {
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait(%w : i64) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK:       func.func @ke_full(
-  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait(%{{.*}} : i64) {
 
   // Generic-form input — proves a hand-written generic spelling survives
   // the xdsl ↔ mlir-opt round-trip in both directions.
   func.func @ke_generic_form() {
-    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
       "test.op"() : () -> ()
     }) : () -> ()
     func.return
@@ -497,6 +492,37 @@ builtin.module {
   // CHECK-NEXT:    acc.kernel_environment {
   // CHECK-NEXT:      "test.op"() : () -> ()
   // CHECK-NEXT:    }
+
+  func.func @ke_multiple_operands(%m : memref<10xf32>, %n : memref<20xi32>, %a : i32, %b : index, %d : i64) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    %e = acc.copyin varPtr(%n : memref<20xi32>) -> memref<20xi32>
+    acc.kernel_environment wait(%a, %b : i32, index) wait_devnum(%d : i64) async(%a : i32) dataOperands(%c, %e : memref<10xf32>, memref<20xi32>) {
+      "test.op"() : () -> ()
+    } {test.label = "kernel"}
+    func.return
+  }
+  // CHECK:       func.func @ke_multiple_operands(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}}, %{{.*}} : memref<10xf32>, memref<20xi32>) async(%{{.*}} : i32) wait_devnum(%{{.*}} : i64) wait(%{{.*}}, %{{.*}} : i32, index) {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    } {test.label = "kernel"}
+
+  func.func @ke_devnum_only(%d : index) {
+    acc.kernel_environment wait_devnum(%d : index) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_devnum_only(
+  // CHECK:         acc.kernel_environment wait_devnum(%{{.*}} : index) {
+
+  func.func @ke_generic_flags() {
+    "acc.kernel_environment"() <{asyncOnly, waitOnly, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+      "test.op"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK:       func.func @ke_generic_flags() {
+  // CHECK-NEXT:    acc.kernel_environment async wait {
 
   // acc.data — round-trips through mlir-opt's OpenACC dialect in both
   // pretty and generic form. defaultAttr is required on bodies with no

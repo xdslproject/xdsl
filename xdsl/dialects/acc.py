@@ -798,7 +798,7 @@ def _emit_clause_keyword(printer: Printer, state: PrintingState, keyword: str) -
     """
     Print whitespace + a clause keyword and update print state so the
     body's first character (typically ``(``) lands adjacent (e.g.
-    ``async(``). Used by the three clauses of `KernelEnvironmentClauses`."""
+    ``async(``). Used by `KernelEnvironmentClauses`."""
     state.print_whitespace(printer)
     printer.print_string(keyword)
     state.should_emit_space = True
@@ -1151,8 +1151,7 @@ def _parse_wait_body(
     Returns ``(operands, types, device_types, segments, has_devnum,
     keyword_only)``. The bare-keyword form (no parens) yields
     ``keyword_only = [#acc.device_type<none>]`` and all other slots
-    ``None`` / empty. Shared between :class:`WaitClause` and the
-    :class:`KernelEnvironmentClauses` oilist.
+    ``None`` / empty.
     """
     if not parser.parse_optional_punctuation("("):
         return (
@@ -1312,115 +1311,6 @@ class WaitClause(CustomDirective):
 
 
 @irdl_custom_directive
-class KernelEnvironmentClauses(CustomDirective):
-    """
-    Port of upstream `acc.kernel_environment`'s `oilist(...)`.
-
-    Accepts the three optional clauses `dataOperands` / `async` / `wait` in
-    any order on parse; emits them in upstream's td-definition order on
-    print (data, async, wait). Each clause may appear at most once. The
-    body parsers/printers for `async` and `wait` are shared with
-    :class:`DeviceTypeOperandsWithKeywordOnly` and :class:`WaitClause` via
-    the `_parse/_print_dt_kw_only_body` and `_parse/_print_wait_body`
-    helpers, so the spelling is bit-identical.
-    """
-
-    data_clause_operands: VariadicOperandVariable
-    data_clause_operand_types: TypeDirective
-    async_operands: VariadicOperandVariable
-    async_operand_types: TypeDirective
-    async_device_types: AttributeVariable
-    async_only: AttributeVariable
-    wait_operands: VariadicOperandVariable
-    wait_operand_types: TypeDirective
-    wait_device_types: AttributeVariable
-    wait_segments: AttributeVariable
-    wait_has_devnum: AttributeVariable
-    wait_only: AttributeVariable
-
-    def set_empty(self, state: ParsingState) -> None:
-        self.data_clause_operands.set(state, ())
-        self.data_clause_operand_types.set(state, ())
-        self.async_operands.set(state, ())
-        self.async_operand_types.set(state, ())
-        self.wait_operands.set(state, ())
-        self.wait_operand_types.set(state, ())
-
-    _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait")
-
-    def parse(self, parser: Parser, state: ParsingState):
-        self.set_empty(state)
-        seen: set[str] = set()
-        while (
-            kw := parser.parse_optional_keyword_in(self._CLAUSE_KEYWORDS)
-        ) is not None:
-            if kw in seen:
-                parser.raise_error(f"'{kw}' clause specified twice")
-            seen.add(kw)
-            if kw == "dataOperands":
-                with parser.in_parens():
-                    pairs = parser.parse_comma_separated_list(
-                        parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
-                    )
-                operands, types = zip(*pairs)
-                self.data_clause_operands.set(state, operands)
-                self.data_clause_operand_types.set(state, types)
-            elif kw == "async":
-                ops, types, dts, kw_only = _parse_dt_kw_only_body(parser)
-                self.async_operands.set(state, ops)
-                self.async_operand_types.set(state, types)
-                if dts is not None:
-                    self.async_device_types.set(state, dts)
-                if kw_only is not None:
-                    self.async_only.set(state, kw_only)
-            else:  # wait
-                ops, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
-                self.wait_operands.set(state, ops)
-                self.wait_operand_types.set(state, types)
-                if dts is not None:
-                    self.wait_device_types.set(state, dts)
-                if segs is not None:
-                    self.wait_segments.set(state, segs)
-                if devnum is not None:
-                    self.wait_has_devnum.set(state, devnum)
-                if kw_only is not None:
-                    self.wait_only.set(state, kw_only)
-
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if data_operands := self.data_clause_operands.get(op):
-            _emit_clause_keyword(printer, state, "dataOperands")
-            printer.print_string("(")
-            printer.print_list(
-                data_operands, lambda v: _print_typed_operand(printer, v)
-            )
-            printer.print_string(")")
-
-        async_operands = self.async_operands.get(op)
-        async_only = self.async_only.get(op)
-        async_device_types = self.async_device_types.get(op)
-        if async_operands or async_only is not None or async_device_types is not None:
-            _emit_clause_keyword(printer, state, "async")
-            _print_dt_kw_only_body(
-                printer, state, async_operands, async_only, async_device_types
-            )
-
-        wait_operands = self.wait_operands.get(op)
-        wait_only = self.wait_only.get(op)
-        wait_device_types = self.wait_device_types.get(op)
-        if wait_operands or wait_only is not None or wait_device_types is not None:
-            _emit_clause_keyword(printer, state, "wait")
-            _print_wait_body(
-                printer,
-                state,
-                wait_operands,
-                wait_only,
-                wait_device_types,
-                self.wait_segments.get(op),
-                self.wait_has_devnum.get(op),
-            )
-
-
-@irdl_custom_directive
 class OperandWithKeywordOnly(CustomDirective):
     """
     Port of upstream `custom<OperandWithKeywordOnly>`.
@@ -1525,6 +1415,88 @@ class OperandsWithKeywordOnly(CustomDirective):
         printer.print_string(")")
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class KernelEnvironmentClauses(CustomDirective):
+    """
+    Port of upstream `acc.kernel_environment`'s `oilist(...)`.
+
+    Accepts dataOperands, async, wait_devnum, and wait in any order and
+    prints them in that order. Each clause may appear at most once.
+    """
+
+    data_clause_operands: VariadicOperandVariable
+    data_clause_operand_types: TypeDirective
+    async_clause: OperandWithKeywordOnly
+    wait_devnum: OptionalOperandVariable
+    wait_devnum_type: TypeDirective
+    wait_clause: OperandsWithKeywordOnly
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.data_clause_operands.set(state, ())
+        self.data_clause_operand_types.set(state, ())
+        self.async_clause.set_empty(state)
+        self.wait_devnum.set(state, None)
+        self.wait_devnum_type.set(state, ())
+        self.wait_clause.set_empty(state)
+
+    _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait_devnum", "wait")
+
+    def parse(self, parser: Parser, state: ParsingState):
+        self.set_empty(state)
+        seen: set[str] = set()
+        while (
+            kw := parser.parse_optional_keyword_in(self._CLAUSE_KEYWORDS)
+        ) is not None:
+            if kw in seen:
+                parser.raise_error(f"'{kw}' clause specified twice")
+            seen.add(kw)
+            if kw == "dataOperands":
+                with parser.in_parens():
+                    operands = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_unresolved_operand
+                    )
+                    parser.parse_punctuation(":")
+                    types = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_type
+                    )
+                self.data_clause_operands.set(state, operands)
+                self.data_clause_operand_types.set(state, types)
+            elif kw == "async":
+                self.async_clause.parse(parser, state)
+            elif kw == "wait_devnum":
+                with parser.in_parens():
+                    operand, ty = _parse_typed_operand(parser)
+                self.wait_devnum.set(state, operand)
+                self.wait_devnum_type.set(state, (ty,))
+            else:  # wait
+                self.wait_clause.parse(parser, state)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if data_operands := self.data_clause_operands.get(op):
+            _emit_clause_keyword(printer, state, "dataOperands")
+            printer.print_string("(")
+            printer.print_list(data_operands, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(
+                (operand.type for operand in data_operands), printer.print_attribute
+            )
+            printer.print_string(")")
+
+        if self.async_clause.is_present(op):
+            _emit_clause_keyword(printer, state, "async")
+            self.async_clause.print(printer, state, op)
+
+        if (wait_devnum := self.wait_devnum.get(op)) is not None:
+            _emit_clause_keyword(printer, state, "wait_devnum")
+            printer.print_string("(")
+            _print_typed_operand(printer, wait_devnum)
+            printer.print_string(")")
+
+        if self.wait_clause.is_present(op):
+            _emit_clause_keyword(printer, state, "wait")
+            self.wait_clause.print(printer, state, op)
 
 
 @irdl_custom_directive
@@ -2925,21 +2897,12 @@ class KernelEnvironmentOp(IRDLOperation):
     name = "acc.kernel_environment"
 
     data_clause_operands = var_operand_def()
-    async_operands = var_operand_def(IntegerType | IndexType)
+    async_operand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum = opt_operand_def(IntegerType | IndexType)
     wait_operands = var_operand_def(IntegerType | IndexType)
 
-    async_operands_device_type = opt_prop_def(
-        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
-    )
-    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
-    wait_operands_segments = opt_prop_def(
-        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
-    )
-    wait_operands_device_type = opt_prop_def(
-        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
-    )
-    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
-    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    async_only = opt_prop_def(UnitAttr, prop_name="asyncOnly")
+    wait_only = opt_prop_def(UnitAttr, prop_name="waitOnly")
 
     region = region_def("single_block")
 
@@ -2948,19 +2911,19 @@ class KernelEnvironmentOp(IRDLOperation):
         ParsePropInAttrDict(),
     )
 
-    custom_directives = (KernelEnvironmentClauses,)
+    custom_directives = (
+        KernelEnvironmentClauses,
+        OperandWithKeywordOnly,
+        OperandsWithKeywordOnly,
+    )
 
-    # Port of upstream's `oilist(dataOperands | async | wait)`: the three
-    # clause keywords are order-independent on parse, and the directive
-    # always emits in upstream td-definition order (data, async, wait) on
-    # print so the round-trip is bit-identical with mlir-opt.
     assembly_format = (
         "custom<KernelEnvironmentClauses>($data_clause_operands,"
-        " type($data_clause_operands), $async_operands, type($async_operands),"
-        " $asyncOperandsDeviceType, $asyncOnly, $wait_operands,"
-        " type($wait_operands), $waitOperandsDeviceType, $waitOperandsSegments,"
-        " $hasWaitDevnum, $waitOnly)"
-        " $region attr-dict-with-keyword"
+        " type($data_clause_operands), custom<OperandWithKeywordOnly>("
+        " $async_operand, type($async_operand), $asyncOnly),"
+        " $wait_devnum, type($wait_devnum), custom<OperandsWithKeywordOnly>("
+        " $wait_operands, type($wait_operands), $waitOnly))"
+        " $region attr-dict"
     )
 
     traits = traits_def(NoTerminator(), RecursiveMemoryEffect())
@@ -2970,31 +2933,35 @@ class KernelEnvironmentOp(IRDLOperation):
         *,
         region: Region,
         data_clause_operands: Sequence[OperandArg] = (),
-        async_operands: Sequence[OperandArg] = (),
+        async_operand: OperandArg | None = None,
+        wait_devnum: OperandArg | None = None,
         wait_operands: Sequence[OperandArg] = (),
-        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
-        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
-        wait_operands_segments: DenseArrayBase | None = None,
-        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
-        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
-        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: UnitAttr | None = None,
+        wait_only: UnitAttr | None = None,
     ) -> None:
         super().__init__(
             operands=[
                 data_clause_operands,
-                async_operands,
+                async_operand,
+                wait_devnum,
                 wait_operands,
             ],
             properties={
-                "asyncOperandsDeviceType": async_operands_device_type,
                 "asyncOnly": async_only,
-                "waitOperandsSegments": wait_operands_segments,
-                "waitOperandsDeviceType": wait_operands_device_type,
-                "hasWaitDevnum": has_wait_devnum,
                 "waitOnly": wait_only,
             },
             regions=[region],
         )
+
+    def verify_(self) -> None:
+        if self.async_only is not None and self.async_operand is not None:
+            raise VerifyException("async-only cannot appear with async operand")
+        if self.wait_only is not None and (
+            self.wait_operands or self.wait_devnum is not None
+        ):
+            raise VerifyException(
+                "wait-only cannot appear with wait operands or devnum"
+            )
 
 
 @irdl_op_definition
