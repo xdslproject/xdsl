@@ -4,7 +4,7 @@ from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
-from xdsl.ir import Block, Operation, Region, Use
+from xdsl.ir import Block, Operation, Region, SSAValueCovT, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import Rewriter
@@ -141,7 +141,7 @@ class CSEDriver:
         """
 
         # Just replace results
-        def wasVisited(use: Use):
+        def wasVisited(use: Use[SSAValueCovT]):
             return use.operation not in self._known_ops
 
         for o, n in zip(op.results, existing.results, strict=True):
