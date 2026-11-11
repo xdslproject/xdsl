@@ -354,6 +354,165 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            'test.prop <{value = "hello"}>',
+            '"test.prop"() <{value = "hello"}> : () -> ()',
+        ),
+        (
+            'test.prop <{value = "hello"}> {a = 2 : i32}',
+            '"test.prop"() <{value = "hello"}> {a = 2 : i32} : () -> ()',
+        ),
+        (
+            'test.prop <{value = "hello", opt = true}>',
+            '"test.prop"() <{value = "hello", opt = true}> : () -> ()',
+        ),
+    ],
+)
+def test_prop_dict(program: str, generic_program: str):
+    """Test the 'prop-dict' directive."""
+
+    @irdl_op_definition
+    class PropDictOp(IRDLOperation):
+        name = "test.prop"
+        value = prop_def(StringAttr)
+        opt = opt_prop_def(BoolAttr)
+        assembly_format = "prop-dict attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+def test_prop_dict_with_property_variable():
+    """Test that 'prop-dict' only handles the properties not bound by variables."""
+
+    @irdl_op_definition
+    class PropDictVariableOp(IRDLOperation):
+        name = "test.prop"
+        prop1 = prop_def(BoolAttr)
+        prop2 = opt_prop_def(BoolAttr)
+        assembly_format = "$prop1 prop-dict attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropDictVariableOp)
+
+    program = "test.prop false <{prop2 = true}>"
+    check_roundtrip(program, ctx)
+    check_equivalence(
+        program, '"test.prop"() <{prop1 = false, prop2 = true}> : () -> ()', ctx
+    )
+
+    program = "test.prop true"
+    check_roundtrip(program, ctx)
+    check_equivalence(program, '"test.prop"() <{prop1 = true}> : () -> ()', ctx)
+
+    with pytest.raises(ParseError, match="properties prop1 are not expected"):
+        Parser(ctx, "test.prop true <{prop1 = true}>").parse_operation()
+
+
+def test_prop_dict_default_value():
+    """Test that 'prop-dict' does not print properties equal to their default."""
+
+    @irdl_op_definition
+    class PropDictDefaultOp(IRDLOperation):
+        name = "test.prop"
+        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+        assembly_format = "prop-dict attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropDictDefaultOp)
+
+    program = "test.prop"
+    check_roundtrip(program, ctx)
+    check_equivalence(program, '"test.prop"() <{prop = false}> : () -> ()', ctx)
+
+    program = "test.prop <{prop = true}>"
+    check_roundtrip(program, ctx)
+    check_equivalence(program, '"test.prop"() <{prop = true}> : () -> ()', ctx)
+
+
+def test_prop_dict_replaces_prop_in_attr_dict():
+    """Test that 'prop-dict' takes precedence over `ParsePropInAttrDict`."""
+
+    @irdl_op_definition
+    class PropDictAttrDictOp(IRDLOperation):
+        name = "test.prop"
+        prop = opt_prop_def(BoolAttr)
+        irdl_options = (ParsePropInAttrDict(),)
+        assembly_format = "prop-dict attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropDictAttrDictOp)
+
+    program = "test.prop <{prop = true}> {a = 2 : i32}"
+    check_roundtrip(program, ctx)
+    check_equivalence(
+        program, '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()', ctx
+    )
+
+
+def test_prop_dict_ignores_segment_sizes_property():
+    """Test that 'prop-dict' does not print the operand segment sizes property."""
+
+    @irdl_op_definition
+    class PropDictSegmentsOp(IRDLOperation):
+        name = "test.prop"
+        prop = opt_prop_def(BoolAttr)
+        lhs = var_operand_def()
+        rhs = var_operand_def()
+        irdl_options = (AttrSizedOperandSegments(as_property=True),)
+        assembly_format = (
+            "prop-dict `lhs` $lhs `rhs` $rhs attr-dict "
+            "`:` `lhs` type($lhs) `rhs` type($rhs)"
+        )
+
+    ctx = Context()
+    ctx.load_op(PropDictSegmentsOp)
+    ctx.load_dialect(Test)
+
+    program = """
+    %0 = "test.op"() : () -> i32
+    test.prop <{prop = true}> lhs %0 rhs %0 : lhs i32 rhs i32
+    """
+    parsed = Parser(ctx, program).parse_module()
+    printed = StringIO()
+    Printer(printed).print_op(parsed)
+    assert "<{prop = true}> lhs %0 rhs %0 : lhs i32 rhs i32" in printed.getvalue()
+    assert "operandSegmentSizes" not in printed.getvalue()
+
+
+def test_prop_dict_twice_error():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'prop-dict' directive can only occur once",
+    ):
+
+        @irdl_op_definition
+        class TwicePropDictOp(IRDLOperation):
+            name = "test.prop"
+            prop = prop_def(BoolAttr)
+            assembly_format = "prop-dict prop-dict attr-dict"
+
+
+def test_prop_dict_in_optional_group_error():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'prop-dict' directive can only occur at the top level",
+    ):
+
+        @irdl_op_definition
+        class GroupPropDictOp(IRDLOperation):
+            name = "test.prop"
+            prop = opt_prop_def(BoolAttr)
+            flag = opt_prop_def(UnitAttr)
+            assembly_format = "(`flag` $flag^ prop-dict)? attr-dict"
+
+
 ################################################################################
 # Attribute variables                                                          #
 ################################################################################

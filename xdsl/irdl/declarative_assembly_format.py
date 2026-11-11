@@ -571,6 +571,51 @@ class AttrDictDirective(FormatDirective):
         return True
 
 
+@dataclass(frozen=True)
+class PropDictDirective(FormatDirective):
+    """
+    A property dictionary directive, with the following format:
+       prop-dict-directive ::= prop-dict
+    The directive parses and prints the properties that are not referred to elsewhere
+    in the assembly format, as an optional `<{name = attr, ...}>` dictionary.
+    Properties with a default value are not printed when they are equal to it, and the
+    dictionary is not printed at all when it would be empty.
+    """
+
+    expected_properties: set[str]
+    """
+    Properties that should be printed and parsed as part of this prop-dict.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState):
+        props = parser.parse_optional_properties_dict()
+        unexpected_props = props.keys() - self.expected_properties
+        if unexpected_props:
+            parser.raise_error(
+                f"properties {', '.join(sorted(unexpected_props))} are not expected in "
+                "the property dictionary, as they are either not properties of the "
+                "operation or are defined in other parts of the assembly format."
+            )
+        state.properties |= props
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        op_def = op.get_irdl_definition()
+        props = {
+            name: prop
+            for name, prop in op.properties.items()
+            if name in self.expected_properties
+            and prop != op_def.properties[name].default_value
+        }
+        if not props:
+            return
+        state.print_whitespace(printer)
+        with printer.in_angle_brackets():
+            printer.print_attr_dict(props)
+
+    def can_parse_empty(self) -> bool:
+        return True
+
+
 class OperandDirective(FormatDirective, TypeableDirective, ABC):
     """
     Base class for operand directives to aid typechecking.

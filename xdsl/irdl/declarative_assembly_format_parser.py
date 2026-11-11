@@ -65,6 +65,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
+    PropDictDirective,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
@@ -145,6 +146,8 @@ class FormatParser(BaseParser):
     """The region variables that are already parsed."""
     seen_successors: list[bool]
     """The successor variables that are already parsed."""
+    seen_prop_dict: bool
+    """Whether a `prop-dict` directive is already parsed."""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -156,6 +159,7 @@ class FormatParser(BaseParser):
         self.seen_properties = set[str]()
         self.seen_regions = [False] * len(op_def.regions)
         self.seen_successors = [False] * len(op_def.successors)
+        self.seen_prop_dict = False
 
     def parse_format(self) -> FormatProgram:
         """
@@ -169,9 +173,10 @@ class FormatParser(BaseParser):
             elements.append(self.parse_format_directive(False))
 
         attr_dict_idx = self.verify_attr_dict(elements)
+        prop_dict_idx = self.verify_prop_dict(elements)
         variables = self.get_constraint_variables()
         self.verify_directives(elements)
-        self.verify_properties(elements, attr_dict_idx)
+        self.verify_properties(elements, attr_dict_idx, prop_dict_idx)
         self.verify_operands(variables)
         self.verify_results(variables)
         self.verify_regions()
@@ -324,10 +329,30 @@ class FormatParser(BaseParser):
                 return i
         self.raise_error("'attr-dict' directive not found")
 
-    def verify_properties(self, elements: list[FormatDirective], attr_dict_idx: int):
+    def verify_prop_dict(self, elements: list[FormatDirective]) -> int | None:
         """
-        Check that all properties are present, unless `ParsePropInAttrDict` option is
-        used.
+        Check that the property dictionary, if present, is a top-level directive,
+        returning its index.
+        """
+        for i, element in enumerate(elements):
+            if isinstance(element, PropDictDirective):
+                return i
+        if self.seen_prop_dict:
+            self.raise_error(
+                "'prop-dict' directive can only occur at the top level of the "
+                "assembly format description"
+            )
+        return None
+
+    def verify_properties(
+        self,
+        elements: list[FormatDirective],
+        attr_dict_idx: int,
+        prop_dict_idx: int | None,
+    ):
+        """
+        Check that all properties are present, unless the `prop-dict` directive or the
+        `ParsePropInAttrDict` option is used.
         """
 
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
@@ -335,6 +360,12 @@ class FormatParser(BaseParser):
         for option in self.op_def.options:
             if isinstance(option, AttrSizedSegments) and option.as_property:
                 missing_properties.remove(option.attribute_name)
+
+        if prop_dict_idx is not None:
+            elements[prop_dict_idx] = PropDictDirective(
+                expected_properties=missing_properties
+            )
+            missing_properties = set[str]()
 
         parse_prop_in_attr_dict = any(
             isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
@@ -821,6 +852,7 @@ class FormatParser(BaseParser):
         Parse a format directive, with the following format:
           directive ::= `attr-dict`
                         | `attr-dict-with-keyword`
+                        | `prop-dict`
                         | type-directive
                         | keyword-or-punctuation-directive
                         | variable
@@ -831,6 +863,8 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(False)
         if self.parse_optional_keyword("attr-dict-with-keyword"):
             return self.create_attr_dict_directive(True)
+        if self.parse_optional_keyword("prop-dict"):
+            return self.create_prop_dict_directive()
         if self.parse_optional_keyword("type"):
             return self.parse_type_directive(inside_ref)
         if self.parse_optional_keyword("operands"):
@@ -858,6 +892,18 @@ class FormatParser(BaseParser):
             reserved_attr_names=set(),
             expected_properties=set(),
         )
+
+    def create_prop_dict_directive(self) -> PropDictDirective:
+        """Create a property dictionary directive, and update the parsing state."""
+        if self.seen_prop_dict:
+            self.raise_error(
+                "'prop-dict' directive can only occur once "
+                "in the assembly format description"
+            )
+        self.seen_prop_dict = True
+        # expected_properties is populated once the format is parsed, as some
+        # properties might appear after the prop-dict directive.
+        return PropDictDirective(expected_properties=set())
 
     def create_operands_directive(
         self, inside_type: bool, inside_ref: bool
