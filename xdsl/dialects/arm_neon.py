@@ -477,7 +477,7 @@ class DVarSSt1Op(ARMInstruction):
     src_regs = var_operand_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
+    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` functional-type($src_regs, $d)"
 
     def __init__(
         self,
