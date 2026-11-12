@@ -1272,6 +1272,13 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
             "Custom constraints must map type vars in nested constraints, if any."
         )
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        """
+        Get a set of base types that can satisfy this constraint, if there exists
+        a finite collection, or None otherwise.
+        """
+        return None
+
     def of_length(
         self, length_constr: int | TypeForm[int] | IntConstraint
     ) -> RangeLengthConstraint[AttributeCovT]:
@@ -1371,6 +1378,9 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
             self.length.mapping_type_vars(type_var_mapping),
         )
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
+
 
 @dataclass(frozen=True)
 class RangeVarConstraint(RangeConstraint[AttributeCovT]):
@@ -1437,6 +1447,9 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
             self.name, self.constraint.mapping_type_vars(type_var_mapping)
         )
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
+
 
 @dataclass(frozen=True)
 class RangeOf(RangeConstraint[AttributeCovT]):
@@ -1486,6 +1499,9 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         attr = self.constr.infer(context)
         return (attr,) * length
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constr.get_bases()
+
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeConstraint[AttributeCovT]:
@@ -1528,6 +1544,9 @@ class SingleOf(RangeConstraint[AttributeCovT]):
         self, context: InferenceContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         return (self.constr.infer(context),)
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constr.get_bases()
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
