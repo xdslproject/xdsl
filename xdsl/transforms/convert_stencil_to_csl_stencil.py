@@ -26,7 +26,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -46,13 +45,13 @@ from xdsl.transforms.varith_transformations import (
 from xdsl.utils.hints import isa
 
 
-def get_stencil_access_operands(op: Operand) -> set[Operand]:
+def get_stencil_access_operands(op: SSAValue) -> set[SSAValue]:
     """
     Returns the symbols of all stencil accessess by op and all its dependencies.
     """
-    res: set[Operand] = set()
-    frontier: set[Operand] = {op}
-    next: set[Operand] = set()
+    res: set[SSAValue] = set()
+    frontier: set[SSAValue] = {op}
+    next: set[SSAValue] = set()
     while len(frontier) > 0:
         for o in frontier:
             if isinstance(o, OpResult):
@@ -478,11 +477,11 @@ class ConvertApplyOpPattern(RewritePattern):
         done_exchange = Region(Block(arg_types=done_exchange_args))
 
         # translate old to new block arg index for optional args
-        chunk_region_oprnd_table = dict[Operand, Operand](
+        chunk_region_oprnd_table = dict[SSAValue, SSAValue](
             (old, receive_chunk.block.args[idx])
             for idx, old in enumerate(chunk_region_used_block_args, start=3)
         )
-        done_exchange_oprnd_table = dict[Operand, Operand](
+        done_exchange_oprnd_table = dict[SSAValue, SSAValue](
             (old, done_exchange.block.args[idx])
             for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )

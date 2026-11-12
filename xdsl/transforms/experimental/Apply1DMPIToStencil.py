@@ -1,7 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
 from xdsl.ir import Operation, TypeAttribute
-from xdsl.irdl import Operand
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
@@ -212,7 +211,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         mpi_operations += [bottom_halo_exhange]
-        req_ops: Operand = alloc_request_op.results[0]
+        req_ops = alloc_request_op.results[0]
 
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
