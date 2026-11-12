@@ -314,7 +314,7 @@ def test_inner_sym_attr():
         "InnerSymAttr for “ground” type should return name"
     )
 
-    with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
+    with pytest.raises(ValueError, match=r"inner symbol cannot have empty name"):
         InnerSymAttr("")
 
     aggregate_sym_attr = InnerSymAttr(

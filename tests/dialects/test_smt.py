@@ -44,7 +44,6 @@ from xdsl.dialects.smt import (
 )
 from xdsl.ir import Block, Region
 from xdsl.traits import ConstantLike
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -70,7 +69,7 @@ def test_bv_type():
     assert bv_type.value_range() == (0, 2**3)
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match="BitVectorType width must be strictly greater than zero, got 0",
     ):
         BitVectorType(0)
@@ -173,10 +172,10 @@ def test_bv_attr():
     assert bv_attr.value.data == 0
     assert bv_attr.type == BitVectorType(32)
 
-    with pytest.raises(VerifyException, match="is out of range"):
+    with pytest.raises(ValueError, match="is out of range"):
         bv_attr = BitVectorAttr(-1, 32)
 
-    with pytest.raises(VerifyException, match="is out of range"):
+    with pytest.raises(ValueError, match="is out of range"):
         bv_attr = BitVectorAttr(2**32, 32)
 
 

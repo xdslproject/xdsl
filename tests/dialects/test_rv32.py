@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -19,10 +18,10 @@ def test_immediate_pseudo_inst():
     assert lb == -2147483648
 
     # Pseudo-Instruction with custom handling
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i32"):
         rv32.LiOp(ub, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i32"):
         rv32.LiOp(lb - 1, rd=riscv.Registers.A0)
 
     rv32.LiOp(ub - 1, rd=riscv.Registers.A0)
@@ -33,10 +32,10 @@ def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui5"):
         rv32.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui5"):
         rv32.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
     rv32.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
@@ -53,10 +52,10 @@ def test_immediate_bit_manipulation_inst(
     # shamt[5]=1 encodings are reserved on RV32
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui5"):
         op_type(a1, 1 << 5, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui5"):
         op_type(a1, -1, rd=riscv.Registers.A0)
 
     op_type(a1, (1 << 5) - 1, rd=riscv.Registers.A0)

@@ -48,7 +48,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 def test_stencilboundsattr_verify():
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=(
             re.escape(
                 "Incoherent stencil bounds: lower and upper bounds must have the same"
@@ -59,7 +59,7 @@ def test_stencilboundsattr_verify():
         StencilBoundsAttr(IndexAttr.from_indices(1), IndexAttr.from_indices(2, 2))
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=(
             re.escape(
                 "Incoherent stencil bounds: upper bound must be strictly greater than"
@@ -232,7 +232,7 @@ def test_create_index_attr_from_int_list(indices: list[int]):
 
 def test_create_index_attr_from_list_edge_case():
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Expected 1 to 3 indexes for stencil.index, got 4."),
     ):
         IndexAttr.from_indices(*[1] * 4)
@@ -388,7 +388,7 @@ def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
 ):
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Expected 1 to 3 indexes for stencil.index, got 0."),
     ):
         FieldType(StencilBoundsAttr.from_bounds(bounds), attr)
@@ -498,7 +498,7 @@ def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
 ):
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Expected 1 to 3 indexes for stencil.index, got 0."),
     ):
         TempType(StencilBoundsAttr.from_bounds(dims), attr)
