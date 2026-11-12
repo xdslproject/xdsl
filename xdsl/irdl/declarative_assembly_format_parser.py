@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     UnitAttr,
 )
-from xdsl.ir import TypedAttribute
+from xdsl.ir import Attribute, ParametrizedAttribute, TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
@@ -78,6 +78,8 @@ from xdsl.irdl.declarative_assembly_format import (
     TypedAttributeVariable,
     TypeDirective,
     UniqueBaseAttributeVariable,
+    UniqueBaseOperandVariable,
+    UniqueBaseResultVariable,
     VariadicOperandVariable,
     VariadicRegionVariable,
     VariadicResultVariable,
@@ -429,8 +431,20 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format."
                 )
 
+    @staticmethod
+    def _should_qualify(base: type[Attribute]) -> bool:
+        if base in Builtin.attributes:
+            return True
+        if (
+            issubclass(base, ParametrizedAttribute)
+            and not base.get_irdl_definition().parameters
+        ):
+            return True
+
+        return False
+
     def _parse_optional_operand(
-        self, variable_name: str, inside_type: bool, inside_ref: bool
+        self, variable_name: str, inside_type: bool, inside_ref: bool, qualified: bool
     ) -> OptionalOperandVariable | VariadicOperandVariable | OperandVariable | None:
         for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
             if variable_name != operand_name:
@@ -454,10 +468,20 @@ class FormatParser(BaseParser):
                 case VarOperandDef():
                     return VariadicOperandVariable(variable_name, idx)
                 case _:
+                    # Check if we should use UniqueBaseOperandVariable
+                    # Don't use simplified syntax when qualified
+                    if not qualified:
+                        bases = operand_def.constr.get_bases()
+                        if bases is not None and len(bases) == 1:
+                            unique_base = next(iter(bases))
+                            if not self._should_qualify(unique_base):
+                                return UniqueBaseOperandVariable(
+                                    variable_name, idx, unique_base
+                                )
                     return OperandVariable(variable_name, idx)
 
     def parse_optional_typeable_variable(
-        self, inside_ref: bool
+        self, inside_ref: bool, qualified: bool
     ) -> TypeableDirective | None:
         """
         Parse a variable, if present, with the following format:
@@ -465,6 +489,7 @@ class FormatParser(BaseParser):
         The variable should refer to an operand or result.
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
+        If `qualified` is `True`, don't use UniqueBase* classes for type variables.
         """
         start_pos = self.pos
         if self._current_token.text[0] != "$":
@@ -475,7 +500,9 @@ class FormatParser(BaseParser):
 
         # Check if the variable is an operand
         if (
-            variable := self._parse_optional_operand(variable_name, True, inside_ref)
+            variable := self._parse_optional_operand(
+                variable_name, True, inside_ref, qualified
+            )
         ) is not None:
             return variable
 
@@ -493,6 +520,19 @@ class FormatParser(BaseParser):
                 case VarResultDef():
                     return VariadicResultVariable(variable_name, idx)
                 case _:
+                    # Check if we should use UniqueBaseResultVariable
+                    # Don't use simplified syntax if:
+                    # - we're inside a qualified context, or
+                    # - the constraint has type variables
+
+                    if not qualified:
+                        bases = result_def.constr.get_bases()
+                        if bases is not None and len(bases) == 1:
+                            unique_base = next(iter(bases))
+                            if not self._should_qualify(unique_base):
+                                return UniqueBaseResultVariable(
+                                    variable_name, idx, unique_base
+                                )
                     return ResultVariable(variable_name, idx)
 
         self.raise_error(
@@ -505,8 +545,16 @@ class FormatParser(BaseParser):
         self,
         inside_ref: bool,
         *,
-        qualified: bool = False,
+        qualified: bool,
     ) -> FormatDirective | None:
+        """
+        Parse a variable, if present, with the following format:
+          variable ::= `$` bare-ident
+        The variable should refer to an operand, attribute, region, or successor.
+        If `inside_ref` is `True`, then this directive can have appeared in the
+        assembly format already.
+        If `qualified` is `True`, don't use UniqueBase* classes (use full syntax).
+        """
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -523,7 +571,9 @@ class FormatParser(BaseParser):
 
         # Check if the variable is an operand
         if (
-            variable := self._parse_optional_operand(variable_name, False, inside_ref)
+            variable := self._parse_optional_operand(
+                variable_name, False, inside_ref, qualified
+            )
         ) is not None:
             return variable
 
@@ -661,16 +711,19 @@ class FormatParser(BaseParser):
             end_position=end_pos,
         )
 
-    def parse_type_directive(self, inside_ref: bool) -> FormatDirective:
+    def parse_type_directive(
+        self, inside_ref: bool, qualified: bool
+    ) -> FormatDirective:
         """
         Parse a type directive with the following format:
           type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed.
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
+        If `qualified` is `True`, don't use UniqueBase* classes for type variables.
         """
         with self.in_parens():
-            return TypeDirective(self.parse_typeable_directive(inside_ref))
+            return TypeDirective(self.parse_typeable_directive(inside_ref, qualified))
 
     def parse_functional_type_directive(self, inside_ref: bool) -> FormatDirective:
         """
@@ -681,27 +734,29 @@ class FormatParser(BaseParser):
         assembly format already.
         """
         with self.in_parens():
-            operands = self.parse_typeable_directive(inside_ref)
+            operands = self.parse_typeable_directive(inside_ref, qualified=True)
             self.parse_punctuation(",")
-            results = self.parse_typeable_directive(inside_ref)
+            results = self.parse_typeable_directive(inside_ref, qualified=True)
         return FunctionalTypeDirective(operands, results)
 
     def parse_qualified_directive(self, inside_ref: bool) -> FormatDirective:
         """
-        Parse a qualified attribute or type directive, with the following format:
-            qualified-directive ::= `qualified` `(` variable `)`
+        Parse a qualified directive, with the following format:
+            qualified-directive ::= `qualified` `(` directive `)`
         `qualified` is expected to have already been parsed.
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
+        When wrapping type directives, prevents use of simplified type syntax.
         """
         with self.in_parens():
-            res = self.parse_optional_variable(inside_ref, qualified=True)
-            if res is None:
-                self.raise_error(
-                    "expected a variable after 'qualified', found "
-                    f"'{self._current_token.text}'"
-                )
-        return res
+            if self.parse_optional_keyword("type"):
+                return self.parse_type_directive(inside_ref, qualified=True)
+            if res := self.parse_optional_variable(inside_ref, qualified=True):
+                return res
+            self.raise_error(
+                "expected a directive after 'qualified', found "
+                f"'{self._current_token.text}'"
+            )
 
     def parse_optional_group(self) -> FormatDirective:
         """
@@ -798,18 +853,21 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_typeable_directive(self, inside_ref: bool) -> TypeableDirective:
+    def parse_typeable_directive(
+        self, inside_ref: bool, qualified: bool
+    ) -> TypeableDirective:
         """
         Parse a typeable directive, with the following format:
           typeable-directive ::= variable | `operands` | `results`
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
+        If `qualified` is `True`, don't use UniqueBase* classes for type variables.
         """
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(True, inside_ref)
         if self.parse_optional_keyword("results"):
             return self.create_results_directive(inside_ref)
-        if variable := self.parse_optional_typeable_variable(inside_ref):
+        if variable := self.parse_optional_typeable_variable(inside_ref, qualified):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
@@ -862,6 +920,7 @@ class FormatParser(BaseParser):
                         | variable
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
+        If `qualified` is `True`, don't use UniqueBase* classes for type variables.
         """
         if self.parse_optional_keyword("attr-dict"):
             return self.create_attr_dict_directive(False)
@@ -870,7 +929,7 @@ class FormatParser(BaseParser):
         if self.parse_optional_keyword("prop-dict"):
             return self.create_prop_dict_directive()
         if self.parse_optional_keyword("type"):
-            return self.parse_type_directive(inside_ref)
+            return self.parse_type_directive(inside_ref, qualified=False)
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(False, inside_ref)
         if self.parse_optional_keyword("functional-type"):
@@ -883,7 +942,7 @@ class FormatParser(BaseParser):
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
             return self.parse_optional_group()
-        if variable := self.parse_optional_variable(inside_ref):
+        if variable := self.parse_optional_variable(inside_ref, qualified=False):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 

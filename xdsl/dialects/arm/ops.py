@@ -70,7 +70,9 @@ class DSMovOp(ARMInstruction):
 
     d = result_def(IntRegisterType)
     s = operand_def(IntRegisterType)
-    assembly_format = "$s attr-dict `:` `(` type($s) `)` `->` type($d)"
+    assembly_format = (
+        "$s attr-dict `:` `(` qualified(type($s)) `)` `->` qualified(type($d))"
+    )
 
     def __init__(
         self,
@@ -103,7 +105,7 @@ class GetRegisterOp(ARMAsmOperation):
     name = "arm.get_register"
 
     result = result_def(IntRegisterType)
-    assembly_format = "attr-dict `:` type($result)"
+    assembly_format = "attr-dict `:` qualified(type($result))"
 
     def __init__(self, register_type: IntRegisterType):
         super().__init__(result_types=[register_type])
@@ -126,7 +128,7 @@ class DSSMulOp(ARMInstruction):
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
     assembly_format = (
-        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+        "$s1 `,` $s2 attr-dict `:` `(` type(operands) `)` `->` qualified(type($d))"
     )
 
     def __init__(
@@ -204,7 +206,7 @@ class CmpRegOp(ARMInstruction):
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
 
-    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
+    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type(operands) `)`"
 
     def __init__(
         self,

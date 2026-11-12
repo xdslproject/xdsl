@@ -96,15 +96,20 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandsDirective,
     OperandVariable,
     OptionalOperandVariable,
+    OptionalResultVariable,
     OptionalUnitAttrVariable,
     ParsingState,
     PrintingState,
     PunctuationDirective,
     RegionVariable,
     ResultsDirective,
+    ResultVariable,
     SuccessorVariable,
     TypeDirective,
+    UniqueBaseOperandVariable,
+    UniqueBaseResultVariable,
     VariadicOperandVariable,
+    VariadicResultVariable,
     WhitespaceDirective,
     irdl_custom_directive,
 )
@@ -3048,7 +3053,7 @@ def test_nested_inference():
         lhs = operand_def(ParamOne.constr(p=T))
         rhs = operand_def(T)
 
-        assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
+        assembly_format = "$lhs $rhs attr-dict `:` qualified(type($lhs))"
 
     ctx = Context()
     ctx.load_op(TwoOperandsNestedVarOp)
@@ -3086,7 +3091,7 @@ def test_nested_inference_variable():
         res = result_def(T)
         arg = operand_def(U)
 
-        assembly_format = "$arg attr-dict `:` type($arg)"
+        assembly_format = "$arg attr-dict `:` qualified(type($arg))"
 
     ctx = Context()
     ctx.load_op(ResultTypeIsOperandParamOp)
@@ -3129,7 +3134,7 @@ def test_non_verifying_inference():
         res = result_def(T)
         lhs = operand_def(ParamOne.constr(p=T))
 
-        assembly_format = "$lhs attr-dict `:` type($lhs)"
+        assembly_format = "$lhs attr-dict `:` qualified(type($lhs))"
 
     ctx = Context()
     ctx.load_op(OneOperandOneResultNestedOp)
@@ -3932,7 +3937,7 @@ class AllOfExtractorOp(IRDLOperation):
     lhs = operand_def(T & MemRefType.constr(T))
     rhs = operand_def(T)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+    assembly_format = "$lhs `,` $rhs attr-dict `:` qualified(type($lhs))"
 
 
 def test_all_of_extraction_fails():
@@ -3969,7 +3974,7 @@ class ParamExtractorOp(IRDLOperation):
     lhs = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
     rhs = operand_def(T)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+    assembly_format = "$lhs `,` $rhs attr-dict `:` qualified(type($lhs))"
 
 
 def test_param_extraction_fails():
@@ -4576,3 +4581,87 @@ def test_punctuation_is_non_optional():
 
     with pytest.raises(ParseError, match="Expected ':'"):
         parser.parse_op()
+
+
+def test_typeable_directive_get_base():
+    """Test get_base() method on TypeableDirective subclasses."""
+    # Regular TypeableDirective subclasses return None
+    assert OperandVariable("x", 0).get_base() is None
+    assert ResultVariable("x", 0).get_base() is None
+    assert VariadicOperandVariable("x", 0).get_base() is None
+    assert VariadicResultVariable("x", 0).get_base() is None
+    assert OptionalOperandVariable("x", 0).get_base() is None
+    assert OptionalResultVariable("x", 0).get_base() is None
+    assert OperandsDirective().get_base() is None
+    assert ResultsDirective().get_base() is None
+
+    # UniqueBase* subclasses return the stored unique_base
+    assert UniqueBaseOperandVariable("x", 0, IntegerType).get_base() == IntegerType
+    assert UniqueBaseResultVariable("x", 0, IntegerType).get_base() == IntegerType
+
+
+@irdl_attr_definition
+class AttrWithParam(ParametrizedAttribute, TypeAttribute):
+    name = "test.attr_with_param"
+    param: IntegerType
+
+
+def test_unqualified_type():
+    @irdl_op_definition
+    class UnqualifiedOp(IRDLOperation):
+        name = "test.unqualified"
+        result = result_def(AttrWithParam)
+        assembly_format = "attr-dict `:` type($result)"
+
+    ctx = Context()
+    ctx.load_attr_or_type(AttrWithParam)
+    ctx.load_op(UnqualifiedOp)
+    check_roundtrip("%0 = test.unqualified : <i32>", ctx)
+
+    # Test we can still parse the qualified syntax
+    parser = Parser(ctx, "%0 = test.unqualified : !test.attr_with_param<i32>")
+    op = parser.parse_operation()
+    assert op.result_types == (AttrWithParam(i32),)
+
+
+def test_qualified_operand_type():
+    @irdl_op_definition
+    class QualifiedOp(IRDLOperation):
+        name = "test.qualified"
+        result = result_def(AttrWithParam)
+        assembly_format = "attr-dict `:` qualified(type($result))"
+
+    ctx = Context()
+    ctx.load_attr_or_type(AttrWithParam)
+    ctx.load_op(QualifiedOp)
+    check_roundtrip("%0 = test.qualified : !test.attr_with_param<i32>", ctx)
+
+
+def test_builtin_is_qualified():
+    @irdl_op_definition
+    class UnqualifiedOp(IRDLOperation):
+        name = "test.unqualified"
+        result = result_def(IntegerType)
+        assembly_format = "attr-dict `:` type($result)"
+
+    ctx = Context()
+    ctx.load_attr_or_type(AttrWithParam)
+    ctx.load_op(UnqualifiedOp)
+    check_roundtrip("%0 = test.unqualified : i32", ctx)
+
+
+def test_no_param_is_qualified():
+    @irdl_attr_definition
+    class AttrWithOutParam(ParametrizedAttribute, TypeAttribute):
+        name = "test.attr_without_param"
+
+    @irdl_op_definition
+    class UnqualifiedOp(IRDLOperation):
+        name = "test.unqualified"
+        result = result_def(AttrWithOutParam)
+        assembly_format = "attr-dict `:` type($result)"
+
+    ctx = Context()
+    ctx.load_attr_or_type(AttrWithOutParam)
+    ctx.load_op(UnqualifiedOp)
+    check_roundtrip("%0 = test.unqualified : !test.attr_without_param", ctx)

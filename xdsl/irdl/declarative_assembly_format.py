@@ -408,6 +408,16 @@ class TypeableDirective(Directive, ABC):
     @abstractmethod
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]: ...
 
+    def get_base(self) -> type[Attribute] | None:
+        """
+        Get the unique base type that can satisfy this directive's constraint,
+        if there is exactly one, or None otherwise.
+
+        This is used to enable simplified type syntax when the base type is known.
+        For now returns None - will be overridden when unique_base is stored on the directive.
+        """
+        return None
+
 
 @dataclass(frozen=True)
 class TypeDirective(FormatDirective):
@@ -432,7 +442,22 @@ class TypeDirective(FormatDirective):
         if not types:
             return
         state.print_whitespace(printer)
-        printer.print_list(types, printer.print_attribute)
+        # Check if we should use simplified syntax (just parameters, no !dialect.name prefix)
+        if self.inner.get_base() is not None:
+            # Print simplified syntax: just parameters, no !dialect.name prefix
+            def print_param(attr: Attribute):
+                if isinstance(attr, ParametrizedAttribute):
+                    attr.print_parameters(printer)
+                elif isinstance(attr, Data):
+                    attr.print_parameter(printer)
+                else:
+                    raise ValueError(
+                        "Attributes must be Data or ParametrizedAttribute."
+                    )
+
+            printer.print_list(types, print_param)
+        else:
+            printer.print_list(types, printer.print_attribute)
 
     def is_present(self, op: IRDLOperation) -> bool:
         return self.inner.is_present(op)
@@ -660,6 +685,37 @@ class OperandVariable(VariableDirective, OperandDirective):
 
 
 @dataclass(frozen=True)
+class UniqueBaseOperandVariable(OperandVariable):
+    """
+    An operand variable where the base type is known.
+    When parsing types, uses simplified syntax (just parameters, no !dialect.name prefix).
+    """
+
+    unique_base: type[Attribute]
+    """The known base class of the operand type."""
+
+    def get_base(self) -> type[Attribute] | None:
+        return self.unique_base
+
+    def parse_types(self, parser: Parser, state: ParsingState):
+        attr = parser.parse_optional_type()
+
+        if attr is None:
+            # Parse simplified syntax: just parameters, no !dialect.name prefix
+            if issubclass(self.unique_base, ParametrizedAttribute):
+                params = self.unique_base.parse_parameters(parser)
+                attr = self.unique_base.new(params)
+            elif issubclass(self.unique_base, Data):
+                unique_base = cast(type[Data[Any]], self.unique_base)
+                param = unique_base.parse_parameter(parser)
+                attr = unique_base.new(param)
+            else:
+                raise ValueError("Attributes must be Data or ParametrizedAttribute.")
+
+        self.set_types(state, (attr,))
+
+
+@dataclass(frozen=True)
 class VariadicOperandVariable(VariadicVariable, OperandDirective):
     """
     A variadic operand variable, with the following format:
@@ -882,6 +938,37 @@ class ResultVariable(VariableDirective, TypeableDirective):
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return (getattr(op, self.name).type,)
+
+
+@dataclass(frozen=True)
+class UniqueBaseResultVariable(ResultVariable):
+    """
+    A result variable where the base type is known.
+    When parsing, uses simplified type syntax (just parameters, no !dialect.name prefix).
+    """
+
+    unique_base: type[Attribute]
+    """The known base class of the result type."""
+
+    def get_base(self) -> type[Attribute] | None:
+        return self.unique_base
+
+    def parse_types(self, parser: Parser, state: ParsingState):
+        attr = parser.parse_optional_type()
+
+        if attr is None:
+            # Parse simplified syntax: just parameters, no !dialect.name prefix
+            if issubclass(self.unique_base, ParametrizedAttribute):
+                params = self.unique_base.parse_parameters(parser)
+                attr = self.unique_base.new(params)
+            elif issubclass(self.unique_base, Data):
+                unique_base = cast(type[Data[Any]], self.unique_base)
+                param = unique_base.parse_parameter(parser)
+                attr = unique_base.new(param)
+            else:
+                raise ValueError("Attributes must be Data or ParametrizedAttribute.")
+
+        self.set_types(state, (attr,))
 
 
 @dataclass(frozen=True)
