@@ -20,6 +20,11 @@ builtin.module {
   %lr = llvm.load %4 atomic seq_cst {alignment = 4 : i64} : !llvm.ptr -> i32
   %ptr_int = llvm.ptrtoint %1 : !llvm.ptr to i64
 
+  // Vector type support for inttoptr/ptrtoint
+  %vec_i64 = arith.constant dense<0> : vector<4 x i64>
+  %vec_ptr = llvm.inttoptr %vec_i64 : vector<4 x i64> to vector<4 x !llvm.ptr>
+  %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4 x !llvm.ptr> to vector<4 x i32>
+
   %agg = "test.op"() : () -> !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %ev_field = llvm.extractvalue %agg[0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %ev_arr = llvm.extractvalue %agg[1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
@@ -48,6 +53,9 @@ builtin.module {
 // CHECK-NEXT:    {{%.*}} = llvm.load [[ALLOCA64]] atomic acquire {alignment = 4 : i64} : !llvm.ptr -> i32
 // CHECK-NEXT:    {{%.*}} = llvm.load [[ALLOCA64]] atomic seq_cst {alignment = 4 : i64} : !llvm.ptr -> i32
 // CHECK-NEXT:    {{%.*}} = llvm.ptrtoint [[PTR]] : !llvm.ptr to i64
+// CHECK-NEXT:    [[VEC_I64:%.*]] = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    [[VEC_PTR:%.*]] = llvm.inttoptr [[VEC_I64]] : vector<4xi64> to vector<4x!llvm.ptr>
+// CHECK-NEXT:    [[VEC_I32:%.*]] = llvm.ptrtoint [[VEC_PTR]] : vector<4x!llvm.ptr> to vector<4xi32>
 // CHECK-NEXT:    [[AGG:%.*]] = "test.op"() : () -> !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    [[EVF:%.*]] = llvm.extractvalue [[AGG]][0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    {{%.*}} = llvm.extractvalue [[AGG]][1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>

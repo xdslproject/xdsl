@@ -1319,9 +1319,9 @@ class IntToPtrOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(IntegerType)
+    input = operand_def(IntegerType | VectorType[IntegerType])
 
-    output = result_def(LLVMPointerType)
+    output = result_def(LLVMPointerType | VectorType[LLVMPointerType])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1509,9 +1509,9 @@ class PtrToIntOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(LLVMPointerType)
+    input = operand_def(LLVMPointerType | VectorType[LLVMPointerType])
 
-    output = result_def(IntegerType)
+    output = result_def(IntegerType | VectorType[IntegerType])
 
     traits = traits_def(NoMemoryEffect())
 

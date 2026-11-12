@@ -3,6 +3,11 @@ builtin.module {
   %0 = arith.constant 0 : i64
   %1 = llvm.inttoptr %0 : i64 to !llvm.ptr
   %3 = llvm.mlir.zero : !llvm.ptr
+
+  // Vector type support for inttoptr/ptrtoint
+  %vec_i64 = arith.constant dense<0> : vector<4 x i64>
+  %vec_ptr = llvm.inttoptr %vec_i64 : vector<4 x i64> to vector<4 x !llvm.ptr>
+  %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4 x !llvm.ptr> to vector<4 x i32>
   %4 = llvm.alloca %0 x index {alignment = 32 : i64} : (i64) -> !llvm.ptr
   %6 = llvm.getelementptr %4[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32
   %7 = llvm.alloca %0 x i32 : (i64) -> !llvm.ptr
@@ -36,6 +41,9 @@ builtin.module {
 // CHECK-NEXT:    %0 = arith.constant 0 : i64
 // CHECK-NEXT:    %1 = llvm.inttoptr %0 : i64 to !llvm.ptr
 // CHECK-NEXT:    %2 = llvm.mlir.zero : !llvm.ptr
+// CHECK-NEXT:    %vec_i64 = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    %vec_ptr = llvm.inttoptr %vec_i64 : vector<4xi64> to vector<4x!llvm.ptr>
+// CHECK-NEXT:    %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4x!llvm.ptr> to vector<4xi32>
 // CHECK-NEXT:    %3 = llvm.alloca %0 x index {alignment = 32 : i64} : (i64) -> !llvm.ptr
 // CHECK-NEXT:    %4 = llvm.getelementptr %3[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32
 // CHECK-NEXT:    %5 = llvm.alloca %0 x i32 : (i64) -> !llvm.ptr
