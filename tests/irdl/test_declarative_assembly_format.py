@@ -436,24 +436,20 @@ def test_prop_dict_default_value():
     check_equivalence(program, '"test.prop"() <{prop = true}> : () -> ()', ctx)
 
 
-def test_prop_dict_replaces_prop_in_attr_dict():
-    """Test that 'prop-dict' takes precedence over `ParsePropInAttrDict`."""
+def test_prop_dict_with_prop_in_attr_dict_error():
+    """Test that 'prop-dict' cannot be combined with `ParsePropInAttrDict`."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'prop-dict' directive cannot be used together with the "
+        "'ParsePropInAttrDict' IRDL option",
+    ):
 
-    @irdl_op_definition
-    class PropDictAttrDictOp(IRDLOperation):
-        name = "test.prop"
-        prop = opt_prop_def(BoolAttr)
-        irdl_options = (ParsePropInAttrDict(),)
-        assembly_format = "prop-dict attr-dict"
-
-    ctx = Context()
-    ctx.load_op(PropDictAttrDictOp)
-
-    program = "test.prop <{prop = true}> {a = 2 : i32}"
-    check_roundtrip(program, ctx)
-    check_equivalence(
-        program, '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()', ctx
-    )
+        @irdl_op_definition
+        class PropDictAttrDictOp(IRDLOperation):
+            name = "test.prop"
+            prop = opt_prop_def(BoolAttr)
+            irdl_options = (ParsePropInAttrDict(),)
+            assembly_format = "prop-dict attr-dict"
 
 
 def test_prop_dict_ignores_segment_sizes_property():

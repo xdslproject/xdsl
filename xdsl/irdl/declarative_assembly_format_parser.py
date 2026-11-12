@@ -361,17 +361,21 @@ class FormatParser(BaseParser):
             if isinstance(option, AttrSizedSegments) and option.as_property:
                 missing_properties.remove(option.attribute_name)
 
-        if prop_dict_idx is not None:
-            elements[prop_dict_idx] = PropDictDirective(
-                expected_properties=missing_properties
-            )
-            missing_properties = set[str]()
-
         parse_prop_in_attr_dict = any(
             isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
         )
 
-        if missing_properties and not parse_prop_in_attr_dict:
+        if prop_dict_idx is not None:
+            if parse_prop_in_attr_dict:
+                self.raise_error(
+                    "'prop-dict' directive cannot be used together with the "
+                    "'ParsePropInAttrDict' IRDL option"
+                )
+            elements[prop_dict_idx] = PropDictDirective(
+                expected_properties=missing_properties
+            )
+            missing_properties = set[str]()
+        elif missing_properties and not parse_prop_in_attr_dict:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
                 "the declarative format. If this is intentional, consider using "
