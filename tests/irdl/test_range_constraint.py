@@ -3,7 +3,7 @@ import re
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import StringAttr, i32
+from xdsl.dialects.builtin import IntegerType, StringAttr, i32
 from xdsl.ir import Attribute
 from xdsl.irdl import (
     AnyAttr,
@@ -224,3 +224,22 @@ def test_range_var_constraint_get():
     assert RangeVarConstraint.get("R", i32) == RangeVarConstraint(
         "R", RangeOf(EqAttrConstraint(i32))
     )
+
+
+def test_range_constraint_get_bases():
+    """Test get_bases() method on RangeConstraint subclasses."""
+    # AnyRange returns None (any type possible)
+    assert AnyRange().get_bases() is None
+
+    # RangeOf delegates to inner constraint
+    assert RangeOf(BaseAttr(StringAttr)).get_bases() == {StringAttr}
+    assert RangeOf(EqAttrConstraint(i32)).get_bases() == {IntegerType}
+    assert RangeOf(AnyAttr()).get_bases() is None
+
+    # RangeLengthConstraint delegates to inner constraint
+    range_len = RangeOf(BaseAttr(StringAttr)).of_length(2)
+    assert range_len.get_bases() == {StringAttr}
+
+    # RangeVarConstraint delegates to inner constraint
+    range_var = RangeVarConstraint("R", RangeOf(BaseAttr(StringAttr)))
+    assert range_var.get_bases() == {StringAttr}
