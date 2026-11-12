@@ -13,7 +13,7 @@ builtin.module {
     %x1 = "test.op"() : () -> (!arm.reg<x1>)
 
     // CHECK:       Operation does not verify: dest_regs must contain between 1 and 4 elements, but got 5.
-    %v11, %v12, %v13, %v14, %v15 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>, !arm_neon.reg<v15>)
+    %v11, %v12, %v13, %v14, %v15 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : (!arm.reg<x1>) -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>, !arm_neon.reg<v15>)
 }
 
 // -----
