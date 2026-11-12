@@ -335,7 +335,7 @@ class DSDupOp(ARMInstruction):
     d = result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` type($d)"
+    assembly_format = "$s $arrangement attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -380,9 +380,7 @@ class DSVecMovOp(ARMInstruction):
     d = result_def(IntRegisterType)
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
-    assembly_format = (
-        "$s `[` $scalar_idx `]` $arrangement attr-dict `:` type($s) `->` type($d)"
-    )
+    assembly_format = "$s `[` $scalar_idx `]` $arrangement attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -428,7 +426,9 @@ class DVarSLd1Op(ARMInstruction):
     dest_regs = var_result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
+    assembly_format = (
+        " ` ` `[` $s `]` $arrangement attr-dict `:` functional-type(operands, results)"
+    )
 
     def __init__(
         self,
