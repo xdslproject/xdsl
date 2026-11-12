@@ -917,8 +917,6 @@ class FormatParser(BaseParser):
         If `inside_type` is true, then we are nested within a `type` directive.
         If `inside_ref` is true, we allow operands to have been previously parsed.
         """
-        if not self.op_def.operands:
-            self.raise_error("'operands' should not be used when there are no operands")
         if not inside_ref and not inside_type and any(self.seen_operands):
             self.raise_error("'operands' cannot be used with other operand directives")
         if not inside_ref and inside_type and any(self.seen_operand_types):
@@ -944,8 +942,6 @@ class FormatParser(BaseParser):
         Create an results directive.
         If `inside_ref` is true, we allow results to have been previously parsed.
         """
-        if not self.op_def.results:
-            self.raise_error("'results' should not be used when there are no results")
         if not inside_ref and any(self.seen_result_types):
             self.raise_error(
                 "'results' cannot be used in a type directive with other result type directives"
