@@ -1325,8 +1325,7 @@ class IntToPtrOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, input: OperandArg):
-        ptr_type = LLVMPointerType()
+    def __init__(self, input: OperandArg, ptr_type: Attribute = LLVMPointerType()):
         super().__init__(operands=[input], result_types=[ptr_type])
 
 
