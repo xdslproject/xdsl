@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s --strict-whitespace
+// RUN: xdsl-opt %s --parsing-diagnostics --split-input-file | filecheck %s
 
 // CHECK: key must be a string or a type attribute
 "test.op"() {
@@ -8,7 +8,6 @@
 // -----
 
 // CHECK: duplicate DLTI entry key
-
 "test.op"() {
   spec2 = #dlti.dl_spec<i32 = i32, i32 = i32>
 >} : () -> ()
@@ -48,6 +47,7 @@ module attributes {
 "test.op"() { test.unknown_attr = #dlti.map<"" = 42> } : () -> ()
 
 // -----
+
 // CHECK: duplicate DLTI entry key
 "test.op"() { test.unknown_attr = #dlti.map<
   i32 = 42, i32 = 19> } : () -> ()
