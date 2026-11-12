@@ -4205,6 +4205,101 @@ def test_qualified_attr():
     assert op.attr == MyAttr(StringAttr("test"))
 
 
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$lhs `,` $rhs `:` qualified(type($lhs)) `,` qualified(type($rhs)) attr-dict",
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            "%1 = test.qualified_type %0, %0 : "
+            '!test.type<"a">, !test.type<"a">',
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            '%1 = "test.qualified_type"(%0, %0) : '
+            '(!test.type<"a">, !test.type<"a">) -> !test.type<"b">',
+        ),
+        (
+            "operands `:` qualified(type(operands)) attr-dict",
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            "%1 = test.qualified_type %0, %0 : "
+            '!test.type<"a">, !test.type<"a">',
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            '%1 = "test.qualified_type"(%0, %0) : '
+            '(!test.type<"a">, !test.type<"a">) -> !test.type<"b">',
+        ),
+    ],
+)
+def test_qualified_type(format: str, program: str, generic_program: str):
+    """Test the `qualified` directive applied to a `type` directive."""
+
+    @irdl_op_definition
+    class QualifiedTypeOp(IRDLOperation):
+        name = "test.qualified_type"
+
+        lhs = operand_def(TestType)
+        rhs = operand_def(TestType)
+        res = result_def(TestType("b"))
+
+        assembly_format = format
+
+    ctx = Context()
+    ctx.load_op(QualifiedTypeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_qualified_type",
+            '"test.optional_qualified_type"() : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            'test.optional_qualified_type %0 : !test.type<"a">',
+            '%0 = "test.op"() : () -> !test.type<"a">\n'
+            '"test.optional_qualified_type"(%0) : (!test.type<"a">) -> ()',
+        ),
+    ],
+)
+def test_optional_qualified_type(program: str, generic_program: str):
+    """Test a qualified type directive inside an optional group."""
+
+    @irdl_op_definition
+    class OptionalQualifiedTypeOp(IRDLOperation):
+        name = "test.optional_qualified_type"
+
+        arg = opt_operand_def(TestType)
+
+        assembly_format = "($arg^ `:` qualified(type($arg)))? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalQualifiedTypeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+def test_qualified_type_requires_typeable_directive():
+    """Test that a qualified type directive must refer to a typeable directive."""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="expected typeable variable to refer to an operand or result",
+    ):
+
+        @irdl_op_definition
+        class QualifiedTypeOp(IRDLOperation):
+            name = "test.qualified_type"
+
+            attr = prop_def(MyAttr)
+
+            assembly_format = "qualified(type($attr)) attr-dict"
+
+
 ################################################################################
 #                             Custom directives                                #
 ################################################################################

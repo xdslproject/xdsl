@@ -689,12 +689,15 @@ class FormatParser(BaseParser):
     def parse_qualified_directive(self, inside_ref: bool) -> FormatDirective:
         """
         Parse a qualified attribute or type directive, with the following format:
-            qualified-directive ::= `qualified` `(` variable `)`
+            qualified-directive ::= `qualified` `(` (variable | type-directive) `)`
         `qualified` is expected to have already been parsed.
         If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
+            if self.parse_optional_keyword("type"):
+                # Types are always printed and parsed in their qualified form.
+                return self.parse_type_directive(inside_ref)
             res = self.parse_optional_variable(inside_ref, qualified=True)
             if res is None:
                 self.raise_error(
