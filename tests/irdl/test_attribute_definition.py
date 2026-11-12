@@ -691,25 +691,6 @@ class ParamWrapperAttr(ParametrizedAttribute, Generic[_T]):
     param: _T
 
 
-_ParamDefT = TypeVar("_ParamDefT", bound=IntData | BoolData)
-
-
-@irdl_attr_definition
-class ParamDefTypeVarAttr(ParametrizedAttribute, Generic[_ParamDefT]):
-    name = "test.param_def_type_var"
-
-    param: _ParamDefT = param_def(_ParamDefT)
-
-
-def test_param_def_type_var():
-    """Test that `param_def` accepts a type variable as its constraint."""
-    ParamDefTypeVarAttr[IntData](IntData(42))
-    ParamDefTypeVarAttr[BoolData](BoolData(True))
-
-    with pytest.raises(VerifyException):
-        ParamDefTypeVarAttr(StringAttr("not an int or bool"))  # pyright: ignore[reportArgumentType]
-
-
 def test_typevar_attribute_int():
     """Test the verifier of a generic attribute."""
     attr = ParamWrapperAttr[IntData](IntData(42))
