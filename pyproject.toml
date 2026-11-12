@@ -6,7 +6,8 @@ requires = [ "setuptools>=77", "setuptools-scm>=8" ]
 name = "xdsl"
 description = "xDSL"
 readme = "README.md"
-license = { text = "Apache License v2.0 with LLVM Exceptions" }
+license = "Apache-2.0 WITH LLVM-exception"
+license-files = [ "LICENSE" ]
 authors = [ { name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" } ]
 requires-python = ">=3.11"
 classifiers = [

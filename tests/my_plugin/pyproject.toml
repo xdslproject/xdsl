@@ -1,8 +1,12 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=77" ]
+
 [project]
 name = "my-plugin"
 description = "Plugin to test pass and transform discovery"
 readme = "README.md"
-license = { text = "Apache License v2.0 with LLVM Exceptions" }
+license = "Apache-2.0 WITH LLVM-exception"
 authors = [ { name = "Sasha Lopoukhine", email = "sasha@lopoukhine.com" } ]
 requires-python = ">=3.11"
 classifiers = [
