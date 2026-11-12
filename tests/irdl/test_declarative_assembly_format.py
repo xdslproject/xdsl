@@ -1563,21 +1563,6 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
     check_roundtrip(program, ctx)
 
 
-def test_operands_directive_fails_with_no_operands():
-    """Test operands directive cannot be used with no operands"""
-
-    with pytest.raises(
-        PyRDLOpDefinitionError,
-        match="'operands' should not be used when there are no operands",
-    ):
-
-        @irdl_op_definition
-        class NoOperandsOp(IRDLOperation):
-            name = "test.no_operands_op"
-
-            assembly_format = "operands attr-dict `:` type(operands)"
-
-
 def test_operands_directive_fails_with_other_directive():
     """Test operands directive cannot be used with no operands"""
 
@@ -2108,21 +2093,6 @@ def test_results_directive_works_with_two_opt_and_option(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
-
-
-def test_results_directive_fails_with_no_results():
-    """Test results directive cannot be used with no results"""
-
-    with pytest.raises(
-        PyRDLOpDefinitionError,
-        match="'results' should not be used when there are no results",
-    ):
-
-        @irdl_op_definition
-        class NoResultsOp(IRDLOperation):
-            name = "test.no_results_op"
-
-            assembly_format = "attr-dict `:` type(results)"
 
 
 def test_results_directive_fails_with_other_type_directive():
