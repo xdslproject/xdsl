@@ -477,9 +477,7 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     immediate = prop_def(IntegerAttr[I20] | StringAttr)
 
-    assembly_format = (
-        "custom<ImmediateI20>($immediate) attr-dict `:` `(` `)` `->` type($rd)"
-    )
+    assembly_format = "custom<ImmediateI20>($immediate) attr-dict `:` functional-type(operands, results)"
     custom_directives = (ImmediateI20,)
 
     def __init__(
@@ -625,7 +623,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAt
     immediate = prop_def(IntegerAttr[ShiftImmT])
 
     assembly_format = (
-        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+        "$rs1 `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
@@ -770,7 +768,7 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
 
     assembly_format = (
         "$rs1 `,` custom<ImmediateSI12>($immediate) (`,` qualified($rd)^)? "
-        "attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+        "attr-dict `:` functional-type(operands, results)"
     )
     custom_directives = (ImmediateSI12,)
 
@@ -1148,7 +1146,7 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
 
     assembly_format = (
         "$csr `,` $immediate (`writeonly` $writeonly^)? attr-dict `:` "
-        "`(` `)` `->` type($rd)"
+        "functional-type(operands, results)"
     )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
@@ -1204,7 +1202,9 @@ class CsrBitwiseImmOperation(RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr[UI12])
     immediate = attr_def(IntegerAttr[UI5])
 
-    assembly_format = "$csr `,` $immediate attr-dict `:` `(` `)` `->` type($rd)"
+    assembly_format = (
+        "$csr `,` $immediate attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
