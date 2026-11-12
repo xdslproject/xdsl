@@ -117,7 +117,7 @@ class ScfgwiOp(RISCVInstruction):
     immediate = prop_def(IntegerAttr[SI12])
 
     assembly_format = (
-        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+        "$rs1 `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(MemoryWriteEffect())
@@ -626,7 +626,9 @@ class DMSourceOp(RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
+    assembly_format = (
+        "$ptrlo `,` $ptrhi attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}"),
@@ -647,7 +649,9 @@ class DMDestinationOp(RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
+    assembly_format = (
+        "$ptrlo `,` $ptrhi attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}"),
@@ -668,7 +672,9 @@ class DMStrideOp(RISCVInstruction):
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
 
-    assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
+    assembly_format = (
+        "$srcstrd `,` $dststrd attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}"),
@@ -688,7 +694,7 @@ class DMRepOp(RISCVInstruction):
 
     reps = operand_def(riscv.IntRegisterType)
 
-    assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
+    assembly_format = "$reps attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0"),
@@ -836,7 +842,7 @@ class DMStatImmOp(RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(IntegerAttr[UI5])
 
-    assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
+    assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"),
