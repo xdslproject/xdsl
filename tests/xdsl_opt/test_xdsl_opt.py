@@ -251,16 +251,17 @@ def test_time_passes():
     assert lines[2].startswith("Pass dce took ")
 
 
-def test_verify_diagnostics_output():
+@pytest.mark.parametrize("error_type", [DiagnosticException, ValueError])
+def test_verify_diagnostics_output(error_type: type[Exception]):
     """
-    Diagnostic exceptions raised when printing output should be redirected to stdout if
-    --verify-diagnostics flag is provided.
+    Diagnostic and value errors raised when printing output should be redirected to
+    stdout if --verify-diagnostics flag is provided.
     """
 
     class TestMain(xDSLOptMain):
         def register_all_targets(self):
             def _my_target(prog: builtin.ModuleOp, output: IO[str]):
-                raise DiagnosticException("fail")
+                raise error_type("fail")
 
             self.available_targets["fail"] = _my_target
 
@@ -271,7 +272,7 @@ def test_verify_diagnostics_output():
     opt = TestMain(args=["-t", "fail"])
     f = StringIO("")
     with redirect_stdout(f):
-        with pytest.raises(DiagnosticException, match="fail"):
+        with pytest.raises(error_type, match="fail"):
             opt.run()
     assert f.getvalue() == ""
 
