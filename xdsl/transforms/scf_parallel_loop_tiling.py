@@ -2,9 +2,10 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import affine, arith
-from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import ParallelOp, ReduceOp
 from xdsl.ir import Block, OperandArg, Operation, Region
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -62,13 +63,13 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         inner_lower = list[OperandArg]()
         inner_upper = list[OperandArg]()
         minops = list[Operation]()
-        minmap = affine.AffineMapAttr(
-            affine.AffineMap(
+        minmap = AffineMapAttr(
+            AffineMap(
                 3,
                 0,
                 (
-                    affine.AffineExpr.dimension(0),
-                    affine.AffineExpr.dimension(1) - affine.AffineExpr.dimension(2),
+                    AffineExpr.dimension(0),
+                    AffineExpr.dimension(1) - AffineExpr.dimension(2),
                 ),
             )
         )
