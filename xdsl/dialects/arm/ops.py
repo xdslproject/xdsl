@@ -70,9 +70,7 @@ class DSMovOp(ARMInstruction):
 
     d = result_def(IntRegisterType)
     s = operand_def(IntRegisterType)
-    assembly_format = (
-        "$s attr-dict `:` `(` qualified(type($s)) `)` `->` qualified(type($d))"
-    )
+    assembly_format = "$s attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -127,9 +125,7 @@ class DSSMulOp(ARMInstruction):
     d = result_def(IntRegisterType)
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
-    assembly_format = (
-        "$s1 `,` $s2 attr-dict `:` `(` type(operands) `)` `->` qualified(type($d))"
-    )
+    assembly_format = "$s1 `,` $s2 attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
