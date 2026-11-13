@@ -4,7 +4,6 @@ from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import arith, asm, builtin, x86
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -29,8 +28,8 @@ class ArithConstantToX86(RewritePattern):
                 "Lowering of arith.constant is only implemented for integers"
             )
         reg_type = self.arch.register_type_for_type(op.result.type)
-        assert issubclass(reg_type, GeneralRegisterType)
-        mov_op = x86.DI_MovOp(
+        assert issubclass(reg_type, x86.registers.GeneralRegisterType)
+        mov_op = x86.ops.DI_MovOp(
             immediate=op.value.value.data, destination=reg_type.unallocated()
         )
         cast_op = asm.FromRegOp.get(mov_op.destination, op.result.type)
@@ -38,10 +37,10 @@ class ArithConstantToX86(RewritePattern):
 
 
 X86_OP_BY_ARITH_BINARY_OP = {
-    arith.AddiOp: x86.RS_AddOp,
-    arith.AddfOp: x86.RS_FAddOp,
-    arith.MuliOp: x86.RS_ImulOp,
-    arith.MulfOp: x86.RS_FMulOp,
+    arith.AddiOp: x86.ops.RS_AddOp,
+    arith.AddfOp: x86.ops.RS_FAddOp,
+    arith.MuliOp: x86.ops.RS_ImulOp,
+    arith.MulfOp: x86.ops.RS_FMulOp,
 }
 
 

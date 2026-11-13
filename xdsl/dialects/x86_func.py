@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.dialects import x86
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolNameConstraint
 from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
-from xdsl.dialects.x86.ops import X86Instruction
 from xdsl.ir import Attribute, Dialect, Operation, Region
 from xdsl.irdl import (
     IRDLOperation,
@@ -137,7 +137,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
 
 
 @irdl_op_definition
-class RetOp(X86Instruction):
+class RetOp(x86.ops.X86Instruction):
     """
     Return from subroutine.
     """

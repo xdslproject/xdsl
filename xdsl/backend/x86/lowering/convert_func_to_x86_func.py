@@ -4,7 +4,6 @@ from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import asm, builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import Attribute, Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -86,8 +85,8 @@ class LowerFuncOp(RewritePattern):
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
-            assert isinstance(register_type, GeneralRegisterType)
-            mov_op = x86.DS_MovOp(
+            assert isinstance(register_type, x86.registers.GeneralRegisterType)
+            mov_op = x86.ops.DS_MovOp(
                 source=register, destination=register_type.unallocated()
             )
             cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
@@ -108,8 +107,8 @@ class LowerFuncOp(RewritePattern):
             arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
             destination_reg = self.arch.register_type_for_type(arg.type).unallocated()
-            assert isinstance(destination_reg, GeneralRegisterType)
-            mov_op = x86.DM_MovOp(
+            assert isinstance(destination_reg, x86.registers.GeneralRegisterType)
+            mov_op = x86.ops.DM_MovOp(
                 memory=sp,
                 memory_offset=STACK_SLOT_SIZE_BYTES * (i + 1),
                 destination=destination_reg,
@@ -166,7 +165,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         ret_unalloc = self.arch.register_type_for_type(return_value.type).unallocated()
-        assert isinstance(ret_unalloc, GeneralRegisterType)
+        assert isinstance(ret_unalloc, x86.registers.GeneralRegisterType)
         cast_op = asm.ToRegOp.get(return_value, ret_unalloc)
         mov_op = x86.ops.DS_MovOp(
             cast_op, destination=ret_unalloc.from_index(RETURN_PASSING_REGISTER)
