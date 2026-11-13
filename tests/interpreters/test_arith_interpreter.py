@@ -14,6 +14,8 @@ from xdsl.dialects.arith import (
     CmpiOp,
     ConstantOp,
     DivSIOp,
+    ExtSIOp,
+    ExtUIOp,
     FloorDivSIOp,
     IndexCastOp,
     MulfOp,
@@ -25,6 +27,7 @@ from xdsl.dialects.arith import (
     ShRSIOp,
     SubfOp,
     SubiOp,
+    TruncIOp,
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
@@ -782,3 +785,59 @@ def test_indexcast_same_width(index_bitwidth: Literal[32, 64]):
         assert interpreter.run_op(op, (IntegerAttr(-1, int_type),)) == (
             IntegerAttr(-1, int_type),
         )
+
+
+@pytest.mark.parametrize(
+    "value_type,value,expected",
+    [
+        (i1, -1, -1),
+        (i8, 1, 1),
+        (i8, 0, 0),
+        (i8, -1, -1),
+        (i8, 127, 127),
+        (i8, -128, -128),
+    ],
+)
+def test_extsi(value_type: IntegerType, value: int, expected: int):
+    extsi = ExtSIOp(test.TestOp(result_types=[value_type]), i32)
+    extsi.verify()
+
+    ret = interpreter.run_op(extsi, (IntegerAttr(value, value_type),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i32)
+
+
+@pytest.mark.parametrize(
+    "value_type,value,expected",
+    [
+        (i1, -1, 1),
+        (i8, 1, 1),
+        (i8, 0, 0),
+        (i8, -1, 255),
+        (i8, 127, 127),
+        (i8, -128, 128),
+    ],
+)
+def test_extui(value_type: IntegerType, value: int, expected: int):
+    extui = ExtUIOp(test.TestOp(result_types=[value_type]), i32)
+    extui.verify()
+
+    ret = interpreter.run_op(extui, (IntegerAttr(value, value_type),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i32)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(1, 1), (0, 0), (-1, -1), (127, 127), (128, -128), (256, 0), (1111, 87)],
+)
+def test_trunci(value: int, expected: int):
+    trunci = TruncIOp(test.TestOp(result_types=[i32]), i8)
+    trunci.verify()
+
+    ret = interpreter.run_op(trunci, (IntegerAttr(value, i32),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i8)

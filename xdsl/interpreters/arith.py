@@ -401,3 +401,26 @@ class ArithFunctions(InterpreterFunctions):
             result = to_signed(result, result_bitwidth)
 
         return (scalar_attr(result, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.ExtSIOp)
+    def run_extsi(
+        self, interpreter: Interpreter, op: arith.ExtSIOp, args: PythonValues
+    ):
+        assert isa(op.input.type, builtin.IntegerType)
+        value = to_signed(args[0].value.data, op.input.type.width.data)
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.ExtUIOp)
+    def run_extui(
+        self, interpreter: Interpreter, op: arith.ExtUIOp, args: PythonValues
+    ):
+        assert isa(op.input.type, builtin.IntegerType)
+        value = to_unsigned(args[0].value.data, op.input.type.width.data)
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.TruncIOp)
+    def run_trunci(
+        self, interpreter: Interpreter, op: arith.TruncIOp, args: PythonValues
+    ):
+        value = args[0].value.data
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
