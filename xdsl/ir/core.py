@@ -342,11 +342,11 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-_T = TypeVar("_T")
+_CovT = TypeVar("_CovT", covariant=True)
 
 
 @dataclass(repr=False)
-class Use(ABC, Generic[_T]):
+class Use(ABC, Generic[_CovT]):
     """One use of an SSA value or successor block by an operation."""
 
     _operation: Operation
@@ -373,7 +373,7 @@ class Use(ABC, Generic[_T]):
 
     @property
     @abstractmethod
-    def value(self) -> _T:
+    def value(self) -> _CovT:
         """The value used."""
 
     def __repr__(self) -> str:
