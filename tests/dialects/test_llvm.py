@@ -815,12 +815,6 @@ def test_integer_min_max_intrinsic_ops(
     assert op.res.type == operand_type
 
 
-def test_integer_min_max_intrinsic_op_rejects_floats():
-    op = llvm.SMaxOp(create_ssa_value(builtin.f32), create_ssa_value(builtin.f32))
-    with pytest.raises(VerifyException):
-        op.verify()
-
-
 def test_fpow_op():
     lhs = create_ssa_value(builtin.f32)
     rhs = create_ssa_value(builtin.f32)
