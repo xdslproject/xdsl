@@ -622,9 +622,7 @@ builtin.module {
   // acc.kernel_environment — decomposition of a compute construct that
   // captures only the data / async / wait clauses. Body is a `SizedRegion<1>`
   // with no terminator (the trait is `NoTerminator`) and typically wraps a
-  // `gpu.launch`; here a `test.op` placeholder stands in. Clause shape
-  // mirrors acc.data: same custom directives for async / wait, plus the
-  // variadic dataOperands.
+  // `gpu.launch`; here a `test.op` placeholder stands in.
   func.func @ke_data_operand(%m : memref<10xf32>) {
     %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
     acc.kernel_environment dataOperands(%c : memref<10xf32>) {
@@ -648,23 +646,14 @@ builtin.module {
   // CHECK-NEXT:      "test.op"() : () -> ()
   // CHECK-NEXT:    }
 
-  func.func @ke_async_dt_only() {
-    acc.kernel_environment async([#acc.device_type<nvidia>]) {
-      "test.op"() : () -> ()
-    }
-    func.return
-  }
-  // CHECK-LABEL: func.func @ke_async_dt_only() {
-  // CHECK-NEXT:    acc.kernel_environment async([#acc.device_type<nvidia>]) {
-
   func.func @ke_async_operand(%a : i32) {
-    acc.kernel_environment async(%a : i32 [#acc.device_type<nvidia>]) {
+    acc.kernel_environment async(%a : i32) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK-LABEL: func.func @ke_async_operand(
-  // CHECK:         acc.kernel_environment async(%{{.*}} : i32 [#acc.device_type<nvidia>]) {
+  // CHECK:         acc.kernel_environment async(%{{.*}} : i32) {
 
   func.func @ke_wait_bare() {
     acc.kernel_environment wait {
@@ -676,43 +665,43 @@ builtin.module {
   // CHECK-NEXT:    acc.kernel_environment wait {
 
   func.func @ke_wait_devnum(%a : i64, %b : i32) {
-    acc.kernel_environment wait({devnum: %a : i64, %b : i32}) {
+    acc.kernel_environment wait_devnum(%a : i64) wait(%b : i32) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK-LABEL: func.func @ke_wait_devnum(
-  // CHECK:         acc.kernel_environment wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK:         acc.kernel_environment wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) {
 
   func.func @ke_full(%a : i32, %w : i64, %m : memref<10xf32>) {
     %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
-    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait({%w : i64}) {
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait(%w : i64) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK-LABEL: func.func @ke_full(
-  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait(%{{.*}} : i64) {
 
   // Source spells the clauses in non-canonical order (wait, dataOperands,
   // async); the oilist directive accepts any order on parse and re-emits
   // them in upstream's td-definition order (dataOperands, async, wait).
   func.func @ke_clauses_reordered(%a : i32, %w : i64, %m : memref<10xf32>) {
     %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
-    acc.kernel_environment wait({%w : i64}) dataOperands(%c : memref<10xf32>) async(%a : i32) {
+    acc.kernel_environment wait(%w : i64) dataOperands(%c : memref<10xf32>) async(%a : i32) {
       "test.op"() : () -> ()
     }
     func.return
   }
   // CHECK-LABEL: func.func @ke_clauses_reordered(
-  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait(%{{.*}} : i64) {
 
   // Generic-form roundtrip insurance — proves the parser path that
   // bypasses the declarative custom assembly format still parses. The body
   // carries an op because `SizedRegion<1>` rejects an empty (0-block)
   // region in both upstream and xDSL.
   func.func @ke_generic_roundtrip_retained() {
-    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
       "test.op"() : () -> ()
     }) : () -> ()
     func.return
@@ -721,6 +710,37 @@ builtin.module {
   // CHECK-NEXT:    acc.kernel_environment {
   // CHECK-NEXT:      "test.op"() : () -> ()
   // CHECK-NEXT:    }
+
+  func.func @ke_multiple_operands(%m : memref<10xf32>, %n : memref<20xi32>, %a : i32, %b : index, %d : i64) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    %e = acc.copyin varPtr(%n : memref<20xi32>) -> memref<20xi32>
+    acc.kernel_environment wait(%a, %b : i32, index) wait_devnum(%d : i64) async(%a : i32) dataOperands(%c, %e : memref<10xf32>, memref<20xi32>) {
+      "test.op"() : () -> ()
+    } {test.label = "kernel"}
+    func.return
+  }
+  // CHECK:       func.func @ke_multiple_operands(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}}, %{{.*}} : memref<10xf32>, memref<20xi32>) async(%{{.*}} : i32) wait_devnum(%{{.*}} : i64) wait(%{{.*}}, %{{.*}} : i32, index) {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    } {test.label = "kernel"}
+
+  func.func @ke_devnum_only(%d : index) {
+    acc.kernel_environment wait_devnum(%d : index) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_devnum_only(
+  // CHECK:         acc.kernel_environment wait_devnum(%{{.*}} : index) {
+
+  func.func @ke_generic_flags() {
+    "acc.kernel_environment"() <{asyncOnly, waitOnly, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+      "test.op"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK:       func.func @ke_generic_flags() {
+  // CHECK-NEXT:    acc.kernel_environment async wait {
 
   // acc.data — structured data construct. Body uses acc.terminator (same
   // SingleBlockImplicitTerminator(TerminatorOp) shape as kernels). The

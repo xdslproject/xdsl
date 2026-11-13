@@ -423,33 +423,47 @@ def test_kernel_environment_empty_verifies():
     op.verify()
 
     assert len(op.data_clause_operands) == 0
-    assert len(op.async_operands) == 0
+    assert op.async_operand is None
+    assert op.wait_devnum is None
     assert len(op.wait_operands) == 0
-    assert op.async_operands_device_type is None
     assert op.async_only is None
-    assert op.wait_operands_segments is None
-    assert op.wait_operands_device_type is None
-    assert op.has_wait_devnum is None
     assert op.wait_only is None
+    assert "asyncOnly" not in op.properties
+    assert "waitOnly" not in op.properties
 
 
-def test_kernel_environment_unset_props_absent_from_dict():
-    """
-    The optional clause properties are *absent* from `op.properties`
-    when not provided (rather than stored as None). The MLIR-interop
-    round-trip relies on this — extra all-None entries would print as
-    explicit attributes in the trailing attr-dict."""
-    op = acc.KernelEnvironmentOp(region=Region(Block([TestOp()])))
+def test_kernel_environment_operands():
+    data = create_ssa_value(MemRefType(f32, [10]))
+    queue = create_ssa_value(i32)
+    devnum = create_ssa_value(i64)
+    wait_queue = create_ssa_value(IndexType())
+    op = acc.KernelEnvironmentOp(
+        region=Region(Block([TestOp()])),
+        data_clause_operands=[data],
+        async_operand=queue,
+        wait_devnum=devnum,
+        wait_operands=[wait_queue],
+    )
+    op.verify()
 
-    for prop in (
-        "asyncOperandsDeviceType",
-        "asyncOnly",
-        "waitOperandsSegments",
-        "waitOperandsDeviceType",
-        "hasWaitDevnum",
-        "waitOnly",
-    ):
-        assert prop not in op.properties
+    assert tuple(op.data_clause_operands) == (data,)
+    assert op.async_operand is queue
+    assert op.wait_devnum is devnum
+    assert tuple(op.wait_operands) == (wait_queue,)
+    assert op.properties["operandSegmentSizes"] == DenseArrayBase.from_list(
+        i32, [1, 1, 1, 1]
+    )
+
+
+def test_kernel_environment_keyword_only():
+    op = acc.KernelEnvironmentOp(
+        region=Region(Block([TestOp()])),
+        async_only=UnitAttr(),
+        wait_only=UnitAttr(),
+    )
+    op.verify()
+    assert op.async_only == UnitAttr()
+    assert op.wait_only == UnitAttr()
 
 
 def test_data_clause_modifier_attr_constructor():
