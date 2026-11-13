@@ -504,7 +504,7 @@ class ConvertApplyOpPattern(RewritePattern):
         for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-            o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
+            o.set_operands([chunk_region_oprnd_table.get(x, x) for x in o.operands])
             rewriter.insert(o, InsertPoint.at_end(receive_chunk.block))
 
         # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
@@ -523,7 +523,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # add operations from list to done_exchange, use translation table to rebuild operands
         for o in done_exchange_ops:
-            o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
+            o.set_operands([done_exchange_oprnd_table.get(x, x) for x in o.operands])
             rewriter.insert(o, InsertPoint.at_end(done_exchange.block))
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace(o, csl_stencil.YieldOp(*o.operands))

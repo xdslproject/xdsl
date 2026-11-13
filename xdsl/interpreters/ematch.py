@@ -234,7 +234,7 @@ class EmatchFunctions(InterpreterFunctions):
         # used by different parent eclasses after their children were merged:
         new_operands = OrderedSet(to_keep.operands)
         new_operands.update(to_replace.operands)
-        to_keep.operands = new_operands
+        to_keep.set_operands(new_operands)
 
         for use in to_replace.result.uses:
             # uses are removed from the hashcons before the replacement is carried out.
@@ -391,7 +391,7 @@ class EmatchFunctions(InterpreterFunctions):
             for eclass1, eclass2 in eclass_pairs:
                 if eclass1 == eclass2:
                     # Same eclass - just deduplicate operands
-                    eclass1.operands = OrderedSet(eclass1.operands)
+                    eclass1.set_operands(OrderedSet(eclass1.operands))
                 else:
                     # Different eclasses - union them
                     if self.eclass_union(interpreter, eclass1, eclass2):
