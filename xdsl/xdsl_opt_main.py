@@ -123,7 +123,7 @@ class xDSLOptMain(CommandLineTool):
                         print(e)
                     else:
                         raise
-                except (DiagnosticException, ValueError) as e:
+                except DiagnosticException as e:
                     if self.args.verify_diagnostics:
                         print(e)
                         # __notes__ only in Python 3.11 and above
