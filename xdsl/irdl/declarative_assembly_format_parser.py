@@ -751,7 +751,7 @@ class FormatParser(BaseParser):
         with self.in_parens():
             if self.parse_optional_keyword("type"):
                 return self.parse_type_directive(inside_ref, qualified=True)
-            if res := self.parse_optional_variable(inside_ref, qualified=True):
+            if (res := self.parse_optional_variable(inside_ref, qualified=True)) is not None:
                 return res
             self.raise_error(
                 "expected a directive after 'qualified', found "
