@@ -106,8 +106,8 @@ class Attribute(ABC):
     A compile-time value.
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
-    Verification runs in `__post_init__`, where VerifyExceptions are converted to
-    ValueError.
+    Verification runs in `__post_init__`.
+    A ValueError is raised if the Attribute does not verify.
     """
 
     name: ClassVar[str] = field(init=False, repr=False)
