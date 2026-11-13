@@ -1321,7 +1321,7 @@ class GetAnyRegisterOperation(
 
     traits = traits_def(Pure())
 
-    assembly_format = "attr-dict `:` type($res)"
+    assembly_format = "attr-dict `:` qualified(type($res))"
 
     def __init__(
         self,

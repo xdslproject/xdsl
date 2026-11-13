@@ -31,7 +31,9 @@ class LiOp(riscv.abstract_ops.LiOperation[I32]):
 
     name = "rv32.li"
 
-    assembly_format = "custom<ImmediateI32>($immediate) attr-dict `:` type($rd)"
+    assembly_format = (
+        "custom<ImmediateI32>($immediate) attr-dict `:` qualified(type($rd))"
+    )
     custom_directives = (riscv.attrs.ImmediateI32,)
 
     def __init__(

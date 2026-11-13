@@ -337,7 +337,9 @@ class PyCastOp(PyOperation, HasFolderInterface):
     name = "py.cast"
     value = operand_def(PyObjectType)
     res = result_def(PyObjectType)
-    assembly_format = "$value attr-dict `:` type($value) `to` type($res)"
+    assembly_format = (
+        "$value attr-dict `:` qualified(type($value)) `to` qualified(type($res))"
+    )
 
     traits = traits_def(Pure())
 
@@ -471,7 +473,7 @@ class PyReturnOp(PyOperation):
 
     name = "py.return"
     value = operand_def(PyObjectType)
-    assembly_format = "$value attr-dict `:` type($value)"
+    assembly_format = "$value attr-dict `:` qualified(type($value))"
 
     traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
 
