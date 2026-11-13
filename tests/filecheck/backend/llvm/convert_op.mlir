@@ -531,6 +531,41 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   ret float [[TRUNC]]
   // CHECK-NEXT: }
 
+  llvm.func @casts_vector(
+      %arg0: vector<4xi32>,
+      %arg1: vector<4xi64>,
+      %arg2: vector<4x!llvm.ptr>,
+      %arg3: vector<4xf32>
+  ) -> vector<4xf32> {
+    %trunc = llvm.trunc %arg1 : vector<4xi64> to vector<4xi32>
+    %zext = llvm.zext %arg0 : vector<4xi32> to vector<4xi64>
+    %sext = llvm.sext %arg0 : vector<4xi32> to vector<4xi64>
+    %ptrtoint = llvm.ptrtoint %arg2 : vector<4x!llvm.ptr> to vector<4xi64>
+    %inttoptr = llvm.inttoptr %arg1 : vector<4xi64> to vector<4x!llvm.ptr>
+    %bitcast_i = llvm.bitcast %arg1 : vector<4xi64> to vector<4xf64>
+    %bitcast_f = llvm.bitcast %arg3 : vector<4xf32> to vector<4xi32>
+    %fpext = llvm.fpext %arg3 : vector<4xf32> to vector<4xf64>
+    %sitofp = llvm.sitofp %arg0 : vector<4xi32> to vector<4xf32>
+    %fptrunc = llvm.fptrunc %fpext : vector<4xf64> to vector<4xf32>
+    llvm.return %fptrunc : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"casts_vector"(<4 x i32> %".1", <4 x i64> %".2", <4 x ptr> %".3", <4 x float> %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc <4 x i64> %".2" to <4 x i32>
+  // CHECK-NEXT:   {{%.+}} = zext <4 x i32> %".1" to <4 x i64>
+  // CHECK-NEXT:   {{%.+}} = sext <4 x i32> %".1" to <4 x i64>
+  // CHECK-NEXT:   {{%.+}} = ptrtoint <4 x ptr> %".3" to <4 x i64>
+  // CHECK-NEXT:   {{%.+}} = inttoptr <4 x i64> %".2" to <4 x ptr>
+  // CHECK-NEXT:   {{%.+}} = bitcast <4 x i64> %".2" to <4 x double>
+  // CHECK-NEXT:   {{%.+}} = bitcast <4 x float> %".4" to <4 x i32>
+  // CHECK-NEXT:   {{%.+}} = fpext <4 x float> %".4" to <4 x double>
+  // CHECK-NEXT:   {{%.+}} = sitofp <4 x i32> %".1" to <4 x float>
+  // CHECK-NEXT:   {{%.+}} = fptrunc <4 x double> {{%.+}} to <4 x float>
+  // CHECK-NEXT:   ret <4 x float> {{%.+}}
+  // CHECK-NEXT: }
+
   llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {
     // llvm.TruncOp with overflow flags (IntegerConversionOpOverflow)
     %trunc_none = llvm.trunc %arg1 : i64 to i32

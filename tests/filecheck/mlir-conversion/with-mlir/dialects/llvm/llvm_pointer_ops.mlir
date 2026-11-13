@@ -20,6 +20,19 @@ builtin.module {
   %lr = llvm.load %4 atomic seq_cst {alignment = 4 : i64} : !llvm.ptr -> i32
   %ptr_int = llvm.ptrtoint %1 : !llvm.ptr to i64
 
+  %vec_i64 = arith.constant dense<0> : vector<4 x i64>
+  %vec_ptr = llvm.inttoptr %vec_i64 : vector<4 x i64> to vector<4 x !llvm.ptr>
+  %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4 x !llvm.ptr> to vector<4 x i32>
+  %vec_i64_ext = arith.constant dense<0> : vector<4 x i64>
+  %vzext = llvm.zext %vec_i64_ext : vector<4 x i64> to vector<4 x i128>
+  %vsext = llvm.sext %vec_i64_ext : vector<4 x i64> to vector<4 x i128>
+  %vbitcast = llvm.bitcast %vec_i64 : vector<4 x i64> to vector<4 x f64>
+  %vec_f32 = "test.op"() : () -> vector<4 x f32>
+  %vfpext = llvm.fpext %vec_f32 : vector<4 x f32> to vector<4 x f64>
+  %vec_i32_cast = "test.op"() : () -> vector<4 x i32>
+  %vsitofp = llvm.sitofp %vec_i32_cast : vector<4 x i32> to vector<4 x f32>
+  %vfptrunc = llvm.fptrunc %vfpext : vector<4 x f64> to vector<4 x f32>
+
   %agg = "test.op"() : () -> !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %ev_field = llvm.extractvalue %agg[0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %ev_arr = llvm.extractvalue %agg[1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
@@ -48,6 +61,18 @@ builtin.module {
 // CHECK-NEXT:    {{%.*}} = llvm.load [[ALLOCA64]] atomic acquire {alignment = 4 : i64} : !llvm.ptr -> i32
 // CHECK-NEXT:    {{%.*}} = llvm.load [[ALLOCA64]] atomic seq_cst {alignment = 4 : i64} : !llvm.ptr -> i32
 // CHECK-NEXT:    {{%.*}} = llvm.ptrtoint [[PTR]] : !llvm.ptr to i64
+// CHECK-NEXT:    [[VEC_I64:%.*]] = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    [[VEC_PTR:%.*]] = llvm.inttoptr [[VEC_I64]] : vector<4xi64> to vector<4x!llvm.ptr>
+// CHECK-NEXT:    [[VEC_I32:%.*]] = llvm.ptrtoint [[VEC_PTR]] : vector<4x!llvm.ptr> to vector<4xi32>
+// CHECK-NEXT:    [[VEC_I64_EXT:%.*]] = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    [[VZEXT:%.*]] = llvm.zext [[VEC_I64_EXT]] : vector<4xi64> to vector<4xi128>
+// CHECK-NEXT:    [[VSEXT:%.*]] = llvm.sext [[VEC_I64_EXT]] : vector<4xi64> to vector<4xi128>
+// CHECK-NEXT:    [[VBITCAST:%.*]] = llvm.bitcast [[VEC_I64]] : vector<4xi64> to vector<4xf64>
+// CHECK-NEXT:    [[VEC_F32:%.*]] = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT:    [[VFPEXT:%.*]] = llvm.fpext [[VEC_F32]] : vector<4xf32> to vector<4xf64>
+// CHECK-NEXT:    [[VEC_I32_CAST:%.*]] = "test.op"() : () -> vector<4xi32>
+// CHECK-NEXT:    [[VSITOFP:%.*]] = llvm.sitofp [[VEC_I32_CAST]] : vector<4xi32> to vector<4xf32>
+// CHECK-NEXT:    [[VFPTRUNC:%.*]] = llvm.fptrunc [[VFPEXT]] : vector<4xf64> to vector<4xf32>
 // CHECK-NEXT:    [[AGG:%.*]] = "test.op"() : () -> !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    [[EVF:%.*]] = llvm.extractvalue [[AGG]][0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    {{%.*}} = llvm.extractvalue [[AGG]][1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
