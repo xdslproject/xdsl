@@ -11,19 +11,21 @@ from xdsl.rewriter import InsertPoint
 
 def register_type_for_type(
     attr: Attribute,
-) -> type[riscv.IntRegisterType] | type[riscv.FloatRegisterType]:
+) -> type[riscv.registers.IntRegisterType] | type[riscv.registers.FloatRegisterType]:
     """
     Returns the appropriate register fype for a given input type.
     """
-    if isinstance(attr, riscv.IntRegisterType | riscv.FloatRegisterType):
+    if isinstance(
+        attr, riscv.registers.IntRegisterType | riscv.registers.FloatRegisterType
+    ):
         return type(attr)
     if isinstance(attr, builtin.AnyFloat):
-        return riscv.FloatRegisterType
-    return riscv.IntRegisterType
+        return riscv.registers.FloatRegisterType
+    return riscv.registers.IntRegisterType
 
 
 def move_ops_for_value(
-    value: SSAValue, value_type: Attribute, rd: riscv.RISCVRegisterType
+    value: SSAValue, value_type: Attribute, rd: riscv.registers.RISCVRegisterType
 ) -> tuple[Operation, SSAValue]:
     """
     Returns the operation that moves the value from the input to a new register.
@@ -31,15 +33,15 @@ def move_ops_for_value(
     the floating point type in question must be passed
     """
 
-    if isinstance(rd, riscv.IntRegisterType):
-        mv_op = riscv.MVOp(value, rd=rd)
+    if isinstance(rd, riscv.registers.IntRegisterType):
+        mv_op = riscv.ops.MVOp(value, rd=rd)
         return mv_op, mv_op.rd
-    elif isinstance(rd, riscv.FloatRegisterType):
+    elif isinstance(rd, riscv.registers.FloatRegisterType):
         match value_type:
             case builtin.Float64Type():
-                mv_op = riscv.FMvDOp(value, rd=rd)
+                mv_op = riscv.ops.FMvDOp(value, rd=rd)
             case builtin.Float32Type():
-                mv_op = riscv.FMVOp(value, rd=rd)
+                mv_op = riscv.ops.FMVOp(value, rd=rd)
             case _:
                 raise NotImplementedError(
                     f"Move operation for float register containing value of type {value.type} is not implemented"
@@ -52,7 +54,7 @@ def move_ops_for_value(
 def move_to_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
-    reg_types: Iterable[riscv.RISCVRegisterType],
+    reg_types: Iterable[riscv.registers.RISCVRegisterType],
     flen: int = 64,
     xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
@@ -65,12 +67,12 @@ def move_to_regs(
         i.bitwidth
         if isinstance(i, builtin.FixedBitwidthType)
         else flen
-        if isinstance(value.type, riscv.FloatRegisterType)
+        if isinstance(value.type, riscv.registers.FloatRegisterType)
         else xlen
         for i, value in zip(value_types, values)
     )
 
-    new_op = riscv.ParallelMovOp(
+    new_op = riscv.ops.ParallelMovOp(
         tuple(values),
         tuple(reg_types),
         builtin.DenseArrayBase.from_list(builtin.i32, widths),
@@ -80,14 +82,16 @@ def move_to_regs(
     return [new_op], list(new_values)
 
 
-def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
+def a_regs_for_types(
+    types: Iterable[Attribute],
+) -> Iterator[riscv.registers.RISCVRegisterType]:
     """
     Returns the "a" registers in which to store types, i.e. `fa0`, `fa1`, etc for
     floating-point values and `a0`, `a1`, etc for integer values and pointers. The
     register index is separate for integer and floating-point registers according to the
     RISC-V ABI.
     """
-    counter = Counter[type[riscv.RISCVRegisterType]]()
+    counter = Counter[type[riscv.registers.RISCVRegisterType]]()
     for attr_type in types:
         register_type = register_type_for_type(attr_type)
         index = counter[register_type]
@@ -95,7 +99,7 @@ def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegister
         counter[register_type] += 1
 
 
-def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
+def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.registers.RISCVRegisterType]:
     return a_regs_for_types(value.type for value in values)
 
 
@@ -164,7 +168,7 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     """
 
     new_ops: list[Operation] = []
-    counter = Counter[type[riscv.RISCVRegisterType]]()
+    counter = Counter[type[riscv.registers.RISCVRegisterType]]()
 
     for arg in block.args:
         register_type = register_type_for_type(arg.type)

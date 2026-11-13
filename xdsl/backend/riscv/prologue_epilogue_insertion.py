@@ -5,7 +5,7 @@ from ordered_set import OrderedSet
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func, rv32
-from xdsl.dialects.riscv import (
+from xdsl.dialects.riscv.registers import (
     FloatRegisterType,
     IntRegisterType,
     Registers,
@@ -38,7 +38,7 @@ class PrologueEpilogueInsertion(ModulePass):
         used_callee_preserved_registers = OrderedSet(
             res.type
             for op in func.walk()
-            if not isinstance(op, rv32.GetRegisterOp | riscv.GetFloatRegisterOp)
+            if not isinstance(op, rv32.GetRegisterOp | riscv.ops.GetFloatRegisterOp)
             for res in op.results
             if isinstance(res.type, IntRegisterType | FloatRegisterType)
             if res.type in Registers.S or res.type in Registers.FS
@@ -56,15 +56,15 @@ class PrologueEpilogueInsertion(ModulePass):
         builder = Builder(InsertPoint.at_start(func.body.blocks[0]))
         sp_register = builder.insert(rv32.GetRegisterOp(Registers.SP))
         stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
-        builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
+        builder.insert(riscv.ops.AddiOp(sp_register, -stack_size, rd=Registers.SP))
         offset = 0
         for reg in used_callee_preserved_registers:
             if isinstance(reg, IntRegisterType):
                 reg_op = builder.insert(rv32.GetRegisterOp(reg))
-                op = riscv.SwOp(rs1=sp_register, rs2=reg_op, immediate=offset)
+                op = riscv.ops.SwOp(rs1=sp_register, rs2=reg_op, immediate=offset)
             else:
-                reg_op = builder.insert(riscv.GetFloatRegisterOp(reg))
-                op = riscv.FSdOp(rs1=sp_register, rs2=reg_op, immediate=offset)
+                reg_op = builder.insert(riscv.ops.GetFloatRegisterOp(reg))
+                op = riscv.ops.FSdOp(rs1=sp_register, rs2=reg_op, immediate=offset)
 
             builder.insert(op)
             offset += get_register_size(reg)
@@ -79,13 +79,13 @@ class PrologueEpilogueInsertion(ModulePass):
             offset = 0
             for reg in used_callee_preserved_registers:
                 if isinstance(reg, IntRegisterType):
-                    op = riscv.LwOp(rs1=sp_register, rd=reg, immediate=offset)
+                    op = riscv.ops.LwOp(rs1=sp_register, rd=reg, immediate=offset)
                 else:
-                    op = riscv.FLdOp(rs1=sp_register, rd=reg, immediate=offset)
+                    op = riscv.ops.FLdOp(rs1=sp_register, rd=reg, immediate=offset)
                 builder.insert(op)
                 offset += get_register_size(reg)
 
-            builder.insert(riscv.AddiOp(sp_register, stack_size, rd=Registers.SP))
+            builder.insert(riscv.ops.AddiOp(sp_register, stack_size, rd=Registers.SP))
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():

@@ -23,7 +23,7 @@ ALLOWED_INT_WIDTHS = [32, 64]
 def _insert_mv_op(
     rewriter: PatternRewriter,
     src: OperandArg,
-    dst: riscv.RISCVRegisterType,
+    dst: riscv.registers.RISCVRegisterType,
     src_width: int,
 ):
     if isinstance(src, Operation):
@@ -32,7 +32,7 @@ def _insert_mv_op(
     # We only need to specify the type in case of floats
     # otherwise, the type is ignored, so we just pass an arbitrary attribute here
     src_type = builtin.IntegerAttr(0, 1)
-    if isinstance(src.type, riscv.FloatRegisterType):
+    if isinstance(src.type, riscv.registers.FloatRegisterType):
         match src_width:
             case 32:
                 src_type = builtin.Float32Type()
@@ -40,7 +40,7 @@ def _insert_mv_op(
                 src_type = builtin.Float64Type()
             case _:
                 raise PassFailedException(f"Unsupported bit width: f{src_width}")
-    elif isinstance(src.type, riscv.IntRegisterType):
+    elif isinstance(src.type, riscv.registers.IntRegisterType):
         if src_width not in ALLOWED_INT_WIDTHS:
             raise PassFailedException(f"Unsupported bit width: i{src_width}")
     else:
@@ -53,23 +53,25 @@ def _insert_mv_op(
 
 def _insert_swap_ops(
     rewriter: PatternRewriter,
-    a: SSAValue[riscv.IntRegisterType],
-    b: SSAValue[riscv.IntRegisterType],
-) -> tuple[SSAValue[riscv.IntRegisterType], SSAValue[riscv.IntRegisterType]]:
+    a: SSAValue[riscv.registers.IntRegisterType],
+    b: SSAValue[riscv.registers.IntRegisterType],
+) -> tuple[
+    SSAValue[riscv.registers.IntRegisterType], SSAValue[riscv.registers.IntRegisterType]
+]:
     """Add swap using xors. returns the new SSAValues."""
-    op1 = rewriter.insert(riscv.XorOp(a, b, rd=a.type))
-    op2 = rewriter.insert(riscv.XorOp(op1, b, rd=b.type))
-    op3 = rewriter.insert(riscv.XorOp(op1, op2, rd=a.type))
+    op1 = rewriter.insert(riscv.ops.XorOp(a, b, rd=a.type))
+    op2 = rewriter.insert(riscv.ops.XorOp(op1, b, rd=b.type))
+    op3 = rewriter.insert(riscv.ops.XorOp(op1, op2, rd=a.type))
     return op2.rd, op3.rd
 
 
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
-        srcs = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.inputs)
-        dsts = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.outputs)
-        src_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
-        dst_types = cast(Sequence[riscv.RISCVRegisterType], op.outputs.types)
+    def match_and_rewrite(self, op: riscv.ops.ParallelMovOp, rewriter: PatternRewriter):
+        srcs = cast(SSAValues[SSAValue[riscv.registers.RISCVRegisterType]], op.inputs)
+        dsts = cast(SSAValues[SSAValue[riscv.registers.RISCVRegisterType]], op.outputs)
+        src_types = cast(Sequence[riscv.registers.RISCVRegisterType], op.inputs.types)
+        dst_types = cast(Sequence[riscv.registers.RISCVRegisterType], op.outputs.types)
 
         if not (
             all(i.is_allocated for i in src_types)
@@ -79,7 +81,8 @@ class ParallelMovPattern(RewritePattern):
 
         # make a list of free registers for each type so we can add to it later
         free_registers: dict[
-            type[riscv.RISCVRegisterType], list[riscv.RISCVRegisterType]
+            type[riscv.registers.RISCVRegisterType],
+            list[riscv.registers.RISCVRegisterType],
         ] = defaultdict(list)
         if op.free_registers is not None:
             for reg in op.free_registers:
@@ -113,7 +116,8 @@ class ParallelMovPattern(RewritePattern):
 
         # store the back edges of the graph
         src_by_dst_type: dict[
-            riscv.RISCVRegisterType, SSAValue[riscv.RISCVRegisterType]
+            riscv.registers.RISCVRegisterType,
+            SSAValue[riscv.registers.RISCVRegisterType],
         ] = {}
         leaves = set(dst_types)
         unprocessed_children = Counter[SSAValue]()
@@ -163,7 +167,7 @@ class ParallelMovPattern(RewritePattern):
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
                 if not free_registers[reg_type]:
-                    if reg_type != riscv.IntRegisterType:
+                    if reg_type != riscv.registers.IntRegisterType:
                         raise PassFailedException(
                             "Float cyclic move without free register"
                         )
@@ -178,8 +182,8 @@ class ParallelMovPattern(RewritePattern):
 
                     while inp.type != out.type:
                         # we know these are ints since input and output are of the same type
-                        inp = cast(SSAValue[riscv.IntRegisterType], inp)
-                        out = cast(SSAValue[riscv.IntRegisterType], out)
+                        inp = cast(SSAValue[riscv.registers.IntRegisterType], inp)
+                        out = cast(SSAValue[riscv.registers.IntRegisterType], out)
                         nw_out, nw_inp = _insert_swap_ops(rewriter, inp, out)
                         # after the swap, the input is in the right place, the input's input
                         # needs to be moved to the new output

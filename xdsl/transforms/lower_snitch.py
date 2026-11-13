@@ -227,10 +227,10 @@ class LowerSsrEnable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrsiOp(
+                riscv.ops.CsrrsiOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
                     immediate=IntegerAttr(1, ui5),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.registers.Registers.ZERO,
                     comment="SSR enable",
                 ),
                 *get_stream_ops,
@@ -245,10 +245,10 @@ class LowerSsrDisable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrciOp(
+                riscv.ops.CsrrciOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
                     immediate=IntegerAttr(1, ui5),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.registers.Registers.ZERO,
                     comment="SSR disable",
                 )
             ],
