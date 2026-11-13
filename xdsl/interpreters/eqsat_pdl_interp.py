@@ -360,7 +360,7 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
         # used by different parent eclasses after their children were merged:
         new_operands = OrderedSet(to_keep.operands)
         new_operands.update(to_replace.operands)
-        to_keep.operands = new_operands
+        to_keep.set_operands(new_operands)
 
         for use in to_replace.result.uses:
             # uses are removed from the hashcons before the replacement is carried out.
@@ -567,8 +567,8 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
                 rewriter.replace(op1, new_ops=(), new_results=op2.results)
 
                 if eclass1 == eclass2:
-                    eclass1.operands = OrderedSet(
-                        eclass1.operands
+                    eclass1.set_operands(
+                        OrderedSet(eclass1.operands)
                     )  # deduplicate operands
                     continue  # parents need not be processed because no eclasses were merged
 

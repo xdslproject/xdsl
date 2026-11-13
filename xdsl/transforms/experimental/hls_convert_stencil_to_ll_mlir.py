@@ -471,11 +471,13 @@ def transform_apply_into_loop(
     p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
 
     old_operands_lst = [old_operand for old_operand in y_for_op.operands]
-    y_for_op.operands = [
-        old_operands_lst[0],
-        chunk_size_y_1.results[0],
-        *old_operands_lst[2:],
-    ]
+    y_for_op.set_operands(
+        [
+            old_operands_lst[0],
+            chunk_size_y_1.results[0],
+            *old_operands_lst[2:],
+        ]
+    )
 
     p.attributes["compute_loop"] = IntAttr(1)
 
@@ -552,10 +554,12 @@ class ApplyOpToHLS(RewritePattern):
                 else:
                     new_operands_lst.append(operand)
 
-            apply_clone.operands = [
-                *new_operands_lst,
-                self.out_data_streams[k].results[0],
-            ]
+            apply_clone.set_operands(
+                [
+                    *new_operands_lst,
+                    self.out_data_streams[k].results[0],
+                ]
+            )
 
         indices_stream_to_read: list[int] = []
         indices_stream_to_write: list[int] = []

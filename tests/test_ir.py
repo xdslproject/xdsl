@@ -207,11 +207,11 @@ def test_detach_block_clears_pointers():
     assert list(region.blocks) == []
 
 
-def test_op_operands_assign():
-    """Test that we can directly assign `op.operands`."""
+def test_op_set_operands():
+    """Test that we can replace operands with `op.set_operands`."""
     val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
-    op.operands = [val2, val1]
+    op.set_operands([val2, val1])
     op.verify()
 
     assert val1.has_one_use()
@@ -333,8 +333,8 @@ def test_op_clone_graph_region():
     ca1 = test.TestOp.create(result_types=(i32,))
     ca1.results[0].name_hint = "b"
     # Make recursive
-    ca0.operands = (ca1.results[0],)
-    ca1.operands = (ca0.results[0],)
+    ca0.set_operands((ca1.results[0],))
+    ca1.set_operands((ca0.results[0],))
     # Parent
     pa = test.TestOp.create(regions=[Region([Block([ca0, ca1])])])
 

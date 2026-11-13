@@ -112,7 +112,9 @@ class StencilUnrollPattern(RewritePattern):
                 arg.replace_all_uses_with(marg)
             for o in block.ops:
                 if o is block.last_op:
-                    unrolled_return.operands = [*unrolled_return.operands, *o.operands]
+                    unrolled_return.set_operands(
+                        [*unrolled_return.operands, *o.operands]
+                    )
                     break
                 o.detach()
                 unrolled_block.insert_op_before(o, unrolled_return)

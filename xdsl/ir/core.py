@@ -987,8 +987,8 @@ class Operation(_IRNode):
     def operands(self) -> OpOperands:
         return OpOperands(self)
 
-    @operands.setter
-    def operands(self, new: Sequence[SSAValue]):
+    def set_operands(self, new: Sequence[SSAValue]) -> None:
+        """Replace the operands, updating the SSA value uses."""
         new = SSAValues(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
@@ -1034,8 +1034,7 @@ class Operation(_IRNode):
     ) -> None:
         super().__init__()
 
-        # This is assumed to exist by Operation.operand setter.
-        self.operands = operands
+        self.set_operands(operands)
 
         self.results = SSAValues(
             OpResult(result_type, self, idx)
@@ -1318,8 +1317,10 @@ class Operation(_IRNode):
             )
         if clone_operands:
             for old, new in zip(self.walk(), op.walk()):
-                new.operands = tuple(
-                    value_mapper.get(operand, operand) for operand in old.operands
+                new.set_operands(
+                    tuple(
+                        value_mapper.get(operand, operand) for operand in old.operands
+                    )
                 )
         return op
 
@@ -2508,8 +2509,10 @@ class Region(_IRNode):
         # in lexicographic order.
         if clone_operands:
             for old, new in zip(self.walk(), dest.walk()):
-                new.operands = tuple(
-                    value_mapper.get(operand, operand) for operand in old.operands
+                new.set_operands(
+                    tuple(
+                        value_mapper.get(operand, operand) for operand in old.operands
+                    )
                 )
 
     def walk(
