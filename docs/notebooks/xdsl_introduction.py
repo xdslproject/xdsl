@@ -20,10 +20,10 @@ def _():
 
 @app.cell(hide_code=True)
 def _(xmo):
+    from xdsl.ir import ParametrizedAttribute
     from xdsl.irdl import (
         irdl_op_definition,
         irdl_attr_definition,
-        ParametrizedAttribute,
         IRDLOperation,
         attr_def,
         result_def,
