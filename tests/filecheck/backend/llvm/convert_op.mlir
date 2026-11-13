@@ -722,6 +722,68 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   ret i32 %"[[V2]]"
   // CHECK-NEXT: }
 
+  llvm.func @switch_op(%arg0: i32, %arg1: i32, %arg2: i32) -> i32 {
+    llvm.switch %arg0 : i32, ^bb1(%arg1 : i32) [
+      1: ^bb2,
+      -3: ^bb3(%arg2 : i32)
+    ]
+  ^bb1(%0: i32):
+    llvm.return %0 : i32
+  ^bb2:
+    llvm.return %arg2 : i32
+  ^bb3(%1: i32):
+    llvm.return %1 : i32
+  }
+
+  // CHECK: define i32 @"switch_op"(i32 %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   switch i32 %".1", label %"[[BB1:.\d+]]" [i32 1, label %"[[BB2:.\d+]]" i32 -3, label %"[[BB3:.\d+]]"]
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   %"[[V1:.\d+]]" = phi  i32 [%".2", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V1]]"
+  // CHECK-NEXT: [[BB2]]:
+  // CHECK-NEXT:   ret i32 %".3"
+  // CHECK-NEXT: [[BB3]]:
+  // CHECK-NEXT:   %"[[V3:.\d+]]" = phi  i32 [%".3", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V3]]"
+  // CHECK-NEXT: }
+
+  llvm.func @switch_op_no_cases(%arg0: i64) {
+    llvm.switch %arg0 : i64, ^bb1 [
+    ]
+  ^bb1:
+    llvm.return
+  }
+
+  // CHECK: define void @"switch_op_no_cases"(i64 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   switch i64 %".1", label %"[[BB1:.\d+]]" []
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @switch_op_weights(%arg0: i8) {
+    llvm.switch %arg0 : i8, ^bb1 [
+      42: ^bb2
+    ] {branch_weights = array<i32: 3, 7>}
+  ^bb1:
+    llvm.return
+  ^bb2:
+    llvm.return
+  }
+
+  // CHECK: define void @"switch_op_weights"(i8 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   switch i8 %".1", label %"[[BB1:.\d+]]" [i8 42, label %"[[BB2:.\d+]]"] , !prof ![[PROF:\d+]]
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: [[BB2]]:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @maxnum_op(%arg0: f32, %arg1: f32) -> f32 {
     %0 = llvm.intr.maxnum(%arg0, %arg1) : (f32, f32) -> f32
     llvm.return %0 : f32
@@ -1175,4 +1237,6 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fmul.v2f64"(double %".1", <2 x double> %".2")
   // CHECK-NEXT:   ret double %"[[RES]]"
   // CHECK-NEXT: }
+
+  // CHECK: ![[PROF]] = !{ !"branch_weights", i32 3, i32 7 }
 }

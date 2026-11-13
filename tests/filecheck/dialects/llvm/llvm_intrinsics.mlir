@@ -224,6 +224,41 @@
 // CHECK-NEXT:   "test.termop"(%cond_br_else) : (i32) -> ()
 // CHECK-NEXT: }) : () -> ()
 
+"test.op"() ({
+^bb0(%switch_flag: i32, %switch_arg: i32, %switch_arg2: i64):
+  llvm.switch %switch_flag : i32, ^bb1(%switch_arg : i32) [
+    1: ^bb2,
+    -3: ^bb3(%switch_arg, %switch_arg2 : i32, i64),
+    7: ^bb2
+  ] {branch_weights = array<i32: 5, 1, 2, 3>}
+^bb1(%switch_default: i32):
+  "test.termop"(%switch_default) : (i32) -> ()
+^bb2:
+  llvm.switch %switch_flag : i32, ^bb1(%switch_arg : i32) [
+  ]
+^bb3(%switch_case: i32, %switch_case2: i64):
+  llvm.switch %switch_flag : i32, ^bb2 [
+    0: ^bb2
+  ] {switch_attr}
+}) : () -> ()
+// CHECK:      "test.op"() ({
+// CHECK-NEXT: ^{{bb\d+}}(%switch_flag: i32, %switch_arg: i32, %switch_arg2: i64):
+// CHECK-NEXT:   llvm.switch %switch_flag : i32, ^[[DEFAULT:bb\d+]](%switch_arg : i32) [
+// CHECK-NEXT:     1: ^[[CASE1:bb\d+]],
+// CHECK-NEXT:     -3: ^[[CASE2:bb\d+]](%switch_arg, %switch_arg2 : i32, i64),
+// CHECK-NEXT:     7: ^[[CASE1]]
+// CHECK-NEXT:   ] {branch_weights = array<i32: 5, 1, 2, 3>}
+// CHECK-NEXT: ^[[DEFAULT]](%switch_default: i32):
+// CHECK-NEXT:   "test.termop"(%switch_default) : (i32) -> ()
+// CHECK-NEXT: ^[[CASE1]]:
+// CHECK-NEXT:   llvm.switch %switch_flag : i32, ^[[DEFAULT]](%switch_arg : i32) [
+// CHECK-NEXT:   ]
+// CHECK-NEXT: ^[[CASE2]](%switch_case: i32, %switch_case2: i64):
+// CHECK-NEXT:   llvm.switch %switch_flag : i32, ^[[CASE1]] [
+// CHECK-NEXT:     0: ^[[CASE1]]
+// CHECK-NEXT:   ] {switch_attr}
+// CHECK-NEXT: }) : () -> ()
+
 %ptr = "test.op"() : () -> !llvm.ptr
 
 %vec_val = "test.op"() : () -> vector<4xf32>

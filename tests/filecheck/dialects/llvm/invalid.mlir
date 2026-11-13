@@ -215,3 +215,105 @@ builtin.module {
 }
 
 // CHECK: LLVM function argument #0 has incompatible type '!llvm.void'
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i64):
+  "llvm.switch"(%flag) [^bb1, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<42> : vector<1xi32>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (i64) -> ()
+^bb1:
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expects case value type to match condition value type
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i32):
+  "llvm.switch"(%flag) [^bb1, ^bb1] <{case_operand_segments = array<i32: 0>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (i32) -> ()
+^bb1:
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expects number of case values to match number of case destinations
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i32):
+  "llvm.switch"(%flag) [^bb1, ^bb1] <{case_operand_segments = array<i32>, case_values = dense<42> : vector<1xi32>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (i32) -> ()
+^bb1:
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expects number of case operand segments to match number of case destinations: 0 vs 1
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i32):
+  "llvm.switch"(%flag, %flag) [^bb1, ^bb2] <{case_operand_segments = array<i32: 2>, case_values = dense<42> : vector<1xi32>, operandSegmentSizes = array<i32: 1, 0, 1>}> : (i32, i32) -> ()
+^bb1:
+  "test.termop"() : () -> ()
+^bb2(%arg: i32):
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expects case operand segments to sum to the number of case operands: 2 vs 1
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i32):
+  llvm.switch %flag : i32, ^bb1 [
+    42: ^bb2(%flag : i32)
+  ] {branch_weights = array<i32: 13, 17, 19>}
+^bb1:
+  "test.termop"() : () -> ()
+^bb2(%arg: i32):
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expects number of branch weights to match number of successors: 3 vs 2
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i32):
+  llvm.switch %flag : i32, ^bb1 [
+    42: ^bb2(%flag, %flag : i32)
+  ]
+^bb1:
+  "test.termop"() : () -> ()
+^bb2(%arg: i32, %arg2: i32):
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expected 2 types for case operands, got 1
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: index):
+  llvm.switch %flag : index, ^bb1 [
+    42: ^bb1
+  ]
+^bb1:
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: expected switch value to be an integer, got index
+
+// -----
+
+"test.op"() ({
+^bb0(%flag: i8):
+  llvm.switch %flag : i8, ^bb1 [
+    300: ^bb1
+  ]
+^bb1:
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// CHECK: Integer value 300 is out of range for type i8 which supports values in the range [-128, 256)

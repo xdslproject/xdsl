@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BFloat16Type,
     DenseArrayBase,
+    DenseIntElementsAttr,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
     Float16Type,
@@ -73,6 +74,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
+    Successor,
     VarConstraint,
     VerificationContext,
     irdl_attr_definition,
@@ -89,8 +91,20 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_successor_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    OperandVariable,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    VariadicOperandVariable,
+    VariadicSuccessorVariable,
+    irdl_custom_directive,
+)
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     IsTerminator,
@@ -3517,6 +3531,244 @@ class CondBrOp(IRDLOperation):
         )
 
 
+@irdl_custom_directive
+class SwitchOpCases(CustomDirective):
+    """
+    Custom directive for the cases of `llvm.switch`, with format:
+      cases ::= `[` (case (`,` case)*)? `]`
+      case  ::= integer `:` bb-id (`(` ssa-use-list `:` type-list `)`)?
+    """
+
+    flag_type: TypeDirective
+    case_values: AttributeVariable
+    case_destinations: VariadicSuccessorVariable
+    case_operands: VariadicOperandVariable
+    case_operand_segments: AttributeVariable
+    case_operand_types: TypeDirective
+
+    @staticmethod
+    def _parse_case(
+        parser: Parser, flag_type: IntegerType
+    ) -> tuple[int, Successor, Sequence[UnresolvedOperand], Sequence[Attribute]]:
+        pos = parser.pos
+        value = parser.parse_integer()
+        try:
+            value = flag_type.get_normalized_value(value)
+        except ValueError as e:
+            parser.raise_error(str(e), pos, parser.pos)
+        parser.parse_punctuation(":")
+        destination = parser.parse_successor()
+        if parser.parse_optional_punctuation("(") is None:
+            return value, destination, (), ()
+        pos = parser.pos
+        operands = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        types = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_type
+        )
+        parser.parse_punctuation(")")
+        if len(operands) != len(types):
+            parser.raise_error(
+                f"expected {len(operands)} types for case operands, got {len(types)}",
+                pos,
+                parser.pos,
+            )
+        return value, destination, operands, types
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        assert isinstance(self.flag_type.inner, OperandVariable)
+        flag_types = state.operand_types[self.flag_type.inner.index]
+        assert flag_types is not None
+        (flag_type,) = flag_types
+
+        start_pos = parser.pos
+        parser.parse_punctuation("[")
+        cases: list[
+            tuple[int, Successor, Sequence[UnresolvedOperand], Sequence[Attribute]]
+        ] = []
+        if parser.parse_optional_punctuation("]") is None:
+            if not isa(flag_type, IntegerType):
+                parser.raise_error(
+                    f"expected switch value to be an integer, got {flag_type}",
+                    start_pos,
+                    parser.pos,
+                )
+            cases = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, lambda: self._parse_case(parser, flag_type)
+            )
+            parser.parse_punctuation("]")
+            self.case_values.set(
+                state,
+                DenseIntElementsAttr.from_list(
+                    VectorType(flag_type, (len(cases),)),
+                    tuple(value for value, _, _, _ in cases),
+                ),
+            )
+
+        self.case_destinations.set(state, tuple(dest for _, dest, _, _ in cases))
+        self.case_operands.set(
+            state, tuple(operand for _, _, ops, _ in cases for operand in ops)
+        )
+        self.case_operand_types.set(
+            state, tuple(ty for _, _, _, types in cases for ty in types)
+        )
+        self.case_operand_segments.set(
+            state,
+            DenseArrayBase.from_list(i32, tuple(len(ops) for _, _, ops, _ in cases)),
+        )
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        assert isinstance(op, SwitchOp)
+        state.print_whitespace(printer)
+        printer.print_string("[")
+        case_values = op.case_values.get_values() if op.case_values else ()
+        with printer.indented():
+            for index, (value, destination) in enumerate(
+                zip(case_values, op.case_destinations)
+            ):
+                printer.print_string(",\n" if index else "\n")
+                printer.print_int(value)
+                printer.print_string(": ")
+                printer.print_block_name(destination)
+                operands = op.get_case_operands(index)
+                if operands:
+                    with printer.in_parens():
+                        printer.print_list(operands, printer.print_operand)
+                        printer.print_string(" : ")
+                        printer.print_list(
+                            (operand.type for operand in operands),
+                            printer.print_attribute,
+                        )
+        printer.print_string("\n]")
+
+
+@irdl_op_definition
+class SwitchOp(IRDLOperation):
+    """
+    Multi-way branch on an integer value.
+
+    Control flow is transferred to the case destination whose case value equals
+    `value`, or to the default destination if no case value matches.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmswitch-llvmswitchop).
+    """
+
+    name = "llvm.switch"
+
+    value = operand_def(AnySignlessIntegerType)
+    default_operands = var_operand_def()
+    case_operands = var_operand_def()
+
+    case_values = opt_prop_def(DenseIntElementsAttr)
+    case_operand_segments = prop_def(DenseArrayBase.constr(i32))
+    branch_weights = opt_prop_def(DenseArrayBase.constr(i32))
+
+    default_destination = successor_def()
+    case_destinations = var_successor_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
+
+    traits = traits_def(IsTerminator(), Pure())
+
+    assembly_format = (
+        "$value `:` type($value) `,`"
+        " $default_destination"
+        " (`(` $default_operands^ `:` type($default_operands) `)`)?"
+        " custom<SwitchOpCases>("
+        "ref(type($value)), $case_values, $case_destinations, $case_operands,"
+        " $case_operand_segments, type($case_operands))"
+        " attr-dict"
+    )
+
+    custom_directives = (SwitchOpCases,)
+
+    def __init__(
+        self,
+        value: OperandArg,
+        default_destination: Successor,
+        default_operands: Sequence[OperandArg] = (),
+        case_values: DenseIntElementsAttr | Sequence[int] = (),
+        case_destinations: Sequence[Successor] = (),
+        case_operands: Sequence[Sequence[OperandArg]] | None = None,
+        branch_weights: Sequence[int] | None = None,
+    ):
+        if case_operands is None:
+            case_operands = tuple(() for _ in case_destinations)
+
+        properties: dict[str, Attribute] = {
+            "case_operand_segments": DenseArrayBase.from_list(
+                i32, tuple(len(operands) for operands in case_operands)
+            )
+        }
+        if isinstance(case_values, DenseIntOrFPElementsAttr):
+            properties["case_values"] = case_values
+        elif case_values:
+            value_type = SSAValue.get(value).type
+            assert isa(value_type, IntegerType)
+            properties["case_values"] = DenseIntElementsAttr.from_list(
+                VectorType(value_type, (len(case_values),)), case_values
+            )
+        if branch_weights is not None:
+            properties["branch_weights"] = DenseArrayBase.from_list(i32, branch_weights)
+
+        super().__init__(
+            operands=[
+                value,
+                default_operands,
+                tuple(operand for operands in case_operands for operand in operands),
+            ],
+            properties=properties,
+            successors=[default_destination, case_destinations],
+        )
+
+    def get_case_operands(self, index: int) -> tuple[SSAValue, ...]:
+        """
+        Return the operands forwarded to the case destination at the given index.
+        """
+        segments = self.case_operand_segments.get_values()
+        start = sum(segments[:index])
+        return self.case_operands[start : start + segments[index]]
+
+    def verify_(self) -> None:
+        num_cases = len(self.case_destinations)
+        num_case_values = len(self.case_values) if self.case_values else 0
+        if num_case_values != num_cases:
+            raise VerifyException(
+                "expects number of case values to match number of case destinations"
+            )
+
+        if (
+            self.case_values is not None
+            and self.case_values.get_element_type() != self.value.type
+        ):
+            raise VerifyException(
+                "expects case value type to match condition value type"
+            )
+
+        segments = self.case_operand_segments.get_values()
+        if len(segments) != num_cases:
+            raise VerifyException(
+                "expects number of case operand segments to match number of case "
+                f"destinations: {len(segments)} vs {num_cases}"
+            )
+        if sum(segments) != len(self.case_operands):
+            raise VerifyException(
+                "expects case operand segments to sum to the number of case "
+                f"operands: {sum(segments)} vs {len(self.case_operands)}"
+            )
+
+        if self.branch_weights is not None:
+            num_weights = len(self.branch_weights)
+            num_successors = num_cases + 1
+            if num_weights != num_successors:
+                raise VerifyException(
+                    "expects number of branch weights to match number of "
+                    f"successors: {num_weights} vs {num_successors}"
+                )
+
+
 @irdl_op_definition
 class VectorFMaxOp(IRDLOperation):
     T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
@@ -3827,6 +4079,7 @@ LLVM = Dialect(
         StackSaveOp,
         StoreOp,
         SubOp,
+        SwitchOp,
         TruncOp,
         UDivOp,
         URemOp,
