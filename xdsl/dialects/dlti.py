@@ -112,10 +112,14 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
         cls, parser: AttrParser
     ) -> tuple[ArrayAttr[DataLayoutEntryAttr]]:
         def parse_entry() -> DataLayoutEntryAttr:
+            pos = parser.pos
             entry = parser.parse_attribute()
             parser.parse_punctuation("=")
             value = parser.parse_attribute()
-            return DataLayoutEntryAttr.new((entry, value))
+            try:
+                return DataLayoutEntryAttr.new((entry, value))
+            except ValueError as e:
+                parser.raise_error(str(e), pos)
 
         entries = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_entry)
 
