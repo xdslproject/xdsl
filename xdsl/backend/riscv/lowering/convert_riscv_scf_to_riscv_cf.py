@@ -88,7 +88,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # The first argument of the loop body block is the loop counter by SCF invariant.
         loop_var_reg = body.args[0].type
-        assert isinstance(loop_var_reg, riscv.IntRegisterType)
+        assert isinstance(loop_var_reg, riscv.registers.IntRegisterType)
 
         # Use the first block of the loop body as the condition block since it is the
         # block that has the induction variable and loop-carried values as arguments.
@@ -100,7 +100,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         # Get the induction variable and its register
         iv = first_body_block.args[0]
         iv_reg = iv.type
-        assert isinstance(iv_reg, riscv.IntRegisterType)
+        assert isinstance(iv_reg, riscv.registers.IntRegisterType)
 
         # Append the induction variable stepping logic to the last body block, add
         # comparison with upper bound, and conditionally branch back into the body.
@@ -109,15 +109,15 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         match op.step:
             case IntegerAttr() as step_attr:
-                if isa(step_attr, IntegerAttr[riscv.SI12]):
-                    add_op = riscv.AddiOp(iv, step_attr, rd=loop_var_reg)
+                if isa(step_attr, IntegerAttr[riscv.attrs.SI12]):
+                    add_op = riscv.ops.AddiOp(iv, step_attr, rd=loop_var_reg)
                 else:
                     raise PassFailedException(
                         "riscv_scf.for static step must use type si12 (signed 12-bit) for "
                         f"addi lowering; got {step_attr.type}"
                     )
             case _:
-                add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
+                add_op = riscv.ops.AddOp(iv, op.step, rd=iv_reg)
 
         rewriter.replace(
             yield_op,
@@ -140,7 +140,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         # Skip for loop if condition is not satisfied at start.
         rewriter.insert(
             (
-                mv_op := riscv.MVOp(op.start, rd=iv_reg),
+                mv_op := riscv.ops.MVOp(op.start, rd=iv_reg),
                 riscv_cf.BgeOp(
                     mv_op.rd,
                     op.stop,
@@ -155,13 +155,14 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # Insert label at the start of the first body block.
         rewriter.insert(
-            riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
+            riscv.ops.LabelOp(f"scf_body_{suffix}"),
+            InsertPoint.at_start(first_body_block),
         )
 
         # Replace operation by arguments to the newly end block.
         rewriter.replace(
             op,
-            riscv.LabelOp(f"scf_body_end_{suffix}"),
+            riscv.ops.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],
         )
 

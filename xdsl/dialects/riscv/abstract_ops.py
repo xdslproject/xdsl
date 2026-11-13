@@ -1311,9 +1311,9 @@ class GetAnyRegisterOperation(
 
     ``` python
     rhs = rv32.GetRegisterOp(Registers.s0).res
-    riscv.JalOp("my_func")
+    riscv.ops.JalOp("my_func")
     lhs = rv32.GetRegisterOp(Registers.A0).res
-    sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
+    sum = riscv.ops.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """
 

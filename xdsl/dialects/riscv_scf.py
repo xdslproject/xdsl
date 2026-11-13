@@ -145,7 +145,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if not isinstance(iter_var.type, IntRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
+                    " instead of riscv.registers.IntRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])

@@ -29,8 +29,8 @@ from xdsl.utils.exceptions import DiagnosticException
 
 class PtrTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
-    def convert_type(self, typ: ptr.PtrType) -> riscv.IntRegisterType:
-        return riscv.Registers.UNALLOCATED_INT
+    def convert_type(self, typ: ptr.PtrType) -> riscv.registers.IntRegisterType:
+        return riscv.registers.Registers.UNALLOCATED_INT
 
 
 @dataclass
@@ -38,7 +38,7 @@ class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
         oper1, oper2 = cast_operands_to_regs(rewriter, op)
-        rewriter.replace(op, riscv.AddOp(oper1, oper2))
+        rewriter.replace(op, riscv.ops.AddOp(oper1, oper2))
 
 
 @dataclass
@@ -48,22 +48,22 @@ class ConvertStoreOp(RewritePattern):
         addr, value = cast_operands_to_regs(rewriter, op)
 
         match value.type:
-            case riscv.IntRegisterType():
-                new_op = riscv.SwOp(
+            case riscv.registers.IntRegisterType():
+                new_op = riscv.ops.SwOp(
                     addr, value, 0, comment="store int value to pointer"
                 )
-            case riscv.FloatRegisterType():
+            case riscv.registers.FloatRegisterType():
                 float_type = cast(AnyFloat, op.value.type)
                 match float_type:
                     case Float32Type():
-                        new_op = riscv.FSwOp(
+                        new_op = riscv.ops.FSwOp(
                             addr,
                             value,
                             0,
                             comment="store float value to pointer",
                         )
                     case Float64Type():
-                        new_op = riscv.FSdOp(
+                        new_op = riscv.ops.FSdOp(
                             addr,
                             value,
                             0,
@@ -88,15 +88,15 @@ class ConvertLoadOp(RewritePattern):
 
         result_register_type = register_type_for_type(op.res.type)
 
-        if issubclass(result_register_type, riscv.IntRegisterType):
-            lw_op = riscv.LwOp(addr, 0, comment="load word from pointer")
+        if issubclass(result_register_type, riscv.registers.IntRegisterType):
+            lw_op = riscv.ops.LwOp(addr, 0, comment="load word from pointer")
         else:
             float_type = cast(AnyFloat, op.res.type)
             match float_type:
                 case Float32Type():
-                    lw_op = riscv.FLwOp(addr, 0, comment="load float from pointer")
+                    lw_op = riscv.ops.FLwOp(addr, 0, comment="load float from pointer")
                 case Float64Type():
-                    lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
+                    lw_op = riscv.ops.FLdOp(addr, 0, comment="load double from pointer")
                 case _:
                     raise DiagnosticException(
                         f"Lowering memref.load op with floating point type {float_type} not yet implemented"
@@ -115,7 +115,7 @@ class ConvertMemRefToPtrOp(RewritePattern):
         rewriter.replace(
             op,
             UnrealizedConversionCastOp.get(
-                (op.source,), (riscv.Registers.UNALLOCATED_INT,)
+                (op.source,), (riscv.registers.Registers.UNALLOCATED_INT,)
             ),
         )
 

@@ -4,12 +4,6 @@ from typing import Self
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
-    IntRegisterType,
-    RISCVInstruction,
-    RISCVRegisterType,
-)
 from xdsl.interfaces import HasCanonicalizationPatternsInterface
 from xdsl.ir import Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
@@ -44,17 +38,17 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
 
 
 class ConditionalBranchOperation(
-    RISCVInstruction, HasCanonicalizationPatternsInterface, ABC
+    riscv.abstract_ops.RISCVInstruction, HasCanonicalizationPatternsInterface, ABC
 ):
     """
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
 
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
+    rs1 = operand_def(riscv.registers.IntRegisterType)
+    rs2 = operand_def(riscv.registers.IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
+    else_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -90,7 +84,7 @@ class ConditionalBranchOperation(
 
         then_block_first_op = self.then_block.first_op
 
-        if not isinstance(then_block_first_op, riscv.LabelOp):
+        if not isinstance(then_block_first_op, riscv.ops.LabelOp):
             raise VerifyException(
                 "riscv_cf branch op then block first op must be a label"
             )
@@ -123,9 +117,11 @@ class ConditionalBranchOperation(
                 "riscv_cf branch op else block must be immediately after op"
             )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         then_label = self.then_block.first_op
-        assert isinstance(then_label, riscv.LabelOp)
+        assert isinstance(then_label, riscv.ops.LabelOp)
         return self.rs1, self.rs2, then_label.label
 
     def print(self, printer: Printer) -> None:
@@ -296,7 +292,7 @@ class BgeuOp(ConditionalBranchOperation):
 
 
 @irdl_op_definition
-class BranchOp(riscv.RISCVAsmOperation):
+class BranchOp(riscv.abstract_ops.RISCVAsmOperation):
     """
     Branches to a different block, which must follow this operation's block in the parent
     region. Is not printed in assembly.
@@ -304,7 +300,7 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     name = "riscv_cf.branch"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
     successor = successor_def()
     comment = opt_attr_def(StringAttr)
     """
@@ -385,7 +381,7 @@ class BranchOp(riscv.RISCVAsmOperation):
 
 
 @irdl_op_definition
-class JOp(RISCVInstruction):
+class JOp(riscv.abstract_ops.RISCVInstruction):
     """
     A pseudo-instruction, for unconditional jumps you don't expect to return from.
     Is equivalent to JalOp with `rd` = `x0`.
@@ -394,7 +390,7 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
 
     successor = successor_def()
 
@@ -427,7 +423,7 @@ class JOp(RISCVInstruction):
                     f"Block arg types must match {op_arg.type} {block_arg.type}"
                 )
 
-        if not isinstance(self.successor.first_op, riscv.LabelOp):
+        if not isinstance(self.successor.first_op, riscv.ops.LabelOp):
             raise VerifyException(
                 "riscv_cf.j operation successor must have a riscv.label operation as a "
                 f"first argument, found {self.successor.first_op}"
@@ -456,14 +452,16 @@ class JOp(RISCVInstruction):
             op.attributes |= attrs.data
         return op
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         dest_label = self.successor.first_op
-        assert isinstance(dest_label, riscv.LabelOp)
+        assert isinstance(dest_label, riscv.ops.LabelOp)
         return (dest_label.label,)
 
 
 @irdl_op_definition
-class BnezOp(RISCVInstruction):
+class BnezOp(riscv.abstract_ops.RISCVInstruction):
     """
     A pseudo-instruction that branches if register rs is not equal to zero.
     Equivalent to BneOp with rs2 = x0.
@@ -473,10 +471,10 @@ class BnezOp(RISCVInstruction):
 
     name = "riscv_cf.bnez"
 
-    rs = operand_def(IntRegisterType)
+    rs = operand_def(riscv.registers.IntRegisterType)
 
-    then_arguments = var_operand_def(RISCVRegisterType)
-    else_arguments = var_operand_def(RISCVRegisterType)
+    then_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
+    else_arguments = var_operand_def(riscv.registers.RISCVRegisterType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -507,7 +505,7 @@ class BnezOp(RISCVInstruction):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.then_block.first_op, riscv.LabelOp):
+        if not isinstance(self.then_block.first_op, riscv.ops.LabelOp):
             raise VerifyException(
                 "riscv_cf.bnez operation then block must have a riscv.label operation as a "
                 f"first argument, found {self.then_block.first_op}"
@@ -580,9 +578,11 @@ class BnezOp(RISCVInstruction):
             op.attributes |= attrs.data
         return op
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         then_label = self.then_block.first_op
-        assert isinstance(then_label, riscv.LabelOp)
+        assert isinstance(then_label, riscv.ops.LabelOp)
         return (self.rs, then_label.label)
 
 

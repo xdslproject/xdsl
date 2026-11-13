@@ -43,7 +43,7 @@ def pairs(els: list[_T]) -> Iterator[tuple[_T, _T]]:
 
 
 CustomInstructionFn: TypeAlias = Callable[
-    [Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues
+    [Interpreter, riscv.ops.CustomAssemblyInstructionOp, PythonValues], PythonValues
 ]
 
 
@@ -77,7 +77,7 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def get_reg_value(interpreter: Interpreter, attr: Attribute, value: Any) -> Any:
-        if not isinstance(attr, riscv.RISCVRegisterType):
+        if not isinstance(attr, riscv.registers.RISCVRegisterType):
             raise InterpretationError(f"Unexpected type {attr}, expected register type")
 
         if not attr.is_allocated:
@@ -101,7 +101,7 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def set_reg_value(interpreter: Interpreter, attr: Attribute, value: Any) -> Any:
-        if not isinstance(attr, riscv.RISCVRegisterType):
+        if not isinstance(attr, riscv.registers.RISCVRegisterType):
             raise InterpretationError(f"Unexpected type {attr}, expected register type")
 
         if not attr.is_allocated:
@@ -109,7 +109,7 @@ class RiscvFunctions(InterpreterFunctions):
 
         name = attr.register_name
 
-        if name == riscv.Registers.ZERO.register_name:
+        if name == riscv.registers.Registers.ZERO.register_name:
             # Values assigned to ZERO are erased
             return IntegerAttr(0, interpreter.index_bitwidth)
 
@@ -165,10 +165,12 @@ class RiscvFunctions(InterpreterFunctions):
             RiscvFunctions,
             REGISTERS_KEY,
             lambda: {
-                riscv.Registers.ZERO.register_name: IntegerAttr(
+                riscv.registers.Registers.ZERO.register_name: IntegerAttr(
                     0, interpreter.index_bitwidth
                 ),
-                riscv.Registers.SP.register_name: RiscvFunctions.stack(interpreter),
+                riscv.registers.Registers.SP.register_name: RiscvFunctions.stack(
+                    interpreter
+                ),
             },
         )
 
@@ -188,14 +190,14 @@ class RiscvFunctions(InterpreterFunctions):
     def get_data(module_op: ModuleOp) -> dict[str, ptr.RawPtr]:
         data: dict[str, ptr.RawPtr] = {}
         for op in module_op.ops:
-            if isinstance(op, riscv.AssemblySectionOp):
+            if isinstance(op, riscv.ops.AssemblySectionOp):
                 if op.directive.data == ".data":
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
                         if not (
-                            isinstance(label, riscv.LabelOp)
-                            and isinstance(data_op, riscv.DirectiveOp)
+                            isinstance(label, riscv.ops.LabelOp)
+                            and isinstance(data_op, riscv.ops.DirectiveOp)
                         ):
                             raise InterpretationError(
                                 "Interpreter assumes that data section is comprised of "
@@ -236,22 +238,22 @@ class RiscvFunctions(InterpreterFunctions):
                 data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
 
-    @impl(riscv.MVOp)
+    @impl(riscv.ops.MVOp)
     def run_mv(
         self,
         interpreter: Interpreter,
-        op: riscv.MVOp,
+        op: riscv.ops.MVOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = args
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SltiuOp)
+    @impl(riscv.ops.SltiuOp)
     def run_sltiu(
         self,
         interpreter: Interpreter,
-        op: riscv.SltiuOp,
+        op: riscv.ops.SltiuOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -265,22 +267,22 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SltOp)
+    @impl(riscv.ops.SltOp)
     def run_slt(
         self,
         interpreter: Interpreter,
-        op: riscv.SltOp,
+        op: riscv.ops.SltOp,
         args: tuple[Any, ...],
     ):
         signed_lhs = to_signed(args[0].value.data, self.bitwidth)
         signed_rhs = to_signed(args[1].value.data, self.bitwidth)
         return (IntegerAttr(int(signed_lhs < signed_rhs), interpreter.index_bitwidth),)
 
-    @impl(riscv.AddOp)
+    @impl(riscv.ops.AddOp)
     def run_add(
         self,
         interpreter: Interpreter,
-        op: riscv.AddOp,
+        op: riscv.ops.AddOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -296,11 +298,11 @@ class RiscvFunctions(InterpreterFunctions):
             )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.AddiOp)
+    @impl(riscv.ops.AddiOp)
     def run_addi(
         self,
         interpreter: Interpreter,
-        op: riscv.AddiOp,
+        op: riscv.ops.AddiOp,
         args: tuple[Any, ...],
     ):
         immediate = cast(IntegerAttr[IntegerType | IndexType], op.immediate).value.data
@@ -317,11 +319,11 @@ class RiscvFunctions(InterpreterFunctions):
             )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SubOp)
+    @impl(riscv.ops.SubOp)
     def run_sub(
         self,
         interpreter: Interpreter,
-        op: riscv.SubOp,
+        op: riscv.ops.SubOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -334,11 +336,11 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SllOp)
+    @impl(riscv.ops.SllOp)
     def run_shift_left(
         self,
         interpreter: Interpreter,
-        op: riscv.SllOp,
+        op: riscv.ops.SllOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -351,11 +353,11 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.MulOp)
+    @impl(riscv.ops.MulOp)
     def run_mul(
         self,
         interpreter: Interpreter,
-        op: riscv.MulOp,
+        op: riscv.ops.MulOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -367,11 +369,11 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.DivOp)
+    @impl(riscv.ops.DivOp)
     def run_div(
         self,
         interpreter: Interpreter,
-        op: riscv.DivOp,
+        op: riscv.ops.DivOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -392,22 +394,22 @@ class RiscvFunctions(InterpreterFunctions):
         results = (IntegerAttr(result, interpreter.index_bitwidth, truncate_bits=True),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SwOp)
+    @impl(riscv.ops.SwOp)
     def run_sw(
         self,
         interpreter: Interpreter,
-        op: riscv.SwOp,
+        op: riscv.ops.SwOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         (args[0] + op.immediate.value.data).int32[0] = args[1].value.data
         return ()
 
-    @impl(riscv.LwOp)
+    @impl(riscv.ops.LwOp)
     def run_lw(
         self,
         interpreter: Interpreter,
-        op: riscv.LwOp,
+        op: riscv.ops.LwOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -420,33 +422,33 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.LabelOp)
+    @impl(riscv.ops.LabelOp)
     def run_label(
         self,
         interpreter: Interpreter,
-        op: riscv.LabelOp,
+        op: riscv.ops.LabelOp,
         args: tuple[Any, ...],
     ):
         return ()
 
     # region F extension
 
-    @impl(riscv.FMulSOp)
+    @impl(riscv.ops.FMulSOp)
     def run_fmul_s(
         self,
         interpreter: Interpreter,
-        op: riscv.FMulSOp,
+        op: riscv.ops.FMulSOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(args[0].value.data * args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMvWXOp)
+    @impl(riscv.ops.FMvWXOp)
     def run_fmv_w_x(
         self,
         interpreter: Interpreter,
-        op: riscv.FMvWXOp,
+        op: riscv.ops.FMvWXOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -457,22 +459,22 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FSwOp)
+    @impl(riscv.ops.FSwOp)
     def run_fsw(
         self,
         interpreter: Interpreter,
-        op: riscv.FSwOp,
+        op: riscv.ops.FSwOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         (args[0] + op.immediate.value.data).float32[0] = args[1].value.data
         return ()
 
-    @impl(riscv.FLwOp)
+    @impl(riscv.ops.FLwOp)
     def run_flw(
         self,
         interpreter: Interpreter,
-        op: riscv.FLwOp,
+        op: riscv.ops.FLwOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -481,11 +483,11 @@ class RiscvFunctions(InterpreterFunctions):
         results = (FloatAttr((args[0] + offset.value.data).float32[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMVOp)
+    @impl(riscv.ops.FMVOp)
     def run_fmv(
         self,
         interpreter: Interpreter,
-        op: riscv.FMVOp,
+        op: riscv.ops.FMVOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -496,11 +498,11 @@ class RiscvFunctions(InterpreterFunctions):
 
     # region D extension
 
-    @impl(riscv.FMAddDOp)
+    @impl(riscv.ops.FMAddDOp)
     def run_fmadd_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FMAddDOp,
+        op: riscv.ops.FMAddDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -512,88 +514,88 @@ class RiscvFunctions(InterpreterFunctions):
         )
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FAddDOp)
+    @impl(riscv.ops.FAddDOp)
     def run_fadd_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FAddDOp,
+        op: riscv.ops.FAddDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(args[0].value.data + args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FSubDOp)
+    @impl(riscv.ops.FSubDOp)
     def run_fsub_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FSubDOp,
+        op: riscv.ops.FSubDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(args[0].value.data - args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMulDOp)
+    @impl(riscv.ops.FMulDOp)
     def run_fmul_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FMulDOp,
+        op: riscv.ops.FMulDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(args[0].value.data * args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FDivDOp)
+    @impl(riscv.ops.FDivDOp)
     def run_fdiv_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FDivDOp,
+        op: riscv.ops.FDivDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(args[0].value.data / args[1].value.data, builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMinDOp)
+    @impl(riscv.ops.FMinDOp)
     def run_fmin_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FMinDOp,
+        op: riscv.ops.FMinDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (min(args, key=lambda value: value.value.data),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMaxDOp)
+    @impl(riscv.ops.FMaxDOp)
     def run_fmax_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FMaxDOp,
+        op: riscv.ops.FMaxDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (max(args, key=lambda value: value.value.data),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FCvtDWOp)
+    @impl(riscv.ops.FCvtDWOp)
     def run_fcvt_d_w(
         self,
         interpreter: Interpreter,
-        op: riscv.FCvtDWOp,
+        op: riscv.ops.FCvtDWOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (FloatAttr(float(args[0].value.data), builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FSdOp)
+    @impl(riscv.ops.FSdOp)
     def run_fsd(
         self,
         interpreter: Interpreter,
-        op: riscv.FSdOp,
+        op: riscv.ops.FSdOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -601,11 +603,11 @@ class RiscvFunctions(InterpreterFunctions):
         (args[0] + offset).float64[0] = args[1].value.data
         return ()
 
-    @impl(riscv.FLdOp)
+    @impl(riscv.ops.FLdOp)
     def run_fld(
         self,
         interpreter: Interpreter,
-        op: riscv.FLdOp,
+        op: riscv.ops.FLdOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -614,11 +616,11 @@ class RiscvFunctions(InterpreterFunctions):
         results = (FloatAttr((args[0] + offset.value.data).float64[0], builtin.f64),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FMvDOp)
+    @impl(riscv.ops.FMvDOp)
     def run_fmv_d(
         self,
         interpreter: Interpreter,
-        op: riscv.FMvDOp,
+        op: riscv.ops.FMvDOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -627,11 +629,11 @@ class RiscvFunctions(InterpreterFunctions):
 
     # endregion
 
-    @impl(riscv.CustomAssemblyInstructionOp)
+    @impl(riscv.ops.CustomAssemblyInstructionOp)
     def run_custom_instruction(
         self,
         interpreter: Interpreter,
-        op: riscv.CustomAssemblyInstructionOp,
+        op: riscv.ops.CustomAssemblyInstructionOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
@@ -645,33 +647,33 @@ class RiscvFunctions(InterpreterFunctions):
         results = self.custom_instructions[instr](interpreter, op, args)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.ParallelMovOp)
+    @impl(riscv.ops.ParallelMovOp)
     def run_parallel_mov(
         self,
         interpreter: Interpreter,
-        op: riscv.ParallelMovOp,
+        op: riscv.ops.ParallelMovOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = args
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl_cast(riscv.FloatRegisterType, builtin.Float64Type)
+    @impl_cast(riscv.registers.FloatRegisterType, builtin.Float64Type)
     def cast_float_reg_to_float(
         self,
-        input_type: riscv.FloatRegisterType,
+        input_type: riscv.registers.FloatRegisterType,
         output_type: builtin.Float64Type,
         value: Any,
     ) -> FloatAttr[builtin.Float64Type]:
         assert isa(value, FloatAttr[builtin.Float64Type])
         return value
 
-    @impl_attr(riscv.IntRegisterType)
+    @impl_attr(riscv.registers.IntRegisterType)
     def register_value(
         self,
         interpreter: Interpreter,
         attr: Attribute,
-        type_attr: riscv.IntRegisterType,
+        type_attr: riscv.registers.IntRegisterType,
     ) -> Any:
         match attr:
             case IntegerAttr():

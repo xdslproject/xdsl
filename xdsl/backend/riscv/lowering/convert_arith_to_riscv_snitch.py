@@ -25,9 +25,9 @@ from xdsl.pattern_rewriter import (
 @dataclass
 class LowerBinaryFloatVectorOp(RewritePattern):
     arith_op_cls: type[arith.FloatingPointLikeBinaryOperation]
-    riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
-    riscv_snitch_v_f32_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
-    riscv_snitch_v_f16_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
+    riscv_d_op_cls: type[riscv.abstract_ops.RdRsRsFloatOperationWithFastMath]
+    riscv_snitch_v_f32_op_cls: type[riscv.abstract_ops.RdRsRsFloatOperationWithFastMath]
+    riscv_snitch_v_f16_op_cls: type[riscv.abstract_ops.RdRsRsFloatOperationWithFastMath]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
@@ -43,10 +43,10 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         scalar_type = operand_type.element_type
 
         lhs = UnrealizedConversionCastOp.get(
-            (op.lhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
+            (op.lhs,), (riscv.registers.Registers.UNALLOCATED_FLOAT,)
         )
         rhs = UnrealizedConversionCastOp.get(
-            (op.rhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
+            (op.rhs,), (riscv.registers.Registers.UNALLOCATED_FLOAT,)
         )
 
         match scalar_type:
@@ -65,22 +65,24 @@ class LowerBinaryFloatVectorOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected float type {op.lhs.type}")
 
-        rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
+        rv_flags = riscv.attrs.FastMathFlagsAttr(op.fastmath.data)
 
-        new_op = cls(lhs, rhs, rd=riscv.Registers.UNALLOCATED_FLOAT, fastmath=rv_flags)
+        new_op = cls(
+            lhs, rhs, rd=riscv.registers.Registers.UNALLOCATED_FLOAT, fastmath=rv_flags
+        )
         cast_op = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
         rewriter.replace(op, (lhs, rhs, new_op, cast_op))
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(
-    arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
+    arith.AddfOp, riscv.ops.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
 )
 lower_arith_subf = LowerBinaryFloatVectorOp(
-    arith.SubfOp, riscv.FSubDOp, riscv_snitch.VFSubSOp, riscv_snitch.VFSubHOp
+    arith.SubfOp, riscv.ops.FSubDOp, riscv_snitch.VFSubSOp, riscv_snitch.VFSubHOp
 )
 lower_arith_mulf = LowerBinaryFloatVectorOp(
-    arith.MulfOp, riscv.FMulDOp, riscv_snitch.VFMulSOp, riscv_snitch.VFMulHOp
+    arith.MulfOp, riscv.ops.FMulDOp, riscv_snitch.VFMulSOp, riscv_snitch.VFMulHOp
 )
 
 

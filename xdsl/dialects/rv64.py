@@ -8,30 +8,12 @@ using 6-bit immediates for 64-bit architectures.
 from __future__ import annotations
 
 from xdsl.backend.assembly_printer import AssemblyPrinter
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I64,
     IntegerAttr,
     StringAttr,
     i64,
-)
-from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
-    IntRegisterType,
-    Registers,
-)
-from xdsl.dialects.riscv.abstract_ops import (
-    GetAnyRegisterOperation,
-    ImmShiftOpHasCanonicalizationPatternsTrait,
-    LiOperation,
-    RdRsImmIntegerOperation,
-    RdRsImmShiftOperation,
-    RsRsImmIntegerOperation,
-    assembly_arg_str,
-)
-from xdsl.dialects.riscv.attrs import (
-    UI6,
-    ImmediateI64,
-    ui6,
 )
 from xdsl.ir import (
     Dialect,
@@ -49,7 +31,7 @@ from xdsl.traits import (
 
 
 @irdl_op_definition
-class LiOp(LiOperation[I64]):
+class LiOp(riscv.abstract_ops.LiOperation[I64]):
     """
     Loads a 64-bit immediate into rd.
 
@@ -61,13 +43,13 @@ class LiOp(LiOperation[I64]):
     name = "rv64.li"
 
     assembly_format = "custom<ImmediateI64>($immediate) attr-dict `:` type($rd)"
-    custom_directives = (ImmediateI64,)
+    custom_directives = (riscv.attrs.ImmediateI64,)
 
     def __init__(
         self,
         immediate: int | IntegerAttr[I64] | str | StringAttr,
         *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        rd: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -75,7 +57,9 @@ class LiOp(LiOperation[I64]):
         super().__init__(immediate, rd=rd, comment=comment)
 
 
-class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):
+class RV64RdRsImmShiftOperation(
+    riscv.abstract_ops.RdRsImmShiftOperation[riscv.attrs.UI6, I64]
+):
     """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
 
     traits = lazy_traits_def(
@@ -85,13 +69,13 @@ class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):
     def __init__(
         self,
         rs1: OperandArg,
-        immediate: int | IntegerAttr[UI6],
+        immediate: int | IntegerAttr[riscv.attrs.UI6],
         *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        rd: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui6)
+            immediate = IntegerAttr(immediate, riscv.attrs.ui6)
 
         super().__init__(
             rs1=rs1,
@@ -100,12 +84,14 @@ class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):
             comment=comment,
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
 
 class ImmShiftOpRV64HasCanonicalizationPatternsTrait(
-    ImmShiftOpHasCanonicalizationPatternsTrait[I64],
+    riscv.abstract_ops.ImmShiftOpHasCanonicalizationPatternsTrait[I64],
     li_op_type=LiOp,
     shift_op_type=RV64RdRsImmShiftOperation,
 ):
@@ -297,7 +283,7 @@ class SrliwOp(RV64RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class LdOp(RdRsImmIntegerOperation):
+class LdOp(riscv.abstract_ops.RdRsImmIntegerOperation):
     """
     Loads a 64-bit value from memory into register rd for RV64I.
     ```C
@@ -313,16 +299,16 @@ class LdOp(RdRsImmIntegerOperation):
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
-        value = assembly_arg_str(self.rd)
-        imm = assembly_arg_str(self.immediate)
-        base = assembly_arg_str(self.rs1)
+        value = riscv.abstract_ops.assembly_arg_str(self.rd)
+        imm = riscv.abstract_ops.assembly_arg_str(self.immediate)
+        base = riscv.abstract_ops.assembly_arg_str(self.rs1)
         return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({base})", self.comment
         )
 
 
 @irdl_op_definition
-class SdOp(RsRsImmIntegerOperation):
+class SdOp(riscv.abstract_ops.RsRsImmIntegerOperation):
     """
     Store 64-bit, values from register rs2 to memory.
     ```C
@@ -336,16 +322,18 @@ class SdOp(RsRsImmIntegerOperation):
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
-        value = assembly_arg_str(self.rs2)
-        imm = assembly_arg_str(self.immediate)
-        base = assembly_arg_str(self.rs1)
+        value = riscv.abstract_ops.assembly_arg_str(self.rs2)
+        imm = riscv.abstract_ops.assembly_arg_str(self.immediate)
+        base = riscv.abstract_ops.assembly_arg_str(self.rs1)
         return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({base})", self.comment
         )
 
 
 @irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+class GetRegisterOp(
+    riscv.abstract_ops.GetAnyRegisterOperation[riscv.registers.IntRegisterType]
+):
     name = "rv64.get_register"
 
 

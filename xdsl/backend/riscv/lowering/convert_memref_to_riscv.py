@@ -51,13 +51,15 @@ class ConvertMemRefAllocOp(RewritePattern):
             op,
             (
                 size_op := rv32.LiOp(size, comment="memref alloc size"),
-                move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
+                move_op := riscv.ops.MVOp(size_op.rd, rd=riscv.registers.Registers.A0),
                 call := riscv_func.CallOp(
                     "malloc",
                     (move_op.rd,),
-                    (riscv.Registers.A0,),
+                    (riscv.registers.Registers.A0,),
                 ),
-                move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
+                move_op := riscv.ops.MVOp(
+                    call.ress[0], rd=riscv.registers.Registers.UNALLOCATED_INT
+                ),
                 UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
             ),
         )
@@ -72,9 +74,11 @@ class ConvertMemRefDeallocOp(RewritePattern):
             op,
             (
                 ptr := UnrealizedConversionCastOp.get(
-                    (op.memref,), (riscv.Registers.UNALLOCATED_INT,)
+                    (op.memref,), (riscv.registers.Registers.UNALLOCATED_INT,)
                 ),
-                move_op := riscv.MVOp(ptr.results[0], rd=riscv.Registers.A0),
+                move_op := riscv.ops.MVOp(
+                    ptr.results[0], rd=riscv.registers.Registers.A0
+                ),
                 riscv_func.CallOp(
                     "free",
                     (move_op.rd,),
@@ -123,7 +127,7 @@ def get_strided_pointer(
                 ops.extend(
                     (
                         stride_op := rv32.LiOp(stride),
-                        offset_op := riscv.MulOp(increment, stride_op.rd),
+                        offset_op := riscv.ops.MulOp(increment, stride_op.rd),
                     )
                 )
                 stride_op.rd.name_hint = "pointer_dim_stride"
@@ -136,7 +140,7 @@ def get_strided_pointer(
             continue
 
         # Otherwise sum up the products.
-        ops.append(add_op := riscv.AddOp(head, increment))
+        ops.append(add_op := riscv.ops.AddOp(head, increment))
         add_op.rd.name_hint = "pointer_offset"
         head = add_op.rd
 
@@ -146,12 +150,12 @@ def get_strided_pointer(
     ops.extend(
         [
             bytes_per_element_op := rv32.LiOp(bytes_per_element),
-            offset_bytes := riscv.MulOp(
+            offset_bytes := riscv.ops.MulOp(
                 head,
                 bytes_per_element_op.rd,
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(src_ptr, offset_bytes),
+            ptr := riscv.ops.AddOp(src_ptr, offset_bytes),
         ]
     )
 
@@ -176,22 +180,22 @@ class ConvertMemRefStoreOp(RewritePattern):
 
         rewriter.insert(ops)
         match value.type:
-            case riscv.IntRegisterType():
-                new_op = riscv.SwOp(
+            case riscv.registers.IntRegisterType():
+                new_op = riscv.ops.SwOp(
                     ptr, value, 0, comment=f"store int value to memref of shape {shape}"
                 )
-            case riscv.FloatRegisterType():
+            case riscv.registers.FloatRegisterType():
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
                     case Float32Type():
-                        new_op = riscv.FSwOp(
+                        new_op = riscv.ops.FSwOp(
                             ptr,
                             value,
                             0,
                             comment=f"store float value to memref of shape {shape}",
                         )
                     case Float64Type():
-                        new_op = riscv.FSdOp(
+                        new_op = riscv.ops.FSdOp(
                             ptr,
                             value,
                             0,
@@ -222,19 +226,19 @@ class ConvertMemRefLoadOp(RewritePattern):
         result_register_type = register_type_for_type(op.res.type)
 
         match result_register_type:
-            case riscv.IntRegisterType:
-                lw_op = riscv.LwOp(
+            case riscv.registers.IntRegisterType:
+                lw_op = riscv.ops.LwOp(
                     ptr, 0, comment=f"load word from memref of shape {shape}"
                 )
-            case riscv.FloatRegisterType:
+            case riscv.registers.FloatRegisterType:
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
                     case Float32Type():
-                        lw_op = riscv.FLwOp(
+                        lw_op = riscv.ops.FLwOp(
                             ptr, 0, comment=f"load float from memref of shape {shape}"
                         )
                     case Float64Type():
-                        lw_op = riscv.FLdOp(
+                        lw_op = riscv.ops.FLdOp(
                             ptr, 0, comment=f"load double from memref of shape {shape}"
                         )
                     case _:
@@ -274,10 +278,10 @@ class ConvertMemRefGlobalOp(RewritePattern):
         i32_attr = DenseArrayBase(i32, initial_value.data)
         text = ",".join(hex(i) for i in i32_attr.iter_values())
 
-        section = riscv.AssemblySectionOp(".data")
+        section = riscv.ops.AssemblySectionOp(".data")
         with ImplicitBuilder(section.data):
-            riscv.LabelOp(op.sym_name)
-            riscv.DirectiveOp(".word", text)
+            riscv.ops.LabelOp(op.sym_name)
+            riscv.ops.DirectiveOp(".word", text)
 
         rewriter.replace(op, section)
 
@@ -350,7 +354,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
             return
 
         src = UnrealizedConversionCastOp.get(
-            (source,), (riscv.Registers.UNALLOCATED_INT,)
+            (source,), (riscv.registers.Registers.UNALLOCATED_INT,)
         )
         src_rd = src.results[0]
 
@@ -365,7 +369,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.Registers.UNALLOCATED_INT,),
+                            (riscv.registers.Registers.UNALLOCATED_INT,),
                         )
                     )
                     index_val = cast_index_op.results[0]
@@ -378,7 +382,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                 indices.append(index_val)
             offset_ops, offset_rd = get_strided_pointer(src_rd, indices, source_type)
         else:
-            factor_op = riscv.AddiOp(
+            factor_op = riscv.ops.AddiOp(
                 src_rd,
                 offset * factor,
                 comment="subview offset",
@@ -426,7 +430,7 @@ class ConvertMemRefToRiscvPass(ModulePass):
             func_op = riscv_func.FuncOp(
                 "malloc",
                 Region(),
-                ((riscv.Registers.A0,), (riscv.Registers.A0,)),
+                ((riscv.registers.Registers.A0,), (riscv.registers.Registers.A0,)),
                 visibility="private",
             )
             SymbolTable.insert_or_update(op, func_op)
@@ -434,7 +438,7 @@ class ConvertMemRefToRiscvPass(ModulePass):
             func_op = riscv_func.FuncOp(
                 "free",
                 Region(),
-                ((riscv.Registers.A0,), ()),
+                ((riscv.registers.Registers.A0,), ()),
                 visibility="private",
             )
             SymbolTable.insert_or_update(op, func_op)
