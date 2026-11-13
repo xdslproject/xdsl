@@ -9,8 +9,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_snitch, rv32, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.dialects.riscv.attrs import ui5, ui12
-from xdsl.ir import Operation
-from xdsl.irdl import Operand
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -99,7 +98,7 @@ class SnitchStreamerMemoryMap:
 
 
 def write_ssr_config_ops(
-    reg: int, dm: int, value: Operand, comment: str | None = None
+    reg: int, dm: int, value: SSAValue, comment: str | None = None
 ) -> Iterable[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration

@@ -27,7 +27,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -453,7 +452,7 @@ class AccessOp(IRDLOperation):
 
     def __init__(
         self,
-        op: Operand,
+        op: SSAValue,
         offset: stencil.IndexAttr,
         result_type: TensorType[Attribute] | MemRefType,
         offset_mapping: stencil.IndexAttr | None = None,

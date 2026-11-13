@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.irdl import Operand
 from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -161,7 +160,7 @@ class LoopHoistMemRef(RewritePattern):
             interim_load.res.replace_all_uses_with(new_block_arg)
             toerase_ops.append(interim_load)
 
-        new_yield_vals: list[Operand] = []
+        new_yield_vals: list[SSAValue] = []
         for store in load_store_pairs.values():
             interim_store = store_map[store]
             new_yield_vals.append(interim_store.value)
