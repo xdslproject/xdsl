@@ -12,7 +12,7 @@ from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
-from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
+from xdsl.dialects.riscv.registers import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
