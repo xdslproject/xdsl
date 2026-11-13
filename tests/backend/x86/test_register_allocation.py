@@ -2,7 +2,6 @@ import pytest
 
 from xdsl.backend.x86.register_allocation import X86RegisterAllocator
 from xdsl.backend.x86.register_stack import X86RegisterStack
-from xdsl.dialects.x86 import Reg64Type
 from xdsl.dialects.x86.ops import (
     DI_Operation,
     DM_Operation,
@@ -27,6 +26,7 @@ from xdsl.dialects.x86.registers import (
     ZMM1,
     AVX2RegisterType,
     AVX512RegisterType,
+    Reg64Type,
     X86VectorRegisterType,
 )
 from xdsl.ir import Block
