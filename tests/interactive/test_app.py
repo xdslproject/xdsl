@@ -420,14 +420,14 @@ async def test_passes():
                 p2align=2,
             )
             with ImplicitBuilder(function.body) as (n,):
-                zero = riscv.MVOp(n)
+                zero = riscv.ops.MVOp(n)
                 n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
                 two = arith.ConstantOp(IntegerAttr(2, index)).result
                 res = arith.MuliOp(n_one, two)
                 one = UnrealizedConversionCastOp.get(
                     [res.result], [riscv.Registers.UNALLOCATED_INT]
                 )
-                two_two = riscv.ParallelMovOp(
+                two_two = riscv.ops.ParallelMovOp(
                     [SSAValue.get(one)],
                     [riscv.Registers.A0],
                     DenseArrayBase.from_list(i32, [32]),

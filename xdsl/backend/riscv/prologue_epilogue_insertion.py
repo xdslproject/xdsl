@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from ordered_set import OrderedSet
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func, rv32
 from xdsl.dialects.riscv.registers import (
@@ -12,6 +12,7 @@ from xdsl.dialects.riscv.registers import (
     RISCVRegisterType,
 )
 from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint
 
 
 @dataclass(frozen=True)

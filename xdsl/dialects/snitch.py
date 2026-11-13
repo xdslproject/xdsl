@@ -18,7 +18,7 @@ from typing import Generic, cast
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ContainerType, IntAttr
-from xdsl.dialects.riscv import IntRegisterType
+from xdsl.dialects.riscv.registers import IntRegisterType
 from xdsl.ir import (
     Attribute,
     Dialect,

@@ -6,7 +6,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import Builder
-from xdsl.dialects import builtin, memref, riscv, test
+from xdsl.dialects import builtin, riscv, test
 from xdsl.ir import BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import create_ssa_value
@@ -16,18 +16,18 @@ REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
 
 
 def test_register_type_for_type():
-    assert register_type_for_type(builtin.i32) == riscv.IntRegisterType
+    assert register_type_for_type(builtin.i32) == riscv.registers.IntRegisterType
     assert (
-        register_type_for_type(memref.MemRefType(builtin.f32, [1, 2, 3]))
-        == riscv.IntRegisterType
+        register_type_for_type(builtin.MemRefType(builtin.f32, [1, 2, 3]))
+        == riscv.registers.IntRegisterType
     )
     assert (
-        register_type_for_type(memref.MemRefType(builtin.i32, [1, 2, 3]))
-        == riscv.IntRegisterType
+        register_type_for_type(builtin.MemRefType(builtin.i32, [1, 2, 3]))
+        == riscv.registers.IntRegisterType
     )
 
-    assert register_type_for_type(builtin.f32) == riscv.FloatRegisterType
-    assert register_type_for_type(builtin.f64) == riscv.FloatRegisterType
+    assert register_type_for_type(builtin.f32) == riscv.registers.FloatRegisterType
+    assert register_type_for_type(builtin.f64) == riscv.registers.FloatRegisterType
 
 
 def test_op_cast_utils():
@@ -60,7 +60,7 @@ def test_op_cast_utils():
             second_arg_cast = builtin.UnrealizedConversionCastOp(
                 operands=(second_arg,), result_types=(REGISTER_TYPE,)
             )
-            v = riscv.CustomAssemblyInstructionOp(
+            v = riscv.ops.CustomAssemblyInstructionOp(
                 "foo",
                 (first_arg_cast.results[0], second_arg_cast.results[0]),
                 (REGISTER_TYPE, REGISTER_TYPE),
@@ -82,7 +82,7 @@ def test_op_cast_utils():
     rewriter = PatternRewriter(target_op)
     (first_arg_cast, second_arg_cast) = cast_operands_to_regs(rewriter, target_op)
     cast_op_results(rewriter, target_op)
-    lowered_op = riscv.CustomAssemblyInstructionOp(
+    lowered_op = riscv.ops.CustomAssemblyInstructionOp(
         "foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE)
     )
     rewriter.replace(target_op, lowered_op)

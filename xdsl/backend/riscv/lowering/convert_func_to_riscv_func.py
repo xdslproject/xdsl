@@ -2,11 +2,11 @@ from xdsl.backend.riscv.lowering.utils import (
     a_regs,
     a_regs_for_types,
     cast_block_args_from_a_regs,
-    cast_to_regs,
     move_to_a_regs,
     move_to_unallocated_regs,
     register_type_for_type,
 )
+from xdsl.backend.utils import cast_to_regs
 from xdsl.context import Context
 from xdsl.dialects import func, riscv_func
 from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp

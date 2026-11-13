@@ -40,7 +40,7 @@ def sum_to_for_op():
         func_op = riscv_scf.ForOp(lb, ub, step, (initial,))
 
         with ImplicitBuilder(func_op.body) as (i, acc):
-            res = riscv.AddOp(i, acc)
+            res = riscv.ops.AddOp(i, acc)
             riscv_scf.YieldOp(res)
 
         func.ReturnOp(*func_op.results)
@@ -69,14 +69,14 @@ def sum_to_while_op():
         @Builder.implicit_region((register, register, register, register))
         def before_region(args: tuple[BlockArgument, ...]):
             (acc0, i0, ub0, step0) = args
-            cond = riscv.SltOp(i0, ub0).rd
+            cond = riscv.ops.SltOp(i0, ub0).rd
             riscv_scf.ConditionOp(cond, acc0, i0, ub0, step0)
 
         @Builder.implicit_region((register, register, register, register))
         def after_region(args: tuple[BlockArgument, ...]):
             (acc1, i1, ub1, step1) = args
-            res = riscv.AddOp(i1, acc1).rd
-            i2 = riscv.AddOp(i1, step1).rd
+            res = riscv.ops.AddOp(i1, acc1).rd
+            i2 = riscv.ops.AddOp(i1, step1).rd
             riscv_scf.YieldOp(res, i2, ub1, step1)
 
         result, *_ = riscv_scf.WhileOp(
