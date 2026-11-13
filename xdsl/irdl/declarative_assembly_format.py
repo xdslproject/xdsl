@@ -442,7 +442,6 @@ class TypeDirective(FormatDirective):
         if not types:
             return
         state.print_whitespace(printer)
-        # Check if we should use simplified syntax (just parameters, no !dialect.name prefix)
         if self.inner.get_base() is not None:
             # Print simplified syntax: just parameters, no !dialect.name prefix
             def print_param(attr: Attribute):
