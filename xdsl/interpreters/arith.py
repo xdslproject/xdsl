@@ -147,6 +147,28 @@ class ArithFunctions(InterpreterFunctions):
                 return (FloatAttr(-0.0, op.result.type),)
         return (args[0] if lhs >= rhs else args[1],)
 
+    @impl(arith.MinnumfOp)
+    def run_minnumf(
+        self, interpreter: Interpreter, op: arith.MinnumfOp, args: PythonValues
+    ):
+        lhs, rhs = args[0].value.data, args[1].value.data
+        if isnan(lhs):
+            return (args[1],)
+        if isnan(rhs):
+            return (args[0],)
+        return (args[0] if lhs <= rhs else args[1],)
+
+    @impl(arith.MaxnumfOp)
+    def run_maxnumf(
+        self, interpreter: Interpreter, op: arith.MaxnumfOp, args: PythonValues
+    ):
+        lhs, rhs = args[0].value.data, args[1].value.data
+        if isnan(lhs):
+            return (args[1],)
+        if isnan(rhs):
+            return (args[0],)
+        return (args[0] if lhs >= rhs else args[1],)
+
     @impl(arith.CmpiOp)
     def run_cmpi(self, interpreter: Interpreter, op: arith.CmpiOp, args: PythonValues):
         assert isa(op.lhs.type, builtin.IndexType | builtin.IntegerType)
@@ -286,6 +308,46 @@ class ArithFunctions(InterpreterFunctions):
         rhs = to_signed(args[1].value.data, bitwidth)
         assert rhs != 0
         return (scalar_attr(lhs // rhs, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.MinSIOp)
+    def run_minsi(
+        self, interpreter: Interpreter, op: arith.MinSIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
+        return (scalar_attr(min(lhs, rhs), op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.MaxSIOp)
+    def run_maxsi(
+        self, interpreter: Interpreter, op: arith.MaxSIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
+        return (scalar_attr(max(lhs, rhs), op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.MinUIOp)
+    def run_minui(
+        self, interpreter: Interpreter, op: arith.MinUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        return (scalar_attr(min(lhs, rhs), op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.MaxUIOp)
+    def run_maxui(
+        self, interpreter: Interpreter, op: arith.MaxUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        return (scalar_attr(max(lhs, rhs), op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.SelectOp)
     def run_select(
