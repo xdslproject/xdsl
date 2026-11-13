@@ -1039,10 +1039,20 @@ def test_param_def_accepts_irdl_attr_constraint():
 
     ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(1))
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "parameter 'cls' does not verify:\n#test.bool<True> should be of base attribute builtin.int"
+        ),
+    ):
         ParamDefIRDLConstraintAttr(BoolData(True), IntAttr(1))
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "parameter 'instance' does not verify:\nExpected attribute #builtin.int<1> but got #builtin.int<2>"
+        ),
+    ):
         ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(2))
 
 
