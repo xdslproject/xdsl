@@ -9,7 +9,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
-from xdsl.utils.exceptions import VerifyException
 
 
 class HoistIndexTimesConstantOp(RewritePattern):
@@ -58,7 +57,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
                             step_attr = IntegerAttr(
                                 step_attr.value.data * constant, step_attr.type
                             )
-                        except VerifyException:
+                        except ValueError:
                             # Can't fit into existing bounds, return
                             return
 

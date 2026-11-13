@@ -106,13 +106,19 @@ class Attribute(ABC):
     A compile-time value.
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
+    Verification runs in `__post_init__`.
+    A ValueError is raised if the Attribute does not verify.
     """
 
     name: ClassVar[str] = field(init=False, repr=False)
     """The attribute name should be a static field in the attribute classes."""
 
     def __post_init__(self):
-        self._verify()
+        try:
+            self._verify()
+        except VerifyException as e:
+            # Convert to ValueError
+            raise ValueError(str(e)) from e
         if not isinstance(self, Data | ParametrizedAttribute):
             raise TypeError("Attributes should only be Data or ParametrizedAttribute")
 

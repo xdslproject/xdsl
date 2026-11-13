@@ -221,7 +221,10 @@ def test_FloatType_formats():
 
 def test_IntegerType_verifier():
     IntegerType(32)
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError,
+        match=re.escape("integer type bitwidth should be nonnegative (got -1)"),
+    ):
         IntegerType(-1)
 
 
@@ -657,7 +660,7 @@ def test_IntegerAttr_normalize():
     assert str(IntegerAttr(255, 8)) == "-1 : i8"
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape(
             "Integer value -129 is out of range for type i8 which supports "
             "values in the range [-128, 256)"
@@ -666,7 +669,7 @@ def test_IntegerAttr_normalize():
         IntegerAttr(-129, 8)
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape(
             "Integer value 256 is out of range for type i8 which supports "
             "values in the range [-128, 256)"
@@ -938,7 +941,7 @@ def test_DenseIntOrFPElementsAttr_initialization():
 
     # illegal zero-rank tensor
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("A zero-rank tensor can only hold 1 value but 2 were given."),
     ):
         DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5, 5.6])
@@ -1146,7 +1149,7 @@ def test_vector_constructor(
 )
 def test_vector_verifier_fail(dims: list[int], scalable_dims: list[bool]):
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=(
             f"Number of scalable dimension specifiers {len(scalable_dims)} must equal "
             f"to number of dimensions {len(dims)}."
@@ -1337,7 +1340,7 @@ def test_from_list():
 
 def test_create_dense_wrong_size():
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("Data length of array (1) not divisible by element size 2"),
     ):
         DenseArrayBase(i16, BytesAttr(b"F"))
@@ -1390,10 +1393,26 @@ def test_vector_constr():
     )
     assert constr == ParamAttrConstraint.get(VectorType, i32, shape, scalable_dims)
     constr.verify(VectorType(i32, shape, scalable_dims), VerificationContext())
-    with pytest.raises(VerifyException):
-        constr.verify(VectorType(i32, [1, 2], scalable_dims), VerificationContext())
-    with pytest.raises(VerifyException):
-        constr.verify(VectorType(i64, [1]), VerificationContext())
+    wrong_shape = VectorType(i32, [2], scalable_dims)
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Expected attribute vector<1xi32> but got vector<2xi32>"),
+    ):
+        constr.verify(wrong_shape, VerificationContext())
+
+    wrong_element_type = VectorType(i64, shape, scalable_dims)
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Expected attribute vector<1xi32> but got vector<1xi64>"),
+    ):
+        constr.verify(wrong_element_type, VerificationContext())
+
+    wrong_scalability = VectorType(i32, shape, ArrayAttr([IntegerAttr(1, i1)]))
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Expected attribute vector<1xi32> but got vector<[1]xi32>"),
+    ):
+        constr.verify(wrong_scalability, VerificationContext())
 
 
 def test_array_constr():

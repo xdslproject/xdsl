@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import IntAttr, NoneAttr, StringAttr
 from xdsl.dialects.test import Test, TestRegisterType
 from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import Parser
-from xdsl.utils.exceptions import VerifyException
 
 
 def test_register_clashes():
@@ -91,12 +90,12 @@ def test_invalid_index():
         TestRegisterType.infinite_register(-1)
 
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid index 2 for register type test.reg.")
+        ValueError, match=re.escape("Invalid index 2 for register type test.reg.")
     ):
         TestRegisterType(IntAttr(2))
 
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid index 2 for register type test.reg.")
+        ValueError, match=re.escape("Invalid index 2 for register type test.reg.")
     ):
         TestRegisterType.new((IntAttr(2),))
 
