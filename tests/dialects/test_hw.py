@@ -34,10 +34,9 @@ from xdsl.dialects.hw import (
     ModuleType,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     IRDLOperation,
-    Region,
     attr_def,
     irdl_op_definition,
     opt_region_def,

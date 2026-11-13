@@ -30,8 +30,10 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    Operation,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -41,10 +43,8 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IntVarConstraint,
     IRDLOperation,
-    Operation,
     RangeOf,
     SameVariadicOperandSize,
-    SSAValue,
     VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
