@@ -649,7 +649,13 @@ class Operand(Use[SSAValue]):
 
     @property
     def value(self) -> SSAValue:
-        return self._operation.operands[self._index]
+        operation = self._operation
+        index = self._index
+        uses = operation._operand_uses  # pyright: ignore[reportPrivateUsage]
+        assert index < len(uses) and uses[index] is self, (  # noqa: PT018
+            "Attempting to use Operand that has been replaced"
+        )
+        return operation.operands[index]
 
 
 @dataclass(eq=False)
@@ -2039,7 +2045,13 @@ class Successor(Use[Block]):
 
     @property
     def value(self) -> Block:
-        return self._operation.successors[self._index]
+        operation = self._operation
+        index = self._index
+        uses = operation.successor_uses
+        assert index < len(uses) and uses[index] is self, (  # noqa: PT018
+            "Attempting to use Successor that has been replaced"
+        )
+        return operation.successors[index]
 
 
 @dataclass
