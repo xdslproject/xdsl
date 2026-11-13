@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import cast
 
 from llvmlite import ir
@@ -324,6 +324,26 @@ def _convert_select(
     val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
 
 
+def _add_phi_incoming(
+    op: Operation,
+    dest: Block,
+    operands: Sequence[SSAValue],
+    val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock],
+):
+    """
+    Register the values that the terminator `op` forwards to the arguments of
+    `dest` as incoming values of the corresponding phi nodes.
+    """
+    parent = op.parent_block()
+    assert parent is not None
+    current_block = block_map[parent]
+    for arg, val in zip(dest.args, operands):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+
+
 def _convert_br(
     op: llvm.BrOp,
     builder: ir.IRBuilder,
@@ -331,13 +351,7 @@ def _convert_br(
     block_map: dict[Block, LLVMBlock],
 ):
     dest = op.successor
-    parent = op.parent_block()
-    assert parent is not None
-    current_block = block_map[parent]
-    for arg, val in zip(dest.args, op.arguments):
-        phi = val_map[arg]
-        assert isinstance(phi, PhiInstr)
-        phi.add_incoming(val_map[val], current_block)
+    _add_phi_incoming(op, dest, op.arguments, val_map, block_map)
     builder.branch(block_map[dest])
 
 
@@ -349,18 +363,28 @@ def _convert_condbr(
 ):
     then_block = op.then_block
     else_block = op.else_block
-    parent = op.parent_block()
-    assert parent is not None
-    current_block = block_map[parent]
-    for arg, val in zip(then_block.args, op.then_arguments):
-        phi = val_map[arg]
-        assert isinstance(phi, PhiInstr)
-        phi.add_incoming(val_map[val], current_block)
-    for arg, val in zip(else_block.args, op.else_arguments):
-        phi = val_map[arg]
-        assert isinstance(phi, PhiInstr)
-        phi.add_incoming(val_map[val], current_block)
+    _add_phi_incoming(op, then_block, op.then_arguments, val_map, block_map)
+    _add_phi_incoming(op, else_block, op.else_arguments, val_map, block_map)
     builder.cbranch(val_map[op.cond], block_map[then_block], block_map[else_block])
+
+
+def _convert_switch(
+    op: llvm.SwitchOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock],
+):
+    default_dest = op.default_destination
+    _add_phi_incoming(op, default_dest, op.default_operands, val_map, block_map)
+    switch = builder.switch(val_map[op.value], block_map[default_dest])
+    case_values = op.case_values.get_values() if op.case_values is not None else ()
+    for index, (value, dest) in enumerate(
+        zip(case_values, op.case_destinations, strict=True)
+    ):
+        _add_phi_incoming(op, dest, op.get_case_operands(index), val_map, block_map)
+        switch.add_case(value, block_map[dest])
+    if op.branch_weights is not None:
+        switch.set_weights(op.branch_weights.get_values())
 
 
 def _convert_masked_store(
@@ -572,6 +596,8 @@ def convert_op(
             _convert_br(op, builder, val_map, block_map)
         case llvm.CondBrOp() if block_map is not None:
             _convert_condbr(op, builder, val_map, block_map)
+        case llvm.SwitchOp() if block_map is not None:
+            _convert_switch(op, builder, val_map, block_map)
         case llvm.UnreachableOp():
             builder.unreachable()
         case llvm.SelectOp():

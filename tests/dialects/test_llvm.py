@@ -832,6 +832,77 @@ def test_cond_br_op():
     assert op.cond == cond
 
 
+def test_switch_op():
+    flag = create_ssa_value(builtin.i32)
+    arg = create_ssa_value(builtin.i64)
+    default_block = Block()
+    case_block_0 = Block()
+    case_block_1 = Block(arg_types=[builtin.i64, builtin.i64])
+    op = llvm.SwitchOp(
+        flag,
+        default_block,
+        case_values=[1, -3],
+        case_destinations=[case_block_0, case_block_1],
+        case_operands=[[], [arg, arg]],
+        branch_weights=[5, 1, 2],
+    )
+    op.verify_()
+    assert op.value == flag
+    assert op.default_destination is default_block
+    assert op.default_operands == ()
+    assert op.case_destinations == (case_block_0, case_block_1)
+    assert op.case_values == builtin.DenseIntElementsAttr.from_list(
+        builtin.VectorType(builtin.i32, (2,)), (1, -3)
+    )
+    assert op.case_operand_segments.get_values() == (0, 2)
+    assert op.get_case_operands(0) == ()
+    assert op.get_case_operands(1) == (arg, arg)
+    assert op.branch_weights is not None
+    assert op.branch_weights.get_values() == (5, 1, 2)
+
+
+def test_switch_op_without_cases():
+    flag = create_ssa_value(builtin.i8)
+    arg = create_ssa_value(builtin.i32)
+    default_block = Block(arg_types=[builtin.i32])
+    op = llvm.SwitchOp(flag, default_block, [arg])
+    op.verify_()
+    assert op.default_operands == (arg,)
+    assert op.case_values is None
+    assert op.case_destinations == ()
+    assert op.case_operand_segments.get_values() == ()
+    assert op.branch_weights is None
+
+
+def test_switch_op_case_values_attr():
+    flag = create_ssa_value(builtin.i64)
+    case_values = builtin.DenseIntElementsAttr.from_list(
+        builtin.VectorType(builtin.i64, (1,)), (42,)
+    )
+    case_block = Block()
+    op = llvm.SwitchOp(
+        flag, Block(), case_values=case_values, case_destinations=[case_block]
+    )
+    op.verify_()
+    assert op.case_values is case_values
+    assert op.get_case_operands(0) == ()
+
+
+def test_switch_op_wrong_number_of_weights():
+    op = llvm.SwitchOp(
+        create_ssa_value(builtin.i32),
+        Block(),
+        case_values=[42],
+        case_destinations=[Block()],
+        branch_weights=[1, 2, 3],
+    )
+    with pytest.raises(
+        VerifyException,
+        match="expects number of branch weights to match number of successors: 3 vs 2",
+    ):
+        op.verify_()
+
+
 def test_masked_store_op():
     value = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
     ptr = create_ssa_value(llvm.LLVMPointerType())
