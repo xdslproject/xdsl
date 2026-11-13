@@ -38,17 +38,6 @@ class Diagnostic:
             case Region():
                 p.print_region(toplevel)
 
-        # __notes__ only in 3.11 and above
-        if hasattr(underlying_error, "add_note"):
-            # Use official API if present
-            getattr(underlying_error, "add_note")(f.getvalue())
-        else:
-            # Add our own __notes__ if not
-            if not hasattr(underlying_error, "__notes__"):
-                notes: list[str] = []
-                setattr(underlying_error, "__notes__", notes)
-            else:
-                notes = getattr(underlying_error, "__notes__")
-            notes.append(f.getvalue())
+        underlying_error.add_note(f.getvalue())
 
         raise underlying_error

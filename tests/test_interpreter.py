@@ -357,7 +357,7 @@ def test_error_message():
     with pytest.raises(ValueError, match="Uh oh") as e:
         interpreter.run_op(test_op, ())
 
-    assert getattr(e.value, "__notes__") == [
+    assert e.value.__notes__ == [
         """\
 %0, %1 = "test.op"() : () -> (tensor<4xf32>, tensor<4xf32>)
 ^^^^^^^^^^^^^^^^^^-----------
