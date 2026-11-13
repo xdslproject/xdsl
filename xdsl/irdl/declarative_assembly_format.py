@@ -412,9 +412,9 @@ class TypeableDirective(Directive, ABC):
         """
         Get the unique base type that can satisfy this directive's constraint,
         if there is exactly one, or None otherwise.
+        This is used to enable printing unqualified versions of types.
 
-        This is used to enable simplified type syntax when the base type is known.
-        For now returns None - will be overridden when unique_base is stored on the directive.
+        Returns None by default, sublasses with known unique base must override this.
         """
         return None
 
