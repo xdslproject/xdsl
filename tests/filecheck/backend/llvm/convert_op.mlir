@@ -781,6 +781,78 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @maximum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.maximum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"maximum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maximum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @minimum_op(%arg0: f64, %arg1: f64) -> f64 {
+    %0 = llvm.intr.minimum(%arg0, %arg1) : (f64, f64) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"minimum_op"(double %".1", double %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.minimum"(double %".1", double %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @smax_op(%arg0: i32, %arg1: i32) -> i32 {
+    %0 = llvm.intr.smax(%arg0, %arg1) : (i32, i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"smax_op"(i32 %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i32 @"llvm.smax"(i32 %".1", i32 %".2")
+  // CHECK-NEXT:   ret i32 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @smin_op(%arg0: i64, %arg1: i64) -> i64 {
+    %0 = llvm.intr.smin(%arg0, %arg1) : (i64, i64) -> i64
+    llvm.return %0 : i64
+  }
+
+  // CHECK: define i64 @"smin_op"(i64 %".1", i64 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i64 @"llvm.smin"(i64 %".1", i64 %".2")
+  // CHECK-NEXT:   ret i64 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @umax_op(%arg0: i8, %arg1: i8) -> i8 {
+    %0 = llvm.intr.umax(%arg0, %arg1) : (i8, i8) -> i8
+    llvm.return %0 : i8
+  }
+
+  // CHECK: define i8 @"umax_op"(i8 %".1", i8 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i8 @"llvm.umax"(i8 %".1", i8 %".2")
+  // CHECK-NEXT:   ret i8 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @umin_op(%arg0: vector<4xi32>, %arg1: vector<4xi32>) -> vector<4xi32> {
+    %0 = llvm.intr.umin(%arg0, %arg1) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+    llvm.return %0 : vector<4xi32>
+  }
+
+  // CHECK: define <4 x i32> @"umin_op"(<4 x i32> %".1", <4 x i32> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x i32> @"llvm.umin"(<4 x i32> %".1", <4 x i32> %".2")
+  // CHECK-NEXT:   ret <4 x i32> %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @pow_op(%arg0: f32, %arg1: f32) -> f32 {
     %0 = llvm.intr.pow(%arg0, %arg1) : (f32, f32) -> f32
     llvm.return %0 : f32
