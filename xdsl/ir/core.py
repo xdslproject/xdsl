@@ -642,7 +642,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
         return self is other
 
 
-class Operand(Use[SSAValue]):
+class _Operand(Use[SSAValue]):
     """
     An operation's operand.
     """
@@ -886,7 +886,7 @@ class Operation(_IRNode):
     _operands: SSAValues = field(default=SSAValues())
     """The operation operands."""
 
-    _operand_uses: tuple[Operand, ...] = field(default=())
+    _operand_uses: tuple[_Operand, ...] = field(default=())
     """
     The uses for each operand.
     They are stored separately from the operands to allow for more efficient
@@ -902,7 +902,7 @@ class Operation(_IRNode):
     This list should be empty for non-terminator operations.
     """
 
-    _successor_uses: tuple[Successor, ...] = field(default=())
+    _successor_uses: tuple[_Successor, ...] = field(default=())
     """
     The uses for each successor.
     They are stored separately from the successors to allow for more efficient
@@ -1019,7 +1019,7 @@ class Operation(_IRNode):
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
         new = SSAValues(new)
-        new_uses = tuple(Operand(self, idx) for idx in range(len(new)))
+        new_uses = tuple(_Operand(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
         for operand, use in zip(new, new_uses):
@@ -1034,7 +1034,7 @@ class Operation(_IRNode):
     @successors.setter
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
-        new_uses = tuple(Successor(self, idx) for idx in range(len(new)))
+        new_uses = tuple(_Successor(self, idx) for idx in range(len(new)))
         for successor, use in zip(self._successors, self._successor_uses):
             successor.remove_use(use)
         for successor, use in zip(new, new_uses):
@@ -1043,7 +1043,7 @@ class Operation(_IRNode):
         self._successor_uses = new_uses
 
     @property
-    def successor_uses(self) -> Sequence[Successor]:
+    def successor_uses(self) -> Sequence[_Successor]:
         return self._successor_uses
 
     def __post_init__(self):
@@ -2038,7 +2038,7 @@ class Block(_IRNode, IRWithUses, IRWithName):
         return True
 
 
-class Successor(Use[Block]):
+class _Successor(Use[Block]):
     """
     An operation's successor.
     """
