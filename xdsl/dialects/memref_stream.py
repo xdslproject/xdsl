@@ -14,7 +14,6 @@ from typing import Any, ClassVar, Generic, Self, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
@@ -290,12 +289,12 @@ class StreamingRegionOp(IRDLOperation):
 
     name = "memref_stream.streaming_region"
 
-    inputs = var_operand_def(memref.MemRefType)
+    inputs = var_operand_def(MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(memref.MemRefType)
+    outputs = var_operand_def(MemRefType)
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
@@ -936,7 +935,7 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType.constr(T))
+    memref = operand_def(MemRefType.constr(T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"

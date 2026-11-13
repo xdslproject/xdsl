@@ -122,7 +122,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             ) and isa(el_type := field_t.element_type, TensorType | MemRefType):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
-            elif isa(field_t, memref.MemRefType):
+            elif isa(field_t, MemRefType):
                 # bufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
@@ -220,7 +220,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
 
             if isa(arg.type, stencil.FieldType[TensorType[Attribute]]) or isa(
-                arg.type, memref.MemRefType
+                arg.type, MemRefType
             ):
                 arg_t = (
                     csl_stencil_bufferize.tensor_to_memref_type(
@@ -257,7 +257,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 for u in arg.uses
             ):
                 start_end_size = 3
-                arg_t = memref.MemRefType(
+                arg_t = MemRefType(
                     IntegerType(16, Signedness.UNSIGNED), (2 * start_end_size,)
                 )
                 arg_ops.append(alloc := memref.AllocOp([], [], arg_t))
@@ -405,7 +405,7 @@ class LowerTimerFuncCall(RewritePattern):
         time_lib = wrapper.get_program_import("<time>")
 
         three_elem_ptr_type = csl.PtrType(
-            memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
+            MemRefType(op.ptr.type.get_element_type(), (3,)),
             csl.PtrKindAttr(csl.PtrKind.SINGLE),
             csl.PtrConstAttr(csl.PtrConst.VAR),
         )

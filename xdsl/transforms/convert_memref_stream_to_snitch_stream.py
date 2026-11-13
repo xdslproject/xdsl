@@ -7,7 +7,6 @@ from xdsl.backend.riscv.lowering.utils import (
 from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
-    memref,
     memref_stream,
     riscv,
     riscv_snitch,
@@ -143,9 +142,9 @@ class StreamOpLowering(RewritePattern):
         self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
     ) -> None:
         operand_types = tuple(
-            cast(memref.MemRefType, value_type)
+            cast(MemRefType, value_type)
             for value in op.operands
-            if isinstance(value_type := value.type, memref.MemRefType)
+            if isinstance(value_type := value.type, MemRefType)
         )
         stride_patterns = tuple(
             snitch_stream.StridePattern(

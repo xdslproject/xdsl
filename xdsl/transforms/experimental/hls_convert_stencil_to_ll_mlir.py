@@ -903,7 +903,7 @@ def get_number_input_stencils(op: FuncOp):
     def dim(o: ExternalLoadOp):
         assert isinstance(o.field, OpResult)
         op_field_type = o.field.type
-        assert isinstance(op_field_type, memref.MemRefType)
+        assert isinstance(op_field_type, MemRefType)
         return len(op_field_type.get_shape())
 
     external_load_lst = [
@@ -1023,7 +1023,7 @@ class PackData(RewritePattern):
             new_op = new_op.owner.operands[0]
 
         field_type = field.type
-        assert isinstance(field_type, memref.MemRefType)
+        assert isinstance(field_type, MemRefType)
         shape = field_type.get_shape()
         ndims = len(shape)
 
@@ -1114,7 +1114,7 @@ class GetRepeatedCoefficients(RewritePattern):
         assert isinstance(op.source.op, memref.CastOp)
         cast = op.source.op  # original memref
         cast_dest_type = cast.dest.type
-        assert isinstance(cast_dest_type, memref.MemRefType)
+        assert isinstance(cast_dest_type, MemRefType)
         cast.clone()
 
         dim = len(cast_dest_type.shape.data)
@@ -1152,7 +1152,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             and len(self.original_memref_lst) > 0
         ):
             original_memref_lst_dest_type = self.original_memref_lst[0].dest.type
-            assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
+            assert isinstance(original_memref_lst_dest_type, MemRefType)
             dim = original_memref_lst_dest_type.shape.data[0].data
 
             lb = ConstantOp.from_int_and_width(0, IndexType())

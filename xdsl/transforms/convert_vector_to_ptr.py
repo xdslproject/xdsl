@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, memref, ptr, vector
+from xdsl.dialects import builtin, ptr, vector
+from xdsl.dialects.builtin import MemRefType
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -19,7 +20,7 @@ class VectorStoreToPtr(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.StoreOp, rewriter: PatternRewriter):
         memref_type = op.base.type
-        assert isa(memref_type, memref.MemRefType)
+        assert isa(memref_type, MemRefType)
         target_ptr = build_target_ptr(op.base, memref_type, op.indices, rewriter)
         rewriter.replace(op, ptr.StoreOp(addr=target_ptr, value=op.vector))
 
@@ -29,7 +30,7 @@ class VectorLoadToPtr(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.LoadOp, rewriter: PatternRewriter):
         memref_type = op.base.type
-        assert isa(memref_type, memref.MemRefType)
+        assert isa(memref_type, MemRefType)
         target_ptr = build_target_ptr(op.base, memref_type, op.indices, rewriter)
         rewriter.replace(op, ptr.LoadOp(target_ptr, op.result.type))
 

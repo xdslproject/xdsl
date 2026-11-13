@@ -8,7 +8,6 @@ from xdsl.dialects import (
     csl_stencil,
     func,
     linalg,
-    memref,
     stencil,
     tensor,
 )
@@ -47,15 +46,15 @@ from xdsl.utils.hints import isa
 
 def tensor_to_memref_type(
     t: TensorType[AttributeInvT],
-) -> memref.MemRefType[AttributeInvT]:
+) -> MemRefType[AttributeInvT]:
     """Type conversion from tensor to memref."""
-    return memref.MemRefType(t.get_element_type(), t.get_shape())
+    return MemRefType(t.get_element_type(), t.get_shape())
 
 
 def to_buffer_op(op: SSAValue) -> bufferization.ToBufferOp:
     """Creates a `bufferization.to_memref` operation."""
     assert isa(op.type, TensorType)
-    r_type = memref.MemRefType(
+    r_type = MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
     return bufferization.ToBufferOp(operands=[op], result_types=[r_type])
@@ -79,9 +78,7 @@ class StencilTypeConversion(TypeConversionPattern):
     """
 
     @attr_type_rewrite_pattern
-    def convert_type(
-        self, typ: stencil.FieldType[TensorType[Attribute]]
-    ) -> memref.MemRefType:
+    def convert_type(self, typ: stencil.FieldType[TensorType[Attribute]]) -> MemRefType:
         # todo should this convert to `memref` or `stencil.field<..xmemref<..>>`?
         return tensor_to_memref_type(typ.get_element_type())
 
@@ -96,7 +93,7 @@ class ApplyOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if isa(op.accumulator.type, memref.MemRefType):
+        if isa(op.accumulator.type, MemRefType):
             return
 
         # convert args

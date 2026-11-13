@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
-from xdsl.dialects import memref, memref_stream
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects import memref_stream
+from xdsl.dialects.builtin import ArrayAttr, MemRefType, ModuleOp
 from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -41,7 +41,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
-            if isinstance(i_type := i.type, memref.MemRefType) and arg.uses
+            if isinstance(i_type := i.type, MemRefType) and arg.uses
             if i_type.get_shape()
         )
         streamable_output_indices = tuple(
@@ -49,7 +49,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (o, arg) in enumerate(
                 zip(op.outputs, op.body.block.args[input_count:])
             )
-            if isinstance(o_type := o.type, memref.MemRefType)
+            if isinstance(o_type := o.type, MemRefType)
             if index in init_indices or not arg.uses
             if o_type.get_shape()
         )

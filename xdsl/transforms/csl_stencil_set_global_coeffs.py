@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, memref, stencil
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, ModuleOp, f32
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, stencil
+from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
+    IntegerAttr,
+    MemRefType,
+    ModuleOp,
+    f32,
+)
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -80,7 +86,7 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
             distance -= 1
         cmap[direction][distance] = c.coeff.value.data
 
-    memref_t = memref.MemRefType(f32, shape)
+    memref_t = MemRefType(f32, shape)
     ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
     cnsts = {

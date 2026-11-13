@@ -10,7 +10,7 @@ from typing import ClassVar, Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects import builtin, memref
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
@@ -948,7 +948,7 @@ class ExternalLoadOp(IRDLOperation):
     def __init__(
         self,
         arg: OperandArg,
-        res_type: FieldType[Attribute] | memref.MemRefType,
+        res_type: FieldType[Attribute] | MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
 
