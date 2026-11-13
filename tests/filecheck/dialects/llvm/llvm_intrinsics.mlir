@@ -167,6 +167,54 @@
 %minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
+%maximum_f32 = llvm.intr.maximum(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %maximum_f32 = llvm.intr.maximum(%f32, %f32) : (f32, f32) -> f32
+
+%maximum_f64 = llvm.intr.maximum(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %maximum_f64 = llvm.intr.maximum(%f64, %f64) : (f64, f64) -> f64
+
+%maximum_vec = llvm.intr.maximum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %maximum_vec = llvm.intr.maximum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%maximum_fast = llvm.intr.maximum(%f32, %f32) {fastmathFlags = #llvm.fastmath<nnan>} : (f32, f32) -> f32
+// CHECK-NEXT: %maximum_fast = llvm.intr.maximum(%f32, %f32) {fastmathFlags = #llvm.fastmath<nnan>} : (f32, f32) -> f32
+
+%minimum_f32 = llvm.intr.minimum(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %minimum_f32 = llvm.intr.minimum(%f32, %f32) : (f32, f32) -> f32
+
+%minimum_f64 = llvm.intr.minimum(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %minimum_f64 = llvm.intr.minimum(%f64, %f64) : (f64, f64) -> f64
+
+%minimum_vec = llvm.intr.minimum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %minimum_vec = llvm.intr.minimum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%i32 = "test.op"() : () -> i32
+%vec_i32 = "test.op"() : () -> vector<4xi32>
+
+%smax_i32 = llvm.intr.smax(%i32, %i32) : (i32, i32) -> i32
+// CHECK: %smax_i32 = llvm.intr.smax(%i32, %i32) : (i32, i32) -> i32
+
+%smax_vec = llvm.intr.smax(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK-NEXT: %smax_vec = llvm.intr.smax(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
+%smin_i32 = llvm.intr.smin(%i32, %i32) : (i32, i32) -> i32
+// CHECK-NEXT: %smin_i32 = llvm.intr.smin(%i32, %i32) : (i32, i32) -> i32
+
+%smin_vec = llvm.intr.smin(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK-NEXT: %smin_vec = llvm.intr.smin(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
+%umax_i32 = llvm.intr.umax(%i32, %i32) : (i32, i32) -> i32
+// CHECK-NEXT: %umax_i32 = llvm.intr.umax(%i32, %i32) : (i32, i32) -> i32
+
+%umax_vec = llvm.intr.umax(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK-NEXT: %umax_vec = llvm.intr.umax(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
+%umin_i32 = llvm.intr.umin(%i32, %i32) : (i32, i32) -> i32
+// CHECK-NEXT: %umin_i32 = llvm.intr.umin(%i32, %i32) : (i32, i32) -> i32
+
+%umin_vec = llvm.intr.umin(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK-NEXT: %umin_vec = llvm.intr.umin(%vec_i32, %vec_i32) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
 %pow_f32 = llvm.intr.pow(%f32, %f32) : (f32, f32) -> f32
 // CHECK: %pow_f32 = llvm.intr.pow(%f32, %f32) : (f32, f32) -> f32
 

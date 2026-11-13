@@ -783,6 +783,44 @@ def test_vector_fmin_op():
     assert op.res.type == builtin.f32
 
 
+@pytest.mark.parametrize("op_type", [llvm.FMaximumOp, llvm.FMinimumOp])
+def test_float_min_max_intrinsic_ops(op_type: type[llvm.FMaximumOp | llvm.FMinimumOp]):
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = op_type(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+    assert not op.fastmathFlags.data
+
+    fast_op = op_type(lhs, rhs, fast_math=llvm.FastMathAttr("fast"))
+    assert fast_op.fastmathFlags == llvm.FastMathAttr("fast")
+
+
+@pytest.mark.parametrize(
+    "op_type", [llvm.SMaxOp, llvm.SMinOp, llvm.UMaxOp, llvm.UMinOp]
+)
+@pytest.mark.parametrize(
+    "operand_type", [builtin.i32, builtin.VectorType(builtin.i64, [4])]
+)
+def test_integer_min_max_intrinsic_ops(
+    op_type: type[llvm.IntegerBinaryIntrinsicOp], operand_type: Attribute
+):
+    lhs = create_ssa_value(operand_type)
+    rhs = create_ssa_value(operand_type)
+    op = op_type(lhs, rhs)
+    op.verify()
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == operand_type
+
+
+def test_integer_min_max_intrinsic_op_rejects_floats():
+    op = llvm.SMaxOp(create_ssa_value(builtin.f32), create_ssa_value(builtin.f32))
+    with pytest.raises(VerifyException):
+        op.verify()
+
+
 def test_fpow_op():
     lhs = create_ssa_value(builtin.f32)
     rhs = create_ssa_value(builtin.f32)
