@@ -118,7 +118,7 @@ class Attribute(ABC):
             self._verify()
         except VerifyException as e:
             # Convert to ValueError
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
         if not isinstance(self, Data | ParametrizedAttribute):
             raise TypeError("Attributes should only be Data or ParametrizedAttribute")
 
