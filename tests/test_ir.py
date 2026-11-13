@@ -219,6 +219,20 @@ def test_op_set_operands():
     assert tuple(op.operands) == (val2, val1)
 
 
+def test_op_operands_assign_deprecated():
+    """Test that the deprecated setter still updates operands and their uses."""
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op = test.TestOp.create(operands=[val1])
+
+    with pytest.deprecated_call(match="Use set_operands instead"):
+        op.operands = [val2]  # pyright: ignore[reportDeprecated]
+
+    op.verify()
+    assert not tuple(val1.uses)
+    assert val2.has_one_use()
+    assert tuple(op.operands) == (val2,)
+
+
 def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
     val1, val2 = create_ssa_value(i32), create_ssa_value(i32)

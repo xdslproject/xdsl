@@ -26,7 +26,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
@@ -986,6 +986,11 @@ class Operation(_IRNode):
     @property
     def operands(self) -> OpOperands:
         return OpOperands(self)
+
+    @operands.setter
+    @deprecated("Use set_operands instead")
+    def operands(self, new: Sequence[SSAValue]) -> None:
+        self.set_operands(new)
 
     def set_operands(self, new: Sequence[SSAValue]) -> None:
         """Replace the operands, updating the SSA value uses."""
