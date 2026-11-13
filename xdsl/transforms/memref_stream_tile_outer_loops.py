@@ -68,7 +68,7 @@ def insert_subview(
     dest_shape = tuple(max_index + 1 for max_index in dest_max_indices)
 
     source_type = memref_val.type
-    if not isinstance(source_type, memref.MemRefType):
+    if not isinstance(source_type, MemRefType):
         raise DiagnosticException("Cannot create subview from non-memref type")
     source_type = cast(MemRefType, source_type)
     layout_attr = source_type.layout

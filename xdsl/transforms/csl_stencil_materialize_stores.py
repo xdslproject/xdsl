@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import csl_stencil, csl_wrapper, memref, scf
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -35,8 +35,8 @@ class MaterializeInApplyDest(RewritePattern):
         views: list[Operation] = []
         add_args: list[SSAValue] = []
         for src, dst in zip(op.arguments, apply.dest, strict=True):
-            assert isa(src.type, memref.MemRefType)
-            assert isa(dst.type, memref.MemRefType)
+            assert isa(src.type, MemRefType)
+            assert isa(dst.type, MemRefType)
             dst_arg = apply.done_exchange.block.insert_arg(
                 dst.type, len(apply.done_exchange.block.args)
             )

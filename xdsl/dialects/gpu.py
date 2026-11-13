@@ -3,17 +3,18 @@ from __future__ import annotations
 from collections.abc import Sequence
 from enum import auto
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
     DenseArrayBase,
     FunctionType,
     IndexType,
+    MemRefType,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    UnrankedMemRefType,
     i32,
     i64,
 )
@@ -152,13 +153,13 @@ class AllocOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    result = result_def(memref.MemRefType)
+    result = result_def(MemRefType)
     asyncToken = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         res_type = self.result.type
-        assert isinstance(res_type, memref.MemRefType)
+        assert isinstance(res_type, MemRefType)
         ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
@@ -168,7 +169,7 @@ class AllocOp(IRDLOperation):
 
     def __init__(
         self,
-        return_type: memref.MemRefType,
+        return_type: MemRefType,
         dynamic_sizes: Sequence[OperandArg] | None = None,
         host_shared: bool = False,
         async_dependencies: Sequence[OperandArg] | None = None,
@@ -289,7 +290,7 @@ class DeallocOp(IRDLOperation):
     name = "gpu.dealloc"
 
     asyncDependencies = var_operand_def(AsyncTokenType)
-    buffer = operand_def(memref.MemRefType)
+    buffer = operand_def(MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -312,8 +313,8 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies = var_operand_def(AsyncTokenType)
-    dst = operand_def(memref.MemRefType)
-    src = operand_def(memref.MemRefType)
+    dst = operand_def(MemRefType)
+    src = operand_def(MemRefType)
 
     irdl_options = (AttrSizedOperandSegments(),)
 
@@ -451,7 +452,7 @@ class HostRegisterOp(IRDLOperation):
 
     name = "gpu.host_register"
 
-    value = operand_def(memref.UnrankedMemRefType)
+    value = operand_def(UnrankedMemRefType)
 
     def __init__(self, memref: OperandArg):
         super().__init__(operands=[SSAValue.get(memref)])
@@ -465,7 +466,7 @@ class HostUnregisterOp(IRDLOperation):
 
     name = "gpu.host_unregister"
 
-    value = operand_def(memref.UnrankedMemRefType)
+    value = operand_def(UnrankedMemRefType)
 
     def __init__(self, memref: OperandArg):
         super().__init__(operands=[SSAValue.get(memref)])
