@@ -18,14 +18,18 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Dialect, OperandArg
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
+from xdsl.ir import (
+    Attribute,
     Block,
-    IRDLOperation,
+    Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,

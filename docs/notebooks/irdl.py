@@ -908,7 +908,8 @@ def _(mo):
 
 @app.cell
 def _(IRDLOperation, i32, irdl_op_definition, printer):
-    from xdsl.irdl import Block, Region, region_def, traits_def
+    from xdsl.ir import Block, Region
+    from xdsl.irdl import region_def, traits_def
     from xdsl.traits import NoTerminator
 
 

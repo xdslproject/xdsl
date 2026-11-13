@@ -16,13 +16,16 @@ from xdsl.dialects.utils import (
 )
 from xdsl.dialects.x86.ops import SI32, X86HasRegisterConstraints
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
-from xdsl.ir import Dialect, OperandArg
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
+from xdsl.ir import (
     Block,
+    Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,

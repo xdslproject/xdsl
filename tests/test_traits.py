@@ -30,11 +30,16 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interfaces import ConditionallySpeculatableInterface
-from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
-from xdsl.irdl import (
+from xdsl.ir import (
+    Attribute,
     Block,
-    IRDLOperation,
+    Operation,
+    OpTrait,
     Region,
+    SSAValue,
+)
+from xdsl.irdl import (
+    IRDLOperation,
     attr_def,
     irdl_op_definition,
     lazy_traits_def,

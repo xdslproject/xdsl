@@ -15,12 +15,11 @@ from xdsl.dialects.builtin import (
     i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Data, Dialect, OperandArg, SSAValue
+from xdsl.ir import Data, Dialect, OperandArg, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParametrizedAttribute,
     VarConstraint,
     attr_def,
     irdl_attr_definition,
