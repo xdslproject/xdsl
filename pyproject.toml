@@ -185,6 +185,7 @@ reportAssertAlwaysTrue = true
 reportImportCycles = false
 # Allow importing from irdl files
 reportMissingModuleSource = false
+reportPrivateLocalImportUsage = true
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true

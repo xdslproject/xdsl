@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     StringAttr,
     TensorType,
@@ -50,7 +51,7 @@ def test_functions():
 
 
 def test_memref_get_global():
-    memref_type = memref.MemRefType(i32, (2, 2))
+    memref_type = MemRefType(i32, (2, 2))
     tensor_type = TensorType(i32, (2, 2))
     module = ModuleOp([])
     with ImplicitBuilder(module.body):

@@ -2,6 +2,7 @@ import math
 
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
+from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -128,8 +129,8 @@ class FoldConstsByReassociation(RewritePattern):
                 const2 := u.lhs.owner if u.rhs == op.result else u.rhs.owner,
                 arith.ConstantOp,
             )
-            or arith.FastMathFlag.REASSOC not in op.fastmath.data
-            or arith.FastMathFlag.REASSOC not in u.fastmath.data
+            or FastMathFlag.REASSOC not in op.fastmath.data
+            or FastMathFlag.REASSOC not in u.fastmath.data
             or not isa(c1 := const1.value, builtin.FloatAttr)
             or not isa(c2 := const2.value, builtin.FloatAttr)
         ):
@@ -206,8 +207,8 @@ class SelectFoldCmpfPattern(RewritePattern):
         ):
             return
         if (
-            arith.FastMathFlag.NO_NANS not in cmpf.fastmath.data
-            or arith.FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.data
+            FastMathFlag.NO_NANS not in cmpf.fastmath.data
+            or FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.data
         ):
             return
         if not (op.lhs == cmpf.lhs and op.rhs == cmpf.rhs):

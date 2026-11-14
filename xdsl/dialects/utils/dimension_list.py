@@ -1,8 +1,8 @@
 from xdsl.dialects.builtin import I64, DenseArrayBase, IntegerType, i64
+from xdsl.irdl import IRDLOperation
 from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
-    IRDLOperation,
     ParsingState,
     PrintingState,
     irdl_custom_directive,

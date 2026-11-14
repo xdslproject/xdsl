@@ -2,7 +2,14 @@ from typing import Any
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import affine, arith, func, memref
-from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, ModuleOp, i64
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    IndexType,
+    IntegerAttr,
+    MemRefType,
+    ModuleOp,
+    i64,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
@@ -25,8 +32,8 @@ def module_op():
             (
                 (),
                 (
-                    memref.MemRefType(index, (2, 3)),
-                    memref.MemRefType(index, (3, 2)),
+                    MemRefType(index, (2, 3)),
+                    MemRefType(index, (3, 2)),
                 ),
             ),
         ).body
