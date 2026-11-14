@@ -600,7 +600,7 @@ class CombineOpCleanup(RewritePattern):
         rewriter.erase(op)
 
 
-def _get_use_target(use: Use) -> SSAValue | None:
+def _get_use_target(use: Use[SSAValue]) -> SSAValue | None:
     """
     Given the use of a `stencil.temp`, return the target `stencil.field` of this use.
     """

@@ -27,7 +27,7 @@ from xdsl.dialects.llvm import (
     StoreOp,
 )
 from xdsl.dialects.scf import ForOp, ParallelOp, YieldOp
-from xdsl.ir import Block, Operation, OpResult, Region, Use
+from xdsl.ir import Block, Operation, OpResult, Region
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -171,10 +171,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamOp, rewriter: PatternRewriter, /):
         # We need to make sure that the type gets updated in the operations using the stream
-        uses: list[Use] = []
-
-        for use in op.result.uses:
-            uses.append(use)
+        uses = list(op.result.uses)
 
         hls_elem_type = op.elem_type
         stream_type = LLVMPointerType()
