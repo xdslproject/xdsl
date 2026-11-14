@@ -702,6 +702,8 @@ class TerminatorOp(IRDLOperation):
 
     traits = traits_def(HasParent(LaunchOp), IsTerminator())
 
+    assembly_format = "attr-dict"
+
     def __init__(self):
         super().__init__()
 
