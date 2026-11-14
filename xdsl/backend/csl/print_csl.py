@@ -26,11 +26,18 @@ from xdsl.dialects.builtin import (
     Signedness,
     SignednessAttr,
     StringAttr,
-    TypeAttribute,
     UnitAttr,
     i1,
 )
-from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.ir.affine import AffineMap
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.comparisons import to_unsigned

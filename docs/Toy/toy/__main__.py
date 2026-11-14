@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from xdsl.dialects.riscv import riscv_code
+from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
@@ -24,7 +25,7 @@ from .emulator.toy_accelerator_instruction_functions import (
 )
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser as ToyParser
-from .interpreter import Interpreter, ToyFunctions
+from .interpreter import ToyFunctions
 from .riscv_emulator import emulate_riscv
 
 

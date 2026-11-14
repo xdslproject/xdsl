@@ -2,7 +2,7 @@
 
 from xdsl.builder import Builder
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import ModuleOp, f32
+from xdsl.dialects.builtin import MemRefType, ModuleOp, f32
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
@@ -11,12 +11,12 @@ from xdsl.utils.hints import isa
 @Builder.implicit_region
 def subview_module():
     input = memref.AllocOp.get(f32, None, [100, 200, 300, 400])
-    assert isa(input.memref.type, memref.MemRefType)
+    assert isa(input.memref.type, MemRefType)
 
     subview = memref.SubviewOp.from_static_parameters(
         input, input.memref.type, [1, 2, 3, 4], [30, 95, 1, 80], [3, 2, 1, 4]
     )
-    assert isa(subview.result.type, memref.MemRefType)
+    assert isa(subview.result.type, MemRefType)
 
     memref.SubviewOp.from_static_parameters(
         subview, subview.result.type, [2, 5, 0, 6], [20, 15, 1, 20], [1, 5, 1, 3]
@@ -30,7 +30,7 @@ def subview_module():
         [3, 2, 1, 4],
         reduce_rank=True,
     )
-    assert isa(subview_reduced.result.type, memref.MemRefType)
+    assert isa(subview_reduced.result.type, MemRefType)
 
     memref.SubviewOp.from_static_parameters(
         subview_reduced,

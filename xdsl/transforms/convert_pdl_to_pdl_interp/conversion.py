@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
-    TypeAttribute,
     UnitAttr,
 )
 from xdsl.ir import (
@@ -26,6 +25,7 @@ from xdsl.ir import (
     OpResult,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint, Rewriter

@@ -9,6 +9,7 @@ from xdsl.dialect_interfaces.constant_materialization import (
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
+    AnySignlessIntegerType,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FixedBitwidthType,
@@ -23,7 +24,6 @@ from xdsl.dialects.builtin import (
     VectorType,
     container_of,
 )
-from xdsl.dialects.hw import AnySignlessIntegerType
 from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (

@@ -10,7 +10,7 @@ from typing import TypeAlias, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
@@ -19,12 +19,13 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     ShapedType,
     f64,
 )
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -33,19 +34,20 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 from ..dialects import toy
 
 # region Helpers
 
-MemRefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
+MemRefTypeF64: TypeAlias = MemRefType[Float64Type]
 
 
 def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemRefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
-    return memref.MemRefType(f64, type.shape)
+    return MemRefType(f64, type.shape)
 
 
 def insert_alloc_and_dealloc(
@@ -78,9 +80,9 @@ _AffineForOpBodyBuilderFn: TypeAlias = Callable[[Builder, SSAValue, _ValueRange]
 def build_affine_for(
     builder: Builder,
     lb_operands: _ValueRange,
-    lb_map: affine.AffineMap,
+    lb_map: AffineMap,
     ub_operands: _ValueRange,
-    ub_map: affine.AffineMap,
+    ub_map: AffineMap,
     step: int,
     iter_args: _ValueRange,
     body_builder_fn: _AffineForOpBodyBuilderFn,
@@ -109,8 +111,8 @@ def build_affine_for(
         ub_operands,
         iter_args,
         tuple(iter_arg.type for iter_arg in iter_args),
-        affine.AffineMapAttr(lb_map),
-        affine.AffineMapAttr(ub_map),
+        AffineMapAttr(lb_map),
+        AffineMapAttr(ub_map),
         region,
         step,
     )
@@ -130,9 +132,9 @@ def build_affine_for_const(
     return build_affine_for(
         builder,
         (),
-        affine.AffineMap.constant_map(lb),
+        AffineMap.constant_map(lb),
         (),
-        affine.AffineMap.constant_map(ub),
+        AffineMap.constant_map(ub),
         step,
         iter_args,
         body_builder_fn,
@@ -241,9 +243,9 @@ def build_affine_loop_from_values(
     return build_affine_for(
         builder,
         (lb,),
-        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
+        AffineMap(1, 0, (AffineExpr.dimension(0),)),
         (ub,),
-        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
+        AffineMap(1, 0, (AffineExpr.dimension(0),)),
         step,
         (),
         body_builder_fn,
@@ -376,7 +378,7 @@ class ConstantOpLowering(RewritePattern):
                 constants[offset].result,
                 alloc.memref,
                 (),
-                map=affine.AffineMapAttr(affine.AffineMap.point_map(*index)),
+                map=AffineMapAttr(AffineMap.point_map(*index)),
             )
             for offset, index in enumerate(_indices)
         ]

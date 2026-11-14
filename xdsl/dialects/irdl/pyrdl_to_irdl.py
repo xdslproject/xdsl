@@ -1,6 +1,6 @@
 import keyword
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.irdl import AnyOp
 from xdsl.dialects.irdl.irdl import (
@@ -21,6 +21,7 @@ from xdsl.irdl import (
     RangeConstraint,
     VariadicDef,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def depython_name(name: str):

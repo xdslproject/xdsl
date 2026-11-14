@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, llvm
-from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, StringAttr
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
 from xdsl.ir import Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -47,8 +47,8 @@ TIMER_END = "timer_end"
 
 @dataclass
 class AddBenchTimersPattern(RewritePattern):
-    start_func_t: func.FunctionType
-    end_func_t: func.FunctionType
+    start_func_t: FunctionType
+    end_func_t: FunctionType
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
@@ -93,8 +93,8 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
         ):
             return
 
-        start_func_t = func.FunctionType.from_lists([], [builtin.f64])
-        end_func_t = func.FunctionType.from_lists([builtin.f64], [builtin.f64])
+        start_func_t = FunctionType.from_lists([], [builtin.f64])
+        end_func_t = FunctionType.from_lists([builtin.f64], [builtin.f64])
         start_func = func.FuncOp(TIMER_START, start_func_t, Region([]), "private")
         end_func = func.FuncOp(TIMER_END, end_func_t, Region([]), "private")
 
