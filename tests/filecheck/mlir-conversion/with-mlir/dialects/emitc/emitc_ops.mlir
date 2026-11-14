@@ -79,3 +79,48 @@ emitc.call_opaque "test" ()  : () -> ()
 // Test with opaque type
 %apply_opaque = emitc.apply "&"(%lvalue_opaque) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
 // CHECK: {{%.*}} = emitc.apply "&"({{%.*}}) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
+
+
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+%cons_int = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+
+%cons_sizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+
+%cons_ssizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+
+%cons_ptr = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+%variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+
+//===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
+// CHECK: emitc.assign {{%.*}} : i32 to {{%.*}} : <i32>
+
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+%lit = emitc.literal "1" : i32
+// CHECK: {{%.*}} = emitc.literal "1" : i32
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%loaded_var = emitc.load %variable : !emitc.lvalue<i32>
+// CHECK: {{%.*}} = emitc.load {{%.*}} : <i32>
