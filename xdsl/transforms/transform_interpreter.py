@@ -2,11 +2,12 @@
 
 from dataclasses import dataclass
 
+from xdsl.context import Context
 from xdsl.dialects import builtin, transform
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.transform import OperationHandle, TransformFunctions
-from xdsl.passes import Context, ModulePass
+from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import PassFailedException
 

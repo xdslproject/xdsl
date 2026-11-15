@@ -3176,7 +3176,7 @@ def test_variadic_length_inference():
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
-    assert isinstance(test_op, test.Operation)
+    assert isinstance(test_op, Operation)
     my_op = parser.parse_optional_operation()
     assert isinstance(my_op, RangeVarOp)
 
@@ -3203,7 +3203,7 @@ def test_int_var_inference():
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
-    assert isinstance(test_op, test.Operation)
+    assert isinstance(test_op, Operation)
     my_op = parser.parse_optional_operation()
     assert isinstance(my_op, IntVarOp)
     assert my_op.result_types == (IntegerType(64), IntegerType(64))

@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     I8,
     I32,
     I64,
-    AnyAttr,
     AnyFloat,
     AnySignlessIntegerType,
     BoolAttr,
@@ -28,6 +27,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
     IRDLOperation,
     ParsePropInAttrDict,

@@ -6,8 +6,9 @@ from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test
-from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.builtin import DenseArrayBase, UnitAttr, i32
 from xdsl.dialects.llvm import ShuffleVectorResultConstraint
+from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import Attribute, Block, Region
 from xdsl.irdl import AnyAttr, EqAttrConstraint, TypeVarConstraint, VarConstraint
 from xdsl.parser import Parser
@@ -61,16 +62,16 @@ def test_llvm_overflow_arithmetic_ops(
 @pytest.mark.parametrize(
     "op_type, attributes, exact",
     [
-        (llvm.UDivOp, {}, llvm.UnitAttr()),
-        (llvm.SDivOp, {}, llvm.UnitAttr()),
-        (llvm.LShrOp, {}, llvm.UnitAttr()),
-        (llvm.AShrOp, {}, llvm.UnitAttr()),
+        (llvm.UDivOp, {}, UnitAttr()),
+        (llvm.SDivOp, {}, UnitAttr()),
+        (llvm.LShrOp, {}, UnitAttr()),
+        (llvm.AShrOp, {}, UnitAttr()),
     ],
 )
 def test_llvm_exact_arithmetic_ops(
     op_type: type[llvm.ArithmeticBinOpExact],
     attributes: dict[str, Attribute],
-    exact: llvm.UnitAttr,
+    exact: UnitAttr,
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
@@ -81,14 +82,14 @@ def test_llvm_exact_arithmetic_ops(
 @pytest.mark.parametrize(
     "op_type, attributes, disjoint",
     [
-        (llvm.OrOp, {}, llvm.UnitAttr()),
+        (llvm.OrOp, {}, UnitAttr()),
         (llvm.OrOp, {}, None),
     ],
 )
 def test_llvm_disjoint_arithmetic_ops(
     op_type: type[llvm.ArithmeticBinOpDisjoint],
     attributes: dict[str, Attribute],
-    disjoint: llvm.UnitAttr | None,
+    disjoint: UnitAttr | None,
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes, disjoint).is_structurally_equivalent(
@@ -452,13 +453,13 @@ def test_fastmath_attr_expands_fast_shorthand():
     lhs = create_ssa_value(builtin.f32)
     op = llvm.FAddOp(lhs, lhs, fast_math=llvm.FastMathAttr("fast"))
     assert set(op.fastmathFlags.data) == {
-        llvm.FastMathFlag.REASSOC,
-        llvm.FastMathFlag.NO_NANS,
-        llvm.FastMathFlag.NO_INFS,
-        llvm.FastMathFlag.NO_SIGNED_ZEROS,
-        llvm.FastMathFlag.ALLOW_RECIP,
-        llvm.FastMathFlag.ALLOW_CONTRACT,
-        llvm.FastMathFlag.APPROX_FUNC,
+        FastMathFlag.REASSOC,
+        FastMathFlag.NO_NANS,
+        FastMathFlag.NO_INFS,
+        FastMathFlag.NO_SIGNED_ZEROS,
+        FastMathFlag.ALLOW_RECIP,
+        FastMathFlag.ALLOW_CONTRACT,
+        FastMathFlag.APPROX_FUNC,
     }
 
 
@@ -541,7 +542,7 @@ def test_extract_value_op():
     # verify extractvalue extracts from aggregate container at given index
     struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.f32])
     container = create_ssa_value(struct_type)
-    indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
+    indices = DenseArrayBase.from_list(builtin.i64, [0])
     op = llvm.ExtractValueOp(indices, container, builtin.i32)
     assert op.container == container
     assert op.res.type == builtin.i32
@@ -552,7 +553,7 @@ def test_insert_value_op():
     struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.f32])
     container = create_ssa_value(struct_type)
     val = create_ssa_value(builtin.i32)
-    indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
+    indices = DenseArrayBase.from_list(builtin.i64, [0])
     op = llvm.InsertValueOp(indices, container, val)
     assert op.container == container
     assert op.value == val

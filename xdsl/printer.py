@@ -13,7 +13,6 @@ from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,
-    BuiltinAttribute,
     ComplexType,
     Float32Type,
     Float64Type,
@@ -29,6 +28,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    BuiltinAttribute,
     Data,
     Dialect,
     OpaqueSyntaxAttribute,

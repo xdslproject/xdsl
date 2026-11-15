@@ -24,7 +24,7 @@ from typing import cast
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
-from xdsl.dialects.builtin import MemRefType
+from xdsl.dialects.builtin import FunctionType, MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
@@ -310,7 +310,7 @@ class LowerMemRefFuncOpPattern(RewritePattern):
             ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
             for arg in op.function_type.outputs
         ]
-        op.function_type = func.FunctionType.from_lists(
+        op.function_type = FunctionType.from_lists(
             new_input_types,
             new_output_types,
         )

@@ -1,5 +1,6 @@
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, memref
+from xdsl.dialects.builtin import MemRefType
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
@@ -42,7 +43,7 @@ def test_dimension():
 
 
 def test_alloc():
-    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
+    memref_type = MemRefType(builtin.f32, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert isinstance(alloc, AllocOp)
@@ -53,7 +54,7 @@ def test_alloc():
     assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
-    dyn_type = memref.MemRefType(builtin.f32, [-1, -1, -1])
+    dyn_type = MemRefType(builtin.f32, [-1, -1, -1])
     ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
@@ -136,7 +137,7 @@ def test_block_id():
 
 
 def test_dealloc():
-    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
+    memref_type = MemRefType(builtin.f32, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
@@ -187,7 +188,7 @@ def test_grid_dim():
 
 
 def test_host_register():
-    memref_type = memref.MemRefType(builtin.i32, [-1])
+    memref_type = MemRefType(builtin.i32, [-1])
     unranked = memref.AllocaOp.get(memref_type, None)
 
     register = HostRegisterOp(unranked)
@@ -197,7 +198,7 @@ def test_host_register():
 
 
 def test_host_unregister():
-    memref_type = memref.MemRefType(builtin.i32, [-1])
+    memref_type = MemRefType(builtin.i32, [-1])
     unranked = memref.AllocaOp.get(memref_type, None)
 
     unregister = HostUnregisterOp(unranked)
@@ -327,7 +328,7 @@ def test_launchfunc():
 
 
 def test_memcpy():
-    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
+    memref_type = MemRefType(builtin.f32, [10, 10, 10])
     host_alloc = memref.AllocOp.get(builtin.f32, None, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
