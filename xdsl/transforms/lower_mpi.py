@@ -205,7 +205,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         an OpResult containing the calculated value.
         """
         ssa_val_type = ssa_val.type
-        assert isinstance(ssa_val_type, memref.MemRefType)
+        assert isinstance(ssa_val_type, MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemRef!
         # TODO: handle -1 in sizes

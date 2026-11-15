@@ -24,6 +24,7 @@ from typing import cast
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
+from xdsl.dialects.builtin import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
@@ -174,7 +175,7 @@ def build_strides_offset(
 
 def build_target_ptr(
     target_memref: SSAValue,
-    memref_type: memref.MemRefType[Any],
+    memref_type: MemRefType[Any],
     indices: Iterable[SSAValue],
     builder: Builder,
 ) -> SSAValue:
@@ -201,7 +202,7 @@ class ConvertStorePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         memref_type = op.memref.type
-        assert isa(memref_type, memref.MemRefType)
+        assert isa(memref_type, MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace(op, ptr.StoreOp(target_ptr, op.value))
 
@@ -211,7 +212,7 @@ class ConvertLoadPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         memref_type = op.memref.type
-        assert isa(memref_type, memref.MemRefType)
+        assert isa(memref_type, MemRefType)
         target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
@@ -321,10 +322,10 @@ class LowerMemRefFuncOpPattern(RewritePattern):
 
         # rewrite arguments
         for arg in op.args:
-            if not isinstance(arg_type := arg.type, memref.MemRefType):
+            if not isinstance(arg_type := arg.type, MemRefType):
                 continue
 
-            old_type = cast(memref.MemRefType, arg_type)
+            old_type = cast(MemRefType, arg_type)
             arg = rewriter.replace_value_with_new_type(arg, ptr.PtrType())
 
             if not arg.uses:
@@ -349,14 +350,14 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter, /):
-        if not any(isinstance(arg.type, memref.MemRefType) for arg in op.arguments):
+        if not any(isinstance(arg.type, MemRefType) for arg in op.arguments):
             return
 
         new_arguments: list[SSAValue] = []
 
         # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
-            if isinstance(argument.type, memref.MemRefType):
+            if isinstance(argument.type, MemRefType):
                 rewriter.insert(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
@@ -371,8 +372,8 @@ class LowerMemRefFuncCallPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
         if not any(
-            isinstance(arg.type, memref.MemRefType) for arg in op.arguments
-        ) and not any(isinstance(type, memref.MemRefType) for type in op.result_types):
+            isinstance(arg.type, MemRefType) for arg in op.arguments
+        ) and not any(isinstance(type, MemRefType) for type in op.result_types):
             return
 
         # rewrite arguments
@@ -380,7 +381,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
 
         # insert `memref -> ptr` casts for memref arguments values, if necessary
         for argument in op.arguments:
-            if isinstance(argument.type, memref.MemRefType):
+            if isinstance(argument.type, MemRefType):
                 rewriter.insert(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
@@ -388,7 +389,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
                 new_arguments.append(argument)
 
         new_return_types = [
-            ptr.PtrType() if isinstance(type, memref.MemRefType) else type
+            ptr.PtrType() if isinstance(type, MemRefType) else type
             for type in op.result_types
         ]
 
@@ -400,7 +401,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         #  insert `ptr -> memref` casts for return values, if necessary
         for i, (new_result, old_result) in enumerate(zip(call_op.results, op.results)):
             new_result.name_hint = old_result.name_hint
-            if isa(old_result.type, memref.MemRefType):
+            if isa(old_result.type, MemRefType):
                 new_ops.append(cast_op := ptr.FromPtrOp(new_result, old_result.type))
                 new_results[i] = cast_op.res
 
@@ -411,7 +412,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
 class ConvertCastOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, memref.MemRefType)
+        assert isa(op.source.type, MemRefType)
         rewriter.replace(op, (), (op.source,))
 
 

@@ -471,11 +471,13 @@ def transform_apply_into_loop(
     p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
 
     old_operands_lst = [old_operand for old_operand in y_for_op.operands]
-    y_for_op.operands = [
-        old_operands_lst[0],
-        chunk_size_y_1.results[0],
-        *old_operands_lst[2:],
-    ]
+    y_for_op.set_operands(
+        [
+            old_operands_lst[0],
+            chunk_size_y_1.results[0],
+            *old_operands_lst[2:],
+        ]
+    )
 
     p.attributes["compute_loop"] = IntAttr(1)
 
@@ -552,10 +554,12 @@ class ApplyOpToHLS(RewritePattern):
                 else:
                     new_operands_lst.append(operand)
 
-            apply_clone.operands = [
-                *new_operands_lst,
-                self.out_data_streams[k].results[0],
-            ]
+            apply_clone.set_operands(
+                [
+                    *new_operands_lst,
+                    self.out_data_streams[k].results[0],
+                ]
+            )
 
         indices_stream_to_read: list[int] = []
         indices_stream_to_write: list[int] = []
@@ -903,7 +907,7 @@ def get_number_input_stencils(op: FuncOp):
     def dim(o: ExternalLoadOp):
         assert isinstance(o.field, OpResult)
         op_field_type = o.field.type
-        assert isinstance(op_field_type, memref.MemRefType)
+        assert isinstance(op_field_type, MemRefType)
         return len(op_field_type.get_shape())
 
     external_load_lst = [
@@ -1023,7 +1027,7 @@ class PackData(RewritePattern):
             new_op = new_op.owner.operands[0]
 
         field_type = field.type
-        assert isinstance(field_type, memref.MemRefType)
+        assert isinstance(field_type, MemRefType)
         shape = field_type.get_shape()
         ndims = len(shape)
 
@@ -1114,7 +1118,7 @@ class GetRepeatedCoefficients(RewritePattern):
         assert isinstance(op.source.op, memref.CastOp)
         cast = op.source.op  # original memref
         cast_dest_type = cast.dest.type
-        assert isinstance(cast_dest_type, memref.MemRefType)
+        assert isinstance(cast_dest_type, MemRefType)
         cast.clone()
 
         dim = len(cast_dest_type.shape.data)
@@ -1152,7 +1156,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             and len(self.original_memref_lst) > 0
         ):
             original_memref_lst_dest_type = self.original_memref_lst[0].dest.type
-            assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
+            assert isinstance(original_memref_lst_dest_type, MemRefType)
             dim = original_memref_lst_dest_type.shape.data[0].data
 
             lb = ConstantOp.from_int_and_width(0, IndexType())

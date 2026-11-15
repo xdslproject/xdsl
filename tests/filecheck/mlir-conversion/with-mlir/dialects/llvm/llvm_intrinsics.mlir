@@ -65,6 +65,33 @@
 %minnum_vec = llvm.intr.minnum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.minnum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
+%maximum_f32 = llvm.intr.maximum(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.maximum([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%maximum_vec = llvm.intr.maximum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.maximum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%minimum_f64 = llvm.intr.minimum(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.minimum([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%minimum_vec = llvm.intr.minimum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.minimum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%int, %int_vec = "test.op"() : () -> (i32, vector<4xi32>)
+// CHECK: [[int:%\d+]], [[int_vec:%\d+]] = "test.op"
+
+%smax = llvm.intr.smax(%int, %int) : (i32, i32) -> i32
+// CHECK: llvm.intr.smax([[int]], [[int]]) : (i32, i32) -> i32
+
+%smin = llvm.intr.smin(%int_vec, %int_vec) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK: llvm.intr.smin([[int_vec]], [[int_vec]]) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
+%umax = llvm.intr.umax(%int_vec, %int_vec) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+// CHECK: llvm.intr.umax([[int_vec]], [[int_vec]]) : (vector<4xi32>, vector<4xi32>) -> vector<4xi32>
+
+%umin = llvm.intr.umin(%int, %int) : (i32, i32) -> i32
+// CHECK: llvm.intr.umin([[int]], [[int]]) : (i32, i32) -> i32
+
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
 

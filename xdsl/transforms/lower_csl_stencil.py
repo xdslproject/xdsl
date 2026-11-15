@@ -161,8 +161,8 @@ class LowerApplyOp(RewritePattern):
         rewriter.insert([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
         # ensure we send only core data
-        assert isa(op.accumulator.type, memref.MemRefType)
-        assert isa(op.field.type, memref.MemRefType)
+        assert isa(op.accumulator.type, MemRefType)
+        assert isa(op.field.type, MemRefType)
         # the accumulator might have additional dims when used for holding prefetched data
         send_buf_shape = op.accumulator.type.get_shape()[
             -len(op.field.type.get_shape()) :
@@ -175,7 +175,7 @@ class LowerApplyOp(RewritePattern):
             ],
             (module_wrapper_op.get_param_value("chunk_size").value.data,),
             len(send_buf_shape) * [1],
-            memref.MemRefType(op.field.type.get_element_type(), send_buf_shape),
+            MemRefType(op.field.type.get_element_type(), send_buf_shape),
         )
         send_buf.result.name_hint = "send_dsd"
 
@@ -396,7 +396,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             and isinstance(subview := accumulator.op, memref.SubviewOp)
             and subview.source == op.receive_chunk.block.args[2]
         ):
-            assert isa(subview.source.type, memref.MemRefType)
+            assert isa(subview.source.type, MemRefType)
             new_ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             new_ops.append(
                 new_acc := csl.IncrementDsdOffsetOp.build(

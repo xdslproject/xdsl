@@ -3,7 +3,7 @@ from typing import cast
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import memref, memref_stream
+from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
@@ -34,7 +34,7 @@ class GeneralizeFillPattern(RewritePattern):
             memref_stream.YieldOp(arg0)
 
         memref_type = op.memref.type
-        assert isinstance(memref_type, memref.MemRefType)
+        assert isinstance(memref_type, MemRefType)
 
         memref_type = cast(MemRefType, memref_type)
 

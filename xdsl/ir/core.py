@@ -26,7 +26,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
@@ -988,7 +988,12 @@ class Operation(_IRNode):
         return OpOperands(self)
 
     @operands.setter
-    def operands(self, new: Sequence[SSAValue]):
+    @deprecated("Use set_operands instead")
+    def operands(self, new: Sequence[SSAValue]) -> None:
+        self.set_operands(new)
+
+    def set_operands(self, new: Sequence[SSAValue]) -> None:
+        """Replace the operands, updating the SSA value uses."""
         new = SSAValues(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
@@ -1034,8 +1039,7 @@ class Operation(_IRNode):
     ) -> None:
         super().__init__()
 
-        # This is assumed to exist by Operation.operand setter.
-        self.operands = operands
+        self.set_operands(operands)
 
         self.results = SSAValues(
             OpResult(result_type, self, idx)
@@ -1318,8 +1322,10 @@ class Operation(_IRNode):
             )
         if clone_operands:
             for old, new in zip(self.walk(), op.walk()):
-                new.operands = tuple(
-                    value_mapper.get(operand, operand) for operand in old.operands
+                new.set_operands(
+                    tuple(
+                        value_mapper.get(operand, operand) for operand in old.operands
+                    )
                 )
         return op
 
@@ -2508,8 +2514,10 @@ class Region(_IRNode):
         # in lexicographic order.
         if clone_operands:
             for old, new in zip(self.walk(), dest.walk()):
-                new.operands = tuple(
-                    value_mapper.get(operand, operand) for operand in old.operands
+                new.set_operands(
+                    tuple(
+                        value_mapper.get(operand, operand) for operand in old.operands
+                    )
                 )
 
     def walk(

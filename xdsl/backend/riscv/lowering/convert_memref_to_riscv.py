@@ -42,8 +42,8 @@ class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
         op_memref_type = op.memref.type
-        assert isinstance(op_memref_type, memref.MemRefType)
-        op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        assert isinstance(op_memref_type, MemRefType)
+        op_memref_type = cast(MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
@@ -166,8 +166,8 @@ class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
         op_memref_type = op.memref.type
-        assert isinstance(op_memref_type, memref.MemRefType)
-        memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        assert isinstance(op_memref_type, MemRefType)
+        memref_type = cast(MemRefType[Any], op_memref_type)
 
         value, mem, *indices = cast_operands_to_regs(rewriter, op)
 
@@ -210,8 +210,8 @@ class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
         op_memref_type = op.memref.type
-        assert isinstance(op_memref_type, memref.MemRefType), f"{op.memref.type}"
-        memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        assert isinstance(op_memref_type, MemRefType), f"{op.memref.type}"
+        memref_type = cast(MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter, op)
 
