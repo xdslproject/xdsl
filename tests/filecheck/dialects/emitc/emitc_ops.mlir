@@ -5,6 +5,7 @@
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
+%ptr_i32 = "test.op"() : () -> !emitc.ptr<i32>
 
 //===----------------------------------------------------------------------===//
 // CallOpaqueOp
@@ -43,3 +44,99 @@ emitc.call_opaque "test" ()  : () -> ()
 %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK: %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK-GENERIC: %add_tensor = "emitc.add"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+%cons_int = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+// CHECK: %cons_int = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+// CHECK-GENERIC: %cons_int = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+
+%cons_zero = "emitc.constant"() <{value = 0 : i32}> : () -> i32
+// CHECK: %cons_zero = "emitc.constant"() <{value = 0 : i32}> : () -> i32
+// CHECK-GENERIC: %cons_zero = "emitc.constant"() <{value = 0 : i32}> : () -> i32
+
+%cons_float = "emitc.constant"() <{value = 1.500000e+00 : f32}> : () -> f32
+// CHECK: %cons_float = "emitc.constant"() <{value = 1.500000e+00 : f32}> : () -> f32
+// CHECK-GENERIC: %cons_float = "emitc.constant"() <{value = 1.500000e+00 : f32}> : () -> f32
+
+%cons_sizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+// CHECK: %cons_sizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+// CHECK-GENERIC: %cons_sizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+
+%cons_ssizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+// CHECK: %cons_ssizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+// CHECK-GENERIC: %cons_ssizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+
+%cons_ptrdiff = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+// CHECK: %cons_ptrdiff = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+// CHECK-GENERIC: %cons_ptrdiff = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+
+%cons_opaque = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
+// CHECK: %cons_opaque = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
+// CHECK-GENERIC: %cons_opaque = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+%variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+
+%variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+
+%variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+
+%variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+// CHECK: %variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+// CHECK-GENERIC: %variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+
+//===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
+// CHECK: emitc.assign %cons_int : i32 to %variable : <i32>
+// CHECK-GENERIC: "emitc.assign"(%variable, %cons_int) : (!emitc.lvalue<i32>, i32) -> ()
+
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+%lit = emitc.literal "1" : i32
+// CHECK: %lit = emitc.literal "1" : i32
+// CHECK-GENERIC: %lit = "emitc.literal"() <{value = "1"}> : () -> i32
+
+%lit_pi = emitc.literal "M_PI" : f32
+// CHECK: %lit_pi = emitc.literal "M_PI" : f32
+// CHECK-GENERIC: %lit_pi = "emitc.literal"() <{value = "M_PI"}> : () -> f32
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%loaded_var = emitc.load %variable : !emitc.lvalue<i32>
+// CHECK: %loaded_var = emitc.load %variable : <i32>
+// CHECK-GENERIC: %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
+
+//===----------------------------------------------------------------------===//
+// AddressOfOp
+//===----------------------------------------------------------------------===//
+
+%addr = emitc.address_of %variable : !emitc.lvalue<i32>
+// CHECK: %addr = emitc.address_of %variable : !emitc.lvalue<i32>
+// CHECK-GENERIC: %addr = "emitc.address_of"(%variable) : (!emitc.lvalue<i32>) -> !emitc.ptr<i32>
+
+//===----------------------------------------------------------------------===//
+// DereferenceOp
+//===----------------------------------------------------------------------===//
+
+%deref = emitc.dereference %ptr_i32 : !emitc.ptr<i32>
+// CHECK: %deref = emitc.dereference %ptr_i32 : !emitc.ptr<i32>
+// CHECK-GENERIC: %deref = "emitc.dereference"(%ptr_i32) : (!emitc.ptr<i32>) -> !emitc.lvalue<i32>
