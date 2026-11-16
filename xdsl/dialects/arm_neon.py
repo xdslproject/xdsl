@@ -176,7 +176,7 @@ class GetRegisterOp(ARMAsmOperation):
     name = "arm_neon.get_register"
 
     result = result_def(NEONRegisterType)
-    assembly_format = "attr-dict `:` type($result)"
+    assembly_format = "attr-dict `:` qualified(type($result))"
 
     def __init__(self, register_type: NEONRegisterType):
         super().__init__(result_types=[register_type])
@@ -281,10 +281,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = (
-        "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
-        `(` type($s1) `,` type($s2) `)` `->` type($res)"
-    )
+    assembly_format = "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
+        `(` qualified(type($s1)) `,` qualified(type($s2)) `)` `->` qualified(type($res))"
 
     def __init__(
         self,

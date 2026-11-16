@@ -71,12 +71,12 @@ def test_frep_carried_vars():
             ).body
         ) as (count,):
             one = rv32.LiOp(1).rd
-            initial = riscv.FCvtDWOp(one, rd=acc_reg_type).rd
+            initial = riscv.ops.FCvtDWOp(one, rd=acc_reg_type).rd
 
             @Builder.implicit_region((float_register,))
             def for_loop_region(args: tuple[BlockArgument, ...]):
                 (acc,) = args
-                res = riscv.FAddDOp(acc, acc, rd=acc_reg_type)
+                res = riscv.ops.FAddDOp(acc, acc, rd=acc_reg_type)
                 riscv_snitch.FrepYieldOp(res)
 
             result = riscv_snitch.FrepOuterOp(count, for_loop_region, (initial,)).res

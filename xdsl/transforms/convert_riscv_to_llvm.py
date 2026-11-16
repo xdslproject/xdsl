@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, rv32
+from xdsl.dialects import builtin, riscv, rv32
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, UnrealizedConversionCastOp
 from xdsl.dialects.llvm import InlineAsmOp
-from xdsl.dialects.riscv import IntRegisterType, RISCVInstruction
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -22,7 +21,9 @@ class RiscvToLLVMPattern(RewritePattern):
     xlen: int
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: RISCVInstruction, rewriter: PatternRewriter):
+    def match_and_rewrite(
+        self, op: riscv.abstract_ops.RISCVInstruction, rewriter: PatternRewriter
+    ):
         ops_to_insert: list[Operation] = []
 
         # inputs for the llvm inline asm op
@@ -42,7 +43,7 @@ class RiscvToLLVMPattern(RewritePattern):
             # ssa value used as an output operand
             match arg:
                 case OpResult() if arg.owner is op and isinstance(
-                    arg.type, IntRegisterType
+                    arg.type, riscv.registers.IntRegisterType
                 ):
                     # if we are storing to zero, we can't produce a result, so replace result by
                     # a get_register for the zero registers.
@@ -60,7 +61,9 @@ class RiscvToLLVMPattern(RewritePattern):
                     result_map.append(num_results)
                     num_results += 1
 
-                case SSAValue() if isinstance(arg.type, IntRegisterType):
+                case SSAValue() if isinstance(
+                    arg.type, riscv.registers.IntRegisterType
+                ):
                     # if the input is allocated to a zero register, use that register
                     # other allocated registers are treaded as if they were unallocated
                     if arg.type.is_allocated and arg.type.index == IntAttr(0):

@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from xdsl.dialects.builtin import (
-    Attribute,
     DenseArrayBase,
     IntegerType,
-    ParametrizedAttribute,
     StringAttr,
     i64,
 )
-from xdsl.ir import Dialect, OperandArg, Region, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    OperandArg,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,

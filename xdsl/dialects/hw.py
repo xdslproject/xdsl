@@ -30,7 +30,6 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
 )
-from xdsl.dialects.llvm import param_def
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -57,6 +56,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,

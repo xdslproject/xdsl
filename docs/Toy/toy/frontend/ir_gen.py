@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
     FileLineColLoc,
+    FunctionType,
     IntAttr,
     ModuleOp,
     StringAttr,
@@ -14,6 +15,7 @@ from xdsl.dialects.builtin import (
     f64,
 )
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.lexer import Location
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -22,7 +24,6 @@ from ..dialects.toy import (
     AnyTensorTypeF64,
     ConstantOp,
     FuncOp,
-    FunctionType,
     GenericCallOp,
     MulOp,
     PrintOp,

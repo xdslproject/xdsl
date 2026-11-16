@@ -9,10 +9,10 @@ from typing import Optional
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    TypeAttribute,
 )
 from xdsl.ir import (
     Attribute,
+    TypeAttribute,
 )
 
 

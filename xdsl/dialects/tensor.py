@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    Region,
     ShapedType,
     TensorType,
     UnitAttr,
@@ -32,7 +31,7 @@ from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
     verify_reshape_like_types,
 )
-from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyRange,

@@ -158,7 +158,7 @@ def test_symbol_table_erase():
 
 def test_symbol_table_insert():
     """Test SymbolTable.insert method."""
-    from xdsl.builder import InsertPoint
+    from xdsl.rewriter import InsertPoint
 
     module = ModuleOp([], sym_name=StringAttr("test_module"))
     symbol_table = SymbolTable(module)

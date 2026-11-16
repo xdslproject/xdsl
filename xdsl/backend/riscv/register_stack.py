@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing_extensions import override
 
 from xdsl.backend.register_stack import RegisterStack
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType
+from xdsl.dialects.riscv.registers import FloatRegisterType, IntRegisterType
 
 
 @dataclass

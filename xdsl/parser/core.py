@@ -25,12 +25,12 @@ from xdsl.ir import (
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import IRDLOperation
 from xdsl.utils.exceptions import MultipleSpansParseError
-from xdsl.utils.lexer import Input, Span
+from xdsl.utils.lexer import Input, Position, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
 from .affine_parser import AffineParser  # noqa: TID251
 from .attribute_parser import AttrParser  # noqa: TID251
-from .generic_parser import ParserState, Position  # noqa: TID251
+from .generic_parser import ParserState  # noqa: TID251
 
 
 @dataclass(eq=False)

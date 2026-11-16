@@ -72,7 +72,7 @@ class ReadOpLowering(RewritePattern):
             raise DiagnosticException(
                 f"Invalid snitch stream element type {value_type}"
             )
-        register_type = riscv.Registers.UNALLOCATED_FLOAT
+        register_type = riscv.registers.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (snitch.ReadableStreamType(register_type),)
@@ -111,7 +111,7 @@ class WriteOpLowering(RewritePattern):
             raise DiagnosticException(
                 f"Invalid snitch stream element type {value_type}"
             )
-        register_type = riscv.Registers.UNALLOCATED_FLOAT
+        register_type = riscv.registers.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (snitch.WritableStreamType(register_type),)
@@ -125,7 +125,9 @@ class WriteOpLowering(RewritePattern):
             new_values = cast_op.results
         else:
             move_ops = (
-                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
+                riscv.ops.FMvDOp(
+                    cast_op.results[0], rd=riscv.registers.Registers.UNALLOCATED_FLOAT
+                ),
             )
             new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
@@ -163,7 +165,7 @@ class StreamOpLowering(RewritePattern):
         new_operands = cast_operands_to_regs(rewriter, op)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
-        freg = riscv.Registers.UNALLOCATED_FLOAT
+        freg = riscv.registers.Registers.UNALLOCATED_FLOAT
 
         rewriter.replace(
             op,

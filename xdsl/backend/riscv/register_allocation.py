@@ -8,7 +8,7 @@ from xdsl.backend.register_allocator import live_ins_per_block
 from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func
-from xdsl.dialects.riscv import Registers, RISCVRegisterType
+from xdsl.dialects.riscv.registers import Registers, RISCVRegisterType
 from xdsl.ir import SSAValue
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
@@ -92,6 +92,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             stats_str = json.dumps(stats)
 
             Rewriter.insert_op(
-                riscv.CommentOp(f"Regalloc stats: {stats_str}"),
+                riscv.ops.CommentOp(f"Regalloc stats: {stats_str}"),
                 InsertPoint.before(func),
             )

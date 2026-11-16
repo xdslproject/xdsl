@@ -56,7 +56,10 @@ from xdsl.utils.exceptions import DiagnosticException, VerifyException
 _FUNCTION_CALL_EFFECTS = frozenset(
     EffectInstance(MemoryEffectKind.WRITE, resource=RegisterResource(r))
     for r in itertools.chain(
-        riscv.Registers.A, riscv.Registers.T, riscv.Registers.FA, riscv.Registers.FT
+        riscv.registers.Registers.A,
+        riscv.registers.Registers.T,
+        riscv.registers.Registers.FA,
+        riscv.registers.Registers.FT,
     )
 )
 
@@ -75,9 +78,9 @@ class RiscvFunctionCallMemoryEffect(MemoryEffect):
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args = var_operand_def(riscv.IntRegisterType)
+    args = var_operand_def(riscv.registers.IntRegisterType)
     syscall_num = prop_def(IntegerAttr[I32])
-    result = opt_result_def(riscv.IntRegisterType)
+    result = opt_result_def(riscv.registers.IntRegisterType)
 
     # Function calls can have arbitrary memory effects, and may overwrite the
     # A, T, FA, and FT registers
@@ -100,7 +103,9 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             properties={"syscall_num": num},
-            result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
+            result_types=[
+                riscv.registers.Registers.UNALLOCATED_INT if has_result else None
+            ],
         )
 
     def verify_(self):
@@ -115,13 +120,13 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(riscv.RISCVInstruction):
+class CallOp(riscv.abstract_ops.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args = var_operand_def(riscv.RISCVRegisterType)
+    args = var_operand_def(riscv.registers.RISCVRegisterType)
     callee = prop_def(SymbolRefAttr)
-    ress = var_result_def(riscv.RISCVRegisterType)
+    ress = var_result_def(riscv.registers.RISCVRegisterType)
 
     assembly_format = (
         "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
@@ -141,7 +146,7 @@ class CallOp(riscv.RISCVInstruction):
         self,
         callee: str | StringAttr | SymbolRefAttr,
         args: Sequence[OperandArg],
-        result_types: Sequence[riscv.RISCVRegisterType],
+        result_types: Sequence[riscv.registers.RISCVRegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
@@ -167,7 +172,9 @@ class CallOp(riscv.RISCVInstruction):
     def assembly_instruction_name(self) -> str:
         return "jal"
 
-    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
 
 
@@ -287,11 +294,11 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
 
 
 @irdl_op_definition
-class ReturnOp(riscv.RISCVInstruction):
+class ReturnOp(riscv.abstract_ops.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values = var_operand_def(riscv.RISCVRegisterType)
+    values = var_operand_def(riscv.registers.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
     traits = traits_def(
@@ -325,7 +332,9 @@ class ReturnOp(riscv.RISCVInstruction):
     def assembly_instruction_name(self) -> str:
         return "ret"
 
-    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return ()
 
 

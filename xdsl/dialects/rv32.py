@@ -7,20 +7,8 @@ using 5-bit immediates for 32-bit architectures.
 
 from __future__ import annotations
 
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
-from xdsl.dialects.riscv import (
-    UI5,
-    IntRegisterType,
-    Registers,
-    ui5,
-)
-from xdsl.dialects.riscv.abstract_ops import (
-    GetAnyRegisterOperation,
-    ImmShiftOpHasCanonicalizationPatternsTrait,
-    LiOperation,
-    RdRsImmShiftOperation,
-)
-from xdsl.dialects.riscv.attrs import ImmediateI32
 from xdsl.ir import (
     Dialect,
     OperandArg,
@@ -32,7 +20,7 @@ from xdsl.irdl import (
 
 
 @irdl_op_definition
-class LiOp(LiOperation[I32]):
+class LiOp(riscv.abstract_ops.LiOperation[I32]):
     """
     Loads a 32-bit immediate into rd.
 
@@ -43,14 +31,16 @@ class LiOp(LiOperation[I32]):
 
     name = "rv32.li"
 
-    assembly_format = "custom<ImmediateI32>($immediate) attr-dict `:` type($rd)"
-    custom_directives = (ImmediateI32,)
+    assembly_format = (
+        "custom<ImmediateI32>($immediate) attr-dict `:` qualified(type($rd))"
+    )
+    custom_directives = (riscv.attrs.ImmediateI32,)
 
     def __init__(
         self,
         immediate: int | IntegerAttr[I32] | str | StringAttr,
         *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        rd: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -58,7 +48,9 @@ class LiOp(LiOperation[I32]):
         super().__init__(immediate, rd=rd, comment=comment)
 
 
-class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
+class RV32RdRsImmShiftOperation(
+    riscv.abstract_ops.RdRsImmShiftOperation[riscv.attrs.UI5, I32]
+):
     """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
     traits = lazy_traits_def(
@@ -68,13 +60,13 @@ class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
     def __init__(
         self,
         rs1: OperandArg,
-        immediate: int | IntegerAttr[UI5],
+        immediate: int | IntegerAttr[riscv.attrs.UI5],
         *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        rd: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui5)
+            immediate = IntegerAttr(immediate, riscv.attrs.ui5)
 
         super().__init__(
             rs1=rs1,
@@ -85,7 +77,7 @@ class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
 
 
 class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
-    ImmShiftOpHasCanonicalizationPatternsTrait[I32],
+    riscv.abstract_ops.ImmShiftOpHasCanonicalizationPatternsTrait[I32],
     li_op_type=LiOp,
     shift_op_type=RV32RdRsImmShiftOperation,
 ):
@@ -240,7 +232,9 @@ class SraiOp(RV32RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+class GetRegisterOp(
+    riscv.abstract_ops.GetAnyRegisterOperation[riscv.registers.IntRegisterType]
+):
     name = "rv32.get_register"
 
 

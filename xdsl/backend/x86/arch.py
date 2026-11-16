@@ -13,18 +13,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     VectorType,
 )
-from xdsl.dialects.x86.registers import (
-    AVX2RegisterType,
-    AVX512RegisterType,
-    GeneralRegisterType,
-    Reg8Type,
-    Reg16Type,
-    Reg32Type,
-    Reg64Type,
-    SSERegisterType,
-    X86RegisterType,
-    X86VectorRegisterType,
-)
 from xdsl.ir import Attribute, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
@@ -41,9 +29,9 @@ target triple.
 
 
 class X86Arch(Arch):
-    VECTOR_TYPES_BY_BITWIDTH: ClassVar[dict[int, type[X86VectorRegisterType]]] = {
-        128: SSERegisterType
-    }
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar[
+        dict[int, type[x86.registers.X86VectorRegisterType]]
+    ] = {128: x86.registers.SSERegisterType}
     """
     Supported vector type for a given vector size.
     """
@@ -87,7 +75,9 @@ class X86Arch(Arch):
         """
         module.attributes[ARCH_ATTR_NAME] = StringAttr(self.name())
 
-    def default_allocatable_registers(self) -> tuple[X86RegisterType, ...]:
+    def default_allocatable_registers(
+        self,
+    ) -> tuple[x86.registers.X86RegisterType, ...]:
         """
         The registers the allocator may use on this target.
 
@@ -97,13 +87,13 @@ class X86Arch(Arch):
         is indexed off a single bank rather than listing each of them.
         """
         return (
-            *Reg64Type.allocatable_registers(),
-            *AVX2RegisterType.allocatable_registers()[:16],
+            *x86.registers.Reg64Type.allocatable_registers(),
+            *x86.registers.AVX2RegisterType.allocatable_registers()[:16],
         )
 
     def _register_type_for_vector_type(
         self, value_type: VectorType
-    ) -> type[X86VectorRegisterType]:
+    ) -> type[x86.registers.X86VectorRegisterType]:
         """
         Given any vector type, returns the appropriate register type.
         The vector type must fit exactly into a full bitwidth vector supported by the
@@ -124,35 +114,39 @@ class X86Arch(Arch):
                 f"{sorted(self.VECTOR_TYPES_BY_BITWIDTH)}."
             ) from None
 
-    def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
+    def _scalar_type_for_type(
+        self, value_type: Attribute
+    ) -> type[x86.registers.GeneralRegisterType]:
         if isinstance(value_type, FixedBitwidthType):
             match value_type.bitwidth:
                 case 64:
-                    return Reg64Type
+                    return x86.registers.Reg64Type
                 case 32:
-                    return Reg32Type
+                    return x86.registers.Reg32Type
                 case 16:
-                    return Reg16Type
+                    return x86.registers.Reg16Type
                 case 8:
-                    return Reg8Type
+                    return x86.registers.Reg8Type
                 case _:
                     ...
         if isinstance(value_type, IndexType) or isinstance(value_type, ptr.PtrType):
-            return Reg64Type
+            return x86.registers.Reg64Type
         raise DiagnosticException(f"Register type for type {value_type} not supported.")
 
     @overload
     def register_type_for_type(
         self, value_type: VectorType
-    ) -> type[X86VectorRegisterType]: ...
+    ) -> type[x86.registers.X86VectorRegisterType]: ...
 
     @overload
     def register_type_for_type(
         self, value_type: Attribute
-    ) -> type[X86RegisterType]: ...
+    ) -> type[x86.registers.X86RegisterType]: ...
 
-    def register_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
-        if isinstance(value_type, X86RegisterType):
+    def register_type_for_type(
+        self, value_type: Attribute
+    ) -> type[x86.registers.X86RegisterType]:
+        if isinstance(value_type, x86.registers.X86RegisterType):
             return type(value_type)
         if isa(value_type, VectorType):
             return self._register_type_for_vector_type(value_type)
@@ -182,7 +176,9 @@ class X86Arch(Arch):
         default move operation for the input register.
         """
         if value_type is not None and isa(value_type, VectorType[FixedBitwidthType]):
-            if not isinstance(reg_type := value.type, X86VectorRegisterType):
+            if not isinstance(
+                reg_type := value.type, x86.registers.X86VectorRegisterType
+            ):
                 raise ValueError(f"Invalid type for move {value_type}")
             # Choose the x86 vector instruction according to the
             # abstract vector element size
@@ -203,13 +199,13 @@ class X86Arch(Arch):
                     raise DiagnosticException(
                         "Float precision must be half, single or double."
                     )
-        elif isinstance(reg_type := value.type, X86VectorRegisterType):
+        elif isinstance(reg_type := value.type, x86.registers.X86VectorRegisterType):
             # In the future, we want to be more careful about register types.
             mov_op = x86.ops.DS_VmovapdOp(
                 value, destination=type(reg_type).unallocated()
             )
-        elif isinstance(reg_type, GeneralRegisterType):
-            mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
+        elif isinstance(reg_type, x86.registers.GeneralRegisterType):
+            mov_op = x86.ops.DS_MovOp(value, destination=type(reg_type).unallocated())
         else:
             raise ValueError(f"Invalid type for move {value.type}")
 
@@ -227,8 +223,8 @@ class AVX2Arch(X86Arch):
         return "avx2"
 
     VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
-        128: SSERegisterType,
-        256: AVX2RegisterType,
+        128: x86.registers.SSERegisterType,
+        256: x86.registers.AVX2RegisterType,
     }
 
 
@@ -241,15 +237,17 @@ class AVX512Arch(X86Arch):
         return "avx512"
 
     VECTOR_TYPES_BY_BITWIDTH: ClassVar = {
-        128: SSERegisterType,
-        256: AVX2RegisterType,
-        512: AVX512RegisterType,
+        128: x86.registers.SSERegisterType,
+        256: x86.registers.AVX2RegisterType,
+        512: x86.registers.AVX512RegisterType,
     }
 
-    def default_allocatable_registers(self) -> tuple[X86RegisterType, ...]:
+    def default_allocatable_registers(
+        self,
+    ) -> tuple[x86.registers.X86RegisterType, ...]:
         return (
-            *Reg64Type.allocatable_registers(),
-            *AVX2RegisterType.allocatable_registers(),
+            *x86.registers.Reg64Type.allocatable_registers(),
+            *x86.registers.AVX2RegisterType.allocatable_registers(),
         )
 
 

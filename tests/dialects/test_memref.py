@@ -244,7 +244,7 @@ def test_memref_ExtractAlignedPointerAsIndexOp():
 
 
 def test_memref_matmul_verify():
-    memref_f64_rank2 = memref.MemRefType(builtin.f64, [DYNAMIC_INDEX] * 2)
+    memref_f64_rank2 = builtin.MemRefType(builtin.f64, [DYNAMIC_INDEX] * 2)
 
     @builtin.ModuleOp
     @Builder.implicit_region

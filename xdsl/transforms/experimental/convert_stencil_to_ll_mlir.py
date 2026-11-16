@@ -319,7 +319,9 @@ class BufferOpToMemRef(RewritePattern):
         strides = [prod(shape[i + 1 :]) for i in range(len(shape))]
         offset = -sum(o * s for o, s in zip(temp_bounds.lb, strides, strict=True))
 
-        layout = memref.StridedLayoutAttr(strides, offset)
+        from xdsl.dialects.builtin import StridedLayoutAttr
+
+        layout = StridedLayoutAttr(strides, offset)
         alloc = memref.AllocOp.get(
             temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
         )
