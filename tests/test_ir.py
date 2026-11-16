@@ -1065,13 +1065,13 @@ class CustomVerifyOp(IRDLOperation):
         return CustomVerifyOp.build(operands=[val])
 
     def verify_(self):
-        raise Exception("Custom Verification Check")
+        raise VerifyException("Custom Verification Check")
 
 
 def test_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(Exception, match="Custom Verification Check"):
+    with pytest.raises(VerifyException, match="Custom Verification Check"):
         b.verify()
 
 

@@ -35,6 +35,7 @@ from xdsl.dialects.vector import (
 )
 from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -308,7 +309,7 @@ def test_vector_masked_load_verify_memref_res_type_matching():
         "MemRef element type should match the result vector and passthrough "
         "vector element type. Found different element types for memref and result."
     )
-    with pytest.raises(Exception, match=message):
+    with pytest.raises(VerifyException, match=message):
         maskedload.verify()
 
 
@@ -334,7 +335,7 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
         "vector element type. Found different element types for memref and passthrough."
     )
 
-    with pytest.raises(Exception, match=message):
+    with pytest.raises(VerifyException, match=message):
         maskedload.verify()
 
 
@@ -403,7 +404,7 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
         "MemRef element type should match the stored vector type. "
         "Obtained types were i32 and i64."
     )
-    with pytest.raises(Exception, match=message):
+    with pytest.raises(VerifyException, match=message):
         maskedstore.verify()
 
 
