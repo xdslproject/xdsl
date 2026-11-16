@@ -530,6 +530,14 @@ class EmitC_LiteralOp(IRDLOperation):
 
     assembly_format = "$value attr-dict `:` type($result)"
 
+    def __init__(self, value: StringAttr | str, result_type: Attribute):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
     def verify_(self):
         if self.value.data == "":
             raise VerifyException("value must not be empty")
