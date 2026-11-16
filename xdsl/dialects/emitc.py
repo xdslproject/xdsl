@@ -53,11 +53,13 @@ from xdsl.irdl import (
     param_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -499,12 +501,55 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
+@irdl_op_definition
+class EmitC_LiteralOp(IRDLOperation):
+    """
+    Literal operation.
+
+    The `emitc.literal` operation produces an SSA value equal to some constant
+    specified by an attribute.
+
+    Example:
+
+    ```mlir
+    %p0 = emitc.literal "M_PI" : f32
+    %1 = "emitc.add" (%arg0, %p0) : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    float v2 = v1 + M_PI;
+    ```
+    """
+
+    name = "emitc.literal"
+
+    value = prop_def(StringAttr)
+    result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$value attr-dict `:` type($result)"
+
+    def __init__(self, value: StringAttr | str, result_type: Attribute):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self):
+        if self.value.data == "":
+            raise VerifyException("value must not be empty")
+
+
 EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
         EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
+        EmitC_LiteralOp,
     ],
     [
         EmitC_ArrayType,

@@ -79,3 +79,10 @@ emitc.call_opaque "test" ()  : () -> ()
 // Test with opaque type
 %apply_opaque = emitc.apply "&"(%lvalue_opaque) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
 // CHECK: {{%.*}} = emitc.apply "&"({{%.*}}) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
+
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+%lit = emitc.literal "1" : i32
+// CHECK: {{%.*}} = emitc.literal "1" : i32
