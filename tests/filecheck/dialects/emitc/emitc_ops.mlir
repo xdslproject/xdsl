@@ -43,3 +43,15 @@ emitc.call_opaque "test" ()  : () -> ()
 %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK: %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK-GENERIC: %add_tensor = "emitc.add"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+%lit = emitc.literal "1" : i32
+// CHECK: %lit = emitc.literal "1" : i32
+// CHECK-GENERIC: %lit = "emitc.literal"() <{value = "1"}> : () -> i32
+
+%lit_pi = emitc.literal "M_PI" : f32
+// CHECK: %lit_pi = emitc.literal "M_PI" : f32
+// CHECK-GENERIC: %lit_pi = "emitc.literal"() <{value = "M_PI"}> : () -> f32

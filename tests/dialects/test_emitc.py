@@ -1,7 +1,8 @@
 import pytest
 
-from xdsl.dialects.builtin import DYNAMIC_INDEX, i32
-from xdsl.dialects.emitc import EmitC_ArrayType, EmitC_CallOpaqueOp
+from xdsl.dialects.builtin import DYNAMIC_INDEX, StringAttr, f32, i32
+from xdsl.dialects.emitc import EmitC_ArrayType, EmitC_CallOpaqueOp, EmitC_LiteralOp
+from xdsl.traits import is_side_effect_free
 
 
 def test_emitc_array_negative_dimension():
@@ -16,3 +17,10 @@ def test_call_opaque_with_str_callee():
     Test that EmitC_CallOpaqueOp can be created with a string callee.
     """
     EmitC_CallOpaqueOp(callee="test", call_args=[], result_types=[])
+
+
+def test_literal_op_is_side_effect_free():
+    op = EmitC_LiteralOp(properties={"value": StringAttr("M_PI")}, result_types=[f32])
+
+    op.verify()
+    assert is_side_effect_free(op)

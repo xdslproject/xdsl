@@ -102,3 +102,12 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 %not_ptr = "test.op"() : () -> i32
 // CHECK: operand type must be a pointer when applying `*`
 %wrong_type_deref = emitc.apply "*"(%not_ptr) : (i32) -> i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+// CHECK: value must not be empty
+%lit = emitc.literal "" : i32
