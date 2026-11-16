@@ -10,12 +10,18 @@ from typing import ClassVar
 from xdsl.dialects.builtin import (
     I8,
     IntegerAttr,
-    TypeAttribute,
     i1,
     i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Data, Dialect, OperandArg, ParametrizedAttribute, SSAValue
+from xdsl.ir import (
+    Data,
+    Dialect,
+    OperandArg,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,

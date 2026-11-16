@@ -55,9 +55,9 @@ def test_frep_recursive_effects():
     class TestInstr(irdl.IRDLOperation):
         name = "test.instr"
 
-        rd = irdl.result_def(riscv.FloatRegisterType)
-        rs1 = irdl.operand_def(riscv.FloatRegisterType)
-        rs2 = irdl.operand_def(riscv.FloatRegisterType)
+        rd = irdl.result_def(riscv.registers.FloatRegisterType)
+        rs1 = irdl.operand_def(riscv.registers.FloatRegisterType)
+        rs2 = irdl.operand_def(riscv.registers.FloatRegisterType)
 
         traits = irdl.traits_def(RegisterAllocatedMemoryEffect())
 
@@ -120,7 +120,7 @@ def test_vfmac_default_fastmath():
     rhs = create_ssa_value(riscv.Registers.FT1)
     op = riscv_snitch.VFMacSOp(acc, lhs, rhs)
     op.verify()
-    assert op.fastmath == riscv.FastMathFlagsAttr("none")
+    assert op.fastmath == riscv.attrs.FastMathFlagsAttr("none")
 
 
 def test_effect_traits():

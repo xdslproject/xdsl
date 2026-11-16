@@ -432,7 +432,9 @@ class EqsatPDLInterpFunctions(InterpreterFunctions):
 
         # No existing eclass for this operation yet
         new_eclasses: list[equivalence.AnyClassOp] = []
-        if new_op.has_trait(equivalence.ConstantLike):
+        from xdsl.traits import ConstantLike
+
+        if new_op.has_trait(ConstantLike):
             assert len(new_op.results) == 1
             new_eclasses.append(
                 equivalence.ConstantClassOp(

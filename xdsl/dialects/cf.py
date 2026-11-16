@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     DenseArrayBase,
     DenseIntElementsAttr,
     IndexType,
@@ -11,7 +12,6 @@ from xdsl.dialects.builtin import (
     VectorType,
     i32,
 )
-from xdsl.dialects.hw import AnySignlessIntegerType
 from xdsl.ir import Attribute, Block, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,

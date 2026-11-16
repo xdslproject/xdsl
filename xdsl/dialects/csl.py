@@ -483,7 +483,7 @@ class VariableOp(IRDLOperation):
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
-    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
+    assembly_format = "`(` $default `)` `:` qualified(type($res)) attr-dict"
 
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
@@ -525,7 +525,7 @@ class LoadVarOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = "`(` $var `:` type($var) `)` `:` type($res) attr-dict"
+    assembly_format = "`(` $var `:` qualified(type($var)) `)` `:` type($res) attr-dict"
 
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
@@ -560,7 +560,7 @@ class StoreVarOp(IRDLOperation):
     traits = traits_def(MemoryWriteEffect())
 
     assembly_format = (
-        "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
+        "$var `:` qualified(type($var)) `=` $new_value `:` type($new_value) attr-dict"
     )
 
     def __init__(self, var: VariableOp, new_value: OperandArg):

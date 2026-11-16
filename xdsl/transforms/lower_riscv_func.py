@@ -34,26 +34,26 @@ class LowerSyscallOp(RewritePattern):
 
         for i, arg in enumerate(op.args):
             ops.append(
-                riscv.MVOp(
+                riscv.ops.MVOp(
                     arg,
-                    rd=riscv.IntRegisterType.a_register(i),
+                    rd=riscv.registers.IntRegisterType.a_register(i),
                 )
             )
 
-        ops.append(rv32.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
+        ops.append(rv32.LiOp(immediate=op.syscall_num, rd=riscv.registers.Registers.A7))
 
         if op.result is None:
-            ops.append(riscv.EcallOp())
+            ops.append(riscv.ops.EcallOp())
             new_results = ()
         else:
             # The result will be stored to a0, move to register that will be used
-            ecall = riscv.EcallOp()
+            ecall = riscv.ops.EcallOp()
             ops.append(ecall)
-            gr = rv32.GetRegisterOp(riscv.Registers.A0)
+            gr = rv32.GetRegisterOp(riscv.registers.Registers.A0)
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=op.result.type)
+            mv = riscv.ops.MVOp(res, rd=op.result.type)
             ops.append(mv)
             new_results = mv.results
 

@@ -2196,8 +2196,8 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
     ``` python
     s0 = rv32.GetRegisterOp(Registers.s0).res
     s1 = rv32.GetRegisterOp(Registers.s1).res
-    rs2 = riscv.Registers.s2
-    rs3 = riscv.Registers.s3
+    rs2 = riscv.registers.Registers.s2
+    rs3 = riscv.registers.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
 
     op.assembly_line()   # "my_instr s2, s3, s0, s1"

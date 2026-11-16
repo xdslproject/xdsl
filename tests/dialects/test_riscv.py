@@ -29,14 +29,14 @@ from xdsl.utils.test_value import create_ssa_value
 def test_add_op():
     a1 = create_ssa_value(riscv.Registers.A1)
     a2 = create_ssa_value(riscv.Registers.A2)
-    add_op = riscv.AddOp(a1, a2, rd=riscv.Registers.A0)
+    add_op = riscv.ops.AddOp(a1, a2, rd=riscv.Registers.A0)
     a0 = add_op.rd
 
     assert a1.type is add_op.rs1.type
     assert a2.type is add_op.rs2.type
-    assert isinstance(a0.type, riscv.IntRegisterType)
-    assert isinstance(a1.type, riscv.IntRegisterType)
-    assert isinstance(a2.type, riscv.IntRegisterType)
+    assert isinstance(a0.type, riscv.registers.IntRegisterType)
+    assert isinstance(a1.type, riscv.registers.IntRegisterType)
+    assert isinstance(a2.type, riscv.registers.IntRegisterType)
     assert a0.type.register_name == "a0"
     assert a0.type.index == IntAttr(10)
     assert a1.type.register_name == "a1"
@@ -45,12 +45,12 @@ def test_add_op():
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert riscv.IntRegisterType.infinite_register(1).index == IntAttr(-2)
+    assert riscv.registers.IntRegisterType.infinite_register(1).index == IntAttr(-2)
 
 
 def test_is_non_zero():
     # Test zero register
-    x0_reg = riscv.IntRegisterType.from_name("x0")
+    x0_reg = riscv.registers.IntRegisterType.from_name("x0")
     assert not riscv.is_non_zero(riscv.Registers.ZERO)
     assert not riscv.is_non_zero(x0_reg)
 
@@ -61,7 +61,7 @@ def test_is_non_zero():
     assert riscv.is_non_zero(t0_reg)
 
     # Test unallocated register
-    unalloc_reg = riscv.IntRegisterType.unallocated()
+    unalloc_reg = riscv.registers.IntRegisterType.unallocated()
     assert not riscv.is_non_zero(unalloc_reg)
 
 
@@ -70,59 +70,65 @@ def test_csr_op():
     zero = create_ssa_value(riscv.Registers.ZERO)
     csr = IntegerAttr(16, ui12)
     # CsrrwOp
-    riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.ZERO).verify()
-    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd=riscv.Registers.ZERO).verify()
+    riscv.ops.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.ZERO).verify()
+    riscv.ops.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd=riscv.Registers.ZERO).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd=riscv.Registers.A2).verify()
+        riscv.ops.CsrrwOp(
+            rs1=a1, csr=csr, writeonly=True, rd=riscv.Registers.A2
+        ).verify()
     # CsrrsOp
-    riscv.CsrrsOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrsOp(rs1=zero, csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrsOp(rs1=zero, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrsOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrsOp(rs1=zero, csr=csr, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrsOp(rs1=zero, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrsOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
+        riscv.ops.CsrrsOp(
+            rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2
+        ).verify()
     # CsrrcOp
-    riscv.CsrrcOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrcOp(rs1=zero, csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrcOp(rs1=zero, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrcOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrcOp(rs1=zero, csr=csr, rd=riscv.Registers.A2).verify()
+    riscv.ops.CsrrcOp(rs1=zero, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
+        riscv.ops.CsrrcOp(
+            rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2
+        ).verify()
     # CsrrwiOp
-    riscv.CsrrwiOp(
+    riscv.ops.CsrrwiOp(
         csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
-    riscv.CsrrwiOp(
+    riscv.ops.CsrrwiOp(
         csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.ZERO
     ).verify()
-    riscv.CsrrwiOp(
+    riscv.ops.CsrrwiOp(
         csr=csr, immediate=IntegerAttr(0, ui5), writeonly=True, rd=riscv.Registers.ZERO
     ).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrwiOp(
+        riscv.ops.CsrrwiOp(
             csr=csr,
             immediate=IntegerAttr(0, ui5),
             writeonly=True,
             rd=riscv.Registers.A2,
         ).verify()
     # CsrrsiOp
-    riscv.CsrrsiOp(
+    riscv.ops.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
-    riscv.CsrrsiOp(
+    riscv.ops.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
     # CsrrciOp
-    riscv.CsrrciOp(
+    riscv.ops.CsrrciOp(
         csr=csr, immediate=IntegerAttr(0, ui5), rd=riscv.Registers.A2
     ).verify()
-    riscv.CsrrsiOp(
+    riscv.ops.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(1, ui5), rd=riscv.Registers.A2
     ).verify()
 
 
 @pytest.mark.parametrize("name, expected_type", [("csr", "ui12"), ("immediate", "ui5")])
 def test_csr_attribute_types(name: str, expected_type: str):
-    op = riscv.CsrrwiOp(IntegerAttr(1, ui12), IntegerAttr(1, ui5))
+    op = riscv.ops.CsrrwiOp(IntegerAttr(1, ui12), IntegerAttr(1, ui5))
     op.attributes[name] = IntegerAttr(1, i32)
     with pytest.raises(VerifyException, match=expected_type):
         op.verify()
@@ -160,7 +166,7 @@ def test_csr_reject_legacy_flags(source: str):
 
 
 def test_comment_op():
-    comment_op = riscv.CommentOp("my comment")
+    comment_op = riscv.ops.CommentOp("my comment")
 
     assert comment_op.comment.data == "my comment"
 
@@ -171,7 +177,7 @@ def test_comment_op():
 @pytest.mark.parametrize("label", ["mylabel", StringAttr("mylabel")])
 def test_label_op_without_comment(label: str | StringAttr):
     label_str = "mylabel"
-    label_op = riscv.LabelOp(label)
+    label_op = riscv.ops.LabelOp(label)
     label_op.verify()
 
     assert label_op.label == StringAttr(label_str)
@@ -182,7 +188,7 @@ def test_label_op_without_comment(label: str | StringAttr):
 
 def test_label_op_with_comment():
     label_str = "mylabel"
-    label_op = riscv.LabelOp(f"{label_str}", comment="my label")
+    label_op = riscv.ops.LabelOp(f"{label_str}", comment="my label")
 
     assert label_op.label.data == label_str
 
@@ -191,7 +197,7 @@ def test_label_op_with_comment():
 
 
 def test_return_op():
-    return_op = riscv.EbreakOp(comment="my comment")
+    return_op = riscv.ops.EbreakOp(comment="my comment")
 
     assert return_op.comment is not None
 
@@ -207,13 +213,13 @@ def test_immediate_i_inst():
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, ub, rd=riscv.Registers.A0)
+        riscv.ops.AddiOp(a1, ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, lb - 1, rd=riscv.Registers.A0)
+        riscv.ops.AddiOp(a1, lb - 1, rd=riscv.Registers.A0)
 
-    riscv.AddiOp(a1, ub - 1, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, lb, rd=riscv.Registers.A0)
+    riscv.ops.AddiOp(a1, ub - 1, rd=riscv.Registers.A0)
+    riscv.ops.AddiOp(a1, lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_s_inst():
@@ -223,13 +229,13 @@ def test_immediate_s_inst():
     a2 = create_ssa_value(riscv.Registers.A2)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, ub)
+        riscv.ops.SwOp(a1, a2, ub)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, lb - 1)
+        riscv.ops.SwOp(a1, a2, lb - 1)
 
-    riscv.SwOp(a1, a2, ub - 1)
-    riscv.SwOp(a1, a2, lb)
+    riscv.ops.SwOp(a1, a2, ub - 1)
+    riscv.ops.SwOp(a1, a2, lb)
 
 
 def test_immediate_u_j_inst():
@@ -239,13 +245,13 @@ def test_immediate_u_j_inst():
     assert lb == -524288
 
     with pytest.raises(VerifyException):
-        riscv.LuiOp(ub)
+        riscv.ops.LuiOp(ub)
 
     with pytest.raises(VerifyException):
-        riscv.LuiOp(lb - 1)
+        riscv.ops.LuiOp(lb - 1)
 
-    riscv.LuiOp(ub - 1)
-    riscv.LuiOp(lb)
+    riscv.ops.LuiOp(ub - 1)
+    riscv.ops.LuiOp(lb)
 
 
 def test_immediate_jalr_inst():
@@ -253,12 +259,12 @@ def test_immediate_jalr_inst():
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
+        riscv.ops.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
+        riscv.ops.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
 
-    riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+    riscv.ops.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
 
 
 def test_float_register():
@@ -266,30 +272,30 @@ def test_float_register():
         ValueError,
         match=re.escape("Invalid register name ft9 for register type riscv.reg."),
     ):
-        riscv.IntRegisterType.from_name("ft9")
+        riscv.registers.IntRegisterType.from_name("ft9")
     with pytest.raises(
         ValueError,
         match=re.escape("Invalid register name a0 for register type riscv.freg."),
     ):
-        riscv.FloatRegisterType.from_name("a0")
+        riscv.registers.FloatRegisterType.from_name("a0")
 
     a1 = create_ssa_value(riscv.Registers.A1)
     a2 = create_ssa_value(riscv.Registers.A2)
     with pytest.raises(VerifyException, match="Operation does not verify"):
-        riscv.FAddSOp(a1, a2).verify()
+        riscv.ops.FAddSOp(a1, a2).verify()
 
     f1 = create_ssa_value(riscv.Registers.FT0)
     f2 = create_ssa_value(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2).verify()
+    riscv.ops.FAddSOp(f1, f2).verify()
 
 
-@pytest.mark.parametrize("op_type", [riscv.FAddSOp, riscv.FeqSOp])
-def test_default_fastmath(op_type: type[riscv.FAddSOp | riscv.FeqSOp]):
+@pytest.mark.parametrize("op_type", [riscv.ops.FAddSOp, riscv.ops.FeqSOp])
+def test_default_fastmath(op_type: type[riscv.ops.FAddSOp | riscv.ops.FeqSOp]):
     lhs = create_ssa_value(riscv.Registers.FT0)
     rhs = create_ssa_value(riscv.Registers.FT1)
     op = op_type(lhs, rhs)
     op.verify()
-    assert op.fastmath == riscv.FastMathFlagsAttr("none")
+    assert op.fastmath == riscv.attrs.FastMathFlagsAttr("none")
 
 
 @pytest.mark.parametrize(
@@ -347,12 +353,12 @@ def test_riscv_parse_immediate_value(prog: str, message: str):
 
 
 def test_asm_section():
-    section = riscv.AssemblySectionOp("section")
+    section = riscv.ops.AssemblySectionOp("section")
     section.verify()
 
 
 def test_int_abi_name_by_index():
-    assert riscv.IntRegisterType.abi_name_by_index() == {
+    assert riscv.registers.IntRegisterType.abi_name_by_index() == {
         0: "zero",
         1: "ra",
         2: "sp",
@@ -389,13 +395,13 @@ def test_int_abi_name_by_index():
 
 
 def test_int_from_index():
-    assert riscv.IntRegisterType.from_index(0) == riscv.Registers.ZERO
-    assert riscv.IntRegisterType.from_index(10) == riscv.Registers.A0
-    assert riscv.IntRegisterType.from_index(20) == riscv.Registers.S4
-    assert riscv.IntRegisterType.from_index(30) == riscv.Registers.T5
+    assert riscv.registers.IntRegisterType.from_index(0) == riscv.Registers.ZERO
+    assert riscv.registers.IntRegisterType.from_index(10) == riscv.Registers.A0
+    assert riscv.registers.IntRegisterType.from_index(20) == riscv.Registers.S4
+    assert riscv.registers.IntRegisterType.from_index(30) == riscv.Registers.T5
     assert (
-        riscv.IntRegisterType.from_index(8)
-        == riscv.IntRegisterType.from_name("x8")
+        riscv.registers.IntRegisterType.from_index(8)
+        == riscv.registers.IntRegisterType.from_name("x8")
         == riscv.Registers.FP
         == riscv.Registers.S0
     )
@@ -403,15 +409,15 @@ def test_int_from_index():
     with pytest.raises(
         ValueError, match=re.escape("Invalid index 40 for register type riscv.reg.")
     ):
-        riscv.IntRegisterType.from_index(40)
+        riscv.registers.IntRegisterType.from_index(40)
 
-    assert riscv.IntRegisterType.from_index(
+    assert riscv.registers.IntRegisterType.from_index(
         -10
-    ) == riscv.IntRegisterType.infinite_register(9)
+    ) == riscv.registers.IntRegisterType.infinite_register(9)
 
 
 def test_float_abi_name_by_index():
-    assert riscv.FloatRegisterType.abi_name_by_index() == {
+    assert riscv.registers.FloatRegisterType.abi_name_by_index() == {
         0: "ft0",
         1: "ft1",
         2: "ft2",
@@ -448,19 +454,19 @@ def test_float_abi_name_by_index():
 
 
 def test_float_from_index():
-    assert riscv.FloatRegisterType.from_index(0) == riscv.Registers.FT0
-    assert riscv.FloatRegisterType.from_index(10) == riscv.Registers.FA0
-    assert riscv.FloatRegisterType.from_index(20) == riscv.Registers.FS4
-    assert riscv.FloatRegisterType.from_index(30) == riscv.Registers.FT10
+    assert riscv.registers.FloatRegisterType.from_index(0) == riscv.Registers.FT0
+    assert riscv.registers.FloatRegisterType.from_index(10) == riscv.Registers.FA0
+    assert riscv.registers.FloatRegisterType.from_index(20) == riscv.Registers.FS4
+    assert riscv.registers.FloatRegisterType.from_index(30) == riscv.Registers.FT10
 
     with pytest.raises(
         ValueError, match=re.escape("Invalid index 40 for register type riscv.freg.")
     ):
-        riscv.FloatRegisterType.from_index(40)
+        riscv.registers.FloatRegisterType.from_index(40)
 
-    assert riscv.FloatRegisterType.from_index(
+    assert riscv.registers.FloatRegisterType.from_index(
         -10
-    ) == riscv.FloatRegisterType.infinite_register(9)
+    ) == riscv.registers.FloatRegisterType.infinite_register(9)
 
 
 def test_effect_traits():
@@ -505,31 +511,31 @@ def test_effect_traits():
 
     assert len(register_effects_ops) == 149
     assert read_effects_ops == {
-        riscv.CsrrciOp,
-        riscv.CsrrcOp,
-        riscv.CsrrsiOp,
-        riscv.CsrrsOp,
-        riscv.CsrrwiOp,
-        riscv.CsrrwOp,
-        riscv.FLdOp,
-        riscv.FLwOp,
-        riscv.LbOp,
-        riscv.LbuOp,
-        riscv.LhOp,
-        riscv.LhuOp,
-        riscv.LwOp,
+        riscv.ops.CsrrciOp,
+        riscv.ops.CsrrcOp,
+        riscv.ops.CsrrsiOp,
+        riscv.ops.CsrrsOp,
+        riscv.ops.CsrrwiOp,
+        riscv.ops.CsrrwOp,
+        riscv.ops.FLdOp,
+        riscv.ops.FLwOp,
+        riscv.ops.LbOp,
+        riscv.ops.LbuOp,
+        riscv.ops.LhOp,
+        riscv.ops.LhuOp,
+        riscv.ops.LwOp,
     }
     assert write_effects_ops == {
-        riscv.CsrrciOp,
-        riscv.CsrrcOp,
-        riscv.CsrrsiOp,
-        riscv.CsrrsOp,
-        riscv.CsrrwiOp,
-        riscv.CsrrwOp,
-        riscv.FSdOp,
-        riscv.FSwOp,
-        riscv.SbOp,
-        riscv.ShOp,
-        riscv.SwOp,
+        riscv.ops.CsrrciOp,
+        riscv.ops.CsrrcOp,
+        riscv.ops.CsrrsiOp,
+        riscv.ops.CsrrsOp,
+        riscv.ops.CsrrwiOp,
+        riscv.ops.CsrrwOp,
+        riscv.ops.FSdOp,
+        riscv.ops.FSwOp,
+        riscv.ops.SbOp,
+        riscv.ops.ShOp,
+        riscv.ops.SwOp,
     }
     assert no_effects_ops == {riscv.ops.GetFloatRegisterOp}

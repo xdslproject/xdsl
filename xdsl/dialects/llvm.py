@@ -2170,7 +2170,7 @@ class GlobalOp(IRDLOperation):
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    assembly_format = "$global_name attr-dict `:` type($result)"
+    assembly_format = "$global_name attr-dict `:` qualified(type($result))"
 
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
@@ -3412,7 +3412,7 @@ class MaskedStoreOp(IRDLOperation):
 
     assembly_format = (
         "$value `,` $data `,` $mask attr-dict `:`"
-        " type($value) `,` type($mask) `into` type($data)"
+        " type($value) `,` type($mask) `into` qualified(type($data))"
     )
 
     irdl_options = (ParsePropInAttrDict(),)
@@ -3851,7 +3851,7 @@ class StackSaveOp(IRDLOperation):
 
     res = result_def(LLVMPointerType)
 
-    assembly_format = "attr-dict `:` type($res)"
+    assembly_format = "attr-dict `:` qualified(type($res))"
 
     def __init__(self):
         super().__init__(result_types=[LLVMPointerType()])
@@ -3901,7 +3901,7 @@ class StackRestoreOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    assembly_format = "$ptr attr-dict `:` type($ptr)"
+    assembly_format = "$ptr attr-dict `:` qualified(type($ptr))"
 
     def __init__(self, ptr: OperandArg):
         super().__init__(operands=[ptr])

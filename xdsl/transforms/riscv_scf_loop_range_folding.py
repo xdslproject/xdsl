@@ -26,7 +26,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
 
             user = next(iter(index.uses)).operation
 
-            if not isinstance(user, riscv.AddOp | riscv.MulOp):
+            if not isinstance(user, riscv.ops.AddOp | riscv.ops.MulOp):
                 return
 
             if user.rs1 is index:
@@ -39,16 +39,16 @@ class HoistIndexTimesConstantOp(RewritePattern):
             constant = imm.value.data
 
             match user:
-                case riscv.AddOp():
+                case riscv.ops.AddOp():
                     # All the uses are additions with a constant, we can fold
                     rewriter.insert(
                         [
                             shift := rv32.LiOp(constant),
-                            new_lb := riscv.AddOp(op.start, shift),
-                            new_ub := riscv.AddOp(op.stop, shift),
+                            new_lb := riscv.ops.AddOp(op.start, shift),
+                            new_ub := riscv.ops.AddOp(op.stop, shift),
                         ]
                     )
-                case riscv.MulOp():
+                case riscv.ops.MulOp():
                     # All the uses are multiplications by a constant, we can fold
                     step_attr = op.step_attr
                     if step_attr is not None:
@@ -65,15 +65,17 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert(
                         [
                             factor := rv32.LiOp(constant),
-                            new_lb := riscv.MulOp(op.start, factor),
-                            new_ub := riscv.MulOp(op.stop, factor),
+                            new_lb := riscv.ops.MulOp(op.start, factor),
+                            new_ub := riscv.ops.MulOp(op.stop, factor),
                         ]
                     )
                     if step_attr is not None:
                         op.step_attr = step_attr
                     else:
                         assert op.step_val is not None
-                        rewriter.insert(new_step := riscv.MulOp(op.step_val, factor))
+                        rewriter.insert(
+                            new_step := riscv.ops.MulOp(op.step_val, factor)
+                        )
                         op.operands[2] = new_step.rd
 
             op.operands[0] = new_lb.rd

@@ -8,9 +8,9 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Literal, NamedTuple, overload
 
 from xdsl import traits
-from xdsl.builder import InsertPoint
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Operation, Region
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.str_enum import StrEnum
 
 

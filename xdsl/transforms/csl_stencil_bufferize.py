@@ -13,7 +13,6 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     AnyDenseElement,
-    BaseAttr,
     DenseIntOrFPElementsAttr,
     FunctionType,
     MemRefType,
@@ -30,6 +29,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.irdl import BaseAttr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

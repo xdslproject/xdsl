@@ -491,7 +491,7 @@ def test_fail_error_message():
     ) as e:
         allocator.allocate_block(block)
 
-    assert getattr(e.value, "__notes__") == [
+    assert e.value.__notes__ == [
         """
 ^bb0:
   %0 = "test.inout"(%1) : (!test.reg<a0>) -> !test.reg<a1>

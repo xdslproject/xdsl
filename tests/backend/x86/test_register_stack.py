@@ -22,16 +22,16 @@ def test_default_reserved_registers():
 def test_push_infinite_register():
     register_stack = X86RegisterStack(allow_infinite=True)
 
-    infinite0 = x86.AVX2RegisterType.infinite_register(0)
+    infinite0 = x86.registers.AVX2RegisterType.infinite_register(0)
     register_stack.push(infinite0)
-    assert register_stack.pop(x86.AVX2RegisterType) == infinite0
+    assert register_stack.pop(x86.registers.AVX2RegisterType) == infinite0
 
 
 def test_push_register():
     register_stack = X86RegisterStack.get()
 
     register_stack.push(x86.registers.YMM0)
-    assert register_stack.pop(x86.AVX2RegisterType) == x86.registers.YMM0
+    assert register_stack.pop(x86.registers.AVX2RegisterType) == x86.registers.YMM0
 
     register_stack.push(x86.registers.RAX)
     assert register_stack.pop(x86.registers.Reg64Type) == x86.registers.RAX
@@ -80,10 +80,10 @@ def test_default_stack_stops_at_the_vex_boundary():
     register_stack = X86RegisterStack.get()
 
     for _ in range(16):
-        register_stack.pop(x86.AVX2RegisterType)
+        register_stack.pop(x86.registers.AVX2RegisterType)
 
     with pytest.raises(OutOfRegisters):
-        register_stack.pop(x86.AVX2RegisterType)
+        register_stack.pop(x86.registers.AVX2RegisterType)
 
 
 @pytest.mark.parametrize(
@@ -95,10 +95,10 @@ def test_vector_registers_available_per_arch(arch: X86Arch, expected: int):
     register_stack = X86RegisterStack.get_for_arch(arch)
 
     for _ in range(expected):
-        register_stack.pop(x86.AVX2RegisterType)
+        register_stack.pop(x86.registers.AVX2RegisterType)
 
     with pytest.raises(OutOfRegisters):
-        register_stack.pop(x86.AVX2RegisterType)
+        register_stack.pop(x86.registers.AVX2RegisterType)
 
 
 @pytest.mark.parametrize("arch", [UNKNOWN, AVX2, AVX512])
