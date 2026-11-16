@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    Region,
     ShapedType,
     TensorType,
     UnitAttr,
@@ -32,7 +31,7 @@ from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
     verify_reshape_like_types,
 )
-from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyRange,
@@ -42,7 +41,6 @@ from xdsl.irdl import (
     IntConstraint,
     IntVarConstraint,
     IRDLOperation,
-    Operand,
     RangeOf,
     VarConstraint,
     irdl_op_definition,
@@ -733,14 +731,14 @@ class InsertSliceOp(IRDLOperation):
 
     @staticmethod
     def get(
-        source: Operand,
-        dest: Operand,
+        source: SSAValue,
+        dest: SSAValue,
         static_sizes: Sequence[int],
         static_offsets: Sequence[int] | None = None,
         static_strides: Sequence[int] | None = None,
-        offsets: Sequence[Operand] | None = None,
-        sizes: Sequence[Operand] | None = None,
-        strides: Sequence[Operand] | None = None,
+        offsets: Sequence[SSAValue] | None = None,
+        sizes: Sequence[SSAValue] | None = None,
+        strides: Sequence[SSAValue] | None = None,
         result_type: Attribute | None = None,
     ) -> InsertSliceOp:
         dims = len(static_sizes)

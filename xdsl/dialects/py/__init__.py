@@ -43,7 +43,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -241,7 +240,7 @@ class PyBinOp(PyOperation):
     op = prop_def(OperatorAttr)
     assembly_format = "$op `,` $lhs `,` $rhs attr-dict"
 
-    def __init__(self, op: Operator | OperatorAttr, lhs: Operand, rhs: Operand):
+    def __init__(self, op: Operator | OperatorAttr, lhs: SSAValue, rhs: SSAValue):
         super().__init__(
             operands=[lhs, rhs],
             properties={"op": OperatorAttr.get(op)},
@@ -338,7 +337,9 @@ class PyCastOp(PyOperation, HasFolderInterface):
     name = "py.cast"
     value = operand_def(PyObjectType)
     res = result_def(PyObjectType)
-    assembly_format = "$value attr-dict `:` type($value) `to` type($res)"
+    assembly_format = (
+        "$value attr-dict `:` qualified(type($value)) `to` qualified(type($res))"
+    )
 
     traits = traits_def(Pure())
 
@@ -385,7 +386,7 @@ class PyCompareOp(PyOperation):
     op = prop_def(CmpOpAttr)
     assembly_format = "$op `,` $lhs `,` $rhs attr-dict"
 
-    def __init__(self, op: CmpOp | CmpOpAttr, lhs: Operand, rhs: Operand):
+    def __init__(self, op: CmpOp | CmpOpAttr, lhs: SSAValue, rhs: SSAValue):
         super().__init__(
             operands=[lhs, rhs],
             properties={"op": CmpOpAttr.get(op)},
@@ -472,7 +473,7 @@ class PyReturnOp(PyOperation):
 
     name = "py.return"
     value = operand_def(PyObjectType)
-    assembly_format = "$value attr-dict `:` type($value)"
+    assembly_format = "$value attr-dict `:` qualified(type($value))"
 
     traits = traits_def(IsTerminator(), HasParent(PyFuncOp))
 

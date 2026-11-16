@@ -26,7 +26,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -509,7 +508,7 @@ class TestOp(MPIBaseOp):
     flag = result_def(t_bool)
     status = result_def(StatusType)
 
-    def __init__(self, request: Operand):
+    def __init__(self, request: SSAValue):
         return super().__init__(operands=[request], result_types=[t_bool, StatusType()])
 
 
@@ -533,7 +532,7 @@ class WaitOp(MPIBaseOp):
     request = operand_def(RequestType)
     status = opt_result_def(StatusType)
 
-    def __init__(self, request: Operand, ignore_status: bool = True):
+    def __init__(self, request: SSAValue, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
@@ -564,7 +563,7 @@ class WaitallOp(MPIBaseOp):
     count = operand_def(i32)
     statuses = opt_result_def(VectorType[StatusType])
 
-    def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
+    def __init__(self, requests: SSAValue, count: SSAValue, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
@@ -593,7 +592,7 @@ class GetStatusFieldOp(MPIBaseOp):
 
     result = result_def(i32)
 
-    def __init__(self, status_obj: Operand, field: StatusTypeField):
+    def __init__(self, status_obj: SSAValue, field: StatusTypeField):
         return super().__init__(
             operands=[status_obj],
             properties={"field": StringAttr(field.value)},

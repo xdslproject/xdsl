@@ -538,7 +538,7 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
 
     from xdsl.dialects.arith import ConstantOp
     from xdsl.ir import OpResult
-    from xdsl.irdl import Operand, operand_def, result_def
+    from xdsl.irdl import operand_def, result_def
 
 
     @irdl_op_definition

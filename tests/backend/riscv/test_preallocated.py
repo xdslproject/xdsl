@@ -9,7 +9,7 @@ def test_gather_allocated():
     def no_preallocated_body() -> None:
         v1 = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT).res
         v2 = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT).res
-        _ = riscv.AddOp(v1, v2).rd
+        _ = riscv.ops.AddOp(v1, v2).rd
 
     assert not (RegisterAllocatableOperation.all_used_registers(no_preallocated_body))
 
@@ -18,7 +18,7 @@ def test_gather_allocated():
         reg1 = riscv.Registers.UNALLOCATED_INT
         v1 = rv32.GetRegisterOp(reg1).res
         v2 = rv32.GetRegisterOp(riscv.Registers.A7).res
-        _ = riscv.AddOp(v1, v2).rd
+        _ = riscv.ops.AddOp(v1, v2).rd
 
     pa_regs = set(
         RegisterAllocatableOperation.all_used_registers(one_preallocated_body)
@@ -30,8 +30,8 @@ def test_gather_allocated():
     def repeated_preallocated_body() -> None:
         v1 = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT).res
         v2 = rv32.GetRegisterOp(riscv.Registers.A7).res
-        sum1 = riscv.AddOp(v1, v2).rd
-        _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A7).rd
+        sum1 = riscv.ops.AddOp(v1, v2).rd
+        _ = riscv.ops.AddiOp(sum1, 1, rd=riscv.Registers.A7).rd
 
     assert RegisterAllocatableOperation.all_used_registers(
         repeated_preallocated_body
@@ -41,8 +41,8 @@ def test_gather_allocated():
     def multiple_preallocated_body() -> None:
         v1 = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT).res
         v2 = rv32.GetRegisterOp(riscv.Registers.A7).res
-        sum1 = riscv.AddOp(v1, v2).rd
-        _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A6).rd
+        sum1 = riscv.ops.AddOp(v1, v2).rd
+        _ = riscv.ops.AddiOp(sum1, 1, rd=riscv.Registers.A6).rd
 
     assert RegisterAllocatableOperation.all_used_registers(
         multiple_preallocated_body

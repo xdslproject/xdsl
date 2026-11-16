@@ -88,7 +88,7 @@ def test_snitch_stream_interpreter():
         with ImplicitBuilder(frep_body):
             a_reg = riscv_snitch.ReadOp(a_stream).res
             b_reg = riscv_snitch.ReadOp(b_stream).res
-            c_reg = riscv.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
+            c_reg = riscv.ops.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
             riscv_snitch.WriteOp(c_reg, c_stream)
 
         riscv_snitch.FrepOuterOp(count_reg, frep_body)

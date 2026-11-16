@@ -29,12 +29,12 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                 register_stack.exclude_register(reg)
 
             phys_reg_by_inf_reg: dict[
-                riscv.RISCVRegisterType, riscv.RISCVRegisterType
+                riscv.registers.RISCVRegisterType, riscv.registers.RISCVRegisterType
             ] = {}
             for inner_op in func_op.walk():
                 for result in inner_op.results:
                     result_reg = result.type
-                    if not isinstance(result_reg, riscv.RISCVRegisterType):
+                    if not isinstance(result_reg, riscv.registers.RISCVRegisterType):
                         raise PassFailedException("Operand type not a register")
 
                     if (

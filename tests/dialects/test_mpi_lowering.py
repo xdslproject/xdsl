@@ -3,7 +3,6 @@ from xdsl.dialects.builtin import i32, i64
 from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_op_definition,
     var_result_def,
 )
@@ -350,7 +349,7 @@ def test_mpi_waitall():
 
     dummy = arith.ConstantOp.from_int_and_width(4, 32)
     alloc_request_op = mpi.AllocateTypeOp(mpi.RequestType, dummy)
-    req_op: Operand = alloc_request_op.results[0]
+    req_op = alloc_request_op.results[0]
     waitall = mpi.WaitallOp(req_op, count)
 
     assert waitall.operands[0] == req_op

@@ -93,6 +93,67 @@ class GenericData(Data[_DataElement], ABC):
         """
 
 
+# Cannot subclass ABC as it conflicts with Enum's metaclass.
+class ConstraintConvertible(Generic[AttributeCovT]):
+    """
+    Abstract superclass for values that have corresponding Attribute constraints.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def base_constr() -> AttrConstraint[AttributeCovT]:
+        """The constraint for this class."""
+
+    @abstractmethod
+    def constr(self) -> AttrConstraint[AttributeCovT]:
+        """The constraint for this instance."""
+
+
+# Dynamic check due to a regression in Python 3.14, which broke `|` between types and
+# strings, and a bug in Marimo where the correct version of typing_extensions is not
+# installed due to an old (4.11.0) version of typing_extensions already being present in
+# the Pyodide build.
+# When Marimo update their Pyodide we should delete the second branch.
+# We will likely want to support 3.14.0 for a long time, so we can't remove the first
+# branch even if the `|` bug is fixed in a patch update.
+if sys.version_info >= (3, 14, 0):
+    IRDLAttrConstraint: TypeAlias = (
+        AttrConstraint[AttributeInvT]
+        | AttributeInvT
+        | type[AttributeInvT]
+        | type[ConstraintConvertible[AttributeInvT]]
+        | ConstraintConvertible[AttributeInvT]
+        | TypeForm[AttributeInvT]
+    )
+    """
+    Attribute constraints represented using the IRDL python frontend. Attribute constraints
+    can either be:
+    - An instance of `AttrConstraint` representing a constraint on an attribute.
+    - An instance of `Attribute` representing an equality constraint on an attribute.
+    - A type representing a specific attribute class.
+    - A TypeForm that can represent both unions and generic attributes.
+    - An instance or subclass of ConstraintConvertible.
+    """
+else:
+    IRDLAttrConstraint: TypeAlias = (
+        AttrConstraint[AttributeInvT]
+        | AttributeInvT
+        | type[AttributeInvT]
+        | type[ConstraintConvertible[AttributeInvT]]
+        | ConstraintConvertible[AttributeInvT]
+        | "TypeForm[AttributeInvT]"
+    )
+    """
+    Attribute constraints represented using the IRDL python frontend. Attribute constraints
+    can either be:
+    - An instance of `AttrConstraint` representing a constraint on an attribute.
+    - An instance of `Attribute` representing an equality constraint on an attribute.
+    - A type representing a specific attribute class.
+    - A TypeForm that can represent both unions and generic attributes.
+    - An instance or subclass of ConstraintConvertible.
+    """
+
+
 #  ____                              _   _   _
 # |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __
 # | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__|
@@ -101,31 +162,22 @@ class GenericData(Data[_DataElement], ABC):
 #
 
 
-class _ParameterDef:
-    """
-    Parameter field definition class for `@irdl_param_attr_definition`.
-    """
-
-    param: AttrConstraint | None
-    converter: Callable[[Any], Attribute] | None
-
-    def __init__(
-        self,
-        param: AttrConstraint | None,
-        converter: Callable[[Any], Attribute] | None,
-    ):
-        self.param = param
-        self.converter = converter
-
-
 def param_def(
-    constraint: AttrConstraint[AttributeInvT] | None = None,
+    constraint: IRDLAttrConstraint[AttributeInvT] | None = None,
     *,
     converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a parameter of a ParametrizedAttribute."""
-    return cast(AttributeInvT, _ParameterDef(constraint, converter))
+    return cast(
+        AttributeInvT,
+        ParamDef(
+            AnyAttr()
+            if constraint is None
+            else irdl_to_attr_constraint(constraint, allow_type_var=True),
+            converter,
+        ),
+    )
 
 
 def check_attr_name(cls: type):
@@ -173,8 +225,7 @@ def _is_dunder(name: str) -> bool:
 
 class ParamDef(NamedTuple):
     """
-    Contains information about a parameter,
-    effectively acting as a resolved `_ParameterDef`
+    Contains information about a parameter of a parametrized attribute.
     """
 
     constr: AttrConstraint
@@ -252,19 +303,9 @@ class ParamAttrDef:
 
             if field_name in field_values:
                 value = field_values.pop(field_name)
-                if isinstance(value, _ParameterDef):
-                    try:
-                        if value.param is not None:
-                            constraint &= irdl_to_attr_constraint(
-                                value.param, allow_type_var=True
-                            )
-                    except TypeError as e:
-                        raise PyRDLAttrDefinitionError(
-                            f"Invalid constraint {value.param} for field name {field_name}."
-                        ) from e
-                    if value.converter is not None:
-                        converter = value.converter
-
+                if isinstance(value, ParamDef):
+                    constraint &= value.constr
+                    converter = value.converter
                 else:
                     raise PyRDLAttrDefinitionError(
                         f"{field_name} is not a parameter definition."
@@ -361,67 +402,6 @@ def irdl_attr_definition(
     if cls is None:
         return decorator
     return decorator(cls)
-
-
-# Cannot subclass ABC as it conflicts with Enum's metaclass.
-class ConstraintConvertible(Generic[AttributeCovT]):
-    """
-    Abstract superclass for values that have corresponding Attribute constraints.
-    """
-
-    @staticmethod
-    @abstractmethod
-    def base_constr() -> AttrConstraint[AttributeCovT]:
-        """The constraint for this class."""
-
-    @abstractmethod
-    def constr(self) -> AttrConstraint[AttributeCovT]:
-        """The constraint for this instance."""
-
-
-# Dynamic check due to a regression in Python 3.14, which broke `|` between types and
-# strings, and a bug in Marimo where the correct version of typing_extensions is not
-# installed due to an old (4.11.0) version of typing_extensions already being present in
-# the Pyodide build.
-# When Marimo update their Pyodide we should delete the second branch.
-# We will likely want to support 3.14.0 for a long time, so we can't remove the first
-# branch even if the `|` bug is fixed in a patch update.
-if sys.version_info >= (3, 14, 0):
-    IRDLAttrConstraint: TypeAlias = (
-        AttrConstraint[AttributeInvT]
-        | AttributeInvT
-        | type[AttributeInvT]
-        | type[ConstraintConvertible[AttributeInvT]]
-        | ConstraintConvertible[AttributeInvT]
-        | TypeForm[AttributeInvT]
-    )
-    """
-    Attribute constraints represented using the IRDL python frontend. Attribute constraints
-    can either be:
-    - An instance of `AttrConstraint` representing a constraint on an attribute.
-    - An instance of `Attribute` representing an equality constraint on an attribute.
-    - A type representing a specific attribute class.
-    - A TypeForm that can represent both unions and generic attributes.
-    - An instance or subclass of ConstraintConvertible.
-    """
-else:
-    IRDLAttrConstraint: TypeAlias = (
-        AttrConstraint[AttributeInvT]
-        | AttributeInvT
-        | type[AttributeInvT]
-        | type[ConstraintConvertible[AttributeInvT]]
-        | ConstraintConvertible[AttributeInvT]
-        | "TypeForm[AttributeInvT]"
-    )
-    """
-    Attribute constraints represented using the IRDL python frontend. Attribute constraints
-    can either be:
-    - An instance of `AttrConstraint` representing a constraint on an attribute.
-    - An instance of `Attribute` representing an equality constraint on an attribute.
-    - A type representing a specific attribute class.
-    - A TypeForm that can represent both unions and generic attributes.
-    - An instance or subclass of ConstraintConvertible.
-    """
 
 
 def irdl_list_to_attr_constraint(
@@ -656,20 +636,15 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
 
 
 def range_constr_coercion(
-    attr: (
-        AttributeCovT
-        | type[AttributeCovT]
-        | AttrConstraint[AttributeCovT]
-        | RangeConstraint[AttributeCovT]
-    ),
+    attr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
 ) -> RangeConstraint[AttributeCovT]:
     if isinstance(attr, RangeConstraint):
-        return attr
+        return cast(RangeConstraint[AttributeCovT], attr)
     return RangeOf.get(attr)
 
 
 def single_range_constr_coercion(
-    attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
+    attr: IRDLAttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
     return RangeOf.get(attr).of_length(1)
 

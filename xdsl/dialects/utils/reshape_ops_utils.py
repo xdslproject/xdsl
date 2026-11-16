@@ -7,14 +7,13 @@ for more details.
 from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import cast
+from typing import Annotated, cast
 
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     I64,
-    Annotated,
     ArrayAttr,
     IntegerAttr,
     ShapedType,

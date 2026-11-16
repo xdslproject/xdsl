@@ -10,7 +10,7 @@ from typing import ClassVar, Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects import builtin, memref
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
@@ -719,7 +719,7 @@ class AllocOp(IRDLOperation):
 
     field = result_def(FieldType[Attribute])
 
-    assembly_format = "attr-dict `:` type($field)"
+    assembly_format = "attr-dict `:` qualified(type($field))"
 
     traits = traits_def(AllocOpEffect())
 
@@ -762,9 +762,7 @@ class CastOp(IRDLOperation):
         )
     )
 
-    assembly_format = (
-        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
-    )
+    assembly_format = "$field attr-dict-with-keyword `:` qualified(type($field)) `->` qualified(type($result))"
 
     traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
@@ -948,7 +946,7 @@ class ExternalLoadOp(IRDLOperation):
     def __init__(
         self,
         arg: OperandArg,
-        res_type: FieldType[Attribute] | memref.MemRefType,
+        res_type: FieldType[Attribute] | MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
 
@@ -966,9 +964,7 @@ class ExternalStoreOp(IRDLOperation):
     temp = operand_def(FieldType)
     field = operand_def(Attribute)
 
-    assembly_format = (
-        "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
-    )
+    assembly_format = "$temp `to` $field attr-dict-with-keyword `:` qualified(type($temp)) `to` type($field)"
 
 
 @irdl_op_definition
@@ -1483,7 +1479,7 @@ class StoreResultOp(IRDLOperation):
         )
     )
 
-    assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
+    assembly_format = "$arg attr-dict-with-keyword `:` qualified(type($res))"
 
     traits = traits_def(HasAncestor(ApplyOp), Pure())
 

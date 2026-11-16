@@ -408,6 +408,16 @@ class TypeableDirective(Directive, ABC):
     @abstractmethod
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]: ...
 
+    def get_base(self) -> type[Attribute] | None:
+        """
+        Get the unique base type that can satisfy this directive's constraint,
+        if there is exactly one, or None otherwise.
+        This is used to enable printing unqualified versions of types.
+
+        Returns None by default, sublasses with known unique base must override this.
+        """
+        return None
+
 
 @dataclass(frozen=True)
 class TypeDirective(FormatDirective):
@@ -432,7 +442,21 @@ class TypeDirective(FormatDirective):
         if not types:
             return
         state.print_whitespace(printer)
-        printer.print_list(types, printer.print_attribute)
+        if self.inner.get_base() is not None:
+            # Print simplified syntax: just parameters, no !dialect.name prefix
+            def print_param(attr: Attribute):
+                if isinstance(attr, ParametrizedAttribute):
+                    attr.print_parameters(printer)
+                elif isinstance(attr, Data):
+                    attr.print_parameter(printer)
+                else:
+                    raise ValueError(
+                        "Attributes must be Data or ParametrizedAttribute."
+                    )
+
+            printer.print_list(types, print_param)
+        else:
+            printer.print_list(types, printer.print_attribute)
 
     def is_present(self, op: IRDLOperation) -> bool:
         return self.inner.is_present(op)
@@ -571,6 +595,51 @@ class AttrDictDirective(FormatDirective):
         return True
 
 
+@dataclass(frozen=True)
+class PropDictDirective(FormatDirective):
+    """
+    A property dictionary directive, with the following format:
+       prop-dict-directive ::= prop-dict
+    The directive parses and prints the properties that are not referred to elsewhere
+    in the assembly format, as an optional `<{name = attr, ...}>` dictionary.
+    Properties with a default value are not printed when they are equal to it, and the
+    dictionary is not printed at all when it would be empty.
+    """
+
+    expected_properties: set[str]
+    """
+    Properties that should be printed and parsed as part of this prop-dict.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState):
+        props = parser.parse_optional_properties_dict()
+        unexpected_props = props.keys() - self.expected_properties
+        if unexpected_props:
+            parser.raise_error(
+                f"properties {', '.join(sorted(unexpected_props))} are not expected in "
+                "the property dictionary, as they are either not properties of the "
+                "operation or are defined in other parts of the assembly format."
+            )
+        state.properties |= props
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        op_def = op.get_irdl_definition()
+        props = {
+            name: prop
+            for name, prop in op.properties.items()
+            if name in self.expected_properties
+            and prop != op_def.properties[name].default_value
+        }
+        if not props:
+            return
+        state.print_whitespace(printer)
+        with printer.in_angle_brackets():
+            printer.print_attr_dict(props)
+
+    def can_parse_empty(self) -> bool:
+        return True
+
+
 class OperandDirective(FormatDirective, TypeableDirective, ABC):
     """
     Base class for operand directives to aid typechecking.
@@ -612,6 +681,37 @@ class OperandVariable(VariableDirective, OperandDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
         printer.print_ssa_value(self.get(op))
+
+
+@dataclass(frozen=True)
+class UniqueBaseOperandVariable(OperandVariable):
+    """
+    An operand variable where the base type is known.
+    When parsing types, uses simplified syntax (just parameters, no !dialect.name prefix).
+    """
+
+    unique_base: type[Attribute]
+    """The known base class of the operand type."""
+
+    def get_base(self) -> type[Attribute] | None:
+        return self.unique_base
+
+    def parse_types(self, parser: Parser, state: ParsingState):
+        attr = parser.parse_optional_type()
+
+        if attr is None:
+            # Parse simplified syntax: just parameters, no !dialect.name prefix
+            if issubclass(self.unique_base, ParametrizedAttribute):
+                params = self.unique_base.parse_parameters(parser)
+                attr = self.unique_base.new(params)
+            elif issubclass(self.unique_base, Data):
+                unique_base = cast(type[Data[Any]], self.unique_base)
+                param = unique_base.parse_parameter(parser)
+                attr = unique_base.new(param)
+            else:
+                raise ValueError("Attributes must be Data or ParametrizedAttribute.")
+
+        self.set_types(state, (attr,))
 
 
 @dataclass(frozen=True)
@@ -837,6 +937,37 @@ class ResultVariable(VariableDirective, TypeableDirective):
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return (getattr(op, self.name).type,)
+
+
+@dataclass(frozen=True)
+class UniqueBaseResultVariable(ResultVariable):
+    """
+    A result variable where the base type is known.
+    When parsing, uses simplified type syntax (just parameters, no !dialect.name prefix).
+    """
+
+    unique_base: type[Attribute]
+    """The known base class of the result type."""
+
+    def get_base(self) -> type[Attribute] | None:
+        return self.unique_base
+
+    def parse_types(self, parser: Parser, state: ParsingState):
+        attr = parser.parse_optional_type()
+
+        if attr is None:
+            # Parse simplified syntax: just parameters, no !dialect.name prefix
+            if issubclass(self.unique_base, ParametrizedAttribute):
+                params = self.unique_base.parse_parameters(parser)
+                attr = self.unique_base.new(params)
+            elif issubclass(self.unique_base, Data):
+                unique_base = cast(type[Data[Any]], self.unique_base)
+                param = unique_base.parse_parameter(parser)
+                attr = unique_base.new(param)
+            else:
+                raise ValueError("Attributes must be Data or ParametrizedAttribute.")
+
+        self.set_types(state, (attr,))
 
 
 @dataclass(frozen=True)

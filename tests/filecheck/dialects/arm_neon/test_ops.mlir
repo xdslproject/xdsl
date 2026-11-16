@@ -28,14 +28,14 @@
 // CHECK-ASM: st1 {v1.4S, v2.4S, v3.4S, v4.4S}, [x1] # st1 op
 arm_neon.dvars.st1 %v1, %v2, %v3, %v4 [%x1] S {comment = "st1 op"} : (!arm_neon.reg<v1>, !arm_neon.reg<v2>, !arm_neon.reg<v3>, !arm_neon.reg<v4>) -> !arm.reg<x1>
 
-// CHECK: %v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
+// CHECK: %v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : (!arm.reg<x1>) -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
 // CHECK-ASM: ld1 {v11.4S, v12.4S, v13.4S, v14.4S}, [x1] # ld1 op
-%v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
+%v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : (!arm.reg<x1>) -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
 
-// CHECK: %ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : !arm.reg<x1> -> !arm_neon.reg<v1>
+// CHECK: %ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : (!arm.reg<x1>) -> !arm_neon.reg<v1>
 // CHECK-ASM: dup v1.4S, x1 # Duplicate general-purpose register to vector
-%ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : !arm.reg<x1> -> !arm_neon.reg<v1>
+%ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : (!arm.reg<x1>) -> !arm_neon.reg<v1>
 
-// CHECK: %dsvec_mov = arm_neon.dsvec.mov %v3[1] S {comment = "Set X1 to the value of the second single word in V3."} : !arm_neon.reg<v3> -> !arm.reg<x1>
+// CHECK: %dsvec_mov = arm_neon.dsvec.mov %v3[1] S {comment = "Set X1 to the value of the second single word in V3."} : (!arm_neon.reg<v3>) -> !arm.reg<x1>
 // CHECK-ASM: mov x1, v3.S[1] # Set X1 to the value of the second single word in V3.
-%dsvec_mov = arm_neon.dsvec.mov %v3[1] S {comment = "Set X1 to the value of the second single word in V3."} : !arm_neon.reg<v3> -> !arm.reg<x1>
+%dsvec_mov = arm_neon.dsvec.mov %v3[1] S {comment = "Set X1 to the value of the second single word in V3."} : (!arm_neon.reg<v3>) -> !arm.reg<x1>

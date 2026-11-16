@@ -8,14 +8,13 @@ from typing import ClassVar, Self, cast
 from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator, live_ins_per_block
+from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.dialects.x86.ops import SI32, X86HasRegisterConstraints
-from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
 from xdsl.ir import Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -48,7 +47,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class YieldOp(AbstractYieldOperation[X86RegisterType]):
+class YieldOp(AbstractYieldOperation[x86.registers.X86RegisterType]):
     name = "x86_scf.yield"
 
     traits = lazy_traits_def(
@@ -60,7 +59,7 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
     )
 
 
-class ForRofOperation(X86HasRegisterConstraints, ABC):
+class ForRofOperation(x86.ops.X86HasRegisterConstraints, ABC):
     """
     Loops where `start` initializes the induction variable and `stop` is the exclusive
     termination bound.
@@ -68,22 +67,22 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     which will be updated throughout loop iteration.
     """
 
-    start = operand_def(GeneralRegisterType)
-    stop_val = opt_operand_def(GeneralRegisterType)
-    stop_attr = opt_prop_def(IntegerAttr[SI32])
-    step_val = opt_operand_def(GeneralRegisterType)
-    step_attr = opt_prop_def(IntegerAttr[SI32])
+    start = operand_def(x86.registers.GeneralRegisterType)
+    stop_val = opt_operand_def(x86.registers.GeneralRegisterType)
+    stop_attr = opt_prop_def(IntegerAttr[x86.ops.SI32])
+    step_val = opt_operand_def(x86.registers.GeneralRegisterType)
+    step_attr = opt_prop_def(IntegerAttr[x86.ops.SI32])
 
-    iter_args = var_operand_def(X86RegisterType)
+    iter_args = var_operand_def(x86.registers.X86RegisterType)
 
-    iv_end = result_def(GeneralRegisterType)
+    iv_end = result_def(x86.registers.GeneralRegisterType)
     """
     Induction variable on exit, in the same register as `start`.
     For a zero-trip loop this is `start`, otherwise it is the value after the final
     increment (`for`) or decrement (`rof`), which may overshoot `stop`.
     """
 
-    res = var_result_def(X86RegisterType)
+    res = var_result_def(x86.registers.X86RegisterType)
 
     body = region_def("single_block")
 
@@ -93,7 +92,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
     BOUND_WORDS: ClassVar[tuple[str, ...]] = ("to",)
 
     @property
-    def stop(self) -> IntegerAttr[SI32] | SSAValue:
+    def stop(self) -> IntegerAttr[x86.ops.SI32] | SSAValue:
         """Static termination bound (typed integer) or dynamic register SSA value."""
         match (self.stop_attr, self.stop_val):
             case (None, None):
@@ -106,7 +105,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                 raise ValueError("Exactly one of stop_attr or stop_val must be set")
 
     @property
-    def step(self) -> IntegerAttr[SI32] | SSAValue:
+    def step(self) -> IntegerAttr[x86.ops.SI32] | SSAValue:
         """Static step (typed integer) or dynamic register SSA value."""
         match (step_attr := self.step_attr, step_val := self.step_val):
             case (None, None):
@@ -170,7 +169,7 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
                 f"variable and loop-carried variables as arguments."
             )
         if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, GeneralRegisterType):
+            if not isinstance(iter_var.type, x86.registers.GeneralRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
                     " instead of x86 GeneralRegisterType"
@@ -279,8 +278,8 @@ class ForRofOperation(X86HasRegisterConstraints, ABC):
 
         # Reserve the loop carried variables for allocation within the body
         regs = self.iter_args.types
-        assert all(isinstance(reg, X86RegisterType) for reg in regs)
-        regs = cast(tuple[X86RegisterType, ...], regs)
+        assert all(isinstance(reg, x86.registers.X86RegisterType) for reg in regs)
+        regs = cast(tuple[x86.registers.X86RegisterType, ...], regs)
         with allocator.available_registers.reserve_registers(regs):
             allocator.allocate_block(self.body.block)
 

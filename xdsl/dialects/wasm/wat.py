@@ -39,7 +39,7 @@ class WatTarget(Target):
     name = "wat"
 
     def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
-        from xdsl.dialects.wasm import WasmModuleOp
+        from xdsl.dialects.wasm.ops import WasmModuleOp
 
         for op in module.walk():
             if isinstance(op, WasmModuleOp):

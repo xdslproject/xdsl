@@ -18,11 +18,9 @@ from enum import Enum
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    Attribute,
     BoolAttr,
     DenseArrayBase,
     IntegerAttr,
-    ParametrizedAttribute,
     StringAttr,
     UnitAttr,
 )
@@ -31,7 +29,7 @@ from xdsl.dialects.experimental.fir import (
     FortranVariableFlagsAttr,
     NoneType,
 )
-from xdsl.ir import Data, Dialect, TypeAttribute
+from xdsl.ir import Attribute, Data, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,

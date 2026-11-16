@@ -42,7 +42,6 @@ from xdsl.ir import (
     OpResult,
     SSAValue,
 )
-from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -219,7 +218,7 @@ class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         if all(is_tensorized(arg.type) for arg in op.args):
-            access_patterns = dict[Operand, AccessPattern](
+            access_patterns = dict[SSAValue, AccessPattern](
                 zip(op.region.block.args, op.get_accesses())
             )
             for access_op in op.region.walk():

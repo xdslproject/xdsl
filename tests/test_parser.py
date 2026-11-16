@@ -37,7 +37,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.test import Test, TestOp
-from xdsl.ir import Attribute, Block, ParametrizedAttribute, SSAValue
+from xdsl.ir import Attribute, Block, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     IRDLOperation,
@@ -48,7 +48,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, ForwardDeclaredValue, Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.mlir_lexer import (
     KIND_BY_PUNCTUATION_SPELLING,
     MLIRTokenKind,
@@ -389,6 +389,77 @@ def test_parsing():
 
     r = parser.parse_attribute()
     assert r == DummyAttr()
+
+
+@irdl_attr_definition
+class TypeParamType(ParametrizedAttribute, TypeAttribute):
+    name = "test.type_param"
+
+    element_type: TypeAttribute
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '!test.type_param<"bad">',
+        '!test<type_param<"bad">>',
+        '!test.type_param<!test.type_param<"bad">>',
+    ],
+)
+def test_parameterized_attribute_parse_constraint_error(text: str):
+    ctx = Context()
+    ctx.load_attr_or_type(TypeParamType)
+
+    with pytest.raises(ParseError) as error:
+        Parser(ctx, text).parse_type()
+
+    assert error.value.msg == (
+        "parameter 'element_type' does not verify:\n"
+        '"bad" should be of attribute subclassing `TypeAttribute`'
+    )
+    assert error.value.span.text == '<"bad">'
+
+
+def test_parameterized_attribute_parse_verifier_error():
+    @irdl_attr_definition
+    class VerifiedAttr(ParametrizedAttribute):
+        name = "test.verified"
+
+        value: StringAttr
+
+        def verify(self) -> None:
+            if not self.value.data:
+                raise VerifyException("expected a nonempty string")
+
+    ctx = Context()
+    ctx.load_attr_or_type(VerifiedAttr)
+    assert Parser(ctx, '#test.verified<"ok">').parse_attribute() == VerifiedAttr(
+        StringAttr("ok")
+    )
+
+    with pytest.raises(ParseError, match="expected a nonempty string") as error:
+        Parser(ctx, '#test.verified<"">').parse_attribute()
+
+    assert error.value.span.text == '<"">'
+
+
+def test_parameterized_attribute_custom_parse_error():
+    @irdl_attr_definition
+    class CustomParsedAttr(ParametrizedAttribute):
+        name = "test.custom_parsed"
+
+        @classmethod
+        def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+            parser.parse_punctuation("<")
+            parser.raise_error("invalid parameters")
+
+    ctx = Context()
+    ctx.load_attr_or_type(CustomParsedAttr)
+
+    with pytest.raises(ParseError, match="invalid parameters") as error:
+        Parser(ctx, '#test.custom_parsed<"bad">').parse_attribute()
+
+    assert error.value.span.text == '"bad"'
 
 
 @pytest.mark.parametrize(

@@ -14,6 +14,8 @@ from xdsl.dialects.arith import (
     CmpiOp,
     ConstantOp,
     DivSIOp,
+    ExtSIOp,
+    ExtUIOp,
     FloorDivSIOp,
     IndexCastOp,
     MulfOp,
@@ -25,6 +27,7 @@ from xdsl.dialects.arith import (
     ShRSIOp,
     SubfOp,
     SubiOp,
+    TruncIOp,
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
@@ -263,6 +266,45 @@ def test_minmax_corner():
     assert interpreter.run_op(minf, (negative_zero, negative_zero)) == (negative_zero,)
     assert interpreter.run_op(minf, (nan, zero)) == (nan,)
     assert interpreter.run_op(minf, (zero, nan)) == (nan,)
+
+
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_minnumf(lhs_value: float, rhs_value: float):
+    minnumf = arith.MinnumfOp(lhs_f64_op, rhs_f64_op)
+    minnumf.verify()
+
+    ret = interpreter.run_op(
+        minnumf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
+
+    assert ret == (FloatAttr(min(lhs_value, rhs_value), f64),)
+
+
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, 0.0, -1.0, 127.0])
+def test_maxnumf(lhs_value: float, rhs_value: float):
+    maxnumf = arith.MaxnumfOp(lhs_f64_op, rhs_f64_op)
+    maxnumf.verify()
+
+    ret = interpreter.run_op(
+        maxnumf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
+
+    assert ret == (FloatAttr(max(lhs_value, rhs_value), f64),)
+
+
+def test_minnumf_maxnumf_nan():
+    one = FloatAttr(1.0, f64)
+    nan = FloatAttr(float("NaN"), f64)
+    for op in (
+        arith.MinnumfOp(lhs_f64_op, rhs_f64_op),
+        arith.MaxnumfOp(lhs_f64_op, rhs_f64_op),
+    ):
+        op.verify()
+        assert interpreter.run_op(op, (nan, one)) == (one,)
+        assert interpreter.run_op(op, (one, nan)) == (one,)
+        assert interpreter.run_op(op, (nan, nan)) == (nan,)
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -588,6 +630,37 @@ def test_signed_division_bitwidth(
     ) == (IntegerAttr(negative_rhs_result, runtime_type),)
 
 
+@pytest.mark.parametrize(
+    "op_type,lhs_value,rhs_value,result",
+    [
+        (arith.MinSIOp, -1, 1, -1),
+        (arith.MinSIOp, -128, 127, -128),
+        (arith.MaxSIOp, -1, 1, 1),
+        (arith.MaxSIOp, -128, 127, 127),
+        (arith.MinUIOp, -1, 1, 1),
+        (arith.MinUIOp, -128, 127, 127),
+        (arith.MaxUIOp, -1, 1, -1),
+        (arith.MaxUIOp, -128, 127, -128),
+    ],
+)
+def test_i8_min_max_op(
+    op_type: type[arith.SignlessIntegerBinaryOperation],
+    lhs_value: int,
+    rhs_value: int,
+    result: int,
+):
+    lhs = test.TestOp(result_types=[i8])
+    rhs = test.TestOp(result_types=[i8])
+    op = op_type(lhs, rhs)
+    op.verify()
+
+    ret = interpreter.run_op(
+        op, (IntegerAttr(lhs_value, i8), IntegerAttr(rhs_value, i8))
+    )
+
+    assert ret == (IntegerAttr(result, i8),)
+
+
 @pytest.mark.parametrize("cond_value", [1, 0])
 def test_select(cond_value: int):
     cond_op = test.TestOp(result_types=[i1])
@@ -712,3 +785,59 @@ def test_indexcast_same_width(index_bitwidth: Literal[32, 64]):
         assert interpreter.run_op(op, (IntegerAttr(-1, int_type),)) == (
             IntegerAttr(-1, int_type),
         )
+
+
+@pytest.mark.parametrize(
+    "value_type,value,expected",
+    [
+        (i1, -1, -1),
+        (i8, 1, 1),
+        (i8, 0, 0),
+        (i8, -1, -1),
+        (i8, 127, 127),
+        (i8, -128, -128),
+    ],
+)
+def test_extsi(value_type: IntegerType, value: int, expected: int):
+    extsi = ExtSIOp(test.TestOp(result_types=[value_type]), i32)
+    extsi.verify()
+
+    ret = interpreter.run_op(extsi, (IntegerAttr(value, value_type),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i32)
+
+
+@pytest.mark.parametrize(
+    "value_type,value,expected",
+    [
+        (i1, -1, 1),
+        (i8, 1, 1),
+        (i8, 0, 0),
+        (i8, -1, 255),
+        (i8, 127, 127),
+        (i8, -128, 128),
+    ],
+)
+def test_extui(value_type: IntegerType, value: int, expected: int):
+    extui = ExtUIOp(test.TestOp(result_types=[value_type]), i32)
+    extui.verify()
+
+    ret = interpreter.run_op(extui, (IntegerAttr(value, value_type),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i32)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(1, 1), (0, 0), (-1, -1), (127, 127), (128, -128), (256, 0), (1111, 87)],
+)
+def test_trunci(value: int, expected: int):
+    trunci = TruncIOp(test.TestOp(result_types=[i32]), i8)
+    trunci.verify()
+
+    ret = interpreter.run_op(trunci, (IntegerAttr(value, i32),))
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(expected, i8)

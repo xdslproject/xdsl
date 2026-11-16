@@ -9,8 +9,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_snitch, rv32, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.dialects.riscv.attrs import ui5, ui12
-from xdsl.ir import Operation
-from xdsl.irdl import Operand
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -99,7 +98,7 @@ class SnitchStreamerMemoryMap:
 
 
 def write_ssr_config_ops(
-    reg: int, dm: int, value: Operand, comment: str | None = None
+    reg: int, dm: int, value: SSAValue, comment: str | None = None
 ) -> Iterable[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration
@@ -228,10 +227,10 @@ class LowerSsrEnable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrsiOp(
+                riscv.ops.CsrrsiOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
                     immediate=IntegerAttr(1, ui5),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.registers.Registers.ZERO,
                     comment="SSR enable",
                 ),
                 *get_stream_ops,
@@ -246,10 +245,10 @@ class LowerSsrDisable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrciOp(
+                riscv.ops.CsrrciOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, ui12),
                     immediate=IntegerAttr(1, ui5),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.registers.Registers.ZERO,
                     comment="SSR disable",
                 )
             ],

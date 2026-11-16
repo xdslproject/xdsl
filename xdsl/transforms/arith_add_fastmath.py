@@ -3,9 +3,10 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.passes import Context, ModulePass
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,

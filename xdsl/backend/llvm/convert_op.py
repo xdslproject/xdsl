@@ -190,6 +190,12 @@ _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.VectorFMaxOp: "llvm.maxnum",
     llvm.VectorFMinOp: "llvm.minnum",
     llvm.FCopySignOp: "llvm.copysign",
+    llvm.FMaximumOp: "llvm.maximum",
+    llvm.FMinimumOp: "llvm.minimum",
+    llvm.SMaxOp: "llvm.smax",
+    llvm.SMinOp: "llvm.smin",
+    llvm.UMaxOp: "llvm.umax",
+    llvm.UMinOp: "llvm.umin",
 }
 
 

@@ -19,16 +19,26 @@ from xdsl.utils.exceptions import InterpretationError
 def test_riscv_interpreter():
     module_op = ModuleOp(
         [
-            riscv.AssemblySectionOp(
+            riscv.ops.AssemblySectionOp(
                 ".data",
                 Region(
-                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                    Block(
+                        [
+                            riscv.ops.LabelOp("label0"),
+                            riscv.ops.DirectiveOp(".word", "2A"),
+                        ]
+                    )
                 ),
             ),
-            riscv.AssemblySectionOp(
+            riscv.ops.AssemblySectionOp(
                 ".data",
                 Region(
-                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
+                    Block(
+                        [
+                            riscv.ops.LabelOp("label1"),
+                            riscv.ops.DirectiveOp(".word", "3B"),
+                        ]
+                    )
                 ),
             ),
         ]

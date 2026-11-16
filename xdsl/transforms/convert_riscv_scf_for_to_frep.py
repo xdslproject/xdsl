@@ -41,7 +41,7 @@ class ScfForLowering(RewritePattern):
         if not all(
             isinstance(
                 value.type,
-                riscv.FloatRegisterType
+                riscv.registers.FloatRegisterType
                 | snitch.ReadableStreamType
                 | snitch.WritableStreamType,
             )
@@ -64,8 +64,8 @@ class ScfForLowering(RewritePattern):
         rewriter.replace(
             op,
             (
-                iter_count := riscv.SubOp(op.stop, op.start),
-                iter_count_minus_one := riscv.AddiOp(iter_count, -1),
+                iter_count := riscv.ops.SubOp(op.stop, op.start),
+                iter_count_minus_one := riscv.ops.AddiOp(iter_count, -1),
                 riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,
                     rewriter.move_region_contents_to_new_regions(op.body),

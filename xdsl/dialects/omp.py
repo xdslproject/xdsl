@@ -41,10 +41,10 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IntVarConstraint,
     IRDLOperation,
-    Operand,
     Operation,
     RangeOf,
     SameVariadicOperandSize,
+    SSAValue,
     VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1093,7 +1093,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
             self.name,
             disallowed_types=[ClauseMapFlags.DELETE],
         )
-        mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
+        mapped = defaultdict[SSAValue, set[ClauseMapFlags]](lambda: set())
         one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
         for var in self.mapped_vars:
             owner = var.owner
