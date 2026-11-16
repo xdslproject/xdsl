@@ -13,7 +13,6 @@ from xdsl.ir import Attribute, Block, Region
 from xdsl.irdl import AnyAttr, EqAttrConstraint, TypeVarConstraint, VarConstraint
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -230,7 +229,7 @@ def test_linkage_attr():
 
 
 def test_linkage_attr_unknown_str():
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="Specified linkage 'unknown' is unknown"):
         llvm.LinkageAttr("unknown")
 
 
@@ -353,8 +352,8 @@ def test_calling_conv():
     cconv.verify()
     assert cconv.cconv_name == "cc 11"
 
-    with pytest.raises(VerifyException, match='Invalid calling convention "nooo"'):
-        llvm.CallingConventionAttr("nooo").verify()
+    with pytest.raises(ValueError, match='Invalid calling convention "nooo"'):
+        llvm.CallingConventionAttr("nooo")
 
 
 def test_variadic_func():
