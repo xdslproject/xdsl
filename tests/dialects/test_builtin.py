@@ -822,7 +822,7 @@ def test_IntegerType_packing():
 
     # Test error cases
     # Different Python versions have different error messages for these
-    with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
+    with pytest.raises(struct.error, match="format requires -128 <= number <= 127"):
         # Values must be normalized before packing
         i8.pack((255,))
     with pytest.raises(
