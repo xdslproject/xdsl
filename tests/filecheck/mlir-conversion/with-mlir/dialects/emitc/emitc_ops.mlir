@@ -81,6 +81,28 @@ emitc.call_opaque "test" ()  : () -> ()
 // CHECK: {{%.*}} = emitc.apply "&"({{%.*}}) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
 
 //===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+%cons_int = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : i32}> : () -> i32
+
+%cons_float = "emitc.constant"() <{value = 1.500000e+00 : f32}> : () -> f32
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 1.500000e+00 : f32}> : () -> f32
+
+%cons_sizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.size_t
+
+%cons_ssizet = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ssize_t
+
+%cons_ptrdiff = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+// CHECK: {{%.*}} = "emitc.constant"() <{value = 42 : index}> : () -> !emitc.ptrdiff_t
+
+%cons_opaque = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
+// CHECK: {{%.*}} = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
