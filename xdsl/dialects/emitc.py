@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal, cast
+from typing import Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -511,22 +511,19 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 
 # Check that the type of the initial value is compatible with the operations
 # result type.
-def verify_initialization_attribute(op: IRDLOperation, value: Attribute) -> None:
+def verify_initialization_attribute(
+    op: IRDLOperation, value: EmitC_OpaqueOrTypedAttr
+) -> None:
     assert len(op.results) == 1
 
-    if isa(value, EmitC_OpaqueAttr):
+    if isinstance(value, EmitC_OpaqueAttr):
         return
-
-    if isa(value, StringAttr):
-        raise VerifyException(
-            "string attributes are not supported, use #emitc.opaque instead"
-        )
 
     result_type = op.results[0].type
     if isinstance(result_type, EmitC_LValueType):
         result_type = result_type.value_type
 
-    attr_type = cast(TypedAttribute, value).get_type()
+    attr_type = value.get_type()
 
     if isinstance(result_type, EmitCPointerWideType) and isinstance(
         attr_type, IndexType

@@ -15,10 +15,8 @@ from xdsl.dialects.emitc import (
     EmitC_LiteralOp,
     EmitC_OpaqueAttr,
     EmitC_OpaqueType,
-    verify_initialization_attribute,
 )
 from xdsl.traits import ConstantLike, is_side_effect_free
-from xdsl.utils.exceptions import VerifyException
 
 
 def test_emitc_array_negative_dimension():
@@ -73,12 +71,6 @@ def test_constant_op_fold():
 
     assert op.fold() == (value,)
     assert ConstantLike.get_constant_value(op.result) == value
-
-
-def test_initialization_attribute_rejects_string_attr():
-    op = EmitC_ConstantOp(IntegerAttr(42, 32))
-    with pytest.raises(VerifyException, match="string attributes are not supported"):
-        verify_initialization_attribute(op, StringAttr("42"))
 
 
 def test_literal_op_init():
