@@ -509,17 +509,21 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
-# Check that the type of the initial value is compatible with the operations
-# result type.
 def verify_initialization_attribute(
-    op: IRDLOperation, value: EmitC_OpaqueOrTypedAttr
+    result_type: Attribute, value: EmitC_OpaqueOrTypedAttr
 ) -> None:
-    assert len(op.results) == 1
+    """
+    Check that the initial `value` is compatible with `result_type`, the type of
+    the result it initializes.
 
+    An `#emitc.opaque` value is compatible with any type. Otherwise the type of
+    `value` must match `result_type`, or the type it wraps if it is an
+    `!emitc.lvalue`. An `index` value is also accepted for the pointer-wide types
+    `!emitc.ptrdiff_t`, `!emitc.ssize_t` and `!emitc.size_t`.
+    """
     if isinstance(value, EmitC_OpaqueAttr):
         return
 
-    result_type = op.results[0].type
     if isinstance(result_type, EmitC_LValueType):
         result_type = result_type.value_type
 
@@ -573,7 +577,7 @@ class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
 
     def verify_(self) -> None:
         value = self.value
-        verify_initialization_attribute(self, value)
+        verify_initialization_attribute(self.result.type, value)
         if isinstance(value, EmitC_OpaqueAttr):
             if not value.value.data:
                 raise VerifyException("value must not be empty")
