@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal
+from typing import Generic, Literal, cast
 
 from typing_extensions import TypeVar
 
@@ -31,12 +31,14 @@ from xdsl.dialects.builtin import (
     TensorType,
     TupleType,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -59,7 +61,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -161,6 +163,9 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
 
     name = "emitc.opaque"
     value: StringAttr
+
+
+EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
 
 
 EmitCArrayElementTypeCovT = TypeVar(
@@ -501,6 +506,85 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
+# Check that the type of the initial value is compatible with the operations
+# result type.
+def verify_initialization_attribute(op: IRDLOperation, value: Attribute) -> None:
+    assert len(op.results) == 1
+
+    if isa(value, EmitC_OpaqueAttr):
+        return
+
+    if isa(value, StringAttr):
+        raise VerifyException(
+            "string attributes are not supported, use #emitc.opaque instead"
+        )
+
+    result_type = op.results[0].type
+    if isinstance(result_type, EmitC_LValueType):
+        result_type = result_type.value_type
+
+    attr_type = cast(TypedAttribute, value).get_type()
+
+    if isinstance(result_type, EmitCPointerWideType) and isinstance(
+        attr_type, IndexType
+    ):
+        return
+
+    if result_type != attr_type:
+        raise VerifyException(
+            "requires attribute to either be an #emitc.opaque attribute or it's type ("
+            + str(attr_type)
+            + ") to match the op's result type ("
+            + str(result_type)
+            + ")"
+        )
+
+
+@irdl_op_definition
+class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
+    """
+    The `emitc.constant` operation produces an SSA value equal to some constant
+    specified by an attribute. This can be used to form simple integer and
+    floating point constants, as well as more exotic things like tensor
+    constants. The `emitc.constant` operation also supports the EmitC opaque
+    attribute and the EmitC opaque type. Since folding is supported,
+    it should not be used with pointers.
+    """
+
+    name = "emitc.constant"
+
+    value = prop_def(EmitC_OpaqueOrTypedAttr)
+    result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(ConstantLike())
+
+    def __init__(
+        self,
+        value: EmitC_OpaqueOrTypedAttr,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            if not isinstance(value, TypedAttribute):
+                raise ValueError(
+                    "result_type must be specified for #emitc.opaque values"
+                )
+            result_type = value.get_type()
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        value = self.value
+        verify_initialization_attribute(self, value)
+        if isinstance(value, EmitC_OpaqueAttr):
+            if not value.value.data:
+                raise VerifyException("value must not be empty")
+
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
+
+
 @irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
@@ -549,6 +633,7 @@ EmitC = Dialect(
         EmitC_AddOp,
         EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
+        EmitC_ConstantOp,
         EmitC_LiteralOp,
     ],
     [
