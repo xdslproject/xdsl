@@ -7,16 +7,25 @@ from xdsl.dialects.builtin import (
     StringAttr,
     f32,
     i32,
+    i64,
 )
 from xdsl.dialects.emitc import (
     EmitC_ArrayType,
     EmitC_CallOpaqueOp,
     EmitC_ConstantOp,
     EmitC_LiteralOp,
+    EmitC_LValueType,
     EmitC_OpaqueAttr,
     EmitC_OpaqueType,
+    EmitC_PtrDiffT,
+    EmitC_SignedSizeT,
+    EmitC_SizeT,
+    verify_initialization_attribute,
 )
+from xdsl.dialects.test import TestOp
+from xdsl.ir import Attribute
 from xdsl.traits import ConstantLike, is_side_effect_free
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_emitc_array_negative_dimension():
@@ -71,6 +80,65 @@ def test_constant_op_fold():
 
     assert op.fold() == (value,)
     assert ConstantLike.get_constant_value(op.result) == value
+
+
+@pytest.mark.parametrize(
+    "result_type", [i32, EmitC_LValueType(i32), EmitC_OpaqueType(StringAttr("int"))]
+)
+def test_verify_initialization_attribute_opaque(result_type: Attribute):
+    op = TestOp(result_types=[result_type])
+
+    verify_initialization_attribute(op, EmitC_OpaqueAttr(StringAttr("42")))
+
+
+def test_verify_initialization_attribute_matching_type():
+    op = TestOp(result_types=[i32])
+
+    verify_initialization_attribute(op, IntegerAttr(42, i32))
+
+
+def test_verify_initialization_attribute_mismatched_type():
+    op = TestOp(result_types=[i32])
+
+    with pytest.raises(
+        VerifyException,
+        match=r"it's type \(i64\) to match the op's result type \(i32\)",
+    ):
+        verify_initialization_attribute(op, IntegerAttr(42, i64))
+
+
+def test_verify_initialization_attribute_lvalue():
+    op = TestOp(result_types=[EmitC_LValueType(i32)])
+
+    verify_initialization_attribute(op, IntegerAttr(42, i32))
+
+    with pytest.raises(
+        VerifyException,
+        match=r"it's type \(i64\) to match the op's result type \(i32\)",
+    ):
+        verify_initialization_attribute(op, IntegerAttr(42, i64))
+
+
+@pytest.mark.parametrize(
+    "result_type", [EmitC_PtrDiffT(), EmitC_SignedSizeT(), EmitC_SizeT()]
+)
+def test_verify_initialization_attribute_pointer_wide(result_type: Attribute):
+    op = TestOp(result_types=[result_type])
+
+    verify_initialization_attribute(op, IntegerAttr.from_index_int_value(42))
+
+    with pytest.raises(VerifyException, match=r"it's type \(i32\) to match"):
+        verify_initialization_attribute(op, IntegerAttr(42, i32))
+
+
+def test_verify_initialization_attribute_index_requires_pointer_wide():
+    op = TestOp(result_types=[i32])
+
+    with pytest.raises(
+        VerifyException,
+        match=r"it's type \(index\) to match the op's result type \(i32\)",
+    ):
+        verify_initialization_attribute(op, IntegerAttr.from_index_int_value(42))
 
 
 def test_literal_op_init():
