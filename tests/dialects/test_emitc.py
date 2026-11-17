@@ -102,7 +102,7 @@ def test_verify_initialization_attribute_mismatched_type():
 
     with pytest.raises(
         VerifyException,
-        match=r"it's type \(i64\) to match the op's result type \(i32\)",
+        match=r"its type \(i64\) to match the op's result type \(i32\)",
     ):
         verify_initialization_attribute(op, IntegerAttr(42, i64))
 
@@ -114,7 +114,7 @@ def test_verify_initialization_attribute_lvalue():
 
     with pytest.raises(
         VerifyException,
-        match=r"it's type \(i64\) to match the op's result type \(i32\)",
+        match=r"its type \(i64\) to match the op's result type \(i32\)",
     ):
         verify_initialization_attribute(op, IntegerAttr(42, i64))
 
@@ -127,7 +127,7 @@ def test_verify_initialization_attribute_pointer_wide(result_type: Attribute):
 
     verify_initialization_attribute(op, IntegerAttr.from_index_int_value(42))
 
-    with pytest.raises(VerifyException, match=r"it's type \(i32\) to match"):
+    with pytest.raises(VerifyException, match=r"its type \(i32\) to match"):
         verify_initialization_attribute(op, IntegerAttr(42, i32))
 
 
@@ -136,7 +136,7 @@ def test_verify_initialization_attribute_index_requires_pointer_wide():
 
     with pytest.raises(
         VerifyException,
-        match=r"it's type \(index\) to match the op's result type \(i32\)",
+        match=r"its type \(index\) to match the op's result type \(i32\)",
     ):
         verify_initialization_attribute(op, IntegerAttr.from_index_int_value(42))
 

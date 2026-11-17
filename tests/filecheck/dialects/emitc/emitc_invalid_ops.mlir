@@ -109,12 +109,12 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-// CHECK: requires attribute to either be an #emitc.opaque attribute or it's type (i64) to match the op's result type (i32)
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i64) to match the op's result type (i32)
 %c = "emitc.constant"() <{value = 42 : i64}> : () -> i32
 
 // -----
 
-// CHECK: requires attribute to either be an #emitc.opaque attribute or it's type (i32) to match the op's result type (!emitc.size_t)
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i32) to match the op's result type (!emitc.size_t)
 %c = "emitc.constant"() <{value = 42 : i32}> : () -> !emitc.size_t
 
 // -----

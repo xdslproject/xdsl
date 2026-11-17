@@ -532,7 +532,7 @@ def verify_initialization_attribute(
 
     if result_type != attr_type:
         raise VerifyException(
-            "requires attribute to either be an #emitc.opaque attribute or it's type ("
+            "requires attribute to either be an #emitc.opaque attribute or its type ("
             + str(attr_type)
             + ") to match the op's result type ("
             + str(result_type)
