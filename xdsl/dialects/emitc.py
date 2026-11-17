@@ -559,17 +559,7 @@ class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
 
     traits = traits_def(ConstantLike())
 
-    def __init__(
-        self,
-        value: EmitC_OpaqueOrTypedAttr,
-        result_type: Attribute | None = None,
-    ):
-        if result_type is None:
-            if not isinstance(value, TypedAttribute):
-                raise ValueError(
-                    "result_type must be specified for #emitc.opaque values"
-                )
-            result_type = value.get_type()
+    def __init__(self, value: EmitC_OpaqueOrTypedAttr, result_type: Attribute):
         super().__init__(
             properties={"value": value},
             result_types=[result_type],

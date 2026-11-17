@@ -42,19 +42,18 @@ def test_call_opaque_with_str_callee():
 
 
 def test_constant_op_init():
-    op = EmitC_ConstantOp(IntegerAttr(42, 32))
+    op = EmitC_ConstantOp(IntegerAttr(42, 32), i32)
 
     op.verify()
     assert op.value == IntegerAttr(42, 32)
     assert op.result.type == i32
 
-    assert EmitC_ConstantOp(IntegerAttr(42, 32), i32).is_structurally_equivalent(op)
-
 
 def test_constant_op_float_init():
-    op = EmitC_ConstantOp(FloatAttr(1.5, f32))
+    op = EmitC_ConstantOp(FloatAttr(1.5, f32), f32)
 
     op.verify()
+    assert op.value == FloatAttr(1.5, f32)
     assert op.result.type == f32
 
 
@@ -68,14 +67,9 @@ def test_constant_op_opaque_init():
     assert op.result.type == result_type
 
 
-def test_constant_op_opaque_requires_result_type():
-    with pytest.raises(ValueError, match="result_type must be specified"):
-        EmitC_ConstantOp(EmitC_OpaqueAttr(StringAttr("42")))
-
-
 def test_constant_op_fold():
     value = IntegerAttr(42, 32)
-    op = EmitC_ConstantOp(value)
+    op = EmitC_ConstantOp(value, i32)
 
     assert op.fold() == (value,)
     assert ConstantLike.get_constant_value(op.result) == value
