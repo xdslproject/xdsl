@@ -166,7 +166,10 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
 
 
 EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
-
+"""
+An EmitC opaque attribute or a typed attribute.
+Used for the initial value of operations such as `emitc.constant`.
+"""
 
 EmitCArrayElementTypeCovT = TypeVar(
     "EmitCArrayElementTypeCovT",
