@@ -31,10 +31,10 @@ optional-dependencies.dev = [
   "lit<24",
   "marimo>=0.25.2,<0.26",
   "prek~=0.5.5",
-  "pytest<9.2",
+  "pytest<9.3",
   "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.17.4",
+  "ruff==0.17.5",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
@@ -185,6 +185,7 @@ reportAssertAlwaysTrue = true
 reportImportCycles = false
 # Allow importing from irdl files
 reportMissingModuleSource = false
+reportPrivateLocalImportUsage = true
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true

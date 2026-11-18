@@ -1,6 +1,7 @@
+from xdsl.context import Context
 from xdsl.dialects import builtin, stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.passes import Context, ModulePass
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,

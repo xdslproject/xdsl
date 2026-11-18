@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --parsing-diagnostics --split-input-file %s | filecheck %s
 
 // CHECK: target features must start with '+' or '-'
 "test.op"() {

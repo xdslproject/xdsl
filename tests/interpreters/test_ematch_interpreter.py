@@ -766,7 +766,7 @@ def test_repair_same_eclass_deduplicates_operands():
     _shared_val = test.TestOp(result_types=(i32,)).results[0]
     eclass_shared = ematch_funcs.get_or_create_class(interpreter, op1.results[0])
     # Manually add op2's result as an operand of the same eclass
-    eclass_shared.operands = [op1.results[0], op2.results[0], op1.results[0]]
+    eclass_shared.set_operands([op1.results[0], op2.results[0], op1.results[0]])
 
     ematch_funcs.repair(interpreter, eclass_c)
 

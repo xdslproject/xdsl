@@ -1,6 +1,5 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
-from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -94,7 +93,9 @@ class LowerX86ScfForPattern(RewritePattern):
         last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
-        iv = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
+        iv = SSAValue.get(
+            first_body_block.args[0], type=x86.registers.GeneralRegisterType
+        )
         iv_used = iv.first_use is not None
         start = op.start
         stop = op.stop
@@ -149,7 +150,7 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         if (
-            isinstance(start_owner := start.owner, x86.DI_MovOp)
+            isinstance(start_owner := start.owner, x86.ops.DI_MovOp)
             and isinstance(stop, builtin.IntegerAttr)
             and start_owner.immediate.value.data < stop.value.data
         ):

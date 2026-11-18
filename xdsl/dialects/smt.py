@@ -253,7 +253,7 @@ class ApplyFuncOp(IRDLOperation):
 
     result = result_def(RANGE)
 
-    assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
+    assembly_format = "$func `(` $args `)` attr-dict `:` qualified(type($func))"
 
     def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
         super().__init__(
@@ -654,7 +654,7 @@ class UnaryBVOp(IRDLOperation, ABC):
     input = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$input attr-dict `:` type($result)"
+    assembly_format = "$input attr-dict `:` qualified(type($result))"
 
     traits = traits_def(Pure())
 
@@ -694,7 +694,7 @@ class BinaryBVOp(IRDLOperation, ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+    assembly_format = "$lhs `,` $rhs attr-dict `:` qualified(type($result))"
 
     traits = traits_def(Pure())
 

@@ -3,6 +3,21 @@ builtin.module {
   %0 = arith.constant 0 : i64
   %1 = llvm.inttoptr %0 : i64 to !llvm.ptr
   %3 = llvm.mlir.zero : !llvm.ptr
+
+  %vec_i64 = arith.constant dense<0> : vector<4 x i64>
+  %vec_ptr = llvm.inttoptr %vec_i64 : vector<4 x i64> to vector<4 x !llvm.ptr>
+  %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4 x !llvm.ptr> to vector<4 x i32>
+
+  // Vector type support for other cast operations
+  %vec_i64_ext = arith.constant dense<0> : vector<4 x i64>
+  %vtrunc = llvm.trunc %vec_i64_ext : vector<4 x i64> to vector<4 x i32>
+  %vzext = llvm.zext %vtrunc : vector<4 x i32> to vector<4 x i64>
+  %vsext = llvm.sext %vtrunc : vector<4 x i32> to vector<4 x i64>
+  %vbitcast = llvm.bitcast %vec_i64 : vector<4 x i64> to vector<4 x f64>
+  %vec_f32 = "test.op"() : () -> vector<4 x f32>
+  %vfpext = llvm.fpext %vec_f32 : vector<4 x f32> to vector<4 x f64>
+  %vsitofp = llvm.sitofp %vtrunc : vector<4 x i32> to vector<4 x f32>
+  %vfptrunc = llvm.fptrunc %vfpext : vector<4 x f64> to vector<4 x f32>
   %4 = llvm.alloca %0 x index {alignment = 32 : i64} : (i64) -> !llvm.ptr
   %6 = llvm.getelementptr %4[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32
   %7 = llvm.alloca %0 x i32 : (i64) -> !llvm.ptr
@@ -36,6 +51,18 @@ builtin.module {
 // CHECK-NEXT:    %0 = arith.constant 0 : i64
 // CHECK-NEXT:    %1 = llvm.inttoptr %0 : i64 to !llvm.ptr
 // CHECK-NEXT:    %2 = llvm.mlir.zero : !llvm.ptr
+// CHECK-NEXT:    %vec_i64 = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    %vec_ptr = llvm.inttoptr %vec_i64 : vector<4xi64> to vector<4x!llvm.ptr>
+// CHECK-NEXT:    %vec_i32 = llvm.ptrtoint %vec_ptr : vector<4x!llvm.ptr> to vector<4xi32>
+// CHECK-NEXT:    %vec_i64_ext = arith.constant dense<0> : vector<4xi64>
+// CHECK-NEXT:    %vtrunc = llvm.trunc %vec_i64_ext : vector<4xi64> to vector<4xi32>
+// CHECK-NEXT:    %vzext = llvm.zext %vtrunc : vector<4xi32> to vector<4xi64>
+// CHECK-NEXT:    %vsext = llvm.sext %vtrunc : vector<4xi32> to vector<4xi64>
+// CHECK-NEXT:    %vbitcast = llvm.bitcast %vec_i64 : vector<4xi64> to vector<4xf64>
+// CHECK-NEXT:    %vec_f32 = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT:    %vfpext = llvm.fpext %vec_f32 : vector<4xf32> to vector<4xf64>
+// CHECK-NEXT:    %vsitofp = llvm.sitofp %vtrunc : vector<4xi32> to vector<4xf32>
+// CHECK-NEXT:    %vfptrunc = llvm.fptrunc %vfpext : vector<4xf64> to vector<4xf32>
 // CHECK-NEXT:    %3 = llvm.alloca %0 x index {alignment = 32 : i64} : (i64) -> !llvm.ptr
 // CHECK-NEXT:    %4 = llvm.getelementptr %3[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32
 // CHECK-NEXT:    %5 = llvm.alloca %0 x i32 : (i64) -> !llvm.ptr

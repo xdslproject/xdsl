@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import (
     FixedBitwidthType,
     VectorType,
 )
-from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,15 +27,15 @@ class PtrAddToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
         # Pointer-sized GPR for address arithmetic (ptr + offset in the flat address space).
         reg = self.arch.register_type_for_type(ptr.PtrType()).unallocated()
-        assert isinstance(reg, GeneralRegisterType)
+        assert isinstance(reg, x86.registers.GeneralRegisterType)
 
         rewriter.replace(
             op,
             [
                 ptr_cast_op := asm.ToRegOp.get(op.addr, reg),
                 offset_cast_op := asm.ToRegOp.get(op.offset, reg),
-                ptr_mv_op := x86.DS_MovOp(ptr_cast_op, destination=reg),
-                add_op := x86.RS_AddOp(
+                ptr_mv_op := x86.ops.DS_MovOp(ptr_cast_op, destination=reg),
+                add_op := x86.ops.RS_AddOp(
                     ptr_mv_op.destination, offset_cast_op, register_out=reg
                 ),
                 asm.FromRegOp.get(add_op.register_out, ptr.PtrType()),
@@ -79,7 +78,7 @@ class PtrStoreToX86(RewritePattern):
             value_unalloc = self.arch.register_type_for_type(value_type).unallocated()
             cast_op = asm.ToRegOp.get(op.value, value_unalloc)
             x86_data = cast_op.register
-            mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
+            mov_op = x86.ops.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
 
         rewriter.replace(op, [addr_cast_op, cast_op, mov_op])
 
@@ -92,7 +91,7 @@ class PtrLoadToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
         # Pointer cast
         x86_reg_type = self.arch.register_type_for_type(op.addr.type).unallocated()
-        assert isinstance(x86_reg_type, GeneralRegisterType)
+        assert isinstance(x86_reg_type, x86.registers.GeneralRegisterType)
         cast_op = asm.ToRegOp.get(op.addr, x86_reg_type)
         addr_x86 = cast_op.register
         value_type = op.res.type
@@ -118,7 +117,9 @@ class PtrLoadToX86(RewritePattern):
                 destination=self.arch.register_type_for_type(value_type).unallocated(),
             )
         else:
-            mov_op = x86.DM_MovOp(addr_x86, memory_offset=0, destination=x86_reg_type)
+            mov_op = x86.ops.DM_MovOp(
+                addr_x86, memory_offset=0, destination=x86_reg_type
+            )
 
         res_cast_op = asm.FromRegOp.get(mov_op.results[0], value_type)
         rewriter.replace(op, [cast_op, mov_op, res_cast_op])

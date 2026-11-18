@@ -13,11 +13,11 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ShapedType,
     StringAttr,
     VectorType,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.utils import print_assignment
 from xdsl.ir import (
     Attribute,

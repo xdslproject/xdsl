@@ -7,11 +7,11 @@ from xdsl.interpreters.riscv import RiscvFunctions
 
 @register_impls
 class ToyAcceleratorInstructionFunctions(RiscvFunctions):
-    @impl(riscv.EcallOp)
+    @impl(riscv.ops.EcallOp)
     def run_ecall(
         self,
         interpreter: Interpreter,
-        op: riscv.EcallOp,
+        op: riscv.ops.EcallOp,
         args: tuple[Any, ...],
     ):
         # In Toy, ecall is always exit

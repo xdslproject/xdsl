@@ -8,7 +8,7 @@ from xdsl.traits import MemoryWriteEffect
 
 
 @irdl_op_definition
-class PrintfOp(riscv.RISCVInstruction):
+class PrintfOp(riscv.abstract_ops.RISCVInstruction):
     """
     An instruction to print the contents of registers when emulating riscv code.
 
@@ -53,7 +53,9 @@ class PrintfOp(riscv.RISCVInstruction):
             },
         )
 
-    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         return f'"{self.format_str.data}"', *self.operands
 
 

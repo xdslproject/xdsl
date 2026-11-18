@@ -12,20 +12,24 @@ from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
-from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
+from xdsl.dialects.riscv.registers import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Dialect, OperandArg
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
+from xdsl.ir import (
+    Attribute,
     Block,
-    IRDLOperation,
+    Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -145,7 +149,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if not isinstance(iter_var.type, IntRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
+                    " instead of riscv.registers.IntRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])

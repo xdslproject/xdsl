@@ -13,7 +13,6 @@ Current deviations:
 """
 
 from xdsl.dialects.builtin import (
-    AnyAttr,
     IndexType,
     IntegerType,
     MemRefType,
@@ -21,6 +20,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
+    AnyAttr,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,

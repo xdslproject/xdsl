@@ -1319,14 +1319,13 @@ class IntToPtrOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(IntegerType)
+    input = operand_def(IntegerType | VectorType[IntegerType])
 
-    output = result_def(LLVMPointerType)
+    output = result_def(LLVMPointerType | VectorType[LLVMPointerType])
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, input: OperandArg):
-        ptr_type = LLVMPointerType()
+    def __init__(self, input: OperandArg, ptr_type: Attribute = LLVMPointerType()):
         super().__init__(operands=[input], result_types=[ptr_type])
 
 
@@ -1509,9 +1508,9 @@ class PtrToIntOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(LLVMPointerType)
+    input = operand_def(LLVMPointerType | VectorType[LLVMPointerType])
 
-    output = result_def(IntegerType)
+    output = result_def(IntegerType | VectorType[IntegerType])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -2171,7 +2170,7 @@ class GlobalOp(IRDLOperation):
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    assembly_format = "$global_name attr-dict `:` type($result)"
+    assembly_format = "$global_name attr-dict `:` qualified(type($result))"
 
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
@@ -3413,7 +3412,7 @@ class MaskedStoreOp(IRDLOperation):
 
     assembly_format = (
         "$value `,` $data `,` $mask attr-dict `:`"
-        " type($value) `,` type($mask) `into` type($data)"
+        " type($value) `,` type($mask) `into` qualified(type($data))"
     )
 
     irdl_options = (ParsePropInAttrDict(),)
@@ -3660,6 +3659,158 @@ class VectorFMinOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FMaximumOp(IRDLOperation):
+    """
+    Floating-point maximum, propagating NaNs and treating -0.0 as less than
+    +0.0.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrmaximum-llvmmaximumop).
+    """
+
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
+
+    name = "llvm.intr.maximum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FMinimumOp(IRDLOperation):
+    """
+    Floating-point minimum, propagating NaNs and treating -0.0 as less than
+    +0.0.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrminimum-llvmminimumop).
+    """
+
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
+
+    name = "llvm.intr.minimum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+class IntegerBinaryIntrinsicOp(IRDLOperation, ABC):
+    """
+    Base class for integer intrinsics with two operands and a result of the same
+    integer or integer vector type.
+    """
+
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
+    )
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    traits = traits_def(Pure())
+
+    def __init__(self, lhs: OperandArg, rhs: OperandArg):
+        super().__init__(operands=[lhs, rhs], result_types=[SSAValue.get(lhs).type])
+
+
+@irdl_op_definition
+class SMaxOp(IntegerBinaryIntrinsicOp):
+    """
+    Maximum of two integers, interpreted as signed values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrsmax-llvmsmaxop).
+    """
+
+    name = "llvm.intr.smax"
+
+
+@irdl_op_definition
+class SMinOp(IntegerBinaryIntrinsicOp):
+    """
+    Minimum of two integers, interpreted as signed values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrsmin-llvmsminop).
+    """
+
+    name = "llvm.intr.smin"
+
+
+@irdl_op_definition
+class UMaxOp(IntegerBinaryIntrinsicOp):
+    """
+    Maximum of two integers, interpreted as unsigned values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrumax-llvmumaxop).
+    """
+
+    name = "llvm.intr.umax"
+
+
+@irdl_op_definition
+class UMinOp(IntegerBinaryIntrinsicOp):
+    """
+    Minimum of two integers, interpreted as unsigned values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrumin-llvmuminop).
+    """
+
+    name = "llvm.intr.umin"
+
+
+@irdl_op_definition
 class FPowOp(IRDLOperation):
     T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
@@ -3700,7 +3851,7 @@ class StackSaveOp(IRDLOperation):
 
     res = result_def(LLVMPointerType)
 
-    assembly_format = "attr-dict `:` type($res)"
+    assembly_format = "attr-dict `:` qualified(type($res))"
 
     def __init__(self):
         super().__init__(result_types=[LLVMPointerType()])
@@ -3750,7 +3901,7 @@ class StackRestoreOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    assembly_format = "$ptr attr-dict `:` type($ptr)"
+    assembly_format = "$ptr attr-dict `:` qualified(type($ptr))"
 
     def __init__(self, ptr: OperandArg):
         super().__init__(operands=[ptr])
@@ -3792,6 +3943,8 @@ LLVM = Dialect(
         FLogOp,
         FLog2Op,
         FMAOp,
+        FMaximumOp,
+        FMinimumOp,
         FMulOp,
         FNegOp,
         FPExtOp,
@@ -3820,6 +3973,8 @@ LLVM = Dialect(
         SExtOp,
         SelectOp,
         SIToFPOp,
+        SMaxOp,
+        SMinOp,
         SRemOp,
         ShlOp,
         ShuffleVectorOp,
@@ -3829,6 +3984,8 @@ LLVM = Dialect(
         SubOp,
         TruncOp,
         UDivOp,
+        UMaxOp,
+        UMinOp,
         URemOp,
         UndefOp,
         UnreachableOp,

@@ -126,10 +126,9 @@ class xDSLOptMain(CommandLineTool):
                 except DiagnosticException as e:
                     if self.args.verify_diagnostics:
                         print(e)
-                        # __notes__ only in Python 3.11 and above
-                        if hasattr(e, "__notes__"):
-                            for e in getattr(e, "__notes__"):
-                                print(e)
+                        # Provide a default as the field is set on first note addition
+                        for note in getattr(e, "__notes__", ()):
+                            print(note)
                     else:
                         raise
                 finally:

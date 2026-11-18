@@ -284,8 +284,12 @@ class AttrParser(BaseParser):
             return attr_def(attr_name, is_type, is_opaque, body)
 
         elif issubclass(attr_def, ParametrizedAttribute):
+            parameters_start = self.pos
             param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
+            try:
+                return attr_def.new(param_list)
+            except ValueError as error:
+                self.raise_error(str(error), parameters_start, self.pos)
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)
             param = _attr_def.parse_parameter(self)

@@ -1,7 +1,7 @@
-from xdsl.dialects import wasm
+from xdsl.dialects.wasm.ops import WasmModuleOp
 
 
 def test_empty_module():
-    module = wasm.WasmModuleOp()
+    module = WasmModuleOp()
 
     assert module.wasm() == b"\x00asm\x01\x00\x00\x00"

@@ -3,6 +3,7 @@ from typing import Any, cast
 from xdsl.context import Context
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
+    MemRefType,
     ModuleOp,
     TensorType,
     UnitAttr,
@@ -29,7 +30,7 @@ class ConvertGlobalPattern(RewritePattern):
         op_type = op.type
         assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
-        new_type = memref.MemRefType(op_type.element_type, op_type.shape)
+        new_type = MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace(
             op,
             (
@@ -52,7 +53,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         op_type = op.result.type
         assert isinstance(op_type, TensorType)
         op_type = cast(TensorType[Any], op_type)
-        new_type = memref.MemRefType(op_type.element_type, op_type.shape)
+        new_type = MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace(
             op,
             (
