@@ -1054,7 +1054,7 @@ class Operation(_IRNode):
         self._successor_uses = new_uses
 
     @property
-    def successor_uses(self) -> Sequence[_Successor]:
+    def successor_uses(self) -> Sequence[Use[Block]]:
         return self._successor_uses
 
     def __post_init__(self):
