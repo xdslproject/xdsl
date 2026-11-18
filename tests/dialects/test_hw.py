@@ -34,10 +34,9 @@ from xdsl.dialects.hw import (
     ModuleType,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     IRDLOperation,
-    Region,
     attr_def,
     irdl_op_definition,
     opt_region_def,
@@ -314,7 +313,7 @@ def test_inner_sym_attr():
         "InnerSymAttr for “ground” type should return name"
     )
 
-    with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
+    with pytest.raises(ValueError, match=r"inner symbol cannot have empty name"):
         InnerSymAttr("")
 
     aggregate_sym_attr = InnerSymAttr(

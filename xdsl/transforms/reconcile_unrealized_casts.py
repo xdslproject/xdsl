@@ -7,7 +7,7 @@ from warnings import warn
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Use
+from xdsl.ir import OpResult, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -34,7 +34,7 @@ def _try_remove_cast_chain(
 
     def gen_all_uses_cast(
         node: builtin.UnrealizedConversionCastOp,
-    ) -> Iterable[Use]:
+    ) -> Iterable[Use[OpResult]]:
         for result in node.results:
             yield from result.uses
 

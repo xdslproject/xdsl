@@ -59,7 +59,7 @@ from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.utils.color_printer import ColorPrinter
 from xdsl.utils.colors import Colors
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -170,7 +170,7 @@ def test_locations():
     location = FusedLoc((UnknownLoc(), UnknownLoc()), StringAttr("metadata"))
     assert to_string(location) == """loc(fused<"metadata">[unknown, unknown])"""
 
-    with pytest.raises(VerifyException, match="is not a location attribute"):
+    with pytest.raises(ValueError, match="is not a location attribute"):
         location = FusedLoc((StringAttr("a"), StringAttr("b")), NoneAttr())
 
 

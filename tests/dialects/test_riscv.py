@@ -146,7 +146,7 @@ def test_csr_attribute_types(name: str, expected_type: str):
 def test_csr_immediate_out_of_range(source: str, expected_type: str):
     ctx = Context()
     ctx.load_dialect(riscv.RISCV)
-    with pytest.raises(VerifyException, match=f"out of range for type {expected_type}"):
+    with pytest.raises(ValueError, match=f"out of range for type {expected_type}"):
         Parser(ctx, source).parse_operation()
 
 
@@ -212,10 +212,10 @@ def test_immediate_i_inst():
     lb, ub = Signedness.SIGNED.value_range(12)
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.AddiOp(a1, ub, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.AddiOp(a1, lb - 1, rd=riscv.Registers.A0)
 
     riscv.ops.AddiOp(a1, ub - 1, rd=riscv.Registers.A0)
@@ -228,10 +228,10 @@ def test_immediate_s_inst():
     a1 = create_ssa_value(riscv.Registers.A1)
     a2 = create_ssa_value(riscv.Registers.A2)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.SwOp(a1, a2, ub)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.SwOp(a1, a2, lb - 1)
 
     riscv.ops.SwOp(a1, a2, ub - 1)
@@ -244,10 +244,10 @@ def test_immediate_u_j_inst():
     assert ub == 1048576
     assert lb == -524288
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i20"):
         riscv.ops.LuiOp(ub)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i20"):
         riscv.ops.LuiOp(lb - 1)
 
     riscv.ops.LuiOp(ub - 1)
@@ -258,10 +258,10 @@ def test_immediate_jalr_inst():
     # Jalr - 12-bits immediate
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         riscv.ops.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
 
     riscv.ops.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)

@@ -51,6 +51,7 @@ from xdsl.ir import (
     Dialect,
     OperandArg,
     Operation,
+    ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
@@ -59,7 +60,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSetConstraint,
     IRDLOperation,
-    ParametrizedAttribute,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,

@@ -24,7 +24,6 @@ from xdsl.irdl.declarative_assembly_format import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
@@ -68,7 +67,7 @@ def _parse_optional_immediate_value(
     if (immediate := parser.parse_optional_integer()) is not None:
         try:
             return IntegerAttr(immediate, integer_type)
-        except VerifyException as e:
+        except ValueError as e:
             parser.raise_error(e.args[0], pos)
     if (immediate := parser.parse_optional_str_literal()) is not None:
         return StringAttr(immediate)

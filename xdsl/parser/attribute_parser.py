@@ -285,10 +285,10 @@ class AttrParser(BaseParser):
 
         elif issubclass(attr_def, ParametrizedAttribute):
             parameters_start = self.pos
+            param_list = attr_def.parse_parameters(self)
             try:
-                param_list = attr_def.parse_parameters(self)
                 return attr_def.new(param_list)
-            except VerifyException as error:
+            except ValueError as error:
                 self.raise_error(str(error), parameters_start, self.pos)
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)

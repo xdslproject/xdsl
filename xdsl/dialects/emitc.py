@@ -31,12 +31,14 @@ from xdsl.dialects.builtin import (
     TensorType,
     TupleType,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -53,11 +55,13 @@ from xdsl.irdl import (
     param_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -160,6 +164,12 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
     name = "emitc.opaque"
     value: StringAttr
 
+
+EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
+"""
+An EmitC opaque attribute or a typed attribute.
+Used for the initial value of operations such as `emitc.constant`.
+"""
 
 EmitCArrayElementTypeCovT = TypeVar(
     "EmitCArrayElementTypeCovT",
@@ -499,12 +509,123 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
+def verify_initialization_attribute(
+    result_type: Attribute, value: EmitC_OpaqueOrTypedAttr
+) -> None:
+    """
+    Check that the initial `value` is compatible with `result_type`, the type of
+    the result it initializes.
+
+    An `#emitc.opaque` value is compatible with any type. Otherwise the type of
+    `value` must match `result_type`, or the type it wraps if it is an
+    `!emitc.lvalue`. An `index` value is also accepted for the pointer-wide types
+    `!emitc.ptrdiff_t`, `!emitc.ssize_t` and `!emitc.size_t`.
+    """
+    if isinstance(value, EmitC_OpaqueAttr):
+        return
+
+    if isinstance(result_type, EmitC_LValueType):
+        result_type = result_type.value_type
+
+    attr_type = value.get_type()
+
+    if isinstance(result_type, EmitCPointerWideType) and isinstance(
+        attr_type, IndexType
+    ):
+        return
+
+    if result_type != attr_type:
+        raise VerifyException(
+            "requires attribute to either be an #emitc.opaque attribute or its type "
+            f"({attr_type}) to match the op's result type ({result_type})"
+        )
+
+
+@irdl_op_definition
+class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
+    """
+    The `emitc.constant` operation produces an SSA value equal to some constant
+    specified by an attribute. This can be used to form simple integer and
+    floating point constants, as well as more exotic things like tensor
+    constants. The `emitc.constant` operation also supports the EmitC opaque
+    attribute and the EmitC opaque type. Since folding is supported,
+    it should not be used with pointers.
+    """
+
+    name = "emitc.constant"
+
+    value = prop_def(EmitC_OpaqueOrTypedAttr)
+    result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(ConstantLike())
+
+    def __init__(self, value: EmitC_OpaqueOrTypedAttr, result_type: Attribute):
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        value = self.value
+        verify_initialization_attribute(self.result.type, value)
+        if isinstance(value, EmitC_OpaqueAttr):
+            if not value.value.data:
+                raise VerifyException("value must not be empty")
+
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
+
+
+@irdl_op_definition
+class EmitC_LiteralOp(IRDLOperation):
+    """
+    Literal operation.
+
+    The `emitc.literal` operation produces an SSA value equal to some constant
+    specified by an attribute.
+
+    Example:
+
+    ```mlir
+    %p0 = emitc.literal "M_PI" : f32
+    %1 = "emitc.add" (%arg0, %p0) : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    float v2 = v1 + M_PI;
+    ```
+    """
+
+    name = "emitc.literal"
+
+    value = prop_def(StringAttr)
+    result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$value attr-dict `:` type($result)"
+
+    def __init__(self, value: StringAttr | str, result_type: Attribute):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self):
+        if self.value.data == "":
+            raise VerifyException("value must not be empty")
+
+
 EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
         EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
+        EmitC_ConstantOp,
+        EmitC_LiteralOp,
     ],
     [
         EmitC_ArrayType,
