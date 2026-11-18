@@ -580,7 +580,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
         arg: OperandArg, *, type: TypeForm[AttributeInvT] = Attribute
     ) -> SSAValue[AttributeInvT]:
         """
-        Get a new SSAValue from either a SSAValue, or an operation with a single result.
+        Get an SSAValue from an SSAValue, an SSA value use, or a single-result operation.
         Checks that the resulting SSAValue is of the supplied type, if provided.
         """
         from xdsl.utils.hints import isa
@@ -598,6 +598,8 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
                 raise ValueError(
                     "SSAValue.get: expected operation with a single result."
                 )
+            case Use():
+                return SSAValue.get(arg.value, type=type)
 
     def replace_all_uses_with(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
@@ -2703,8 +2705,10 @@ class Region(_IRNode):
         return True
 
 
-OperandArg: TypeAlias = SSAValue | Operation
-"""An SSA value or single-result operation accepted by `SSAValue.get`."""
+OperandArg: TypeAlias = SSAValue | Use[SSAValue] | Operation
+"""
+An SSA value, an SSA value use, or single-result operation accepted by `SSAValue.get`.
+"""
 
 
 IRNode: TypeAlias = Operation | Region | Block
