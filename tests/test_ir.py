@@ -1408,15 +1408,15 @@ def test_repr():
 
     block_use_reprs = tuple(repr(use) for use in block_uses)
     assert block_use_reprs == (
-        f"<Use {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
-        f"<Use {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<Use {id(block_uses[2])}>)>",
-        f"<Use {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<Use {id(block_uses[1])}>, _next_use=None)>",
+        f"<_Successor {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
+        f"<_Successor {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<_Successor {id(block_uses[2])}>)>",
+        f"<_Successor {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<_Successor {id(block_uses[1])}>, _next_use=None)>",
     )
 
     value_use_reprs = tuple(repr(use) for use in value_uses)
     assert value_use_reprs == (
-        f"<Use {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<Use {id(value_uses[1])}>)>",
-        f"<Use {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<Use {id(value_uses[0])}>, _next_use=None)>",
+        f"<_Operand {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<_Operand {id(value_uses[1])}>)>",
+        f"<_Operand {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<_Operand {id(value_uses[0])}>, _next_use=None)>",
     )
 
 
