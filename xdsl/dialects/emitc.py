@@ -167,9 +167,9 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
 
 EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
 """
-An EmitC opaque attribute or a typed attribute.
-Used for the initial value of operations such as `emitc.constant` and
-`emitc.variable`.
+The value an EmitC operation is initialized with.
+It is either a typed attribute, like `42 : i32`, or a piece of C code written
+as text, like `#emitc.opaque<"NULL">`.
 """
 
 EmitCArrayElementTypeCovT = TypeVar(
