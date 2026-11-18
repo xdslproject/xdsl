@@ -367,6 +367,14 @@ class Use(ABC, Generic[_CovT]):
     _next_use: Self | None = None
     """The next use of the value in the use list."""
 
+    _INVALID_MESSAGE: ClassVar[str]
+    """Message to use for assertions on invalid index or value access."""
+
+    @property
+    @abstractmethod
+    def is_valid(self) -> bool:
+        """Whether this use is still pointed to by the operation."""
+
     @property
     def operation(self) -> Operation:
         """The operation using the value."""
@@ -375,6 +383,7 @@ class Use(ABC, Generic[_CovT]):
     @property
     def index(self) -> int:
         """The index of the use in the operation."""
+        assert self.is_valid, self._INVALID_MESSAGE
         return self._index
 
     @property
@@ -653,15 +662,22 @@ class _Operand(Use[SSAValue]):
     An operation's operand.
     """
 
+    _INVALID_MESSAGE = "Attempting to use Operand that has been replaced"
+
     @property
-    def value(self) -> SSAValue:
+    def is_valid(self) -> bool:
         operation = self._operation
         index = self._index
         uses = operation._operand_uses  # pyright: ignore[reportPrivateUsage]
-        assert index < len(uses) and uses[index] is self, (  # noqa: PT018
-            "Attempting to use Operand that has been replaced"
-        )
-        return operation.operands[index]
+        return index < len(uses) and uses[index] is self
+
+    @property
+    def value(self) -> SSAValue:
+        assert self.is_valid, self._INVALID_MESSAGE
+        operation = self._operation
+        index = self._index
+        operands = operation._operands  # pyright: ignore[reportPrivateUsage]
+        return operands[index]
 
 
 @dataclass(eq=False)
@@ -2055,14 +2071,20 @@ class _Successor(Use[Block]):
     An operation's successor.
     """
 
+    _INVALID_MESSAGE = "Attempting to use Successor that has been replaced"
+
     @property
-    def value(self) -> Block:
+    def is_valid(self) -> bool:
         operation = self._operation
         index = self._index
         uses = operation.successor_uses
-        assert index < len(uses) and uses[index] is self, (  # noqa: PT018
-            "Attempting to use Successor that has been replaced"
-        )
+        return index < len(uses) and uses[index] is self
+
+    @property
+    def value(self) -> Block:
+        assert self.is_valid, self._INVALID_MESSAGE
+        operation = self._operation
+        index = self._index
         return operation.successors[index]
 
 

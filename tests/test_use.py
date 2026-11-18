@@ -46,6 +46,10 @@ def test_operand_value():
 
     assert use1.value is val2
     assert use2.value is val2
+    assert use1.index == 0
+    assert use2.index == 1
+    assert not val1.uses
+    assert tuple(val2.uses) == (use1, use2)
 
 
 @pytest.mark.parametrize("new_length", [0, 1, 2])
@@ -61,6 +65,10 @@ def test_operand_value_invalidated(new_length: int):
             AssertionError, match="Attempting to use Operand that has been replaced"
         ):
             _ = use.value
+        with pytest.raises(
+            AssertionError, match="Attempting to use Operand that has been replaced"
+        ):
+            _ = use.index
 
     for value in values[:new_length]:
         (use,) = value.uses
@@ -80,6 +88,11 @@ def test_successor_value():
 
     assert use1.value is block2
     assert use2.value is block2
+    assert use1.index == 0
+    assert use2.index == 1
+    assert not block1.uses
+    assert tuple(block2.uses) == (use1, use2)
+    assert op.successor_uses == (use1, use2)
 
 
 @pytest.mark.parametrize("new_length", [0, 1, 2])
@@ -88,9 +101,17 @@ def test_successor_value_invalidated(new_length: int):
     op = TestTermOp.create(successors=blocks)
     uses = tuple(use for block in blocks for use in block.uses)
 
+    for i, (use, block) in enumerate(zip(uses, blocks)):
+        assert use.value is block
+        assert use.index == i
+
     op.successors = blocks[:new_length]
 
     for use in uses:
+        with pytest.raises(
+            AssertionError, match="Attempting to use Successor that has been replaced"
+        ):
+            _ = use.index
         with pytest.raises(
             AssertionError, match="Attempting to use Successor that has been replaced"
         ):
