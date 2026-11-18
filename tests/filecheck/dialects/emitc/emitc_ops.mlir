@@ -87,3 +87,31 @@ emitc.call_opaque "test" ()  : () -> ()
 %lit_pi = emitc.literal "M_PI" : f32
 // CHECK: %lit_pi = emitc.literal "M_PI" : f32
 // CHECK-GENERIC: %lit_pi = "emitc.literal"() <{value = "M_PI"}> : () -> f32
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+%variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+
+%variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+
+%variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable_zero = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+
+%variable_sizet = "emitc.variable"() <{value = 42 : index}> : () -> !emitc.lvalue<!emitc.size_t>
+// CHECK: %variable_sizet = "emitc.variable"() <{value = 42 : index}> : () -> !emitc.lvalue<!emitc.size_t>
+// CHECK-GENERIC: %variable_sizet = "emitc.variable"() <{value = 42 : index}> : () -> !emitc.lvalue<!emitc.size_t>
+
+%variable_ptr = "emitc.variable"() <{value = #emitc.opaque<"NULL">}> : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK: %variable_ptr = "emitc.variable"() <{value = #emitc.opaque<"NULL">}> : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK-GENERIC: %variable_ptr = "emitc.variable"() <{value = #emitc.opaque<"NULL">}> : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+
+%variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+// CHECK: %variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+// CHECK-GENERIC: %variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
