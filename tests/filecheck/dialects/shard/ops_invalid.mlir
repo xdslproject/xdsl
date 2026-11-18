@@ -122,3 +122,64 @@ shard.grid @grid0(shape = 2x4)
 %0 = shard.reduce_scatter %t on @grid0 grid_axes = [0] scatter_axis = 2 : tensor<4x2xi8> -> tensor<2x2xi8>
 
 // CHECK: Tensor axis 2 is out of bounds [0, 2).
+
+// -----
+
+%0 = shard.process_linear_index on @missing : index
+
+// CHECK: Undefined required grid symbol "missing".
+
+// -----
+
+"test.op"() {sym_name = "grid0"} : () -> ()
+%0 = shard.process_linear_index on @grid0 : index
+
+// CHECK: Undefined required grid symbol "grid0".
+
+// -----
+
+%0:2 = shard.process_multi_index on @missing axes = [0, 1] : index, index
+
+// CHECK: Undefined required grid symbol "missing".
+
+// -----
+
+shard.grid @grid0(shape = 2x2)
+%0:2 = shard.process_multi_index on @grid0 axes = [1, 1] : index, index
+
+// CHECK: Grid axes contains duplicate elements.
+
+// -----
+
+shard.grid @grid0(shape = 2x2)
+%0 = shard.process_multi_index on @grid0 axes = [2] : index
+
+// CHECK: 0-based grid axis index 2 is out of bounds. The referenced grid "grid0" is of rank 2.
+
+// -----
+
+shard.grid @grid0(shape = 2x2)
+%0 = shard.process_multi_index on @grid0 axes = [-1] : index
+
+// CHECK: 0-based grid axis index -1 is out of bounds. The referenced grid "grid0" is of rank 2.
+
+// -----
+
+shard.grid @grid0(shape = 2x2)
+%0 = shard.process_multi_index on @grid0 : index
+
+// CHECK: Unexpected number of results 1. Expected 2.
+
+// -----
+
+shard.grid @grid0(shape = 2x2x4)
+%0:3 = shard.process_multi_index on @grid0 axes = [0] : index, index, index
+
+// CHECK: Unexpected number of results 3. Expected 1.
+
+// -----
+
+%i = "test.op"() : () -> index
+%0:2 = shard.neighbors_linear_indices on @missing[%i] split_axes = [0] : index, index
+
+// CHECK: Undefined required grid symbol "missing".
