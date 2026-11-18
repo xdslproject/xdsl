@@ -54,7 +54,7 @@ def test_operand_value_invalidated(new_length: int):
     op = TestOp.create(operands=values)
     uses = tuple(use for value in values for use in value.uses)
 
-    op.operands = values[:new_length]
+    op.set_operands(values[:new_length])
 
     for use in uses:
         with pytest.raises(
