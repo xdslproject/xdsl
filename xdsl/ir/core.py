@@ -444,8 +444,8 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
         old_value = use.value
         if old_value is self:
             return
-        use._set_value(self)  # pyright: ignore[reportPrivateUsage]
         old_value.remove_use(use)
+        use._set_value(self)  # pyright: ignore[reportPrivateUsage]
         self.add_use(use)
 
     def has_one_use(self) -> bool:
