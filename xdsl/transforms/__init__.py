@@ -101,6 +101,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass
 
+    def get_convert_math_to_llvm():
+        from xdsl.transforms import convert_math_to_llvm
+
+        return convert_math_to_llvm.ConvertMathToLLVMPass
+
     def get_convert_memref_stream_to_loops():
         from xdsl.transforms import convert_memref_stream_to_loops
 
@@ -700,6 +705,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "expand-math-to-polynomials": get_expand_math_to_polynomials,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
+        "convert-math-to-llvm": get_convert_math_to_llvm,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
