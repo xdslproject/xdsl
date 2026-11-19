@@ -153,7 +153,7 @@ def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
         for use in set(res.uses):
             # avoid recursion on the casts we just inserted
             if use.operation != result:
-                use.operation.operands[use.index] = result.results[0]
+                result.results[0].replace_use(use)
 
     builder.insert(results, InsertPoint.after(op))
     return [result.results[0] for result in results]

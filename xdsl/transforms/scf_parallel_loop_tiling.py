@@ -124,7 +124,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                 for use in tuple(arg.uses):
                     if use.operation is iv:
                         continue
-                    use.operation.operands[use.index] = iv.result
+                    iv.result.replace_use(use)
         outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_reduce)
         rewriter.replace(op, [zero, *tile_sizes.values(), *outter_step, outter_loop])
 

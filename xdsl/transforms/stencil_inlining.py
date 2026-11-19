@@ -201,7 +201,7 @@ class StencilReroutingPattern(RewritePattern):
             for use in list(pres.uses):
                 if use.operation is new_consumer:
                     continue
-                use.operation.operands[use.index] = rres
+                rres.replace_use(use)
 
         rewriter.replace(consumer, new_consumer, new_consumer.res[: len(consumer.res)])
 
