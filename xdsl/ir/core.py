@@ -382,6 +382,10 @@ class Use(ABC, Generic[_IRWithUsesT]):
     def value(self) -> _IRWithUsesT:
         """The value used."""
 
+    @abstractmethod
+    def _set_value(self, value: _IRWithUsesT) -> None:
+        """Update the operation's slot without modifying use lists."""
+
     def __repr__(self) -> str:
         return (
             f"<{type(self).__name__} {id(self)}(_operation={_short_repr(self.operation)}, "
@@ -428,6 +432,21 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
 
         if prev_use is None:
             self.first_use = next_use
+
+    # Use _T rather than Self: a use may refer to a different subclass of _T.
+    def replace_use(self: _IRWithUsesT, use: Use[_IRWithUsesT]) -> None:  # noqa: PYI019
+        """
+        Replace the given use with self in-place.
+        This updates the use's value/block with `self` while preserving the use's
+        identity, operation, and index.
+        Raises an `AssertionError` if the use is invalidated.
+        """
+        old_value = use.value
+        if old_value is self:
+            return
+        old_value.remove_use(use)
+        use._set_value(self)  # pyright: ignore[reportPrivateUsage]
+        self.add_use(use)
 
     def has_one_use(self) -> bool:
         """Returns true if the value has exactly one use."""
@@ -605,7 +624,7 @@ class SSAValue(
         if value is self:
             return
         for use in tuple(self.uses):
-            use.operation.operands[use.index] = value
+            value.replace_use(use)
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
@@ -620,7 +639,7 @@ class SSAValue(
         """
         for use in tuple(self.uses):
             if predicate(use):
-                use.operation.operands[use.index] = value
+                value.replace_use(use)
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
@@ -663,6 +682,14 @@ class _Operand(Use[SSAValue]):
             "Attempting to use Operand that has been replaced"
         )
         return operation.operands[index]
+
+    def _set_value(self, value: SSAValue) -> None:
+        operation = self._operation
+        index = self.index
+        operands = operation._operands  # pyright: ignore[reportPrivateUsage]
+        operation._operands = SSAValues(  # pyright: ignore[reportPrivateUsage]
+            (*operands[:index], value, *operands[index + 1 :])
+        )
 
 
 @dataclass(eq=False)
@@ -818,12 +845,7 @@ class OpOperands(Sequence[SSAValue]):
         return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
 
     def __setitem__(self, idx: int, operand: SSAValue) -> None:
-        operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
-        operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
-        operands[idx].remove_use(operand_uses[idx])
-        operand.add_use(operand_uses[idx])
-        new_operands = SSAValues((*operands[:idx], operand, *operands[idx + 1 :]))
-        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+        operand.replace_use(self._op._operand_uses[idx])  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[SSAValue]:
         return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
@@ -2066,6 +2088,16 @@ class _Successor(Use[Block]):
         )
         return operation.successors[index]
 
+    def _set_value(self, value: Block) -> None:
+        operation = self._operation
+        index = self.index
+        successors = operation._successors  # pyright: ignore[reportPrivateUsage]
+        operation._successors = (  # pyright: ignore[reportPrivateUsage]
+            *successors[:index],
+            value,
+            *successors[index + 1 :],
+        )
+
 
 @dataclass
 class _RegionBlocksIterator(Iterator[Block]):
@@ -2107,12 +2139,7 @@ class OpSuccessors(Sequence[Block]):
         return self._op._successors[idx]  # pyright: ignore[reportPrivateUsage]
 
     def __setitem__(self, idx: int, successor: Block) -> None:
-        successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
-        successors[idx].remove_use(successor_uses[idx])
-        successor.add_use(successor_uses[idx])
-        new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
-        self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
+        successor.replace_use(self._op._successor_uses[idx])  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[Block]:
         return iter(self._op._successors)  # pyright: ignore[reportPrivateUsage]

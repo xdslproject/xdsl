@@ -58,7 +58,7 @@ class AddHaloExchangeOps(RewritePattern):
         for use in tuple(op.res.uses):
             if use.operation is swap_op:
                 continue
-            use.operation.operands[use.index] = swap_op.swapped_values
+            swap_op.swapped_values.replace_use(use)
             rewriter.handle_operation_modification(use.operation)
 
 
