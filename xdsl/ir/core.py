@@ -348,11 +348,11 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-_CovT = TypeVar("_CovT", covariant=True)
+_IRWithUsesT = TypeVar("_IRWithUsesT", bound="IRWithUses[Any]")
 
 
 @dataclass(repr=False)
-class Use(ABC, Generic[_CovT]):
+class Use(ABC, Generic[_IRWithUsesT]):
     """One use of an SSA value or successor block by an operation."""
 
     _operation: Operation
@@ -379,7 +379,7 @@ class Use(ABC, Generic[_CovT]):
 
     @property
     @abstractmethod
-    def value(self) -> _CovT:
+    def value(self) -> _IRWithUsesT:
         """The value used."""
 
     def __repr__(self) -> str:
@@ -397,18 +397,18 @@ class Use(ABC, Generic[_CovT]):
 
 
 @dataclass(eq=False)
-class IRWithUses(ABC):
+class IRWithUses(ABC, Generic[_IRWithUsesT]):
     """IRNode which stores a list of its uses."""
 
-    first_use: Use[Self] | None = field(init=False, default=None, repr=False)
+    first_use: Use[_IRWithUsesT] | None = field(init=False, default=None, repr=False)
     """The first use of the value in the use list."""
 
     @property
-    def uses(self) -> IRUses[Self]:
+    def uses(self) -> IRUses[_IRWithUsesT]:
         """Returns an iterable of all uses of the value."""
         return IRUses(self)
 
-    def add_use(self, use: Use[Self]):
+    def add_use(self, use: Use[_IRWithUsesT]):
         """Add a new use of the value."""
         first_use = self.first_use
         use._next_use = first_use  # pyright: ignore[reportPrivateUsage]
@@ -417,7 +417,7 @@ class IRWithUses(ABC):
             first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
         self.first_use = use
 
-    def remove_use(self, use: Use[Self]):
+    def remove_use(self, use: Use[_IRWithUsesT]):
         """Remove a use of the value."""
         prev_use = use._prev_use  # pyright: ignore[reportPrivateUsage]
         next_use = use._next_use  # pyright: ignore[reportPrivateUsage]
@@ -442,7 +442,7 @@ class IRWithUses(ABC):
             return False
         return first_use._next_use is not None  # pyright: ignore[reportPrivateUsage]
 
-    def get_unique_use(self) -> Use[Self] | None:
+    def get_unique_use(self) -> Use[_IRWithUsesT] | None:
         """
         Returns the single use of the value, or None if there are no uses or
         more than one use.
@@ -463,16 +463,13 @@ class IRWithUses(ABC):
         return None
 
 
-_IRWithUsesT = TypeVar("_IRWithUsesT", bound=IRWithUses)
-
-
 @dataclass
 class IRUses(Iterable[Use[_IRWithUsesT]], Generic[_IRWithUsesT]):
     """
     Multi-pass iterable of the uses of an IR value (SSAValue or Block).
     """
 
-    ir: _IRWithUsesT
+    ir: IRWithUses[_IRWithUsesT]
 
     def __iter__(self):
         use = self.ir.first_use
@@ -553,7 +550,9 @@ class IRWithName(ABC):
 
 
 @dataclass(eq=False)
-class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
+class SSAValue(
+    IRWithUses["SSAValue[Attribute]"], IRWithName, ABC, Generic[AttributeCovT]
+):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -613,7 +612,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
         assert self.first_use is None, "unexpected error in xdsl"
 
     def replace_uses_with_if(
-        self, value: SSAValue, predicate: Callable[[Use[Self]], bool]
+        self, value: SSAValue, predicate: Callable[[Use[SSAValue]], bool]
     ):
         """
         Replace the value by another value in all its uses that pass the given test
@@ -1611,7 +1610,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
 
 
 @dataclass(init=False, eq=False, unsafe_hash=False)
-class Block(_IRNode, IRWithUses, IRWithName):
+class Block(_IRNode, IRWithUses["Block"], IRWithName):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
