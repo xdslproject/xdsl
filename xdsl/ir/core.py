@@ -436,8 +436,10 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
     # Use _T rather than Self: a use may refer to a different subclass of _T.
     def replace_use(self: _T, use: Use[_T]) -> None:  # noqa: PYI019
         """
-        Replace the value used by this value, preserving the use's identity,
-        operation, and index. Raise an assertion error if the use is invalidated.
+        Replace the given use with self in-place.
+        This updates the use's value/block with `self` while preserving the use's
+        identity, operation, and index.
+        Raises an `AssertionError` if the use is invalidated.
         """
         old_value = use.value
         if old_value is self:
