@@ -383,7 +383,7 @@ class Use(ABC, Generic[_IRWithUsesT]):
         """The value used."""
 
     @abstractmethod
-    def _set_value(self, value: _T) -> None:
+    def _set_value(self, value: _IRWithUsesT) -> None:
         """Update the operation's slot without modifying use lists."""
 
     def __repr__(self) -> str:
@@ -434,7 +434,7 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
             self.first_use = next_use
 
     # Use _T rather than Self: a use may refer to a different subclass of _T.
-    def replace_use(self: _T, use: Use[_T]) -> None:  # noqa: PYI019
+    def replace_use(self: _IRWithUsesT, use: Use[_IRWithUsesT]) -> None:  # noqa: PYI019
         """
         Replace the given use with self in-place.
         This updates the use's value/block with `self` while preserving the use's
