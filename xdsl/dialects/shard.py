@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ShapedType,
+    StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
@@ -742,21 +743,15 @@ class GridOp(IRDLOperation):
             )
 
 
-def _grid_ref(grid: GridOp | str | SymbolRefAttr) -> SymbolRefAttr:
-    """
-    Converts `grid` to a symbol reference to a `shard.grid`.
-    """
-    if isinstance(grid, SymbolRefAttr):
-        return grid
-    return SymbolRefAttr(grid.sym_name if isinstance(grid, GridOp) else grid)
-
-
 @irdl_op_definition
 class ProcessMultiIndexOp(GridSymbolUserOperation):
     """
     Get the multi index of current device along specified grid axes.
 
     If `axes` is empty, the index along all grid axes is returned.
+
+    When constructing, pass either the sequence of `axes` (one result per axis),
+    or the rank of the grid as an int.
 
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardprocess_multi_index-shardprocessmultiindexop).
     """
@@ -771,15 +766,17 @@ class ProcessMultiIndexOp(GridSymbolUserOperation):
 
     assembly_format = "`on` $grid (`axes` `=` $axes^)? attr-dict `:` type($result)"
 
-    def __init__(self, grid: GridOp | str | SymbolRefAttr, axes: Sequence[int] = ()):
-        if isinstance(grid, GridOp):
-            num_results = len(axes) if axes else len(grid.shape)
+    def __init__(
+        self, grid: str | StringAttr | SymbolRefAttr, axes: Sequence[int] | int
+    ):
+        if isinstance(axes, int):
+            num_results, axes = axes, ()
         else:
             num_results = len(axes)
         super().__init__(
             result_types=[[IndexType()] * num_results],
             properties={
-                "grid": _grid_ref(grid),
+                "grid": SymbolRefAttr.get(grid),
                 "axes": ShardAxesAttr.from_list(i16, axes),
             },
         )
@@ -813,9 +810,9 @@ class ProcessLinearIndexOp(GridSymbolUserOperation):
 
     assembly_format = "`on` $grid attr-dict `:` type($result)"
 
-    def __init__(self, grid: GridOp | str | SymbolRefAttr):
+    def __init__(self, grid: str | StringAttr | SymbolRefAttr):
         super().__init__(
-            result_types=[IndexType()], properties={"grid": _grid_ref(grid)}
+            result_types=[IndexType()], properties={"grid": SymbolRefAttr.get(grid)}
         )
 
 
@@ -846,7 +843,7 @@ class NeighborsLinearIndicesOp(GridSymbolUserOperation):
 
     def __init__(
         self,
-        grid: GridOp | str | SymbolRefAttr,
+        grid: str | StringAttr | SymbolRefAttr,
         device: Sequence[SSAValue | Operation],
         split_axes: Sequence[int],
     ):
@@ -854,7 +851,7 @@ class NeighborsLinearIndicesOp(GridSymbolUserOperation):
             operands=[device],
             result_types=[IndexType(), IndexType()],
             properties={
-                "grid": _grid_ref(grid),
+                "grid": SymbolRefAttr.get(grid),
                 "split_axes": ShardAxesAttr.from_list(i16, split_axes),
             },
         )
