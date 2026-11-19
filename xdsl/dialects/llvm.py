@@ -3032,6 +3032,48 @@ class SIToFPOp(GenericCastOp):
 
 
 @irdl_op_definition
+class UIToFPOp(IRDLOperation):
+    """
+    Converts an unsigned integer to a floating-point value.
+    If the `nneg` flag is set and the operand is negative, the result is poison.
+    """
+
+    name = "llvm.uitofp"
+
+    arg = operand_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
+    result = result_def(AnyFloat | VectorType[AnyFloat])
+    non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = (
+        "(`nneg` $nonNeg^)? $arg attr-dict `:` type($arg) `to` type($result)"
+    )
+
+    def __init__(
+        self,
+        val: OperandArg,
+        res_type: Attribute,
+        non_neg: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[val],
+            result_types=[res_type],
+            properties={"nonNeg": non_neg},
+        )
+
+
+@irdl_op_definition
+class FPToSIOp(GenericCastOp):
+    name = "llvm.fptosi"
+
+
+@irdl_op_definition
+class FPToUIOp(GenericCastOp):
+    name = "llvm.fptoui"
+
+
+@irdl_op_definition
 class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
 
@@ -3948,6 +3990,8 @@ LLVM = Dialect(
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPToSIOp,
+        FPToUIOp,
         FPTruncOp,
         FPowOp,
         FRemOp,
@@ -3984,6 +4028,7 @@ LLVM = Dialect(
         SubOp,
         TruncOp,
         UDivOp,
+        UIToFPOp,
         UMaxOp,
         UMinOp,
         URemOp,
