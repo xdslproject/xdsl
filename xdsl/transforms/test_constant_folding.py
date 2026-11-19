@@ -241,6 +241,8 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
 
                         if prev_use is None:
                             operand.first_use = next_use
+                        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+                        use._next_use = None  # pyright: ignore[reportPrivateUsage]
                     ## This application has no regions, so no recursive drops
 
                     for result in old_op.results:
