@@ -348,11 +348,11 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-_T = TypeVar("_T", bound="IRWithUses[Any]")
+_IRWithUsesT = TypeVar("_IRWithUsesT", bound="IRWithUses[Any]")
 
 
 @dataclass(repr=False)
-class Use(ABC, Generic[_T]):
+class Use(ABC, Generic[_IRWithUsesT]):
     """One use of an SSA value or successor block by an operation."""
 
     _operation: Operation
@@ -379,7 +379,7 @@ class Use(ABC, Generic[_T]):
 
     @property
     @abstractmethod
-    def value(self) -> _T:
+    def value(self) -> _IRWithUsesT:
         """The value used."""
 
     def __repr__(self) -> str:
@@ -397,18 +397,18 @@ class Use(ABC, Generic[_T]):
 
 
 @dataclass(eq=False)
-class IRWithUses(ABC, Generic[_T]):
+class IRWithUses(ABC, Generic[_IRWithUsesT]):
     """IRNode which stores a list of its uses."""
 
-    first_use: Use[_T] | None = field(init=False, default=None, repr=False)
+    first_use: Use[_IRWithUsesT] | None = field(init=False, default=None, repr=False)
     """The first use of the value in the use list."""
 
     @property
-    def uses(self) -> IRUses[_T]:
+    def uses(self) -> IRUses[_IRWithUsesT]:
         """Returns an iterable of all uses of the value."""
         return IRUses(self)
 
-    def add_use(self, use: Use[_T]):
+    def add_use(self, use: Use[_IRWithUsesT]):
         """Add a new use of the value."""
         first_use = self.first_use
         use._next_use = first_use  # pyright: ignore[reportPrivateUsage]
@@ -417,7 +417,7 @@ class IRWithUses(ABC, Generic[_T]):
             first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
         self.first_use = use
 
-    def remove_use(self, use: Use[_T]):
+    def remove_use(self, use: Use[_IRWithUsesT]):
         """Remove a use of the value."""
         prev_use = use._prev_use  # pyright: ignore[reportPrivateUsage]
         next_use = use._next_use  # pyright: ignore[reportPrivateUsage]
@@ -442,7 +442,7 @@ class IRWithUses(ABC, Generic[_T]):
             return False
         return first_use._next_use is not None  # pyright: ignore[reportPrivateUsage]
 
-    def get_unique_use(self) -> Use[_T] | None:
+    def get_unique_use(self) -> Use[_IRWithUsesT] | None:
         """
         Returns the single use of the value, or None if there are no uses or
         more than one use.
@@ -464,12 +464,12 @@ class IRWithUses(ABC, Generic[_T]):
 
 
 @dataclass
-class IRUses(Iterable[Use[_T]], Generic[_T]):
+class IRUses(Iterable[Use[_IRWithUsesT]], Generic[_IRWithUsesT]):
     """
     Multi-pass iterable of the uses of an IR value (SSAValue or Block).
     """
 
-    ir: IRWithUses[_T]
+    ir: IRWithUses[_IRWithUsesT]
 
     def __iter__(self):
         use = self.ir.first_use
