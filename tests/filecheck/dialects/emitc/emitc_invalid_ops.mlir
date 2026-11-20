@@ -130,3 +130,19 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 
 // CHECK: value must not be empty
 %lit = emitc.literal "" : i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: attribute i32 expected from variable 'T', but got f32
+%load = "emitc.load"(%v) : (!emitc.lvalue<i32>) -> f32
+
+// -----
+
+%v = "test.op"() : () -> i32
+// CHECK: i32 should be of base attribute emitc.lvalue
+%load = "emitc.load"(%v) : (i32) -> i32
