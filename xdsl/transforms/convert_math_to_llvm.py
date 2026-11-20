@@ -31,7 +31,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     VectorType,
 )
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Operation
 from xdsl.irdl import IRDLOperation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -64,15 +64,6 @@ def _is_llvm_compatible_float_like(type: Attribute) -> bool:
     return isa(type, _LLVMCompatibleFloat)
 
 
-def _fast_math(
-    op: math.FloatingPointLikeUnaryMathOperation
-    | math.FloatingPointLikeBinaryMathOperation
-    | math.FmaOp,
-) -> llvm.FastMathAttr:
-    """Converts the fast-math flags of a `math` operation to LLVM ones."""
-    return llvm.FastMathAttr(op.fastmath.data)
-
-
 def _float_one(type: Attribute) -> llvm.ConstantOp | None:
     """
     Creates an `llvm.mlir.constant` holding 1.0 for a float, or a splat of 1.0 for a
@@ -91,7 +82,7 @@ def _float_one(type: Attribute) -> llvm.ConstantOp | None:
     return llvm.ConstantOp(value, type)
 
 
-_FLOAT_INTRINSICS: dict[type[IRDLOperation], type[IRDLOperation]] = {
+_FLOAT_INTRINSICS: dict[type[Operation], type[IRDLOperation]] = {
     math.AbsFOp: llvm.FAbsOp,
     math.CeilOp: llvm.FCeilOp,
     math.CopySignOp: llvm.FCopySignOp,
@@ -115,31 +106,21 @@ class ConvertFloatIntrinsicOp(RewritePattern):
     e.g. `math.exp` to `llvm.intr.exp`.
     """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self,
-        op: math.AbsFOp
-        | math.CeilOp
-        | math.CopySignOp
-        | math.CosOp
-        | math.Exp2Op
-        | math.ExpOp
-        | math.FloorOp
-        | math.FmaOp
-        | math.Log2Op
-        | math.LogOp
-        | math.PowFOp
-        | math.SinOp
-        | math.SqrtOp,
-        rewriter: PatternRewriter,
-        /,
-    ):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if (intrinsic_type := _FLOAT_INTRINSICS.get(type(op))) is None:
+            return
+        assert isinstance(
+            op,
+            math.FloatingPointLikeUnaryMathOperation
+            | math.FloatingPointLikeBinaryMathOperation
+            | math.FmaOp,
+        )
         if not _is_llvm_compatible_float_like(op.result.type):
             return
-        intrinsic = _FLOAT_INTRINSICS[type(op)].create(
+        intrinsic = intrinsic_type.create(
             operands=op.operands,
             result_types=(op.result.type,),
-            properties={"fastmathFlags": _fast_math(op)},
+            properties={"fastmathFlags": llvm.FastMathAttr(op.fastmath.data)},
             attributes=op.attributes.copy(),
         )
         rewriter.replace(op, intrinsic)
@@ -152,7 +133,7 @@ class ConvertExpM1Op(RewritePattern):
     def match_and_rewrite(self, op: math.ExpM1Op, rewriter: PatternRewriter, /):
         if (one := _float_one(op.result.type)) is None:
             return
-        fast_math = _fast_math(op)
+        fast_math = llvm.FastMathAttr(op.fastmath.data)
         exp = llvm.FExpOp(op.operand, fast_math)
         exp.attributes = op.attributes.copy()
         sub = llvm.FSubOp(exp.res, one.result, fast_math, op.attributes.copy())
@@ -166,7 +147,7 @@ class ConvertLog1pOp(RewritePattern):
     def match_and_rewrite(self, op: math.Log1pOp, rewriter: PatternRewriter, /):
         if (one := _float_one(op.result.type)) is None:
             return
-        fast_math = _fast_math(op)
+        fast_math = llvm.FastMathAttr(op.fastmath.data)
         add = llvm.FAddOp(one.result, op.operand, fast_math, op.attributes.copy())
         log = llvm.FLogOp(add.res, fast_math)
         log.attributes = op.attributes.copy()
@@ -180,7 +161,7 @@ class ConvertRsqrtOp(RewritePattern):
     def match_and_rewrite(self, op: math.RsqrtOp, rewriter: PatternRewriter, /):
         if (one := _float_one(op.result.type)) is None:
             return
-        fast_math = _fast_math(op)
+        fast_math = llvm.FastMathAttr(op.fastmath.data)
         sqrt = llvm.FSqrtOp(op.operand, fast_math)
         sqrt.attributes = op.attributes.copy()
         div = llvm.FDivOp(one.result, sqrt.res, fast_math, op.attributes.copy())
