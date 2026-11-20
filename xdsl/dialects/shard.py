@@ -16,7 +16,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ShapedType,
+    StringAttr,
     SymbolNameConstraint,
+    SymbolRefAttr,
     TensorType,
     UnitAttr,
     i16,
@@ -48,6 +50,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -204,6 +207,22 @@ class GridSymbolUserOperation(IRDLOperation, ABC):
         self.get_grid()
 
 
+def _verify_grid_axes(axes: Sequence[int], grid: "GridOp") -> None:
+    """
+    Verifies that `axes` are unique and in bounds of `grid`.
+    """
+    if len(set(axes)) != len(axes):
+        raise VerifyException("Grid axes contains duplicate elements.")
+
+    rank = len(grid.shape)
+    for axis in axes:
+        if not 0 <= axis < rank:
+            raise VerifyException(
+                f"0-based grid axis index {axis} is out of bounds. The referenced "
+                f'grid "{grid.sym_name.data}" is of rank {rank}.'
+            )
+
+
 ################################################################################
 # Collective shape verification                                                #
 ################################################################################
@@ -311,18 +330,7 @@ class CollectiveCommunicationOperation(GridSymbolUserOperation, ABC):
 
     def verify_(self) -> None:
         super().verify_()
-        axes = self.grid_axes.get_values()
-        grid = self.get_grid()
-        if len(set(axes)) != len(axes):
-            raise VerifyException("Grid axes contains duplicate elements.")
-
-        rank = len(grid.shape)
-        for axis in axes:
-            if not 0 <= axis < rank:
-                raise VerifyException(
-                    f"0-based grid axis index {axis} is out of bounds. The referenced "
-                    f'grid "{grid.sym_name.data}" is of rank {rank}.'
-                )
+        _verify_grid_axes(self.grid_axes.get_values(), self.get_grid())
 
     def collective_process_group_size(self, grid: "GridOp") -> int:
         """
@@ -735,6 +743,120 @@ class GridOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ProcessMultiIndexOp(GridSymbolUserOperation):
+    """
+    Get the multi index of current device along specified grid axes.
+
+    If `axes` is empty, the index along all grid axes is returned.
+
+    When constructing, pass either the sequence of `axes` (one result per axis),
+    or the rank of the grid as an int.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardprocess_multi_index-shardprocessmultiindexop).
+    """
+
+    name = "shard.process_multi_index"
+
+    axes = prop_def(ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b"")))
+
+    result = var_result_def(IndexType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "`on` $grid (`axes` `=` $axes^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self, grid: str | StringAttr | SymbolRefAttr, axes: Sequence[int] | int
+    ):
+        if isinstance(axes, int):
+            num_results, axes = axes, ()
+        else:
+            num_results = len(axes)
+        super().__init__(
+            result_types=[[IndexType()] * num_results],
+            properties={
+                "grid": SymbolRefAttr.get(grid),
+                "axes": ShardAxesAttr.from_list(i16, axes),
+            },
+        )
+
+    def verify_(self) -> None:
+        super().verify_()
+        grid = self.get_grid()
+        axes = self.axes.get_values()
+        _verify_grid_axes(axes, grid)
+
+        expected = len(axes) if axes else len(grid.shape)
+        if len(self.result) != expected:
+            raise VerifyException(
+                f"Unexpected number of results {len(self.result)}. Expected {expected}."
+            )
+
+
+@irdl_op_definition
+class ProcessLinearIndexOp(GridSymbolUserOperation):
+    """
+    Get the linear index of the current device.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardprocess_linear_index-shardprocesslinearindexop).
+    """
+
+    name = "shard.process_linear_index"
+
+    result = result_def(IndexType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "`on` $grid attr-dict `:` type($result)"
+
+    def __init__(self, grid: str | StringAttr | SymbolRefAttr):
+        super().__init__(
+            result_types=[IndexType()], properties={"grid": SymbolRefAttr.get(grid)}
+        )
+
+
+@irdl_op_definition
+class NeighborsLinearIndicesOp(GridSymbolUserOperation):
+    """
+    For a given grid index, get the linear indices of the direct neighbor
+    processes along the given split. A negative value is returned if there is no
+    neighbor in the respective direction.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardneighbors_linear_indices-shardneighborslinearindicesop).
+    """
+
+    name = "shard.neighbors_linear_indices"
+
+    device = var_operand_def(IndexType)
+    split_axes = prop_def(ShardAxesAttr)
+
+    neighbor_down = result_def(IndexType)
+    neighbor_up = result_def(IndexType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "`on` $grid `[` $device `]` `split_axes` `=` $split_axes "
+        + "attr-dict `:` type(results)"
+    )
+
+    def __init__(
+        self,
+        grid: str | StringAttr | SymbolRefAttr,
+        device: Sequence[SSAValue | Operation],
+        split_axes: Sequence[int],
+    ):
+        super().__init__(
+            operands=[device],
+            result_types=[IndexType(), IndexType()],
+            properties={
+                "grid": SymbolRefAttr.get(grid),
+                "split_axes": ShardAxesAttr.from_list(i16, split_axes),
+            },
+        )
+
+
 ################################################################################
 # Sharding operations                                                          #
 ################################################################################
@@ -848,6 +970,9 @@ Shard = Dialect(
         ScatterOp,
         ShiftOp,
         GridOp,
+        NeighborsLinearIndicesOp,
+        ProcessLinearIndexOp,
+        ProcessMultiIndexOp,
         ShardingOp,
         ShardOp,
     ],

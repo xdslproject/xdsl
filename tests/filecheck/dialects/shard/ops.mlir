@@ -85,3 +85,17 @@ shard.grid @grid5(shape = ?)
 // CHECK-NEXT: %22 = shard.shard %t to %7 : tensor<2x2xi8>
 %23 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
 // CHECK-NEXT: %23 = shard.shard %t to %7 annotate_for_users : tensor<2x2xi8>
+
+// Process indices
+%24, %25, %26 = shard.process_multi_index on @grid0 : index, index, index
+// CHECK-NEXT: %24, %25, %26 = shard.process_multi_index on @grid0 : index, index, index
+%27, %28 = shard.process_multi_index on @grid0 axes = [2, 0] : index, index
+// CHECK-NEXT: %27, %28 = shard.process_multi_index on @grid0 axes = [2, 0] : index, index
+%29, %30 = shard.process_multi_index on @grid1 axes = [] : index, index
+// CHECK-NEXT: %29, %30 = shard.process_multi_index on @grid1 : index, index
+%31 = shard.process_linear_index on @grid0 : index
+// CHECK-NEXT: %31 = shard.process_linear_index on @grid0 : index
+%32, %33 = shard.neighbors_linear_indices on @grid0[%i, %i, %i] split_axes = [1] : index, index
+// CHECK-NEXT: %32, %33 = shard.neighbors_linear_indices on @grid0[%i, %i, %i] split_axes = [1] : index, index
+%34, %35 = shard.neighbors_linear_indices on @grid5[] split_axes = [] : index, index
+// CHECK-NEXT: %34, %35 = shard.neighbors_linear_indices on @grid5[] split_axes = [] : index, index
