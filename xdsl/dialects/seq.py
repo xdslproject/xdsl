@@ -10,17 +10,22 @@ from typing import ClassVar
 from xdsl.dialects.builtin import (
     I8,
     IntegerAttr,
-    TypeAttribute,
     i1,
     i8,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Data, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Data,
+    Dialect,
+    OperandArg,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParametrizedAttribute,
     VarConstraint,
     attr_def,
     irdl_attr_definition,
@@ -60,7 +65,7 @@ class ClockDividerOp(IRDLOperation):
 
     assembly_format = "$clockIn `by` $pow2 attr-dict"
 
-    def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
+    def __init__(self, clockIn: OperandArg, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
             pow2 = IntegerAttr(pow2, i8)
         super().__init__(

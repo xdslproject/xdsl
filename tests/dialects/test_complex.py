@@ -25,7 +25,7 @@ def test_constant_construction():
     value = ArrayAttr([IntAttr(42), IntAttr(43)])
     c1 = complex.ConstantOp(
         value=value,
-        result_type=complex.ComplexType(i32),
+        result_type=ComplexType(i32),
     )
 
     assert ConstantLike.get_constant_value(c1.complex) == value

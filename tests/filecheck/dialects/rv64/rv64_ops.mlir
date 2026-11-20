@@ -40,23 +40,23 @@ riscv_func.func @main() {
 }
 
 // CHECK-GENERIC:       "builtin.module"() ({
-// CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:      %0 = "rv64.li"() {immediate = 5 : i64} : () -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %li_lo = "rv64.li"() {immediate = "%lo(label)"} : () -> !riscv.reg<a0>
-// CHECK-GENERIC-NEXT:      %slli = "rv64.slli"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %srli = "rv64.srli"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %srai = "rv64.srai"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %ld = "rv64.ld"(%li) {immediate = 8 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      "rv64.sd"(%li, %ld) {immediate = 16 : si12} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:      %bclri = "rv64.bclri"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %binvi = "rv64.binvi"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %bseti = "rv64.bseti"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %rori = "rv64.rori"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %bexti = "rv64.bexti"(%0) {immediate = 1 : ui6} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:    "riscv_func.func"() <{sym_name = "main", function_type = () -> ()}> ({
+// CHECK-GENERIC-NEXT:      %0 = "rv64.li"() <{immediate = 5 : i64}> : () -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %li_lo = "rv64.li"() <{immediate = "%lo(label)"}> : () -> !riscv.reg<a0>
+// CHECK-GENERIC-NEXT:      %slli = "rv64.slli"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %srli = "rv64.srli"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %srai = "rv64.srai"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %li = "rv64.li"() <{immediate = 1 : i64}> : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %ld = "rv64.ld"(%li) <{immediate = 8 : si12}> : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      "rv64.sd"(%li, %ld) <{immediate = 16 : si12}> : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      %bclri = "rv64.bclri"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %binvi = "rv64.binvi"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bseti = "rv64.bseti"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %rori = "rv64.rori"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bexti = "rv64.bexti"(%0) <{immediate = 1 : ui6}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
 
 // CHECK-ASM:       .text

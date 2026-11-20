@@ -4,7 +4,7 @@ from typing import Literal, cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, varith
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Attribute, OperandArg, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -198,7 +198,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
 
         consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []
-        new_args: list[Operation | SSAValue] = []
+        new_args: list[OperandArg] = []
         for arg, count in collections.Counter(op.args).items():
             if count >= self.min_reps:
                 c, f = self.fuse(arg, count, elem_t)

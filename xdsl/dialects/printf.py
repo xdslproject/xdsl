@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IntegerType, StringAttr, i8
-from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
+from xdsl.ir import Dialect, OperandArg, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -31,7 +31,7 @@ class PrintFormatOp(IRDLOperation):
     format_str = prop_def(StringAttr)
     format_vals = var_operand_def()
 
-    def __init__(self, format_str: str | StringAttr, *vals: SSAValue | Operation):
+    def __init__(self, format_str: str | StringAttr, *vals: OperandArg):
         super().__init__(
             operands=[vals], properties={"format_str": StringAttr.get(format_str)}
         )
@@ -89,7 +89,7 @@ class PrintCharOp(IRDLOperation):
     name = "printf.print_char"
     char = operand_def(i8)
 
-    def __init__(self, char: SSAValue | Operation):
+    def __init__(self, char: OperandArg):
         super().__init__(
             operands=[char],
         )
@@ -120,7 +120,7 @@ class PrintIntOp(IRDLOperation):
     name = "printf.print_int"
     int = operand_def(IntegerType)
 
-    def __init__(self, integer: SSAValue | Operation):
+    def __init__(self, integer: OperandArg):
         super().__init__(
             operands=[integer],
         )

@@ -49,19 +49,18 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
+    ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
-    BaseAttr,
+    AttrSetConstraint,
     IRDLOperation,
-    ParametrizedAttribute,
     VarConstraint,
-    base,
-    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -270,7 +269,7 @@ class ComptimeStringType(ParametrizedAttribute, TypeAttribute):
     name = "csl.comptime_string"
 
 
-StructLikeConstr = base(ImportedModuleType) | base(ComptimeStructType)
+StructLike = ImportedModuleType | ComptimeStructType
 
 
 @irdl_attr_definition
@@ -356,11 +355,11 @@ class PtrCastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
+    def __init__(self, ptr: OperandArg, result_type: PtrType):
         super().__init__(operands=[ptr], result_types=[result_type])
 
 
-IntPtrCastTypeConstr = base(PtrType) | base(IntegerType) | base(IndexType)
+IntPtrCastType = PtrType | IntegerType | IndexType
 
 
 @irdl_op_definition
@@ -374,8 +373,8 @@ class IntPtrCastOp(IRDLOperation):
 
     name = "csl.intptrcast"
 
-    input = operand_def(IntPtrCastTypeConstr)
-    result = result_def(IntPtrCastTypeConstr)
+    input = operand_def(IntPtrCastType)
+    result = result_def(IntPtrCastType)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -383,7 +382,7 @@ class IntPtrCastOp(IRDLOperation):
 
     def __init__(
         self,
-        input: Operation | SSAValue,
+        input: OperandArg,
         result_type: PtrType | IntegerType | IndexType,
     ):
         super().__init__(operands=[input], result_types=[result_type])
@@ -398,13 +397,13 @@ class IntPtrCastOp(IRDLOperation):
             )
 
 
-DsdElementTypeConstr = (
-    base(Float16Type)
-    | base(Float32Type)
-    | eq(IntegerType(16, Signedness.SIGNED))
-    | eq(IntegerType(16, Signedness.UNSIGNED))
-    | eq(IntegerType(32, Signedness.SIGNED))
-    | eq(IntegerType(32, Signedness.UNSIGNED))
+DsdElementTypeConstr = AttrSetConstraint.get(
+    Float16Type(),
+    Float32Type(),
+    IntegerType(16, Signedness.SIGNED),
+    IntegerType(16, Signedness.UNSIGNED),
+    IntegerType(32, Signedness.SIGNED),
+    IntegerType(32, Signedness.UNSIGNED),
 )
 
 
@@ -484,7 +483,7 @@ class VariableOp(IRDLOperation):
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
-    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
+    assembly_format = "`(` $default `)` `:` qualified(type($res)) attr-dict"
 
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
@@ -526,7 +525,7 @@ class LoadVarOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = "`(` $var `:` type($var) `)` `:` type($res) attr-dict"
+    assembly_format = "`(` $var `:` qualified(type($var)) `)` `:` type($res) attr-dict"
 
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
@@ -561,10 +560,10 @@ class StoreVarOp(IRDLOperation):
     traits = traits_def(MemoryWriteEffect())
 
     assembly_format = (
-        "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
+        "$var `:` qualified(type($var)) `=` $new_value `:` type($new_value) attr-dict"
     )
 
-    def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
+    def __init__(self, var: VariableOp, new_value: OperandArg):
         super().__init__(operands=[var, new_value])
 
     def verify_(self) -> None:
@@ -623,13 +622,11 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLikeConstr)
+    params = opt_operand_def(StructLike)
 
     result = result_def(ImportedModuleType)
 
-    def __init__(
-        self, name: str | StringAttr, params: SSAValue | Operation | None = None
-    ):
+    def __init__(self, name: str | StringAttr, params: OperandArg | None = None):
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
@@ -677,8 +674,8 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str | StringAttr, Operation | SSAValue]):
-        operands: list[Operation | SSAValue] = []
+    def __init__(self, *args: tuple[str | StringAttr, OperandArg]):
+        operands: list[OperandArg] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr.get(fname))
@@ -703,9 +700,6 @@ class ConstStructOp(IRDLOperation):
 
 
 ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
-ZerosOpAttrConstr = (
-    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-)
 
 
 @irdl_op_definition
@@ -716,7 +710,7 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint.get("T", ZerosOpAttr)
 
     size = opt_operand_def(T)
 
@@ -727,7 +721,7 @@ class ZerosOp(IRDLOperation):
     def __init__(
         self,
         memref: MemRefType[IntegerType | Float32Type | Float16Type],
-        dynamic_size: SSAValue | Operation | None = None,
+        dynamic_size: OperandArg | None = None,
         is_const: builtin.UnitAttr | None = None,
     ):
         super().__init__(
@@ -749,9 +743,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar = VarConstraint(
-        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-    )
+    T: ClassVar = VarConstraint.get("T", IntegerType | Float32Type | Float16Type)
 
     size = operand_def(IntegerType)
 
@@ -761,7 +753,7 @@ class ConstantsOp(IRDLOperation):
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
-    def __init__(self, size: SSAValue | Operation, value: SSAValue | Operation):
+    def __init__(self, size: OperandArg, value: OperandArg):
         super().__init__(
             operands=[size, value],
             result_types=[MemRefType(SSAValue.get(value).type, [-1])],
@@ -791,7 +783,7 @@ class MemberAccessOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    struct = operand_def(StructLikeConstr)
+    struct = operand_def(StructLike)
 
     field = prop_def(StringAttr)
 
@@ -806,7 +798,7 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-    struct = operand_def(StructLikeConstr)
+    struct = operand_def(StructLike)
 
     field = prop_def(StringAttr)
 
@@ -819,7 +811,7 @@ class MemberCallOp(IRDLOperation):
         fname: str | StringAttr,
         result_type: Attribute | None,
         struct: Operation,
-        params: Sequence[SSAValue | Operation],
+        params: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[struct, params],
@@ -1069,7 +1061,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(FuncOp, TaskOp), IsTerminator())
 
-    def __init__(self, return_val: SSAValue | Operation | None = None):
+    def __init__(self, return_val: OperandArg | None = None):
         super().__init__(operands=[return_val])
 
     def verify_(self) -> None:
@@ -1121,7 +1113,7 @@ class CallOp(IRDLOperation):
     def __init__(
         self,
         callee: str | StringAttr | SymbolRefAttr,
-        args: Sequence[SSAValue | Operation] | None = None,
+        args: Sequence[OperandArg] | None = None,
         result: Attribute | None = None,
     ):
         super().__init__(
@@ -1158,9 +1150,9 @@ class SetTileCodeOp(IRDLOperation):
     def __init__(
         self,
         fname: str | StringAttr,
-        x_coord: SSAValue | Operation,
-        y_coord: SSAValue | Operation,
-        params: SSAValue | Operation | None = None,
+        x_coord: OperandArg,
+        y_coord: OperandArg,
+        params: OperandArg | None = None,
     ):
         name = StringAttr(fname) if isinstance(fname, str) else fname
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
@@ -1234,7 +1226,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType) | base(TensorType[Attribute]))
+    base_addr = operand_def(MemRefType | TensorType[Attribute])
     tensor_access = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
@@ -1309,9 +1301,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
     name = "csl.set_dsd_base_addr"
 
     op = operand_def(DsdType)
-    base_addr = operand_def(
-        base(MemRefType) | base(TensorType[Attribute]) | base(PtrType)
-    )
+    base_addr = operand_def(MemRefType | TensorType[Attribute] | PtrType)
     result = result_def(DsdType)
 
     traits = traits_def(Pure())
@@ -1349,7 +1339,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(eq(i16) | eq(i16_value))
+    offset = operand_def(AttrSetConstraint.get(i16, i16_value))
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
@@ -1376,7 +1366,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(eq(i16) | eq(u16_value))
+    length = operand_def(AttrSetConstraint.get(i16, u16_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
@@ -1403,7 +1393,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(eq(i8) | eq(i8_value))
+    stride = operand_def(AttrSetConstraint.get(i8, i8_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
@@ -1866,9 +1856,9 @@ class SymbolExportOp(IRDLOperation):
 
     value = opt_operand_def(PtrType)
 
-    var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
+    var_name = prop_def(StringAttr | SymbolRefAttr)
 
-    type = prop_def(base(PtrType) | base(FunctionType))
+    type = prop_def(PtrType | FunctionType)
 
     def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
         var_name: StringAttr | SymbolRefAttr = (
@@ -1973,7 +1963,7 @@ class AddressOfOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, value: SSAValue | Operation, result_type: PtrType):
+    def __init__(self, value: OperandArg, result_type: PtrType):
         super().__init__(operands=[value], result_types=[result_type])
 
     def _verify_memref_addr(self, val_ty: MemRefType, res_ty: PtrType):
@@ -2049,16 +2039,6 @@ ParamOpAttr: TypeAlias = (
     | ComptimeStructType
 )
 
-ParamOpAttrConstr = (
-    BaseAttr(Float16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(IntegerType)
-    | BaseAttr(ColorType)
-    | BaseAttr(FunctionType)
-    | BaseAttr(ImportedModuleType)
-    | BaseAttr(ComptimeStructType)
-)
-
 
 @irdl_op_definition
 class ParamOp(IRDLOperation):
@@ -2072,7 +2052,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint.get("T", ParamOpAttr)
 
     name = "csl.param"
 
@@ -2087,7 +2067,7 @@ class ParamOp(IRDLOperation):
         self,
         name: str | StringAttr,
         result_type: ParamOpAttr,
-        init_value: SSAValue | Operation | None = None,
+        init_value: OperandArg | None = None,
     ):
         super().__init__(
             operands=[init_value],
@@ -2112,9 +2092,7 @@ class SignednessCastOp(IRDLOperation):
 
     assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
-    def __init__(
-        self, op: SSAValue | Operation, result_type: IntegerType | None = None
-    ):
+    def __init__(self, op: OperandArg, result_type: IntegerType | None = None):
         """
         Create a signedness cast op.
 
@@ -2124,7 +2102,8 @@ class SignednessCastOp(IRDLOperation):
         - Signless => Unsigned
         """
         if result_type is None:
-            typ = op.results[0].type if isinstance(op, Operation) else op.type
+            op = SSAValue.get(op)
+            typ = op.type
             assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
@@ -2169,7 +2148,7 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
+    def __init__(self, struct_a: OperandArg, struct_b: OperandArg):
         super().__init__(
             operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],

@@ -57,6 +57,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import (
+    OperandArg,
     Operation,
     OpResult,
     SSAValue,
@@ -68,8 +69,6 @@ from xdsl.irdl import (
     Successor,
     VarConstraint,
     VarOpResult,
-    attr_def,
-    base,
     irdl_op_definition,
     irdl_to_attr_constraint,
     operand_def,
@@ -223,14 +222,13 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     source = operand_def(R2InvT)
 
     assembly_format = (
-        "$register_in `,` $source attr-dict `:` "
-        "`(` type($register_in) `,` type($source) `)` `->` type($register_out)"
+        "$register_in `,` $source attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
-        source: Operation | SSAValue,
+        register_in: OperandArg,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
@@ -267,13 +265,11 @@ class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
 
-    assembly_format = (
-        "$source attr-dict `:` `(` type($source) `)` `->` type($destination)"
-    )
+    assembly_format = "$source attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
@@ -305,14 +301,13 @@ class DSK_Operation(X86Instruction, ABC):
     z = opt_attr_def(UnitAttr)
 
     assembly_format = (
-        "$source `,` $mask_reg attr-dict `:` "
-        "`(` type($source) `,` type($mask_reg) `)` `->` type($destination)"
+        "$source `,` $mask_reg attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        source: OperandArg,
+        mask_reg: OperandArg,
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
@@ -348,7 +343,7 @@ class DK_Operation(X86Instruction, HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: GeneralRegisterType,
@@ -384,7 +379,7 @@ class KS_Operation(X86Instruction, HasRegisterConstraints, ABC):
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: AVX512MaskRegisterType,
@@ -419,9 +414,7 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     register_in = operand_def(T)
     register_out: OpResult[R1InvT] = result_def(T)
 
-    assembly_format = (
-        "$register_in attr-dict `:` `(` type($register_in) `)` `->` type($register_out)"
-    )
+    assembly_format = "$register_in attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -463,19 +456,16 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     register_out: OpResult[R1InvT] = result_def(T)
 
     memory = operand_def(R2InvT)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "$register_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($register_in) `,` type($memory) `)` `->` type($register_out)"
-    )
+    assembly_format = "$register_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        register_in: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
@@ -491,8 +481,10 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
         super().__init__(
             operands=[register_in, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[register_out],
@@ -526,21 +518,18 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(
         DM_OperationHasCanonicalizationPatterns(),
         MemoryReadEffect(),
     )
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "functional-type($memory, $destination)"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -552,8 +541,10 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
             comment = StringAttr(comment)
         super().__init__(
             operands=[memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -575,21 +566,18 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     destination = result_def(X86VectorRegisterType)
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "`[` $memory (`+` $memory_offset^)? `]` `,` $mask_reg attr-dict `:` "
-        "`(` type($memory) `,` type($mask_reg) `)` `->` type($destination)"
-    )
+    assembly_format = "`[` $memory (`+` $memory_offset^)? `]` `,` $mask_reg attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        memory: OperandArg,
+        mask_reg: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         z: bool = False,
@@ -603,8 +591,10 @@ class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
         super().__init__(
             operands=(memory, mask_reg),
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "z": UnitAttr() if z else None,
                 "comment": comment,
             },
@@ -625,10 +615,10 @@ class DI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
-    immediate = attr_def(IntegerAttr[SI32])
+    immediate = prop_def(IntegerAttr[SI32])
     destination: OpResult[R1InvT] = result_def(R1InvT)
 
-    assembly_format = "$immediate attr-dict `:` `(` `)` `->` type($destination)"
+    assembly_format = "$immediate attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -643,8 +633,10 @@ class DI_Operation(X86Instruction, ABC, Generic[R1InvT]):
             comment = StringAttr(comment)
 
         super().__init__(
-            attributes={
+            properties={
                 "immediate": immediate,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -669,16 +661,15 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
-    immediate = attr_def(IntegerAttr[SI32])
+    immediate = prop_def(IntegerAttr[SI32])
 
     assembly_format = (
-        "$register_in `,` $immediate attr-dict `:` "
-        "`(` type($register_in) `)` `->` type($register_out)"
+        "$register_in `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
+        register_in: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -694,8 +685,10 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
         super().__init__(
             operands=[register_in],
-            attributes={
+            properties={
                 "immediate": immediate,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[register_out],
@@ -725,7 +718,7 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(R2InvT)
 
     traits = traits_def(
@@ -733,15 +726,12 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         MemoryWriteEffect(),
     )
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
-        "`(` type($memory) `,` type($source) `)` `->` `(` `)`"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
         memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
@@ -753,8 +743,10 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
         super().__init__(
             operands=[memory, source],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[],
@@ -767,10 +759,10 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
 class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
-    A base class for x86 AVX512 operations that have one destination register that is
-    written to, a memory operand (with optional offset), a source register, and a mask
-    register. The z attribute enables zero-masking, which sets the elements of the
-    destination register to zero where the mask is zero.
+    A base class for x86 AVX512 masked stores with a memory operand (with optional
+    offset), a source register, and a mask register.
+    Masked-off memory elements are unchanged.
+    Stores do not support zero-masking.
 
     Typical usage: [m+offset]{k} := s
     where [m+offset] is the memory location addressed by the base register and offset,
@@ -778,26 +770,24 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(R2InvT)
     mask_reg = operand_def(AVX512MaskRegisterType)
-    z = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryWriteEffect())
 
     assembly_format = (
         "`[` $memory (`+` $memory_offset^)? `]` `,` $source `,` $mask_reg attr-dict `:` "
-        "`(` type($memory) `,` type($source) `,` type($mask_reg) `)` `->` `(` `)`"
+        "functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
+        mask_reg: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
-        z: bool = False,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(memory_offset, int):
@@ -807,16 +797,17 @@ class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
         super().__init__(
             operands=[memory, source, mask_reg],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
-                "z": UnitAttr() if z else None,
+            },
+            attributes={
                 "comment": comment,
             },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         masked_mem = masked_memory_access_str(
-            self.memory, self.memory_offset, self.mask_reg, self.z
+            self.memory, self.memory_offset, self.mask_reg
         )
         return (masked_mem, reg(self.source))
 
@@ -830,19 +821,16 @@ class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     memory = operand_def(R1InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
-    immediate = attr_def(IntegerAttr[SI32])
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = prop_def(IntegerAttr[SI32])
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
-        "`(` type($memory) `)` `->` `(` `)`"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         immediate: int | IntegerAttr[SI32],
         *,
@@ -857,9 +845,11 @@ class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
         super().__init__(
             operands=[memory],
-            attributes={
+            properties={
                 "immediate": immediate,
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[],
@@ -881,16 +871,15 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     source = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
-    immediate = attr_def(IntegerAttr[SI32])
+    immediate = prop_def(IntegerAttr[SI32])
 
     assembly_format = (
-        "$source `,` $immediate attr-dict `:` "
-        "`(` type($source) `)` `->` type($destination)"
+        "$source `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -903,8 +892,10 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
         super().__init__(
             operands=[source],
-            attributes={
+            properties={
                 "immediate": immediate,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -925,12 +916,12 @@ class DSI8_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     immediate = prop_def(IntegerAttr[UI8])
 
     assembly_format = (
-        "$source `,` $immediate attr-dict `:` functional-type($source, $destination)"
+        "$source `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[UI8],
         *,
         comment: str | StringAttr | None = None,
@@ -966,18 +957,15 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     memory = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
-    immediate = attr_def(IntegerAttr[SI32])
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = prop_def(IntegerAttr[SI32])
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
-        "`(` type($memory) `)` `->` type($destination)"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         immediate: int | IntegerAttr[SI32],
         memory_offset: int | IntegerAttr[SI64],
         *,
@@ -993,9 +981,11 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
 
         super().__init__(
             operands=[memory],
-            attributes={
+            properties={
                 "immediate": immediate,
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -1014,17 +1004,14 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($memory) `)` `->` `(` `)`"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
@@ -1036,8 +1023,10 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
 
         super().__init__(
             operands=[memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[],
@@ -1069,7 +1058,7 @@ class ConditionalJumpOperation(X86Instruction, ABC):
 
     def __init__(
         self,
-        rflags: Operation | SSAValue,
+        rflags: OperandArg,
         then_values: Sequence[SSAValue],
         else_values: Sequence[SSAValue],
         then_block: Successor,
@@ -1191,16 +1180,13 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
-    assembly_format = (
-        "$register_in `,` $source1 `,` $source2 attr-dict `:` "
-        "`(` type($register_in) `,` type($source1) `,` type($source2) `)` `->` type($register_out)"
-    )
+    assembly_format = "$register_in `,` $source1 `,` $source2 attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
@@ -1240,7 +1226,7 @@ class RSSK_Operation(X86Instruction, ABC):
     bit in the mask is zero.
     """
 
-    T: ClassVar[VarConstraint] = VarConstraint("T", base(X86VectorRegisterType))
+    T: ClassVar[VarConstraint] = VarConstraint.get("T", X86VectorRegisterType)
 
     register_in = operand_def(T)
     register_out = result_def(T)
@@ -1249,17 +1235,14 @@ class RSSK_Operation(X86Instruction, ABC):
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
 
-    assembly_format = (
-        "$register_in `,` $source1 `,` $source2 `,` $mask_reg attr-dict `:` "
-        "`(` type($register_in) `,` type($source1) `,` type($source2) `,` type($mask_reg) `)` `->` type($register_out)"
-    )
+    assembly_format = "$register_in `,` $source1 `,` $source2 `,` $mask_reg attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
-        mask_reg: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
+        mask_reg: OperandArg,
         *,
         z: bool = False,
         comment: str | StringAttr | None = None,
@@ -1303,8 +1286,7 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     source2 = operand_def(R3InvT)
 
     assembly_format = (
-        "$source1 `,` $source2 attr-dict `:` "
-        "`(` type($source1) `,` type($source2) `)` `->` type($destination)"
+        "$source1 `,` $source2 attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
@@ -1344,19 +1326,16 @@ class DSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
     memory = operand_def(R3InvT)
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($source) `,` type($memory) `)` `->` type($destination)"
-    )
+    assembly_format = "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
@@ -1369,8 +1348,10 @@ class DSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
 
         super().__init__(
             operands=[source, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -1396,22 +1377,21 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     register_out: OpResult[R1InvT] = result_def(T)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     broadcast = opt_attr_def(UnitAttr)
 
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
         "$register_in `,` $source1 `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($register_in) `,` type($source1) `,` type($memory) `)` "
-        "`->` type($register_out)"
+        "functional-type(operands, results)"
     )
 
     def __init__(
         self,
         register_in: SSAValue[R1InvT],
-        source1: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source1: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         *,
         broadcast: bool = False,
@@ -1428,8 +1408,10 @@ class RSMB_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
 
         super().__init__(
             operands=[register_in, source1, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "broadcast": UnitAttr() if broadcast else None,
                 "comment": comment,
             },
@@ -1482,17 +1464,14 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     destination: OpResult[R1InvT] = result_def(R1InvT)
     source0 = operand_def(R2InvT)
     source1 = operand_def(R3InvT)
-    immediate = attr_def(IntegerAttr[UI8])
+    immediate = prop_def(IntegerAttr[UI8])
 
-    assembly_format = (
-        "$source0 `,` $source1 `,` $immediate attr-dict "
-        "`:` `(` type($source0) `,` type($source1) `)` `->`  type($destination)"
-    )
+    assembly_format = "$source0 `,` $source1 `,` $immediate attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        source0: Operation | SSAValue,
-        source1: Operation | SSAValue,
+        source0: OperandArg,
+        source1: OperandArg,
         immediate: int | IntegerAttr[UI8],
         *,
         comment: str | StringAttr | None = None,
@@ -1505,8 +1484,10 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
 
         super().__init__(
             operands=[source0, source1],
-            attributes={
+            properties={
                 "immediate": immediate,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[destination],
@@ -1714,14 +1695,13 @@ class S_PushOp(X86Instruction):
     source = operand_def(GeneralRegisterType)
 
     assembly_format = (
-        "$rsp_in `,` $source attr-dict `:` "
-        "`(` type($rsp_in) `,` type($source) `)` `->` type($rsp_out)"
+        "$rsp_in `,` $source attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        source: Operation | SSAValue,
+        rsp_in: OperandArg,
+        source: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1754,14 +1734,11 @@ class D_PopOp(X86Instruction):
     rsp_out = result_def(RSP)
     destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
 
-    assembly_format = (
-        "$rsp_in attr-dict `:` "
-        "`(` type($rsp_in) `)` `->` `(` type($rsp_out) `,` type($destination) `)`"
-    )
+    assembly_format = "$rsp_in attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
+        rsp_in: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         destination: X86RegisterType,
@@ -1855,17 +1832,13 @@ class S_IDivOp(X86Instruction):
     rdx_output = result_def(RDX)
     rax_output = result_def(RAX)
 
-    assembly_format = (
-        "$source `,` $rdx_input `,` $rax_input attr-dict `:` "
-        "`(` type($source) `,` type($rdx_input) `,` type($rax_input) `)` "
-        "`->` `(` type($rdx_output) `,` type($rax_output) `)`"
-    )
+    assembly_format = "$source `,` $rdx_input `,` $rax_input attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        rdx_input: Operation | SSAValue,
-        rax_input: Operation | SSAValue,
+        source: OperandArg,
+        rdx_input: OperandArg,
+        rax_input: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1907,15 +1880,13 @@ class S_ImulOp(X86Instruction):
     rax_output = result_def(RAX)
 
     assembly_format = (
-        "$source `,` $rax_input attr-dict `:` "
-        "`(` type($source) `,` type($rax_input) `)` "
-        "`->` `(` type($rdx_output) `,` type($rax_output) `)`"
+        "$source `,` $rax_input attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        rax_input: Operation | SSAValue,
+        source: OperandArg,
+        rax_input: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -2337,19 +2308,16 @@ class M_PushOp(X86Instruction):
     rsp_out = result_def(RSP)
 
     memory = operand_def(X86RegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryWriteEffect())
 
-    assembly_format = (
-        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
-    )
+    assembly_format = "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        rsp_in: OperandArg,
+        memory: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         memory_offset: int | IntegerAttr,
@@ -2362,8 +2330,10 @@ class M_PushOp(X86Instruction):
 
         super().__init__(
             operands=[rsp_in, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[rsp_out],
@@ -2388,20 +2358,17 @@ class M_PopOp(X86Instruction):
 
     rsp_in = operand_def(RSP)
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     rsp_out = result_def(RSP)
 
     traits = traits_def(MemoryWriteEffect())
 
-    assembly_format = (
-        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
-    )
+    assembly_format = "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        rsp_in: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        rsp_in: OperandArg,
+        memory: OperandArg,
         *,
         comment: str | StringAttr | None = None,
         memory_offset: int | IntegerAttr,
@@ -2414,8 +2381,10 @@ class M_PopOp(X86Instruction):
 
         super().__init__(
             operands=[rsp_in, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[rsp_out],
@@ -2489,7 +2458,7 @@ class M_IDivOp(X86Instruction):
     name = "x86.m.idiv"
 
     memory = operand_def(X86RegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     rdx_in = operand_def(RDX)
     rdx_out = result_def(RDX)
     rax_in = operand_def(RAX)
@@ -2499,15 +2468,14 @@ class M_IDivOp(X86Instruction):
 
     assembly_format = (
         "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rdx_in `,` $rax_in attr-dict `:` "
-        "`(` type($memory) `,` type($rdx_in) `,` type($rax_in) `)` "
-        "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
+        "functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        rdx_in: Operation | SSAValue,
-        rax_in: Operation | SSAValue,
+        memory: OperandArg,
+        rdx_in: OperandArg,
+        rax_in: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2521,8 +2489,10 @@ class M_IDivOp(X86Instruction):
 
         super().__init__(
             operands=[memory, rdx_in, rax_in],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[rdx_out, rax_out],
@@ -2545,7 +2515,7 @@ class M_ImulOp(X86Instruction):
     name = "x86.m.imul"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     rdx_out = result_def(RDX)
     rax_in = operand_def(RAX)
@@ -2553,16 +2523,12 @@ class M_ImulOp(X86Instruction):
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rax_in attr-dict `:` "
-        "`(` type($memory) `,` type($rax_in) `)` "
-        "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rax_in attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        rax_in: Operation | SSAValue,
+        memory: OperandArg,
+        rax_in: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2576,8 +2542,10 @@ class M_ImulOp(X86Instruction):
 
         super().__init__(
             operands=[memory, rax_in],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[rdx_out, rax_out],
@@ -2596,7 +2564,7 @@ class LabelOp(X86AsmOperation, X86HasRegisterConstraints):
     """
 
     name = "x86.label"
-    label = attr_def(StringAttr)
+    label = prop_def(StringAttr)
     comment = opt_attr_def(StringAttr)
 
     assembly_format = "$label attr-dict"
@@ -2613,8 +2581,10 @@ class LabelOp(X86AsmOperation, X86HasRegisterConstraints):
             comment = StringAttr(comment)
 
         super().__init__(
-            attributes={
+            properties={
                 "label": label,
+            },
+            attributes={
                 "comment": comment,
             },
         )
@@ -2632,8 +2602,8 @@ class DirectiveOp(X86AsmOperation, X86HasRegisterConstraints):
 
     name = "x86.directive"
 
-    directive = attr_def(StringAttr)
-    value = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
+    value = prop_def(StringAttr)
 
     assembly_format = "$directive $value attr-dict"
 
@@ -2648,7 +2618,7 @@ class DirectiveOp(X86AsmOperation, X86HasRegisterConstraints):
             value = StringAttr(value)
 
         super().__init__(
-            attributes={
+            properties={
                 "directive": directive,
                 "value": value,
             },
@@ -2841,14 +2811,13 @@ class SS_CmpOp(X86Instruction):
     result = result_def(RFLAGS)
 
     assembly_format = (
-        "$source1 `,` $source2 attr-dict `:` "
-        "`(` type($source1) `,` type($source2) `)` `->` type($result)"
+        "$source1 `,` $source2 attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source1: Operation | SSAValue,
-        source2: Operation | SSAValue,
+        source1: OperandArg,
+        source2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2880,21 +2849,18 @@ class SM_CmpOp(X86Instruction):
 
     source = operand_def(GeneralRegisterType)
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
-        "`(` type($source) `,` type($memory) `)` `->` type($result)"
-    )
+    assembly_format = "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        source: Operation | SSAValue,
-        memory: Operation | SSAValue,
+        source: OperandArg,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2906,8 +2872,10 @@ class SM_CmpOp(X86Instruction):
 
         super().__init__(
             operands=[source, memory],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[RFLAGS],
@@ -2930,17 +2898,17 @@ class SI_CmpOp(X86Instruction):
     name = "x86.si.cmp"
 
     source = operand_def(GeneralRegisterType)
-    immediate = attr_def(IntegerAttr[SI32])
+    immediate = prop_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGS)
 
     assembly_format = (
-        "$source `,` $immediate attr-dict `:` `(` type($source) `)` `->` type($result)"
+        "$source `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        source: Operation | SSAValue,
+        source: OperandArg,
         immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
@@ -2952,8 +2920,10 @@ class SI_CmpOp(X86Instruction):
 
         super().__init__(
             operands=[source],
-            attributes={
+            properties={
                 "immediate": immediate,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[RFLAGS],
@@ -2975,22 +2945,19 @@ class MS_CmpOp(X86Instruction):
     name = "x86.ms.cmp"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    memory_offset = prop_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(GeneralRegisterType)
 
     result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
-        "`(` type($memory) `,` type($source) `)` `->` type($result)"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
-        source: Operation | SSAValue,
+        memory: OperandArg,
+        source: OperandArg,
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -3002,8 +2969,10 @@ class MS_CmpOp(X86Instruction):
 
         super().__init__(
             operands=[memory, source],
-            attributes={
+            properties={
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[RFLAGS],
@@ -3026,21 +2995,18 @@ class MI_CmpOp(X86Instruction):
     name = "x86.mi.cmp"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
-    immediate = attr_def(IntegerAttr[SI32])
+    memory_offset = prop_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = prop_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGS)
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = (
-        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:`"
-        "type($memory) `->` type($result)"
-    )
+    assembly_format = "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        memory: Operation | SSAValue,
+        memory: OperandArg,
         memory_offset: int | IntegerAttr[SI64],
         immediate: int | IntegerAttr[SI32],
         *,
@@ -3055,9 +3021,11 @@ class MI_CmpOp(X86Instruction):
 
         super().__init__(
             operands=[memory],
-            attributes={
+            properties={
                 "immediate": immediate,
                 "memory_offset": memory_offset,
+            },
+            attributes={
                 "comment": comment,
             },
             result_types=[RFLAGS],
@@ -4136,7 +4104,7 @@ class ParallelMovOp(X86HasRegisterConstraints):
     outputs: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
     free_registers = opt_prop_def(ArrayAttr[X86RegisterType])
 
-    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    assembly_format = "$inputs attr-dict `:` functional-type(operands, results)"
     irdl_options = (ParsePropInAttrDict(),)
 
     traits = traits_def(RegisterAllocatedMemoryEffect())

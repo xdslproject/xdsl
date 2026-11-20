@@ -19,15 +19,13 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -110,7 +108,6 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 
 VectorWrappable = RequestType | StatusType | DataType
-VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
 _VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
@@ -179,12 +176,12 @@ class ReduceOp(MPIBaseOp):
 
     def __init__(
         self,
-        send_buffer: SSAValue | Operation,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
+        send_buffer: OperandArg,
+        recv_buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
         operationtype: OperationType,
-        root: SSAValue | Operation,
+        root: OperandArg,
     ):
         return super().__init__(
             operands=[send_buffer, recv_buffer, count, datatype, root],
@@ -228,15 +225,13 @@ class AllreduceOp(MPIBaseOp):
 
     def __init__(
         self,
-        send_buffer: SSAValue | Operation | None,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
+        send_buffer: OperandArg | None,
+        recv_buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
         operationtype: OperationType,
     ):
-        operands_to_add: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ] = []
+        operands_to_add: Sequence[OperandArg | Sequence[OperandArg]] = []
 
         if send_buffer is None:
             operands_to_add = [[], recv_buffer, count, datatype]
@@ -283,10 +278,10 @@ class BcastOp(MPIBaseOp):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        root: SSAValue | Operation,
+        buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
+        root: OperandArg,
     ):
         return super().__init__(
             operands=[buffer, count, datatype, root],
@@ -330,12 +325,12 @@ class IsendOp(MPIBaseOp):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
+        buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
+        dest: OperandArg,
+        tag: OperandArg,
+        request: OperandArg,
     ):
         return super().__init__(
             operands=[buffer, count, datatype, dest, tag, request],
@@ -378,11 +373,11 @@ class SendOp(MPIBaseOp):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
+        buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
+        dest: OperandArg,
+        tag: OperandArg,
     ):
         return super().__init__(
             operands=[buffer, count, datatype, dest, tag], result_types=[]
@@ -426,12 +421,12 @@ class IrecvOp(MPIBaseOp):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
+        buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
+        source: OperandArg,
+        tag: OperandArg,
+        request: OperandArg,
     ):
         return super().__init__(
             operands=[buffer, count, datatype, source, tag, request],
@@ -477,11 +472,11 @@ class RecvOp(MPIBaseOp):
 
     def __init__(
         self,
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
+        buffer: OperandArg,
+        count: OperandArg,
+        datatype: OperandArg,
+        source: OperandArg,
+        tag: OperandArg,
         ignore_status: bool = True,
     ):
         return super().__init__(
@@ -513,7 +508,7 @@ class TestOp(MPIBaseOp):
     flag = result_def(t_bool)
     status = result_def(StatusType)
 
-    def __init__(self, request: Operand):
+    def __init__(self, request: SSAValue):
         return super().__init__(operands=[request], result_types=[t_bool, StatusType()])
 
 
@@ -537,7 +532,7 @@ class WaitOp(MPIBaseOp):
     request = operand_def(RequestType)
     status = opt_result_def(StatusType)
 
-    def __init__(self, request: Operand, ignore_status: bool = True):
+    def __init__(self, request: SSAValue, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
@@ -568,7 +563,7 @@ class WaitallOp(MPIBaseOp):
     count = operand_def(i32)
     statuses = opt_result_def(VectorType[StatusType])
 
-    def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
+    def __init__(self, requests: SSAValue, count: SSAValue, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
@@ -597,7 +592,7 @@ class GetStatusFieldOp(MPIBaseOp):
 
     result = result_def(i32)
 
-    def __init__(self, status_obj: Operand, field: StatusTypeField):
+    def __init__(self, status_obj: SSAValue, field: StatusTypeField):
         return super().__init__(
             operands=[status_obj],
             properties={"field": StringAttr(field.value)},
@@ -673,7 +668,7 @@ class UnwrapMemRefOp(MPIBaseOp):
     len = result_def(i32)
     type = result_def(DataType)
 
-    def __init__(self, ref: SSAValue | Operation):
+    def __init__(self, ref: OperandArg):
         return super().__init__(
             operands=[ref],
             result_types=[llvm.LLVMPointerType(), i32, DataType()],
@@ -718,7 +713,7 @@ class AllocateTypeOp(MPIBaseOp):
     name = "mpi.allocate"
 
     bindc_name = opt_prop_def(StringAttr)
-    dtype = prop_def(VectorWrappableConstr)
+    dtype = prop_def(VectorWrappable)
     count = operand_def(i32)
 
     result = result_def(VectorType)
@@ -726,7 +721,7 @@ class AllocateTypeOp(MPIBaseOp):
     def __init__(
         self,
         dtype: type[VectorWrappable],
-        count: SSAValue | Operation,
+        count: OperandArg,
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
@@ -751,9 +746,9 @@ class VectorGetOp(MPIBaseOp):
     vect = operand_def(VectorType)
     element = operand_def(i32)
 
-    result = result_def(VectorWrappableConstr)
+    result = result_def(VectorWrappable)
 
-    def __init__(self, vect: SSAValue | Operation, element: SSAValue | Operation):
+    def __init__(self, vect: OperandArg, element: OperandArg):
         ssa_val = SSAValue.get(vect)
         assert isa(ssa_val.type, VectorType[VectorWrappable])
 
@@ -776,7 +771,7 @@ class NullRequestOp(MPIBaseOp):
 
     request = operand_def(RequestType)
 
-    def __init__(self, req: SSAValue | Operation):
+    def __init__(self, req: OperandArg):
         return super().__init__(operands=[req])
 
 
@@ -816,13 +811,13 @@ class GatherOp(MPIBaseOp):
 
     def __init__(
         self,
-        sendbuf: SSAValue | Operation,
-        sendcount: SSAValue | Operation,
-        sendtype: SSAValue | Operation,
-        recvbuf: SSAValue | Operation,
-        recvcount: SSAValue | Operation,
-        recvtype: SSAValue | Operation,
-        root: SSAValue | Operation,
+        sendbuf: OperandArg,
+        sendcount: OperandArg,
+        sendtype: OperandArg,
+        recvbuf: OperandArg,
+        recvcount: OperandArg,
+        recvtype: OperandArg,
+        root: OperandArg,
     ):
         super().__init__(
             operands=[

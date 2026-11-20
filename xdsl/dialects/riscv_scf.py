@@ -12,20 +12,24 @@ from xdsl.backend.liveness import LivenessContext
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
-from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
+from xdsl.dialects.riscv.registers import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Dialect
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
+from xdsl.ir import (
+    Attribute,
     Block,
-    IRDLOperation,
+    Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -98,9 +102,9 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     def __init__(
         self,
-        start: SSAValue | Operation,
-        stop: SSAValue | Operation,
-        step: SSAValue | Operation | IntegerAttr,
+        start: OperandArg,
+        stop: OperandArg,
+        step: OperandArg | IntegerAttr,
         iter_args: Sequence[SSAValue],
         body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
@@ -145,7 +149,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if not isinstance(iter_var.type, IntRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
+                    " instead of riscv.registers.IntRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])
@@ -284,7 +288,7 @@ class WhileOp(IRDLOperation):
 
     def __init__(
         self,
-        arguments: Sequence[SSAValue | Operation],
+        arguments: Sequence[OperandArg],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
@@ -405,7 +409,7 @@ class ConditionOp(IRDLOperation):
 
     traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
+    def __init__(self, cond: OperandArg, *output_ops: OperandArg):
         super().__init__(operands=[cond, output_ops])
 
     def print(self, printer: Printer):

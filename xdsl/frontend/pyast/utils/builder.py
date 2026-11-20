@@ -65,9 +65,7 @@ class PyASTBuilder:
             self.literal_registry,
         )
         module = ModuleOp([])
-        CodeGenerationVisitor(type_converter, module, self.file).visit(
-            self.function_ast
-        )
+        CodeGenerationVisitor(module, self.file).visit(self.function_ast)
 
         # Lower the generated `py` operations to the registered operations. This is
         # done here rather than as a post transform because it needs the function's

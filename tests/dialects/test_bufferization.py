@@ -5,14 +5,16 @@ import pytest
 from xdsl.dialects.bufferization import (
     AllocTensorOp,
     CloneOp,
-    TensorFromMemRefConstraint,
+    TensorFromMemRefConstraint,  # pyright: ignore[reportDeprecated]
     ToTensorOp,
 )
 from xdsl.dialects.builtin import (
-    AnyUnrankedMemRefTypeConstr,
     IndexType,
+    IntAttr,
     IntegerType,
     MemRefType,
+    NoneAttr,
+    StridedLayoutAttr,
     TensorType,
     UnitAttr,
     UnrankedMemRefType,
@@ -33,36 +35,39 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_tensor_from_memref_inference():
-    constr = TensorFromMemRefConstraint(MemRefType.constr())
-    assert not constr.can_infer(set())
+    with pytest.deprecated_call():
+        constr = TensorFromMemRefConstraint(MemRefType.constr())  # pyright: ignore[reportDeprecated]
+        assert not constr.can_infer(set())
 
-    constr2 = TensorFromMemRefConstraint(
-        EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
-    )
-    assert constr2.can_infer(set())
-    assert constr2.infer(VerificationContext()) == TensorType(f64, [10, 20, 30])
-
-    constr3 = TensorFromMemRefConstraint(
-        EqAttrConstraint(UnrankedMemRefType.from_type(f64))
-    )
-    assert constr3.can_infer(set())
-    assert constr3.infer(VerificationContext()) == UnrankedTensorType(f64)
-
-
-@irdl_op_definition
-class TensorFromMemRefOp(IRDLOperation):
-    name = "test.tensor_from_memref"
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
-
-    in_tensor = operand_def(
-        TensorFromMemRefConstraint(
-            MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
+        constr2 = TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
+            EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
         )
-    )
+        assert constr2.can_infer(set())
+        assert constr2.infer(VerificationContext()) == TensorType(f64, [10, 20, 30])
 
-    in_var_memref = operand_def(T)
+        constr3 = TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
+            EqAttrConstraint(UnrankedMemRefType.from_type(f64))
+        )
+        assert constr3.can_infer(set())
+        assert constr3.infer(VerificationContext()) == UnrankedTensorType(f64)
 
-    in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
+
+with pytest.deprecated_call():
+
+    @irdl_op_definition
+    class TensorFromMemRefOp(IRDLOperation):
+        name = "test.tensor_from_memref"
+        T: ClassVar = VarConstraint.get("T", MemRefType | UnrankedMemRefType)
+
+        in_tensor = operand_def(
+            TensorFromMemRefConstraint(  # pyright: ignore[reportDeprecated]
+                MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
+            )
+        )
+
+        in_var_memref = operand_def(T)
+
+        in_var_tensor = operand_def(TensorFromMemRefConstraint(T))  # pyright: ignore[reportDeprecated]
 
 
 def test_tensor_from_memref_constraint():
@@ -136,22 +141,86 @@ def test_tensor_from_memref_constraint_failure(
         op1.verify()
 
 
-def test_to_tensor():
-    memref_t = MemRefType(f64, [10, 20, 30])
-    tensor_t = TensorType(f64, [10, 20, 30])
+@pytest.mark.parametrize(
+    "memref_t, tensor_t",
+    [
+        (MemRefType(IndexType(), [10, 20, 30]), TensorType(IndexType(), [10, 20, 30])),
+        (
+            MemRefType(IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30], NoneAttr(), IntAttr(1)),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (
+            MemRefType(
+                IndexType(), [10, 20, 30], StridedLayoutAttr([1, 2, 3], 4), IntAttr(1)
+            ),
+            TensorType(IndexType(), [10, 20, 30]),
+        ),
+        (UnrankedMemRefType.from_type(IndexType()), UnrankedTensorType(IndexType())),
+    ],
+)
+def test_to_tensor(memref_t: MemRefType, tensor_t: TensorType):
     memref_v = TestOp(result_types=[memref_t]).res[0]
 
     to_tensor = ToTensorOp(memref_v)
+    to_tensor.verify()
     assert to_tensor.memref == memref_v
     assert to_tensor.restrict is None
     assert to_tensor.writable is None
     assert to_tensor.tensor.type == tensor_t
 
     to_tensor = ToTensorOp(memref_v, writable=True, restrict=True)
+    to_tensor.verify()
     assert to_tensor.memref == memref_v
     assert to_tensor.restrict == UnitAttr()
     assert to_tensor.writable == UnitAttr()
     assert to_tensor.tensor.type == tensor_t
+
+
+@pytest.mark.parametrize(
+    "memref_t, tensor_t, err",
+    [
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IntegerType(64), [10, 20, 30]),
+            "expected from variable 'ELEM_T'",
+        ),
+        (
+            UnrankedMemRefType.from_type(IndexType()),
+            UnrankedTensorType(IntegerType(64)),
+            "expected from variable 'ELEM_T'",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IndexType(), [10, 20, 40]),
+            "expected from variable 'SHAPE'",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            TensorType(IndexType(), [10, 20]),
+            "expected from variable 'SHAPE'",
+        ),
+        (
+            UnrankedMemRefType.from_type(IndexType()),
+            TensorType(IndexType(), [10, 20, 30]),
+            "either be ranked or unranked",
+        ),
+        (
+            MemRefType(IndexType(), [10, 20, 30]),
+            UnrankedTensorType(IndexType()),
+            "either be ranked or unranked",
+        ),
+    ],
+)
+def test_to_tensor_fail(memref_t: MemRefType, tensor_t: TensorType, err: str):
+    memref_v = TestOp(result_types=[memref_t]).res[0]
+
+    to_tensor = ToTensorOp(memref_v, tensor_type=tensor_t)
+    with pytest.raises(VerifyException, match=err):
+        to_tensor.verify()
 
 
 def test_alloc_tensor_static():

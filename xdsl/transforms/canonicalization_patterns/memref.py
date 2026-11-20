@@ -1,4 +1,5 @@
 from xdsl.dialects import memref
+from xdsl.dialects.builtin import MemRefType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -27,9 +28,9 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
         if not len(op.static_offsets) == len(source_subview.static_offsets):
             return
 
-        assert isa(source_subview.source.type, memref.MemRefType)
+        assert isa(source_subview.source.type, MemRefType)
 
-        assert isa(op.result.type, memref.MemRefType)
+        assert isa(op.result.type, MemRefType)
 
         reduce_rank = False
 

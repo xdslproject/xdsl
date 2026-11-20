@@ -1,89 +1,89 @@
 // RUN: xdsl-opt %s -p canonicalize | filecheck %s
 
-%f16_0 = complex.constant [0.: f16, 0.: f16] : complex<f16>
-%f16_1 = complex.constant [1.: f16, 3.: f16] : complex<f16>
-%f16_2 = complex.constant [-1.: f16, -3.: f16] : complex<f16>
-%f16_3 = complex.constant [2.: f16, 3.: f16] : complex<f16>
+%f16_zero = complex.constant [0.: f16, 0.: f16] : complex<f16>
+%f16_positive = complex.constant [1.: f16, 3.: f16] : complex<f16>
+%f16_negative = complex.constant [-1.: f16, -3.: f16] : complex<f16>
+%f16_other = complex.constant [2.: f16, 3.: f16] : complex<f16>
 
-%f32_0 = complex.constant [0.: f32, 0.: f32] : complex<f32>
-%f32_1 = complex.constant [-1.2: f32, -2.2: f32] : complex<f32>
-%f32_2 = complex.constant [1.2: f32, 2.2: f32] : complex<f32>
-%f32_3 = complex.constant [4.0: f32, 5.0: f32] : complex<f32>
+%f32_zero = complex.constant [0.: f32, 0.: f32] : complex<f32>
+%f32_negative = complex.constant [-1.2: f32, -2.2: f32] : complex<f32>
+%f32_positive = complex.constant [1.2: f32, 2.2: f32] : complex<f32>
+%f32_other = complex.constant [4.0: f32, 5.0: f32] : complex<f32>
 
-"test.op"(%f16_0, %f16_1, %f16_2, %f16_3, %f32_0, %f32_1, %f32_2, %f32_3) : (complex<f16>, complex<f16>, complex<f16>, complex<f16>, complex<f32>, complex<f32>, complex<f32>, complex<f32>) -> ()
+"test.op"(%f16_zero, %f16_positive, %f16_negative, %f16_other, %f32_zero, %f32_negative, %f32_positive, %f32_other) : (complex<f16>, complex<f16>, complex<f16>, complex<f16>, complex<f32>, complex<f32>, complex<f32>, complex<f32>) -> ()
 
-// CHECK:       %f16 = complex.constant [0.000000e+00 : f16, 0.000000e+00 : f16] : complex<f16>
-// CHECK-NEXT:  %f16_1 = complex.constant [1.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
-// CHECK-NEXT:  %f16_2 = complex.constant [-1.000000e+00 : f16, -3.000000e+00 : f16] : complex<f16>
-// CHECK-NEXT:  %f16_3 = complex.constant [2.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
-// CHECK-NEXT:  %f32 = complex.constant [0.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
-// CHECK-NEXT:  %f32_1 = complex.constant [-1.200000e+00 : f32, -2.200000e+00 : f32] : complex<f32>
-// CHECK-NEXT:  %f32_2 = complex.constant [1.200000e+00 : f32, 2.200000e+00 : f32] : complex<f32>
-// CHECK-NEXT:  %f32_3 = complex.constant [4.000000e+00 : f32, 5.000000e+00 : f32] : complex<f32>
-// CHECK-NEXT:  "test.op"(%f16, %f16_1, %f16_2, %f16_3, %f32, %f32_1, %f32_2, %f32_3) : (complex<f16>, complex<f16>, complex<f16>, complex<f16>, complex<f32>, complex<f32>, complex<f32>, complex<f32>) -> ()
+// CHECK:       %f16_zero = complex.constant [0.000000e+00 : f16, 0.000000e+00 : f16] : complex<f16>
+// CHECK-NEXT:  %f16_positive = complex.constant [1.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
+// CHECK-NEXT:  %f16_negative = complex.constant [-1.000000e+00 : f16, -3.000000e+00 : f16] : complex<f16>
+// CHECK-NEXT:  %f16_other = complex.constant [2.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
+// CHECK-NEXT:  %f32_zero = complex.constant [0.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
+// CHECK-NEXT:  %f32_negative = complex.constant [-1.200000e+00 : f32, -2.200000e+00 : f32] : complex<f32>
+// CHECK-NEXT:  %f32_positive = complex.constant [1.200000e+00 : f32, 2.200000e+00 : f32] : complex<f32>
+// CHECK-NEXT:  %f32_other = complex.constant [4.000000e+00 : f32, 5.000000e+00 : f32] : complex<f32>
+// CHECK-NEXT:  "test.op"(%f16_zero, %f16_positive, %f16_negative, %f16_other, %f32_zero, %f32_negative, %f32_positive, %f32_other) : (complex<f16>, complex<f16>, complex<f16>, complex<f16>, complex<f32>, complex<f32>, complex<f32>, complex<f32>) -> ()
 
-%addf16 = complex.add %f16_1, %f16_2 : complex<f16>
-%addf16_1 = complex.add %addf16, %f16_3 : complex<f16>
-%addf32 = complex.add %f32_1, %f32_2 : complex<f32>
-%addf32_1 = complex.add %addf32, %f32_3 : complex<f32>
+%addf16 = complex.add %f16_positive, %f16_negative : complex<f16>
+%addf16_1 = complex.add %addf16, %f16_other : complex<f16>
+%addf32 = complex.add %f32_negative, %f32_positive : complex<f32>
+%addf32_1 = complex.add %addf32, %f32_other : complex<f32>
 // CHECK:       %addf16 = complex.constant [0.000000e+00 : f16, 0.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %addf16_1 = complex.constant [2.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %addf32 = complex.constant [0.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
 // CHECK-NEXT:  %addf32_1 = complex.constant [4.000000e+00 : f32, 5.000000e+00 : f32] : complex<f32>
 
-%subf16 = complex.sub %f16_1, %f16_2 : complex<f16>
-%subf16_1 = complex.sub %subf16, %f16_3 : complex<f16>
-%subf32 = complex.sub %f32_1, %f32_2 : complex<f32>
-%subf32_1 = complex.sub %subf32, %f32_3 : complex<f32>
+%subf16 = complex.sub %f16_positive, %f16_negative : complex<f16>
+%subf16_1 = complex.sub %subf16, %f16_other : complex<f16>
+%subf32 = complex.sub %f32_negative, %f32_positive : complex<f32>
+%subf32_1 = complex.sub %subf32, %f32_other : complex<f32>
 // CHECK:       %subf16 = complex.constant [2.000000e+00 : f16, 6.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %subf16_1 = complex.constant [0.000000e+00 : f16, 3.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %subf32 = complex.constant [-2.400000e+00 : f32, -4.400000e+00 : f32] : complex<f32>
 // CHECK-NEXT:  %subf32_1 = complex.constant [-6.400000e+00 : f32, -9.400000e+00 : f32] : complex<f32>
 
-%mulf16 = complex.mul %f16_1, %f16_2 : complex<f16>
-%mulf16_1 = complex.mul %mulf16, %f16_3 : complex<f16>
-%mulf32 = complex.mul %f32_1, %f32_2 : complex<f32>
-%mulf32_1 = complex.mul %mulf32, %f32_3 : complex<f32>
+%mulf16 = complex.mul %f16_positive, %f16_negative : complex<f16>
+%mulf16_1 = complex.mul %mulf16, %f16_other : complex<f16>
+%mulf32 = complex.mul %f32_negative, %f32_positive : complex<f32>
+%mulf32_1 = complex.mul %mulf32, %f32_other : complex<f32>
 // CHECK:       %mulf16 = complex.constant [8.000000e+00 : f16, -6.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %mulf16_1 = complex.constant [3.400000e+01 : f16, 1.200000e+01 : f16] : complex<f16>
 // CHECK-NEXT:  %mulf32 = complex.constant [3.400000e+00 : f32, -5.280000e+00 : f32] : complex<f32>
 // CHECK-NEXT:  %mulf32_1 = complex.constant [4.000000e+01 : f32, -4.12000036 : f32] : complex<f32>
 
-%divf16 = complex.div %f16_1, %f16_2 : complex<f16>
-%divf16_1 = complex.div %divf16, %f16_3 : complex<f16>
-%divf32 = complex.div %f32_1, %f32_2 : complex<f32>
-%divf32_1 = complex.div %divf32, %f32_3 : complex<f32>
+%divf16 = complex.div %f16_positive, %f16_negative : complex<f16>
+%divf16_1 = complex.div %divf16, %f16_other : complex<f16>
+%divf32 = complex.div %f32_negative, %f32_positive : complex<f32>
+%divf32_1 = complex.div %divf32, %f32_other : complex<f32>
 // CHECK:       %divf16 = complex.constant [-1.000000e+00 : f16, 0.000000e+00 : f16] : complex<f16>
 // CHECK-NEXT:  %divf16_1 = complex.constant [-1.538090e-01 : f16, 2.307130e-01 : f16] : complex<f16>
 // CHECK-NEXT:  %divf32 = complex.constant [-1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
 // CHECK-NEXT:  %divf32_1 = complex.constant [-0.097560972 : f32, 0.121951222 : f32] : complex<f32>
 
-%div16 = complex.div %f16_0, %f16_0 : complex<f16>
-%div16_inf = complex.div %f16_3, %f16_0 : complex<f16> // %f16_3 > 0
-%div16_minus_inf = complex.div %f16_2, %f16_0 : complex<f16> // f16_2 < 0
+%div16 = complex.div %f16_zero, %f16_zero : complex<f16>
+%div16_inf = complex.div %f16_other, %f16_zero : complex<f16> // %f16_other > 0
+%div16_minus_inf = complex.div %f16_negative, %f16_zero : complex<f16> // %f16_negative < 0
 // CHECK:       %div16 = complex.constant [0x7e00 : f16, 0x7e00 : f16] : complex<f16>
 // CHECK-NEXT:  %div16_inf = complex.constant [0x7c00 : f16, 0x7c00 : f16] : complex<f16>
 // CHECK-NEXT:  %div16_minus_inf = complex.constant [0xfc00 : f16, 0xfc00 : f16] : complex<f16>
 
 %f16_0_neg = complex.constant [-0.: f16, -0.: f16] : complex<f16>
-%div16_neg = complex.div %f16_0, %f16_0_neg : complex<f16>
-%div16_inf_neg = complex.div %f16_3, %f16_0_neg : complex<f16>
-%div16_minus_inf_neg = complex.div %f16_2, %f16_0_neg : complex<f16>
+%div16_neg = complex.div %f16_zero, %f16_0_neg : complex<f16>
+%div16_inf_neg = complex.div %f16_other, %f16_0_neg : complex<f16>
+%div16_minus_inf_neg = complex.div %f16_negative, %f16_0_neg : complex<f16>
 // CHECK:       %div16_neg = complex.constant [0x7e00 : f16, 0x7e00 : f16] : complex<f16>
 // CHECK-NEXT:  %div16_inf_neg = complex.constant [0xfc00 : f16, 0xfc00 : f16] : complex<f16>
 // CHECK-NEXT:  %div16_minus_inf_neg = complex.constant [0x7c00 : f16, 0x7c00 : f16] : complex<f16>
 
-%div32 = complex.div %f32_0, %f32_0 : complex<f32>
-%div32_inf = complex.div %f32_2, %f32_0 : complex<f32>
-%div32_minus_inf = complex.div %f32_1, %f32_0 : complex<f32>
+%div32 = complex.div %f32_zero, %f32_zero : complex<f32>
+%div32_inf = complex.div %f32_positive, %f32_zero : complex<f32>
+%div32_minus_inf = complex.div %f32_negative, %f32_zero : complex<f32>
 // CHECK:       %div32 = complex.constant [0x7fc00000 : f32, 0x7fc00000 : f32] : complex<f32>
 // CHECK-NEXT:  %div32_inf = complex.constant [0x7f800000 : f32, 0x7f800000 : f32] : complex<f32>
 // CHECK-NEXT:  %div32_minus_inf = complex.constant [0xff800000 : f32, 0xff800000 : f32] : complex<f32>
 
 %f32_0_neg = complex.constant [-0.: f32, -0.: f32] : complex<f32>
-%div32_neg = complex.div %f32_0, %f32_0_neg : complex<f32>
-%div32_inf_neg = complex.div %f32_2, %f32_0_neg : complex<f32>
-%div32_minus_inf_neg = complex.div %f32_1, %f32_0_neg : complex<f32>
+%div32_neg = complex.div %f32_zero, %f32_0_neg : complex<f32>
+%div32_inf_neg = complex.div %f32_positive, %f32_0_neg : complex<f32>
+%div32_minus_inf_neg = complex.div %f32_negative, %f32_0_neg : complex<f32>
 // CHECK:       %div32_neg = complex.constant [0x7fc00000 : f32, 0x7fc00000 : f32] : complex<f32>
 // CHECK-NEXT:  %div32_inf_neg = complex.constant [0xff800000 : f32, 0xff800000 : f32] : complex<f32>
 // CHECK-NEXT:  %div32_minus_inf_neg = complex.constant [0x7f800000 : f32, 0x7f800000 : f32] : complex<f32>

@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Dialect,
-    Operation,
+    OperandArg,
     OpResult,
     SSAValue,
 )
@@ -34,6 +34,8 @@ from xdsl.irdl import (
     attr_def,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     traits_def,
 )
@@ -205,8 +207,8 @@ class RdRsRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -231,8 +233,8 @@ class RdRsRsIntegerOperation(
 ):
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -245,8 +247,8 @@ class RdRsRsFloatOperation(
 ):
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -262,7 +264,7 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    immediate = attr_def(IntegerAttr[I12])
+    immediate = prop_def(IntegerAttr[I12])
 
     assembly_format = (
         "$rs1 `,` $rs2 `,` $immediate attr-dict `:` `(` type(operands) `)` `->` `(` `)`"
@@ -270,8 +272,8 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -285,8 +287,8 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -304,7 +306,7 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I12] | StringAttr)
+    immediate = prop_def(IntegerAttr[I12] | StringAttr)
 
     assembly_format = (
         "$rs1 `,` custom<ImmediateI12>($immediate) attr-dict `:` "
@@ -314,7 +316,7 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[I12] | str | StringAttr,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
@@ -330,8 +332,8 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
         super().__init__(
             operands=[rs1],
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -358,9 +360,9 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        rs3: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
+        rs3: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -391,7 +393,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = (
         "$rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
@@ -400,8 +402,8 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr | None = None,
@@ -412,9 +414,9 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
+            properties={"fastmath": fastmath},
             attributes={
                 "comment": comment,
-                "fastmath": fastmath,
             },
             result_types=[rd],
         )
@@ -434,7 +436,7 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = (
         "$rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
@@ -443,8 +445,8 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         fastmath: FastMathFlagsAttr | None = None,
@@ -455,8 +457,8 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
+            properties={"fastmath": fastmath},
             attributes={
-                "fastmath": fastmath,
                 "comment": comment,
             },
             result_types=[rd],
@@ -473,11 +475,9 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I20] | StringAttr)
+    immediate = prop_def(IntegerAttr[I20] | StringAttr)
 
-    assembly_format = (
-        "custom<ImmediateI20>($immediate) attr-dict `:` `(` `)` `->` type($rd)"
-    )
+    assembly_format = "custom<ImmediateI20>($immediate) attr-dict `:` functional-type(operands, results)"
     custom_directives = (ImmediateI20,)
 
     def __init__(
@@ -496,8 +496,8 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
 
         super().__init__(
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -514,12 +514,12 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rd = opt_attr_def(IntRegisterType)
+    rd = opt_prop_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(IntegerAttr[SI20] | StringAttr)
+    immediate = prop_def(IntegerAttr[SI20] | StringAttr)
 
     assembly_format = (
         "custom<ImmediateSI20>($immediate) (`,` qualified($rd)^)? attr-dict"
@@ -540,11 +540,13 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
-            attributes={
+            properties={
                 "immediate": immediate,
                 "rd": rd,
+            },
+            attributes={
                 "comment": comment,
-            }
+            },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -561,7 +563,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12] | StringAttr)
+    immediate = prop_def(IntegerAttr[SI12] | StringAttr)
 
     assembly_format = (
         "$rs1 `,` custom<ImmediateSI12>($immediate) attr-dict `:` "
@@ -571,7 +573,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -587,8 +589,8 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
         super().__init__(
             operands=[rs1],
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -618,15 +620,15 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAt
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[ShiftImmT])
+    immediate = prop_def(IntegerAttr[ShiftImmT])
 
     assembly_format = (
-        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+        "$rs1 `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: IntegerAttr[ShiftImmT],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -637,8 +639,8 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAt
         super().__init__(
             operands=[rs1],
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -707,7 +709,7 @@ class RdRsImmBitManipOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI5] | StringAttr)
+    immediate = prop_def(IntegerAttr[UI5] | StringAttr)
 
     assembly_format = (
         "$rs1 `,` custom<ImmediateUI5>($immediate) attr-dict `:` "
@@ -717,7 +719,7 @@ class RdRsImmBitManipOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[UI5] | str | StringAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
@@ -733,8 +735,8 @@ class RdRsImmBitManipOperation(RISCVInstruction, ABC):
         super().__init__(
             operands=[rs1],
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -757,22 +759,22 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
     """
 
     rs1 = operand_def(IntRegisterType)
-    rd = opt_attr_def(IntRegisterType)
+    rd = opt_prop_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(IntegerAttr[SI12] | StringAttr)
+    immediate = prop_def(IntegerAttr[SI12] | StringAttr)
 
     assembly_format = (
         "$rs1 `,` custom<ImmediateSI12>($immediate) (`,` qualified($rd)^)? "
-        "attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+        "attr-dict `:` functional-type(operands, results)"
     )
     custom_directives = (ImmediateSI12,)
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         rd: IntRegisterType | None = None,
@@ -788,9 +790,11 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1],
-            attributes={
+            properties={
                 "immediate": immediate,
                 "rd": rd,
+            },
+            attributes={
                 "comment": comment,
             },
         )
@@ -812,7 +816,7 @@ class RdRsOperation(RISCVInstruction, ABC, Generic[RDInvT, RSInvT]):
 
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: RDInvT,
         comment: str | StringAttr | None = None,
@@ -834,7 +838,7 @@ class RdRsIntegerOperation(
 ):
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -847,7 +851,7 @@ class RdRsFloatOperation(
 ):
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        rs: OperandArg,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -865,7 +869,7 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    offset = attr_def(IntegerAttr[SI12] | StringAttr)
+    offset = prop_def(IntegerAttr[SI12] | StringAttr)
 
     assembly_format = (
         "$rs1 `,` $rs2 `,` custom<ImmediateSI12>($offset) attr-dict `:` "
@@ -875,8 +879,8 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         offset: int | IntegerAttr[SI12] | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -890,8 +894,8 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
+            properties={"offset": offset},
             attributes={
-                "offset": offset,
                 "comment": comment,
             },
         )
@@ -910,7 +914,7 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12])
+    immediate = prop_def(IntegerAttr[SI12])
 
     assembly_format = (
         "$rs1 `,` $rs2 `,` $immediate attr-dict `:` `(` type(operands) `)` `->` `(` `)`"
@@ -921,8 +925,8 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         immediate: int | IntegerAttr[SI12] | str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -936,8 +940,8 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -959,8 +963,8 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rs1: OperandArg,
+        rs2: OperandArg,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -1029,7 +1033,7 @@ class CsrReadWriteOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         csr: IntegerAttr[UI12],
         *,
         writeonly: bool = False,
@@ -1090,7 +1094,7 @@ class CsrBitwiseOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs1: OperandArg,
         csr: IntegerAttr[UI12],
         *,
         readonly: bool = False,
@@ -1142,7 +1146,7 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
 
     assembly_format = (
         "$csr `,` $immediate (`writeonly` $writeonly^)? attr-dict `:` "
-        "`(` `)` `->` type($rd)"
+        "functional-type(operands, results)"
     )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
@@ -1198,7 +1202,9 @@ class CsrBitwiseImmOperation(RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr[UI12])
     immediate = attr_def(IntegerAttr[UI5])
 
-    assembly_format = "$csr `,` $immediate attr-dict `:` `(` `)` `->` type($rd)"
+    assembly_format = (
+        "$csr `,` $immediate attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
@@ -1248,7 +1254,7 @@ class LiOperation(
     """
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[IWidth] | StringAttr)
+    immediate = prop_def(IntegerAttr[IWidth] | StringAttr)
 
     traits = traits_def(
         AlwaysSpeculatable(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()
@@ -1268,8 +1274,8 @@ class LiOperation(
 
         super().__init__(
             result_types=[rd],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
@@ -1305,9 +1311,9 @@ class GetAnyRegisterOperation(
 
     ``` python
     rhs = rv32.GetRegisterOp(Registers.s0).res
-    riscv.JalOp("my_func")
+    riscv.ops.JalOp("my_func")
     lhs = rv32.GetRegisterOp(Registers.A0).res
-    sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
+    sum = riscv.ops.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """
 
@@ -1315,7 +1321,7 @@ class GetAnyRegisterOperation(
 
     traits = traits_def(Pure())
 
-    assembly_format = "attr-dict `:` type($res)"
+    assembly_format = "attr-dict `:` qualified(type($res))"
 
     def __init__(
         self,

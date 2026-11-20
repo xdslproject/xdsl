@@ -17,8 +17,6 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyTensorType,
-    AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BoolAttr,
@@ -80,13 +78,17 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import base
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
+
+_DenseLiteralConstr = irdl_to_attr_constraint(
+    RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]
+)
 
 
 @dataclass
@@ -282,8 +284,12 @@ class AttrParser(BaseParser):
             return attr_def(attr_name, is_type, is_opaque, body)
 
         elif issubclass(attr_def, ParametrizedAttribute):
+            parameters_start = self.pos
             param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
+            try:
+                return attr_def.new(param_list)
+            except ValueError as error:
+                self.raise_error(str(error), parameters_start, self.pos)
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)
             param = _attr_def.parse_parameter(self)
@@ -729,7 +735,7 @@ class AttrParser(BaseParser):
 
         return VectorType(type, dims, scalable_dims_attr)
 
-    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> TensorType | UnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:
@@ -870,9 +876,7 @@ class AttrParser(BaseParser):
     ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
-        if not (
-            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
-        ).verifies(
+        if not _DenseLiteralConstr.verifies(
             type,
         ):
             self.raise_error(
@@ -1410,10 +1414,15 @@ class AttrParser(BaseParser):
                         caller = self._parse_location()
                         return CallSiteLoc(callee, caller)
                 case "fused":
+                    if self.parse_optional_punctuation("<"):
+                        metadata = self.parse_attribute()
+                        self.parse_punctuation(">")
+                    else:
+                        metadata = NoneAttr()
                     locs = self.parse_comma_separated_list(
                         self.Delimiter.SQUARE, lambda: self._parse_location()
                     )
-                    return FusedLoc(tuple(locs), NoneAttr())
+                    return FusedLoc(tuple(locs), metadata)
                 case _:
                     self.raise_error("Unsupported location type.")
 

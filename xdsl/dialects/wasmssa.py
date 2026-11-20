@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     OpaqueSyntaxAttribute,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
@@ -227,8 +227,8 @@ class BinaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
     ):
         lhs = SSAValue.get(lhs)
         super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
@@ -375,8 +375,8 @@ class BinaryComparisonOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
     ):
         super().__init__(operands=[lhs, rhs], result_types=[i32])
 
@@ -520,7 +520,7 @@ class EqzOp(IRDLOperation):
 
     assembly_format = "$input `:` type($input) `->` type($result) attr-dict"
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         super().__init__(operands=[input], result_types=[i32])
 
 
@@ -539,8 +539,8 @@ class ShiftRotateOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        val: SSAValue | Operation,
-        bits: SSAValue | Operation,
+        val: OperandArg,
+        bits: OperandArg,
     ):
         val = SSAValue.get(val)
         super().__init__(operands=[val, bits], result_types=[val.type])
@@ -595,7 +595,7 @@ class UnaryNumericalOperation(IRDLOperation, ABC, Generic[_NumericTypeInvT]):
 
     traits = traits_def(Pure())
 
-    def __init__(self, src: SSAValue | Operation):
+    def __init__(self, src: OperandArg):
         src = SSAValue.get(src)
         super().__init__(operands=[src], result_types=[src.type])
 
@@ -679,7 +679,7 @@ class ConversionOperation(
 
     def __init__(
         self,
-        input: SSAValue | Operation,
+        input: OperandArg,
         result_type: NumericType,
     ):
         super().__init__(operands=[input], result_types=[result_type])
@@ -725,7 +725,7 @@ class ExtendSI32Op(IRDLOperation):
 
     assembly_format = "$input `to` type($result) attr-dict"
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         super().__init__(operands=[input], result_types=[i64])
 
 
@@ -742,7 +742,7 @@ class ExtendUI32Op(IRDLOperation):
 
     assembly_format = "$input `to` type($result) attr-dict"
 
-    def __init__(self, input: SSAValue | Operation):
+    def __init__(self, input: OperandArg):
         super().__init__(operands=[input], result_types=[i64])
 
 
@@ -766,7 +766,7 @@ class ExtendLowBitsSOp(IRDLOperation):
 
     def __init__(
         self,
-        input: SSAValue | Operation,
+        input: OperandArg,
         bits_to_take: int | IntegerAttr,
     ):
         input = SSAValue.get(input)

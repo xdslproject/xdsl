@@ -19,6 +19,7 @@ from xdsl.ir import (
     Block,
     Data,
     Dialect,
+    OperandArg,
     Operation,
     Region,
     SSAValue,
@@ -74,7 +75,7 @@ class TestOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -115,7 +116,7 @@ class TestTermOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -158,7 +159,7 @@ class TestPureOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -201,7 +202,7 @@ class TestReadOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -244,7 +245,7 @@ class TestWriteOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -325,7 +326,7 @@ class TestSymbolOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation] = (),
+        operands: Sequence[OperandArg] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,

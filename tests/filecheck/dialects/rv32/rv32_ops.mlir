@@ -31,19 +31,19 @@ riscv_func.func @main() {
 
 
 // CHECK-GENERIC:       "builtin.module"() ({
-// CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:      %0 = "rv32.li"() {immediate = 5 : i32} : () -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %li_lo = "rv32.li"() {immediate = "%lo(label)"} : () -> !riscv.reg<a0>
-// CHECK-GENERIC-NEXT:      %slli = "rv32.slli"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %srli = "rv32.srli"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %srai = "rv32.srai"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %bclri = "rv32.bclri"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %binvi = "rv32.binvi"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %bseti = "rv32.bseti"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %rori = "rv32.rori"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-// CHECK-GENERIC-NEXT:      %bexti = "rv32.bexti"(%0) {immediate = 1 : ui5} : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:    "riscv_func.func"() <{sym_name = "main", function_type = () -> ()}> ({
+// CHECK-GENERIC-NEXT:      %0 = "rv32.li"() <{immediate = 5 : i32}> : () -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %li_lo = "rv32.li"() <{immediate = "%lo(label)"}> : () -> !riscv.reg<a0>
+// CHECK-GENERIC-NEXT:      %slli = "rv32.slli"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %srli = "rv32.srli"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %srai = "rv32.srai"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bclri = "rv32.bclri"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %binvi = "rv32.binvi"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bseti = "rv32.bseti"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %rori = "rv32.rori"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+// CHECK-GENERIC-NEXT:      %bexti = "rv32.bexti"(%0) <{immediate = 1 : ui5}> : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:    }) : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
 
 // CHECK-ASM:       .text

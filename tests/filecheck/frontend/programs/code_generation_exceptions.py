@@ -67,6 +67,19 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
+# CHECK: Unsupported constant 'b'bytes'' of type 'bytes'.
+@ctx.parse_program
+def test_bytes_unsupported(x: c_size_t) -> None:
+    assert b"bytes"
+    return
+
+
+try:
+    test_bytes_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
 # CHECK: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:

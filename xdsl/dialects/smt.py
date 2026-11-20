@@ -25,7 +25,6 @@ from xdsl.irdl import (
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -254,7 +253,7 @@ class ApplyFuncOp(IRDLOperation):
 
     result = result_def(RANGE)
 
-    assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
+    assembly_format = "$func `(` $args `)` attr-dict `:` qualified(type($func))"
 
     def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
         super().__init__(
@@ -317,7 +316,7 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
+    inputs = var_operand_def(RangeOf.get(BoolType).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())
@@ -612,7 +611,7 @@ class BvConstantOp(IRDLOperation, HasFolderInterface):
 
     name = "smt.bv.constant"
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     value = prop_def(BitVectorAttr.constr(T))
     result = result_def(T)
@@ -650,12 +649,12 @@ class UnaryBVOp(IRDLOperation, ABC):
     It has one operand and one result of the same bitvector type.
     """
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     input = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$input attr-dict `:` type($result)"
+    assembly_format = "$input attr-dict `:` qualified(type($result))"
 
     traits = traits_def(Pure())
 
@@ -689,13 +688,13 @@ class BinaryBVOp(IRDLOperation, ABC):
     It has two operands and one result of the same bitvector type.
     """
 
-    T: ClassVar = VarConstraint("T", base(BitVectorType))
+    T: ClassVar = VarConstraint.get("T", BitVectorType)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+    assembly_format = "$lhs `,` $rhs attr-dict `:` qualified(type($result))"
 
     traits = traits_def(Pure())
 

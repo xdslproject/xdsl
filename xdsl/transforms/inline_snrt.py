@@ -6,7 +6,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, rv32, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.riscv.attrs import ui5, ui12
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import OperandArg, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -58,9 +58,9 @@ class LowerClusterHWBarrier(RewritePattern):
         rewriter.replace(
             op,
             [
-                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
-                riscv.CsrrsOp(
-                    rd=riscv.Registers.ZERO,
+                zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
+                riscv.ops.CsrrsOp(
+                    rd=riscv.registers.Registers.ZERO,
                     rs1=zero,
                     csr=IntegerAttr(0x7C2, ui12),
                 ),
@@ -92,7 +92,7 @@ class LowerSSRDisable(RewritePattern):
         rewriter.replace(
             op,
             [
-                riscv.CsrrciOp(
+                riscv.ops.CsrrciOp(
                     csr=IntegerAttr(0x7C0, ui12), immediate=IntegerAttr(1, ui5)
                 ),
             ],
@@ -114,11 +114,11 @@ class LowerDMAStart1D(RewritePattern):
             return snrt_dma_start_1d_wideptr((size_t)dst, (size_t)src, size);
         }
         """
-        reg_t = riscv.Registers.UNALLOCATED_INT
+        reg_t = riscv.registers.Registers.UNALLOCATED_INT
         rewriter.replace(
             op,
             [
-                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
                 # "Take a void* (assumed 32bit) and make it a 32 bit-wide RISC-V register"
                 i32_dst := builtin.UnrealizedConversionCastOp.get(
                     [op.dst],
@@ -203,7 +203,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
         P.S. We only implement taking the top branch for now.
         """
-        reg_t = riscv.Registers.UNALLOCATED_INT
+        reg_t = riscv.registers.Registers.UNALLOCATED_INT
         rewriter.replace(
             op,
             [
@@ -238,18 +238,18 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
 
 class LowerDMAStart2DBase(RewritePattern, ABC):
-    any_reg = riscv.Registers.UNALLOCATED_INT
+    any_reg = riscv.registers.Registers.UNALLOCATED_INT
 
     def generate_dma_instructions(
         self,
-        dst_low: SSAValue | Operation,
-        dst_high: SSAValue | Operation,
-        src_low: SSAValue | Operation,
-        src_high: SSAValue | Operation,
-        size: SSAValue | Operation,
-        dst_stride: SSAValue | Operation,
-        src_stride: SSAValue | Operation,
-        repeat: SSAValue | Operation,
+        dst_low: OperandArg,
+        dst_high: OperandArg,
+        src_low: OperandArg,
+        src_high: OperandArg,
+        size: OperandArg,
+        dst_stride: OperandArg,
+        src_stride: OperandArg,
+        repeat: OperandArg,
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
         Common function to generate the following sequence of operations:
@@ -408,7 +408,7 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
         rewriter.insert(
             [
                 # we use zero register for the ptr_high registers
-                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
                 dst := self.cast_i32(op.dst),
                 src := self.cast_i32(op.src),
                 src_stride := self.cast_i32(op.src_stride),
@@ -647,8 +647,10 @@ class LowerGlobalCoreIdx(RewritePattern):
         rewriter.replace(
             op,
             [
-                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
-                hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, ui12), readonly=True),
+                zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
+                hartid := riscv.ops.CsrrsOp(
+                    zero, IntegerAttr(0xF14, ui12), readonly=True
+                ),
                 hartid_i32 := builtin.UnrealizedConversionCastOp.get(
                     [hartid], [builtin.i32]
                 ),

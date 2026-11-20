@@ -21,12 +21,12 @@ from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
-from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, Operation, Region
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
     opt_attr_def,
+    opt_prop_def,
     opt_result_def,
     prop_def,
     region_def,
@@ -56,7 +56,10 @@ from xdsl.utils.exceptions import DiagnosticException, VerifyException
 _FUNCTION_CALL_EFFECTS = frozenset(
     EffectInstance(MemoryEffectKind.WRITE, resource=RegisterResource(r))
     for r in itertools.chain(
-        riscv.Registers.A, riscv.Registers.T, riscv.Registers.FA, riscv.Registers.FT
+        riscv.registers.Registers.A,
+        riscv.registers.Registers.T,
+        riscv.registers.Registers.FA,
+        riscv.registers.Registers.FT,
     )
 )
 
@@ -75,9 +78,9 @@ class RiscvFunctionCallMemoryEffect(MemoryEffect):
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args = var_operand_def(riscv.IntRegisterType)
+    args = var_operand_def(riscv.registers.IntRegisterType)
     syscall_num = prop_def(IntegerAttr[I32])
-    result = opt_result_def(riscv.IntRegisterType)
+    result = opt_result_def(riscv.registers.IntRegisterType)
 
     # Function calls can have arbitrary memory effects, and may overwrite the
     # A, T, FA, and FT registers
@@ -93,14 +96,16 @@ class SyscallOp(IRDLOperation):
         self,
         num: int | IntegerAttr[I32],
         has_result: bool = False,
-        operands: list[SSAValue | Operation] = [],
+        operands: list[OperandArg] = [],
     ):
         if isinstance(num, int):
             num = IntegerAttr(num, i32)
         super().__init__(
             operands=[operands],
             properties={"syscall_num": num},
-            result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
+            result_types=[
+                riscv.registers.Registers.UNALLOCATED_INT if has_result else None
+            ],
         )
 
     def verify_(self):
@@ -115,13 +120,13 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(riscv.RISCVInstruction):
+class CallOp(riscv.abstract_ops.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args = var_operand_def(riscv.RISCVRegisterType)
-    callee = attr_def(SymbolRefAttr)
-    ress = var_result_def(riscv.RISCVRegisterType)
+    args = var_operand_def(riscv.registers.RISCVRegisterType)
+    callee = prop_def(SymbolRefAttr)
+    ress = var_result_def(riscv.registers.RISCVRegisterType)
 
     assembly_format = (
         "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
@@ -140,15 +145,15 @@ class CallOp(riscv.RISCVInstruction):
     def __init__(
         self,
         callee: str | StringAttr | SymbolRefAttr,
-        args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.RISCVRegisterType],
+        args: Sequence[OperandArg],
+        result_types: Sequence[riscv.registers.RISCVRegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
             operands=[args],
             result_types=[result_types],
+            properties={"callee": SymbolRefAttr.get(callee)},
             attributes={
-                "callee": SymbolRefAttr.get(callee),
                 "comment": comment,
             },
         )
@@ -167,7 +172,9 @@ class CallOp(riscv.RISCVInstruction):
     def assembly_instruction_name(self) -> str:
         return "jal"
 
-    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
 
 
@@ -193,10 +200,10 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name = attr_def(SymbolNameConstraint())
+    sym_name = prop_def(SymbolNameConstraint())
     body = region_def()
-    function_type = attr_def(FunctionType)
-    sym_visibility = opt_attr_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    sym_visibility = opt_prop_def(StringAttr)
     p2align = opt_attr_def(IntegerAttr[I8])
 
     traits = traits_def(
@@ -220,14 +227,15 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             visibility = StringAttr(visibility)
         if isinstance(p2align, int):
             p2align = IntegerAttr(p2align, i8)
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr.get(name),
             "function_type": function_type,
             "sym_visibility": visibility,
-            "p2align": p2align,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(
+            properties=properties, attributes={"p2align": p2align}, regions=[region]
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -286,11 +294,11 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
 
 
 @irdl_op_definition
-class ReturnOp(riscv.RISCVInstruction):
+class ReturnOp(riscv.abstract_ops.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values = var_operand_def(riscv.RISCVRegisterType)
+    values = var_operand_def(riscv.registers.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
     traits = traits_def(
@@ -303,7 +311,7 @@ class ReturnOp(riscv.RISCVInstruction):
 
     def __init__(
         self,
-        *values: Operation | SSAValue,
+        *values: OperandArg,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -324,7 +332,9 @@ class ReturnOp(riscv.RISCVInstruction):
     def assembly_instruction_name(self) -> str:
         return "ret"
 
-    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return ()
 
 

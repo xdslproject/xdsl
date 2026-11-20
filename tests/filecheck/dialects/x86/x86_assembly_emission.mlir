@@ -119,7 +119,7 @@ x86.mi.xor [%rax + 8], 2 : (!x86.reg64<rax>) -> ()
 // CHECK-NEXT: xor [rax+8], 2
 x86.mi.mov [%rax + 8], 2 : (!x86.reg64<rax>) -> ()
 // CHECK-NEXT: mov [rax+8], 2
-%mi_cmp = x86.mi.cmp [%rax + 8], 2 : !x86.reg64<rax> -> !x86.rflags<rflags>
+%mi_cmp = x86.mi.cmp [%rax + 8], 2 : (!x86.reg64<rax>) -> !x86.rflags<rflags>
 // CHECK-NEXT: cmp [rax+8], 2
 
 %rri_imul = x86.dsi.imul %1, 2 : (!x86.reg64<rdx>) -> !x86.reg64<rax>

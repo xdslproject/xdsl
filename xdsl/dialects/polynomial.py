@@ -26,7 +26,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -275,7 +275,7 @@ class EvalOp(IRDLOperation):
     @classmethod
     def get(
         cls,
-        value: Operation | SSAValue,
+        value: OperandArg,
         coefficients: tuple[float, ...],
         element_type: AnyFloat,
         scheme: EvalScheme | str,

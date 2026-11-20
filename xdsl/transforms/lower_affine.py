@@ -2,12 +2,14 @@ from collections.abc import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import affine, arith, builtin, memref, scf
+from xdsl.dialects.builtin import AffineMapAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
     AffineConstantExpr,
     AffineDimExpr,
+    AffineExpr,
     AffineSymExpr,
 )
 from xdsl.passes import ModulePass
@@ -21,7 +23,7 @@ from xdsl.pattern_rewriter import (
 
 
 def affine_expr_ops(
-    expr: affine.AffineExpr,
+    expr: AffineExpr,
     dims: Sequence[SSAValue],
     symbols: Sequence[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
@@ -61,7 +63,7 @@ def affine_expr_ops(
 
 
 def insert_affine_map_ops(
-    map: affine.AffineMapAttr | None,
+    map: AffineMapAttr | None,
     dims: Sequence[SSAValue],
     symbols: list[SSAValue],
 ) -> tuple[list[Operation], list[SSAValue]]:

@@ -22,11 +22,10 @@ from xdsl.dialects.builtin import (
     IntegerType,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -65,10 +64,7 @@ class TwoStateOperation(IRDLOperation, ABC):
     def __init__(
         self: TwoStateOperation,
         *,
-        operands: (
-            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-            | None
-        ) = None,
+        operands: (Sequence[OperandArg | Sequence[OperandArg] | None] | None) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
@@ -99,7 +95,7 @@ class BinCombOperation(TwoStateOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -107,8 +103,8 @@ class BinCombOperation(TwoStateOperation, ABC):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         result_type: Attribute | None = None,
         has_two_state_semantics: bool = False,
         attr_dict: dict[str, Attribute] | None = None,
@@ -151,14 +147,14 @@ class VariadicCombOperation(TwoStateOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     inputs = var_operand_def(T)
     result = result_def(T)
 
     def __init__(
         self,
-        input_list: Sequence[Operation | SSAValue],
+        input_list: Sequence[OperandArg],
         result_type: Attribute | None = None,
         has_two_state_semantics: bool = False,
         attr_dict: dict[str, Attribute] | None = None,
@@ -319,7 +315,7 @@ class ICmpOp(TwoStateOperation, ABC):
 
     name = "comb.icmp"
 
-    T: ClassVar = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint.get("T", IntegerType)
 
     predicate = prop_def(IntegerAttr[I64])
     lhs = operand_def(T)
@@ -337,8 +333,8 @@ class ICmpOp(TwoStateOperation, ABC):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
         arg: int | str | IntegerAttr[IntegerType],
         has_two_state_semantics: bool = False,
         attr_dict: dict[str, Attribute] | None = None,
@@ -410,7 +406,7 @@ class ParityOp(TwoStateOperation):
 
     def __init__(
         self,
-        operand: Operation | SSAValue,
+        operand: OperandArg,
         has_two_state_semantics: bool = False,
         attr_dict: dict[str, Attribute] | None = None,
     ):
@@ -461,7 +457,7 @@ class ExtractOp(IRDLOperation):
 
     def __init__(
         self,
-        operand: Operation | SSAValue,
+        operand: OperandArg,
         low_bit: IntegerAttr[IntegerType],
         result_type: IntegerType,
         attr_dict: dict[str, Attribute] | None = None,
@@ -544,7 +540,7 @@ class ConcatOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: Sequence[SSAValue | Operation],
+        ops: Sequence[OperandArg],
         target_type: IntegerType,
         attr_dict: dict[str, Attribute] | None = None,
     ):
@@ -615,7 +611,7 @@ class ReplicateOp(IRDLOperation):
 
     def __init__(
         self,
-        op: SSAValue | Operation,
+        op: OperandArg,
         target_type: IntegerType,
         attr_dict: dict[str, Attribute] | None = None,
     ):
@@ -650,7 +646,7 @@ class MuxOp(TwoStateOperation):
 
     name = "comb.mux"
 
-    T: ClassVar = VarConstraint("T", base(TypeAttribute))
+    T: ClassVar = VarConstraint.get("T", TypeAttribute)
 
     cond = operand_def(IntegerType(1))
     true_value = operand_def(T)
@@ -659,9 +655,9 @@ class MuxOp(TwoStateOperation):
 
     def __init__(
         self,
-        condition: Operation | SSAValue,
-        true_val: Operation | SSAValue,
-        false_val: Operation | SSAValue,
+        condition: OperandArg,
+        true_val: OperandArg,
+        false_val: OperandArg,
         has_two_state_semantics: bool = False,
         attr_dict: dict[str, Attribute] | None = None,
     ):

@@ -26,13 +26,19 @@ from xdsl.dialects.builtin import (
     Signedness,
     SignednessAttr,
     StringAttr,
-    TypeAttribute,
     UnitAttr,
     i1,
 )
-from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.ir.affine import AffineMap
-from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.hints import isa
@@ -293,7 +299,7 @@ class CslPrintContext:
             case other:
                 return f"<unknown memref.global init type {other}>"
 
-    def _print_binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
+    def _print_binop(self, lhs: SSAValue, rhs: SSAValue, res: SSAValue, op: str):
         """
         Prints statement of the form `res = lhs op rhs;`
 

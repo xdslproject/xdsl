@@ -1,6 +1,7 @@
 import ast
 import itertools
 from dataclasses import dataclass, field
+from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -10,7 +11,6 @@ from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
@@ -18,12 +18,8 @@ from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 class CodeGenerationVisitor(ast.NodeVisitor):
     """
     Visitor that generates the `py` dialect from the Python AST, with source locations
-    for the errors found when lowering it. Constants are still generated directly
-    with the registered constructors.
+    for the errors found when lowering it.
     """
-
-    type_converter: TypeConverter
-    """Used for type conversion during code generation."""
 
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
@@ -40,13 +36,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    def __init__(
-        self,
-        type_converter: TypeConverter,
-        module: builtin.ModuleOp,
-        file: str | None,
-    ) -> None:
-        self.type_converter = type_converter
+    def __init__(self, module: builtin.ModuleOp, file: str | None) -> None:
         self.file = file
 
         assert len(module.body.blocks) == 1
@@ -108,15 +98,33 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(cf.AssertOp(self.inserter.get_operand(), msg), node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                "Only assignment to a single variable is supported.",
-            )
+        match node.targets:
+            case [ast.Name(id=name)]:
+                value = self.visit_single_value(node.value)
+                self._assign(name, value, node)
+                return
+            case [ast.Tuple(elts=elements)] if all(
+                isinstance(element, ast.Name) for element in elements
+            ):
+                names = [cast(ast.Name, element).id for element in elements]
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only assignment to a variable or a tuple of variables is "
+                    "supported.",
+                )
+
         value = self.visit_single_value(node.value)
-        name = node.targets[0].id
+        unpack = py.PyUnpackOp(value, [py.PyObjectType()] * len(names))
+        self.insert_op(unpack, node)
+        # The values are assigned here, rather than left for an expression.
+        del self.inserter.stack[len(self.inserter.stack) - len(names) :]
+        for name, element in zip(names, unpack.res, strict=True):
+            self._assign(name, element, node)
+
+    def _assign(self, name: str, value: SSAValue, node: ast.Assign) -> None:
         assert self.symbol_table is not None
         if name not in self.symbol_table:
             self.symbol_table.add(name)
@@ -179,12 +187,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.insert_op(py.PyCompareOp(py.CmpOp(op_name.lower()), lhs, rhs), node)
 
     def visit_Constant(self, node: ast.Constant) -> None:
-        if (
-            literal_op := self.type_converter.literal_registry.resolve_operation(
-                node.value
-            )
-        ) is not None:
-            self.insert_op(literal_op, node)
+        if node.value is None or isinstance(node.value, int | float | str):
+            self.insert_op(py.PyConstOp.from_value(node.value), node)
             return
 
         raise CodeGenerationException(
@@ -294,6 +298,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
         self.insert_op(symref.FetchOp(node.id, py.PyObjectType()), node)
 
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        elements = [self.visit_single_value(element) for element in node.elts]
+        self.insert_op(py.PyBuildTupleOp(elements), node)
+
     def visit_Pass(self, node: ast.Pass) -> None:
         pass
 
@@ -309,7 +317,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.last_return = node
 
         value = node.value
-        if value is None or (isinstance(value, ast.Constant) and value.value is None):
+        if value is None:
             # A bare return returns None, which is constructed first, as in bytecode.
             none = py.PyConstOp.from_value(None)
             self.insert_op(none, node)

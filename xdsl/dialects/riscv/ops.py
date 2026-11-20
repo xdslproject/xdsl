@@ -2049,7 +2049,7 @@ class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
 
     name = "riscv.label"
-    label = attr_def(StringAttr)
+    label = prop_def(StringAttr)
     comment = opt_attr_def(StringAttr)
 
     assembly_format = "$label attr-dict"
@@ -2066,8 +2066,8 @@ class LabelOp(RISCVAsmOperation, RISCVRegallocOperation):
             comment = StringAttr(comment)
 
         super().__init__(
+            properties={"label": label},
             attributes={
-                "label": label,
                 "comment": comment,
             },
         )
@@ -2088,8 +2088,8 @@ class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
     """
 
     name = "riscv.directive"
-    directive = attr_def(StringAttr)
-    value = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
+    value = prop_def(StringAttr)
 
     assembly_format = "$directive $value attr-dict"
 
@@ -2104,7 +2104,7 @@ class DirectiveOp(RISCVAsmOperation, RISCVRegallocOperation):
             value = StringAttr(value)
 
         super().__init__(
-            attributes={
+            properties={
                 "directive": directive,
                 "value": value,
             }
@@ -2135,7 +2135,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
 
     name = "riscv.assembly_section"
-    directive = attr_def(StringAttr)
+    directive = prop_def(StringAttr)
     data = region_def("single_block")
 
     traits = traits_def(NoTerminator(), IsolatedFromAbove())
@@ -2152,7 +2152,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
         super().__init__(
             regions=[region],
-            attributes={
+            properties={
                 "directive": directive,
             },
         )
@@ -2196,8 +2196,8 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
     ``` python
     s0 = rv32.GetRegisterOp(Registers.s0).res
     s1 = rv32.GetRegisterOp(Registers.s1).res
-    rs2 = riscv.Registers.s2
-    rs3 = riscv.Registers.s3
+    rs2 = riscv.registers.Registers.s2
+    rs3 = riscv.registers.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
 
     op.assembly_line()   # "my_instr s2, s3, s0, s1"
@@ -2302,9 +2302,9 @@ class ParallelMovOp(RISCVRegallocOperation):
     _L: ClassVar = IntVarConstraint("L", AnyInt())
 
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    inputs = var_operand_def(RangeOf.get(RISCVRegisterType).of_length(_L))
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
-        RangeOf(RISCVRegisterType).of_length(_L)
+        RangeOf.get(RISCVRegisterType).of_length(_L)
     )
     input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])

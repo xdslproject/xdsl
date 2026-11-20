@@ -234,8 +234,8 @@ class PyLowering:
     )
     """
     The `py` values that stand for a number of values other than one, such as the
-    results of a call, with the operation that produced them. These values cannot be
-    used.
+    results of a call or the elements of a tuple, with the operation that produced
+    them. These values can only be unpacked.
     """
 
     def lower(self, op: Operation) -> None:
@@ -255,18 +255,24 @@ class PyLowering:
             self._lower_op(op)
 
     def _lower_op(self, op: Operation) -> None:
-        for operand in op.operands:
-            if operand in self.packs:
-                raise self._error(
-                    self.packs[operand][1],
-                    "Expected an expression with exactly one result.",
-                )
+        if not isinstance(op, py.PyUnpackOp):
+            for operand in op.operands:
+                if operand in self.packs:
+                    producer = self.packs[operand][1]
+                    raise self._error(
+                        producer,
+                        "Tuples are only supported when unpacked."
+                        if isinstance(producer, py.PyBuildTupleOp)
+                        else "Expected an expression with exactly one result.",
+                    )
 
         match op:
             case py.PyFuncOp():
                 self._lower_func(op)
             case py.PyReturnOp():
                 self._lower_return(op)
+            case py.PyConstOp():
+                self._lower_const(op)
             case py.PyCastOp():
                 # Casts only change annotations, which are resolved by now.
                 Rewriter.replace_op(op, (), (op.value,))
@@ -276,6 +282,11 @@ class PyLowering:
                 self._lower_compare(op)
             case py.PyCallOp():
                 self._lower_call(op)
+            case py.PyBuildTupleOp():
+                # A tuple stands for its elements, until it is unpacked.
+                self.packs[op.res] = (tuple(op.elements), op)
+            case py.PyUnpackOp():
+                self._lower_unpack(op)
             case symref.FetchOp():
                 name = op.symbol.root_reference.data
                 Rewriter.replace_value_with_new_type(op.value, self.variables[name])
@@ -330,6 +341,30 @@ class PyLowering:
         if none and not none.res.uses:
             Rewriter.erase_op(none)
 
+    def _lower_const(self, op: py.PyConstOp) -> None:
+        if self._is_returned_none(op):
+            # Returning None returns no values, so the return lowers it.
+            return
+        value = op.value
+        literal_op = self.type_converter.literal_registry.resolve_operation(value)
+        if literal_op is None:
+            raise self._error(
+                op,
+                f"Unsupported constant '{value}' of type '{type(value).__qualname__}'.",
+            )
+        self._replace(op, literal_op)
+
+    @staticmethod
+    def _is_returned_none(op: py.PyConstOp) -> bool:
+        """Whether `op` is a `None` that is only returned, through a cast."""
+        if op.value is not None or not op.res.uses:
+            return False
+        return all(
+            isinstance(cast_op := use.operation, py.PyCastOp)
+            and all(isinstance(u.operation, py.PyReturnOp) for u in cast_op.res.uses)
+            for use in op.res.uses
+        )
+
     def _lower_binop(self, op: py.PyBinOp) -> None:
         op_name = _BINARY_OPERATORS[op.op.data]
         method_op = resolve_binary_operator(
@@ -353,6 +388,17 @@ class PyLowering:
         args = op.args[:num_positional]
         kwargs = dict(zip(keywords, op.args[num_positional:], strict=True))
         self._replace(op, ir_op(*args, **kwargs))
+
+    def _lower_unpack(self, op: py.PyUnpackOp) -> None:
+        if op.value in self.packs:
+            values, _ = self.packs[op.value]
+        else:
+            values = (op.value,)
+        if len(values) != len(op.res):
+            raise self._error(
+                op, f"Expected {len(op.res)} values to unpack, got {len(values)}."
+            )
+        Rewriter.replace_op(op, (), values)
 
     def _lower_update(self, op: symref.UpdateOp) -> None:
         name = op.symbol.root_reference.data

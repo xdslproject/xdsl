@@ -207,16 +207,30 @@ def test_detach_block_clears_pointers():
     assert list(region.blocks) == []
 
 
-def test_op_operands_assign():
-    """Test that we can directly assign `op.operands`."""
+def test_op_set_operands():
+    """Test that we can replace operands with `op.set_operands`."""
     val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
-    op.operands = [val2, val1]
+    op.set_operands([val2, val1])
     op.verify()
 
     assert val1.has_one_use()
     assert val2.has_one_use()
     assert tuple(op.operands) == (val2, val1)
+
+
+def test_op_operands_assign_deprecated():
+    """Test that the deprecated setter still updates operands and their uses."""
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op = test.TestOp.create(operands=[val1])
+
+    with pytest.deprecated_call(match="Use set_operands instead"):
+        op.operands = [val2]  # pyright: ignore[reportDeprecated]
+
+    op.verify()
+    assert not tuple(val1.uses)
+    assert val2.has_one_use()
+    assert tuple(op.operands) == (val2,)
 
 
 def test_op_operands_indexing():
@@ -333,8 +347,8 @@ def test_op_clone_graph_region():
     ca1 = test.TestOp.create(result_types=(i32,))
     ca1.results[0].name_hint = "b"
     # Make recursive
-    ca0.operands = (ca1.results[0],)
-    ca1.operands = (ca0.results[0],)
+    ca0.set_operands((ca1.results[0],))
+    ca1.set_operands((ca0.results[0],))
     # Parent
     pa = test.TestOp.create(regions=[Region([Block([ca0, ca1])])])
 
@@ -1051,13 +1065,13 @@ class CustomVerifyOp(IRDLOperation):
         return CustomVerifyOp.build(operands=[val])
 
     def verify_(self):
-        raise Exception("Custom Verification Check")
+        raise VerifyException("Custom Verification Check")
 
 
 def test_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(Exception, match="Custom Verification Check"):
+    with pytest.raises(VerifyException, match="Custom Verification Check"):
         b.verify()
 
 
@@ -1330,6 +1344,24 @@ def test_ssa_get_on_op():
         SSAValue.get(op2)
 
 
+def test_ssa_get_on_use():
+    value = create_ssa_value(i32)
+    test.TestOp.create(operands=[value])
+    (use,) = value.uses
+
+    assert SSAValue.get(use) is value
+    assert SSAValue.get(use, type=IntegerType) is value
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> "
+            "but got SSAValue with type i32."
+        ),
+    ):
+        SSAValue.get(use, type=IndexType)
+
+
 def test_repr():
     bb = tuple(Block(arg_types=(i32,)) for _ in range(3))
     bb[0].add_op(test.TestTermOp(result_types=(i32,), successors=bb[1:]))
@@ -1394,15 +1426,15 @@ def test_repr():
 
     block_use_reprs = tuple(repr(use) for use in block_uses)
     assert block_use_reprs == (
-        f"<Use {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
-        f"<Use {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<Use {id(block_uses[2])}>)>",
-        f"<Use {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<Use {id(block_uses[1])}>, _next_use=None)>",
+        f"<_Successor {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
+        f"<_Successor {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<_Successor {id(block_uses[2])}>)>",
+        f"<_Successor {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<_Successor {id(block_uses[1])}>, _next_use=None)>",
     )
 
     value_use_reprs = tuple(repr(use) for use in value_uses)
     assert value_use_reprs == (
-        f"<Use {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<Use {id(value_uses[1])}>)>",
-        f"<Use {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<Use {id(value_uses[0])}>, _next_use=None)>",
+        f"<_Operand {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<_Operand {id(value_uses[1])}>)>",
+        f"<_Operand {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<_Operand {id(value_uses[0])}>, _next_use=None)>",
     )
 
 

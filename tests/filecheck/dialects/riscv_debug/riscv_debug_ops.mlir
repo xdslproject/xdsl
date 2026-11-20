@@ -27,10 +27,10 @@ riscv_debug.printf "{}, {}, {}" (%0, %1, %2 : !riscv.reg<a0>, !riscv.reg<a1>, !r
 // CHECK-GENERIC-NEXT:   %0 = "rv32.get_register"() : () -> !riscv.reg<a0>
 // CHECK-GENERIC-NEXT:   %1 = "rv32.get_register"() : () -> !riscv.reg<a1>
 // CHECK-GENERIC-NEXT:   %2 = "riscv.get_float_register"() : () -> !riscv.freg<fa0>
-// CHECK-GENERIC-NEXT:   "riscv_debug.printf"() {format_str = "hello"} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_debug.printf"() {format_str = "note", comment = "no operands"} : () -> ()
-// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0) {format_str = "value: {}", comment = "debug value"} : (!riscv.reg<a0>) -> ()
-// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0, %1, %2) {format_str = "{}, {}, {}"} : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.freg<fa0>) -> ()
+// CHECK-GENERIC-NEXT:   "riscv_debug.printf"() <{format_str = "hello"}> : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_debug.printf"() <{format_str = "note"}> {comment = "no operands"} : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0) <{format_str = "value: {}"}> {comment = "debug value"} : (!riscv.reg<a0>) -> ()
+// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0, %1, %2) <{format_str = "{}, {}, {}"}> : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.freg<fa0>) -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
 
 // CHECK-ASM: printf "hello"

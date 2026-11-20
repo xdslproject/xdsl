@@ -27,23 +27,33 @@ from xdsl.utils.test_value import create_ssa_value
 def test_riscv_interpreter():
     def my_custom_instruction(
         interpreter: Interpreter,
-        op: riscv.CustomAssemblyInstructionOp,
+        op: riscv.ops.CustomAssemblyInstructionOp,
         args: PythonValues,
     ) -> PythonValues:
         return args
 
     module_op = ModuleOp(
         [
-            riscv.AssemblySectionOp(
+            riscv.ops.AssemblySectionOp(
                 ".data",
                 Region(
-                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                    Block(
+                        [
+                            riscv.ops.LabelOp("label0"),
+                            riscv.ops.DirectiveOp(".word", "2A"),
+                        ]
+                    )
                 ),
             ),
-            riscv.AssemblySectionOp(
+            riscv.ops.AssemblySectionOp(
                 ".data",
                 Region(
-                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
+                    Block(
+                        [
+                            riscv.ops.LabelOp("label1"),
+                            riscv.ops.DirectiveOp(".word", "3B"),
+                        ]
+                    )
                 ),
             ),
         ]
@@ -59,41 +69,41 @@ def test_riscv_interpreter():
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.run_op(
-        riscv.MVOp(create_ssa_value(register)), (IntegerAttr(42, i32),)
+        riscv.ops.MVOp(create_ssa_value(register)), (IntegerAttr(42, i32),)
     ) == (IntegerAttr(42, i32),)
 
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(0, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(0, i32),)
     ) == (IntegerAttr(1, i32),)
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(10, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(10, i32),)
     ) == (IntegerAttr(0, i32),)
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(-10, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), 5), (IntegerAttr(-10, i32),)
     ) == (IntegerAttr(0, i32),)
 
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), 0), (IntegerAttr(5, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), 0), (IntegerAttr(5, i32),)
     ) == (IntegerAttr(0, i32),)
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), 10), (IntegerAttr(5, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), 10), (IntegerAttr(5, i32),)
     ) == (IntegerAttr(1, i32),)
     assert interpreter.run_op(
-        riscv.SltiuOp(create_ssa_value(register), -10), (IntegerAttr(5, i32),)
+        riscv.ops.SltiuOp(create_ssa_value(register), -10), (IntegerAttr(5, i32),)
     ) == (IntegerAttr(1, i32),)
 
     assert interpreter.run_op(
-        riscv.AddOp(create_ssa_value(register), create_ssa_value(register)),
+        riscv.ops.AddOp(create_ssa_value(register), create_ssa_value(register)),
         (IntegerAttr(1, i32), IntegerAttr(2, i32)),
     ) == (IntegerAttr(3, i32),)
 
     assert interpreter.run_op(
-        riscv.AddiOp(create_ssa_value(register), 2),
+        riscv.ops.AddiOp(create_ssa_value(register), 2),
         (IntegerAttr(1, i32),),
     ) == (IntegerAttr(3, i32),)
 
     assert interpreter.run_op(
-        riscv.SubOp(
+        riscv.ops.SubOp(
             create_ssa_value(register),
             create_ssa_value(register),
         ),
@@ -101,7 +111,7 @@ def test_riscv_interpreter():
     ) == (IntegerAttr(-1, i32),)
 
     assert interpreter.run_op(
-        riscv.SllOp(
+        riscv.ops.SllOp(
             create_ssa_value(register),
             create_ssa_value(register),
         ),
@@ -109,7 +119,7 @@ def test_riscv_interpreter():
     ) == (IntegerAttr(12, i32),)
 
     assert interpreter.run_op(
-        riscv.MulOp(
+        riscv.ops.MulOp(
             create_ssa_value(register),
             create_ssa_value(register),
         ),
@@ -117,7 +127,7 @@ def test_riscv_interpreter():
     ) == (IntegerAttr(6, i32),)
 
     assert interpreter.run_op(
-        riscv.DivOp(
+        riscv.ops.DivOp(
             create_ssa_value(register),
             create_ssa_value(register),
         ),
@@ -131,7 +141,7 @@ def test_riscv_interpreter():
 
     assert (
         interpreter.run_op(
-            riscv.SwOp(create_ssa_value(register), create_ssa_value(register), 0),
+            riscv.ops.SwOp(create_ssa_value(register), create_ssa_value(register), 0),
             (buffer, IntegerAttr(1, i32)),
         )
         == ()
@@ -142,7 +152,7 @@ def test_riscv_interpreter():
 
     assert (
         interpreter.run_op(
-            riscv.SwOp(create_ssa_value(register), create_ssa_value(register), 4),
+            riscv.ops.SwOp(create_ssa_value(register), create_ssa_value(register), 4),
             (buffer, IntegerAttr(2, i32)),
         )
         == ()
@@ -151,12 +161,12 @@ def test_riscv_interpreter():
     test_buffer.int32[1] = 2
     assert buffer == test_buffer
 
-    assert interpreter.run_op(riscv.LwOp(create_ssa_value(register), 0), (buffer,)) == (
-        IntegerAttr(1, i32),
-    )
-    assert interpreter.run_op(riscv.LabelOp("label"), ()) == ()
+    assert interpreter.run_op(
+        riscv.ops.LwOp(create_ssa_value(register), 0), (buffer,)
+    ) == (IntegerAttr(1, i32),)
+    assert interpreter.run_op(riscv.ops.LabelOp("label"), ()) == ()
 
-    custom_instruction_op = riscv.CustomAssemblyInstructionOp(
+    custom_instruction_op = riscv.ops.CustomAssemblyInstructionOp(
         "my_custom_instruction",
         (create_ssa_value(register), create_ssa_value(register)),
         (register, register),
@@ -167,7 +177,7 @@ def test_riscv_interpreter():
     ) == (IntegerAttr(1, i32), IntegerAttr(2, i32))
 
     assert interpreter.run_op(
-        riscv.FMulSOp(
+        riscv.ops.FMulSOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -177,7 +187,7 @@ def test_riscv_interpreter():
     # D extension arithmetic
 
     assert interpreter.run_op(
-        riscv.FMAddDOp(
+        riscv.ops.FMAddDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
             create_ssa_value(fregister),
@@ -186,7 +196,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(17.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FAddDOp(
+        riscv.ops.FAddDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -194,7 +204,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(7.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FSubDOp(
+        riscv.ops.FSubDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -202,7 +212,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(-1.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FMulDOp(
+        riscv.ops.FMulDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -210,7 +220,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(12.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FDivDOp(
+        riscv.ops.FDivDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -218,7 +228,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(0.75, f64),)
 
     assert interpreter.run_op(
-        riscv.FMinDOp(
+        riscv.ops.FMinDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -226,7 +236,7 @@ def test_riscv_interpreter():
     ) == (FloatAttr(1.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FMaxDOp(
+        riscv.ops.FMaxDOp(
             create_ssa_value(fregister),
             create_ssa_value(fregister),
         ),
@@ -234,21 +244,21 @@ def test_riscv_interpreter():
     ) == (FloatAttr(2.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FMVOp(create_ssa_value(register)),
+        riscv.ops.FMVOp(create_ssa_value(register)),
         (FloatAttr(42.0, f64),),
     ) == (FloatAttr(42.0, f64),)
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
-    # assert interpreter.run_op(riscv.FMvWXOp(test_ssa_value(fregister)), (3,)) == (3.0,)
+    # assert interpreter.run_op(riscv.ops.FMvWXOp(test_ssa_value(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FMvWXOp(create_ssa_value(fregister)),
+        riscv.ops.FMvWXOp(create_ssa_value(fregister)),
         (IntegerAttr(convert_f32_to_u32(-3.0), i32),),
     ) == (FloatAttr(-3.0, f64),)
 
     assert (
         interpreter.run_op(
-            riscv.FSwOp(create_ssa_value(register), create_ssa_value(fregister), 8),
+            riscv.ops.FSwOp(create_ssa_value(register), create_ssa_value(fregister), 8),
             (buffer, FloatAttr(3.0, f64)),
         )
         == ()
@@ -258,7 +268,7 @@ def test_riscv_interpreter():
     assert buffer == test_buffer
 
     assert interpreter.run_op(
-        riscv.FLwOp(create_ssa_value(register), 8),
+        riscv.ops.FLwOp(create_ssa_value(register), 8),
         (buffer,),
     ) == (FloatAttr(3.0, f64),)
 
@@ -269,25 +279,25 @@ def test_riscv_interpreter():
     test_buffer.float32[3] = 4.0
 
     assert interpreter.run_op(
-        riscv.FLdOp(create_ssa_value(register), 8),
+        riscv.ops.FLdOp(create_ssa_value(register), 8),
         (buffer,),
     ) == (FloatAttr(struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0], f64),)
 
     assert buffer == test_buffer
 
     assert interpreter.run_op(
-        riscv.FMvDOp(create_ssa_value(register), rd=fregister),
+        riscv.ops.FMvDOp(create_ssa_value(register), rd=fregister),
         (FloatAttr(5.0, f64),),
     ) == (FloatAttr(5.0, f64),)
 
     assert interpreter.run_op(
-        riscv.FCvtDWOp(create_ssa_value(register)),
+        riscv.ops.FCvtDWOp(create_ssa_value(register)),
         (IntegerAttr(42, i32),),
     ) == (FloatAttr(42.0, f64),)
 
     assert (
         interpreter.run_op(
-            riscv.FSdOp(create_ssa_value(register), create_ssa_value(fregister), 8),
+            riscv.ops.FSdOp(create_ssa_value(register), create_ssa_value(fregister), 8),
             (
                 buffer,
                 FloatAttr(struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0], f64),
@@ -324,7 +334,7 @@ def test_div(bitwidth: Literal[32, 64], lhs: int, rhs: int, expected: int):
     register = riscv.Registers.UNALLOCATED_INT
 
     assert interpreter.run_op(
-        riscv.DivOp(create_ssa_value(register), create_ssa_value(register)),
+        riscv.ops.DivOp(create_ssa_value(register), create_ssa_value(register)),
         (IntegerAttr(lhs, bitwidth), IntegerAttr(rhs, bitwidth)),
     ) == (IntegerAttr(expected, bitwidth),)
 
@@ -333,12 +343,12 @@ def test_get_data():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        data = riscv.AssemblySectionOp(".data", Region(Block()))
+        data = riscv.ops.AssemblySectionOp(".data", Region(Block()))
         with ImplicitBuilder(data.data):
-            riscv.LabelOp("one")
-            riscv.DirectiveOp(".word", "1")
-            riscv.LabelOp("two_three")
-            riscv.DirectiveOp(".word", "2, 3")
+            riscv.ops.LabelOp("one")
+            riscv.ops.DirectiveOp(".word", "1")
+            riscv.ops.LabelOp("two_three")
+            riscv.ops.DirectiveOp(".word", "2, 3")
 
     assert RiscvFunctions.get_data(module) == {
         "one": TypedPtr.new_int32([1]).raw,
@@ -378,7 +388,7 @@ def test_register_contents():
     ):
         RiscvFunctions.get_reg_value(interpreter, i1, two)
 
-    x0 = riscv.IntRegisterType.from_name("x0")
+    x0 = riscv.registers.IntRegisterType.from_name("x0")
     assert RiscvFunctions.get_reg_value(interpreter, x0, zero) == zero
     assert RiscvFunctions.set_reg_value(interpreter, x0, forty_two) == zero
     assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, zero) == zero
@@ -393,7 +403,7 @@ def test_register_contents():
     )
     assert (
         RiscvFunctions.get_reg_value(
-            interpreter, riscv.IntRegisterType.from_name("x8"), forty_two
+            interpreter, riscv.registers.IntRegisterType.from_name("x8"), forty_two
         )
         == forty_two
     )

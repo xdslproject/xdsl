@@ -44,8 +44,8 @@ func.func public @dsum(%arg0: memref<8x16xf64>, %arg1: memref<8x16xf64>, %arg2: 
         indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
         iterator_types = ["parallel", "parallel"]
     } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8x16xf64>) {
-    ^bb0(%in: f64, %in_0: f64, %out: f64):
-        %0 = arith.addf %in, %in_0 : f64
+    ^bb0(%lhs: f64, %rhs: f64, %out: f64):
+        %0 = arith.addf %lhs, %rhs : f64
         memref_stream.yield %0 : f64
     }
     func.return %arg2 : memref<8x16xf64>
@@ -84,8 +84,8 @@ func.func public @relu(%arg0: memref<16x16xf64>, %arg1: memref<16x16xf64>) -> me
         indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
         iterator_types = ["parallel", "parallel"]
     } ins(%arg0 : memref<16x16xf64>) outs(%arg1 : memref<16x16xf64>) {
-    ^bb1(%in_1: f64, %out_1: f64):
-        %1 = arith.maximumf %in_1, %cst : f64
+    ^bb1(%in: f64, %out: f64):
+        %1 = arith.maximumf %in, %cst : f64
         memref_stream.yield %1 : f64
     }
     func.return %arg1 : memref<16x16xf64>

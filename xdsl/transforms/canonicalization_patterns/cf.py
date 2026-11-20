@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     VectorType,
 )
-from xdsl.ir import Block, BlockArgument, Operation, SSAValue
+from xdsl.ir import Block, BlockArgument, OperandArg, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -290,7 +290,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
 def drop_case_helper(
     rewriter: PatternRewriter,
     op: cf.SwitchOp,
-    predicate: Callable[[IntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
+    predicate: Callable[[IntegerAttr, Block, Sequence[OperandArg]], bool],
 ):
     case_values = op.case_values
     if case_values is None:
@@ -299,7 +299,7 @@ def drop_case_helper(
 
     new_case_values: list[int] = []
     new_case_blocks: list[Block] = []
-    new_case_operands: list[Sequence[Operation | SSAValue]] = []
+    new_case_operands: list[Sequence[OperandArg]] = []
 
     for switch_case, block, operands in zip(
         case_values.get_attrs(),
@@ -351,7 +351,7 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
         def predicate(
             switch_case: IntegerAttr,
             block: Block,
-            operands: Sequence[Operation | SSAValue],
+            operands: Sequence[OperandArg],
         ) -> bool:
             return block == op.default_block and operands == op.default_operands
 
@@ -420,7 +420,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
         requires_change = False
 
         new_case_blocks: list[Block] = []
-        new_case_operands: list[Sequence[Operation | SSAValue]] = []
+        new_case_operands: list[Sequence[OperandArg]] = []
 
         for block, operands in zip(op.case_blocks, op.case_operand, strict=True):
             collapsed = collapse_branch(block, operands)
@@ -543,7 +543,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             def predicate(
                 switch_case: IntegerAttr,
                 block: Block,
-                operands: Sequence[Operation | SSAValue],
+                operands: Sequence[OperandArg],
             ) -> bool:
                 return switch_case in case_values.get_attrs()
 

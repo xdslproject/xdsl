@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     container_of,
 )
-from xdsl.ir import Dialect, Operation, SSAValue
+from xdsl.ir import Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
@@ -43,7 +43,7 @@ class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     assembly_format = "$operand attr-dict `:` type($result)"
 
-    def __init__(self, operand: Operation | SSAValue):
+    def __init__(self, operand: OperandArg):
         operand = SSAValue.get(operand)
         super().__init__(
             operands=[operand],
@@ -63,9 +63,7 @@ class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
+    def __init__(self, operand: OperandArg, fastmath: FastMathFlagsAttr | None = None):
         operand = SSAValue.get(operand)
         super().__init__(
             properties={"fastmath": fastmath},
@@ -87,8 +85,8 @@ class SignlessIntegerLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
     ):
         super().__init__(
             operands=[lhs, rhs],
@@ -113,8 +111,8 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         super().__init__(
@@ -552,8 +550,8 @@ class FPowIOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         attributes = {"fastmath": fastmath}
@@ -618,9 +616,9 @@ class FmaOp(IRDLOperation):
 
     def __init__(
         self,
-        a: Operation | SSAValue,
-        b: Operation | SSAValue,
-        c: Operation | SSAValue,
+        a: OperandArg,
+        b: OperandArg,
+        c: OperandArg,
         fastmath: FastMathFlagsAttr | None = None,
     ):
         attributes = {"fastmath": fastmath}

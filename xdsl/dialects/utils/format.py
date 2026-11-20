@@ -13,7 +13,7 @@ from xdsl.ir import (
     Attribute,
     AttributeInvT,
     BlockArgument,
-    Operation,
+    OperandArg,
     Region,
     SSAValue,
     TypeAttribute,
@@ -34,7 +34,7 @@ class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
 
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
-    def __init__(self, *operands: SSAValue | Operation):
+    def __init__(self, *operands: OperandArg):
         super().__init__(operands=[operands])
 
 

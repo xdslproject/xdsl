@@ -17,7 +17,6 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -27,10 +26,10 @@ def test_immediate_pseudo_inst():
     assert lb == -9223372036854775808
 
     # Pseudo-Instruction with custom handling
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i64"):
         rv64.LiOp(ub, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i64"):
         rv64.LiOp(lb - 1, rd=riscv.Registers.A0)
 
     rv64.LiOp(ub - 1, rd=riscv.Registers.A0)
@@ -41,10 +40,10 @@ def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate for RV64
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui6"):
         rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui6"):
         rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
     rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
@@ -60,10 +59,10 @@ def test_immediate_bit_manipulation_inst(
     # Bit manipulation instructions - 6-bits immediate for RV64
     a1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui6"):
         op_type(a1, 1 << 6, rd=riscv.Registers.A0)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui6"):
         op_type(a1, -1, rd=riscv.Registers.A0)
 
     op_type(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
@@ -121,10 +120,10 @@ def test_ld_op_construction():
     lb, ub = Signedness.SIGNED.value_range(12)
     rs1 = create_ssa_value(riscv.Registers.A1)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         rv64.LdOp(rs1, ub)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         rv64.LdOp(rs1, lb - 1)
 
     rv64.LdOp(rs1, ub - 1)
@@ -141,10 +140,10 @@ def test_sd_op_construction():
     rs1 = create_ssa_value(riscv.Registers.A1)
     rs2 = create_ssa_value(riscv.Registers.A2)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         rv64.SdOp(rs1, rs2, ub)
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si12"):
         rv64.SdOp(rs1, rs2, lb - 1)
 
     rv64.SdOp(rs1, rs2, ub - 1)

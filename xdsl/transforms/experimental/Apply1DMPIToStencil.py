@@ -1,7 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
+from xdsl.dialects.builtin import MemRefType
 from xdsl.ir import Operation, TypeAttribute
-from xdsl.irdl import Operand
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
@@ -20,8 +20,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(
         self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /
     ):
-        assert isa(op.field.type, memref.MemRefType[AnyNumericType])
-        memref_type: memref.MemRefType[AnyNumericType] = op.field.type
+        assert isa(op.field.type, MemRefType[AnyNumericType])
+        memref_type: MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
         mpi_operations: list[Operation] = []
@@ -212,7 +212,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         mpi_operations += [bottom_halo_exhange]
-        req_ops: Operand = alloc_request_op.results[0]
+        req_ops = alloc_request_op.results[0]
 
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]

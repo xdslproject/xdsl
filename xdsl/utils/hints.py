@@ -79,10 +79,15 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
         )
 
     if origin in [Union, types.UnionType]:
-        return any(isa(arg, union_arg) for union_arg in get_args(hint))
+        # Check every member so a match cannot hide an unsupported literal.
+        matches = tuple(isa(arg, union_arg) for union_arg in get_args(hint))
+        return any(matches)
 
     if origin is Literal:
-        return arg in get_args(hint)
+        literal_args = get_args(hint)
+        if any(isinstance(value, bool) for value in literal_args):
+            raise ValueError("Boolean literals are currently not supported")
+        return arg in literal_args
 
     if (origin is not None) and issubclass(origin, Sequence):
         if not isinstance(arg, Sequence):

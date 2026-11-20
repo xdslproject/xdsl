@@ -23,6 +23,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyInt,
     AnyOf,
+    AnyRange,
     AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -41,7 +42,6 @@ from xdsl.irdl import (
     ResultDef,
     VarConstraint,
     attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -93,8 +93,13 @@ def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
     assert OpDefTestOp.get_irdl_definition() == OpDef(
         "test.op_def_test",
-        operands=[("operand", OperandDef(AnyAttr()))],
-        results=[("result", ResultDef(AnyAttr()))],
+        operands=[
+            (
+                "operand",
+                OperandDef(AnyRange().of_length(1)),
+            )
+        ],
+        results=[("result", ResultDef(AnyRange().of_length(1)))],
         attributes={
             "attr": AttributeDef(AnyAttr()),
             "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
@@ -203,7 +208,7 @@ def test_attr_verify():
 class GenericConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
-    T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
+    T: ClassVar = VarConstraint.get("T", IntegerType | IndexType)
 
     operand = operand_def(T)
     result = result_def(T)
@@ -375,8 +380,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
-    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    operand = var_operand_def(AnyRange().of_length(LENGTH))
+    result = var_result_def(AnyRange().of_length(LENGTH))
 
 
 def test_same_length_op():
@@ -972,6 +977,202 @@ def test_multiple_inheritance_op():
     )
     with pytest.raises(DiagnosticException):
         op_attr_fail.verify()
+
+
+_PropType = TypeVar("_PropType", bound=StringAttr | IntAttr)
+
+
+class GenericPropOp(IRDLOperation, Generic[_PropType]):
+    """Base class with TypeVar for property type."""
+
+    name = "test.generic_prop"
+
+    typed_prop = prop_def(_PropType)
+
+
+@irdl_op_definition
+class StringPropOp(GenericPropOp[StringAttr]):
+    """Specialized with StringAttr."""
+
+    name = "test.string_prop_op"
+
+
+@irdl_op_definition
+class IntPropOp(GenericPropOp[IntAttr]):
+    """Specialized with IntAttr."""
+
+    name = "test.int_prop_op"
+
+
+def test_typevar_property_string():
+    """Test TypeVar base class with StringAttr property."""
+    op_good = StringPropOp(properties={"typed_prop": StringAttr("test")})
+    op_good.verify()
+    op_bad = StringPropOp(properties={"typed_prop": IntAttr(1)})
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("#builtin.int<1> should be of base attribute string"),
+    ):
+        op_bad.verify()
+
+
+def test_typevar_property_int():
+    """Test TypeVar base class with IntAttr property."""
+    op_good = IntPropOp(properties={"typed_prop": IntAttr(42)})
+    op_good.verify()
+    op_bad = IntPropOp(properties={"typed_prop": StringAttr("test")})
+    with pytest.raises(
+        VerifyException,
+        match=re.escape('"test" should be of base attribute builtin.int'),
+    ):
+        op_bad.verify()
+
+
+_EntryType = TypeVar("_EntryType", bound=IndexType | IntegerType)
+
+
+class GenericEntryArgsOp(IRDLOperation, Generic[_EntryType]):
+    """Base class with TypeVar for region entry arg type."""
+
+    name = "test.generic_entry_args"
+
+    body = opt_region_def(entry_args=_EntryType)
+
+    traits = traits_def(NoTerminator())
+
+
+@irdl_op_definition
+class IndexEntryArgsOp(GenericEntryArgsOp[IndexType]):
+    """Specialized with IndexType entry args."""
+
+    name = "test.index_entry_args_op"
+
+
+@irdl_op_definition
+class I32EntryArgsOp(GenericEntryArgsOp[IntegerType[32]]):
+    """Specialized with i32 entry args."""
+
+    name = "test.i32_entry_args_op"
+
+
+def test_typevar_entry_args_index():
+    """Test TypeVar base class with IndexType region entry args."""
+    op_good = IndexEntryArgsOp(regions=[Region(Block(arg_types=[IndexType()]))])
+    op_good.verify()
+    op_bad = IndexEntryArgsOp(regions=[Region(Block(arg_types=[i64]))])
+    with pytest.raises(VerifyException, match="i64 should be of base attribute index"):
+        op_bad.verify()
+
+
+def test_typevar_entry_args_i32():
+    """Test TypeVar base class with i32 region entry args."""
+    op_good = I32EntryArgsOp(regions=[Region(Block(arg_types=[i32]))])
+    op_good.verify()
+    op_bad = I32EntryArgsOp(regions=[Region(Block(arg_types=[IndexType()]))])
+    with pytest.raises(
+        VerifyException, match="index should be of base attribute integer_type"
+    ):
+        op_bad.verify()
+
+    op_also_bad = I32EntryArgsOp(regions=[Region(Block(arg_types=[i64]))])
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Expected attribute #builtin.int<32> but got #builtin.int<64>"),
+    ):
+        op_also_bad.verify()
+
+
+_OperandType = TypeVar("_OperandType", bound=IndexType | IntegerType)
+
+
+class GenericVarOperandOp(IRDLOperation, Generic[_OperandType]):
+    """Base class with TypeVar for variadic operand type."""
+
+    name = "test.generic_var_operand"
+
+    typed_operands = var_operand_def(_OperandType)
+
+
+@irdl_op_definition
+class IndexVarOperandOp(GenericVarOperandOp[IndexType]):
+    """Specialized with IndexType operands."""
+
+    name = "test.index_var_operand_op"
+
+
+@irdl_op_definition
+class I32VarOperandOp(GenericVarOperandOp[i32]):
+    """Specialized with i32 operands."""
+
+    name = "test.i32_var_operand_op"
+
+
+def test_typevar_variadic_operand_index():
+    """Test TypeVar base class with variadic IndexType operands."""
+    op1 = create_ssa_value(IndexType())
+    op2 = create_ssa_value(IndexType())
+    op_good = IndexVarOperandOp(operands=[[op1, op2]])
+    op_good.verify()
+    op_wrong = create_ssa_value(i64)
+    op_bad = IndexVarOperandOp(operands=[[op_wrong]])
+    with pytest.raises(VerifyException, match="i64 should be of base attribute index"):
+        op_bad.verify()
+
+
+def test_typevar_variadic_operand_i32():
+    """Test TypeVar base class with variadic i32 operands."""
+    op1 = create_ssa_value(i32)
+    op2 = create_ssa_value(i32)
+    op3 = create_ssa_value(i32)
+    op_good = I32VarOperandOp(operands=[[op1, op2, op3]])
+    op_good.verify()
+    op_wrong = create_ssa_value(IndexType())
+    op_bad = I32VarOperandOp(operands=[[op_wrong]])
+    with pytest.raises(VerifyException, match="Expected attribute i32 but got index"):
+        op_bad.verify()
+
+
+_ResultType = TypeVar("_ResultType", bound=IndexType | IntegerType)
+
+
+class GenericVarResultOp(IRDLOperation, Generic[_ResultType]):
+    """Base class with TypeVar for variadic result type."""
+
+    name = "test.generic_var_result"
+
+    typed_results = var_result_def(_ResultType)
+
+
+@irdl_op_definition
+class IndexVarResultOp(GenericVarResultOp[IndexType]):
+    """Specialized with IndexType results."""
+
+    name = "test.index_var_result_op"
+
+
+@irdl_op_definition
+class I32VarResultOp(GenericVarResultOp[i32]):
+    """Specialized with i32 results."""
+
+    name = "test.i32_var_result_op"
+
+
+def test_typevar_variadic_result_index():
+    """Test TypeVar base class with variadic IndexType results."""
+    op_good = IndexVarResultOp(result_types=[[IndexType(), IndexType()]])
+    op_good.verify()
+    op_bad = IndexVarResultOp(result_types=[[i64]])
+    with pytest.raises(VerifyException, match="i64 should be of base attribute index"):
+        op_bad.verify()
+
+
+def test_typevar_variadic_result_i32():
+    """Test TypeVar base class with variadic i32 results."""
+    op_good = I32VarResultOp(result_types=[[i32, i32, i32]])
+    op_good.verify()
+    op_bad = I32VarResultOp(result_types=[[IndexType()]])
+    with pytest.raises(VerifyException, match="Expected attribute i32 but got index"):
+        op_bad.verify()
 
 
 @irdl_op_definition

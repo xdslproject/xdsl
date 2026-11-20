@@ -17,6 +17,7 @@ from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     SSAValue,
@@ -132,9 +133,9 @@ class LaunchOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: Sequence[SSAValue | Operation],
+        vals: Sequence[OperandArg],
         param_names: Iterable[str] | Iterable[StringAttr],
-        state: SSAValue | Operation,
+        state: OperandArg,
     ):
         state_val = SSAValue.get(state, type=StateType)
 
@@ -189,7 +190,7 @@ class AwaitOp(IRDLOperation):
 
     token = operand_def(TokenType)
 
-    def __init__(self, token: SSAValue | Operation):
+    def __init__(self, token: OperandArg):
         super().__init__(operands=[token])
 
 
@@ -234,10 +235,10 @@ class SetupOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: Sequence[SSAValue | Operation],
+        vals: Sequence[OperandArg],
         param_names: Sequence[str] | Sequence[StringAttr],
         accelerator: str | StringAttr,
-        in_state: SSAValue | Operation | None = None,
+        in_state: OperandArg | None = None,
     ):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
@@ -437,7 +438,7 @@ class ResetOp(IRDLOperation):
 
     assembly_format = "$in_state attr-dict `:` type($in_state)"
 
-    def __init__(self, in_state: Operation | SSAValue):
+    def __init__(self, in_state: OperandArg):
         super().__init__(operands=[in_state])
 
 

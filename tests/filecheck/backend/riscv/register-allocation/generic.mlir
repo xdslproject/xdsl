@@ -19,8 +19,8 @@ riscv_func.func @main() {
     riscv_scf.yield %10 : !riscv.reg
   }
 
-  %zero_0 = rv32.li 0 : !riscv.reg
-  %zero_1 = rv32.li 0 : !riscv.reg<a0>
+  %zero_unallocated = rv32.li 0 : !riscv.reg
+  %zero_a0 = rv32.li 0 : !riscv.reg<a0>
 
   riscv_func.return
 }
@@ -41,8 +41,8 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %10 = riscv.mv %9 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        riscv_scf.yield %10 : !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_1 = rv32.li 0 : !riscv.reg<zero>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_2 = rv32.li 0 : !riscv.reg<a0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_unallocated = rv32.li 0 : !riscv.reg<zero>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_a0 = rv32.li 0 : !riscv.reg<a0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    }
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:  }

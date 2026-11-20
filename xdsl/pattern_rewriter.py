@@ -26,7 +26,7 @@ from xdsl.ir import (
     SSAValue,
     Use,
 )
-from xdsl.irdl import AttrConstraint, base
+from xdsl.irdl import AttrConstraint, irdl_to_attr_constraint
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
@@ -92,17 +92,17 @@ class _TrackingPredicate:
     returned true.
     """
 
-    predicate: Callable[[Use], bool]
+    predicate: Callable[[Use[SSAValue]], bool]
     """The original predicate to call."""
 
     modified_ops: list[Operation]
     """The operations for which the predicate returned true."""
 
-    def __init__(self, predicate: Callable[[Use], bool]):
+    def __init__(self, predicate: Callable[[Use[SSAValue]], bool]):
         self.predicate = predicate
         self.modified_ops = []
 
-    def __call__(self, use: Use) -> bool:
+    def __call__(self, use: Use[SSAValue]) -> bool:
         if self.predicate(use):
             self.modified_ops.append(use.operation)
             return True
@@ -190,7 +190,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self,
         from_value: SSAValue,
         to_value: SSAValue,
-        predicate: Callable[[Use], bool],
+        predicate: Callable[[Use[SSAValue]], bool],
     ):
         """Replace uses of `old` satisfying `predicate` with `new`."""
         if from_value is to_value:
@@ -573,7 +573,7 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func, eval_str=True).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-    constr = base(expected_type)
+    constr = irdl_to_attr_constraint(expected_type)
     return attr_constr_rewrite_pattern(constr)(func)
 
 

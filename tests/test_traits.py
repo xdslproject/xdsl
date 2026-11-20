@@ -15,9 +15,6 @@ import pytest
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -26,17 +23,23 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     i1,
     i32,
     i64,
 )
 from xdsl.interfaces import ConditionallySpeculatableInterface
-from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
-from xdsl.irdl import (
+from xdsl.ir import (
+    Attribute,
     Block,
-    IRDLOperation,
+    Operation,
+    OpTrait,
     Region,
+    SSAValue,
+)
+from xdsl.irdl import (
+    IRDLOperation,
     attr_def,
     irdl_op_definition,
     lazy_traits_def,
@@ -639,17 +642,11 @@ class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
     ops = var_operand_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     res = var_result_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
+        MemRefType | UnrankedMemRefType | UnrankedTensorType | TensorType
     )
 
     traits = traits_def(SameOperandsAndResultType())

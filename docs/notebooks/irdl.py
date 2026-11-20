@@ -538,7 +538,7 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
 
     from xdsl.dialects.arith import ConstantOp
     from xdsl.ir import OpResult
-    from xdsl.irdl import Operand, operand_def, result_def
+    from xdsl.irdl import operand_def, result_def
 
 
     @irdl_op_definition
@@ -663,7 +663,7 @@ def _(
     class BinaryOp(IRDLOperation):
         name = "test.binary_op"
 
-        T: ClassVar = VarConstraint("T", base(IntegerType))
+        T: ClassVar = VarConstraint.get("T", IntegerType)
 
         lhs = operand_def(T)
         rhs = operand_def(T)
@@ -908,7 +908,8 @@ def _(mo):
 
 @app.cell
 def _(IRDLOperation, i32, irdl_op_definition, printer):
-    from xdsl.irdl import Block, Region, region_def, traits_def
+    from xdsl.ir import Block, Region
+    from xdsl.irdl import region_def, traits_def
     from xdsl.traits import NoTerminator
 
 

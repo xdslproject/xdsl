@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    Region,
     ShapedType,
     TensorType,
     UnitAttr,
@@ -32,19 +31,18 @@ from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
     verify_reshape_like_types,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    AnyRange,
     AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
     IntConstraint,
     IntVarConstraint,
     IRDLOperation,
-    Operand,
     RangeOf,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -80,16 +78,14 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
-    dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
+    dest = result_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
     traits = traits_def(Pure())
 
-    def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
+    def __init__(self, source: OperandArg, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
 
     def verify_(self):
@@ -131,14 +127,14 @@ class ConcatOp(IRDLOperation):
     inputs = var_operand_def(
         RangeOf(
             TensorType.constr(
-                _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+                _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
             )
         ).of_length(AtLeast(1))
     )
     dim = prop_def(IntegerAttr[I64])
     result = result_def(
         TensorType.constr(
-            _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+            _TENSOR_ELEMENT, ArrayOfConstraint(AnyRange().of_length(_RANK))
         )
     )
 
@@ -150,7 +146,7 @@ class ConcatOp(IRDLOperation):
 
     def __init__(
         self,
-        inputs: Sequence[SSAValue | Operation],
+        inputs: Sequence[OperandArg],
         dim: IntegerAttr | int,
         result_type: TensorType,
         attributes: Mapping[str, Attribute] | None = None,
@@ -240,9 +236,7 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
+    source = operand_def(TensorType[Attribute] | UnrankedTensorType[Attribute])
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
@@ -252,8 +246,8 @@ class DimOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
-        index: SSAValue | Operation,
+        source: OperandArg,
+        index: OperandArg,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         super().__init__(
@@ -444,7 +438,7 @@ class ExpandShapeOp(IRDLOperation):
 
     def __init__(
         self,
-        src: SSAValue | Operation,
+        src: OperandArg,
         dynamic_output_shape: Sequence[SSAValue],
         reassociation: ArrayAttr[ArrayAttr[IntegerAttr]],
         static_output_shape: Sequence[int] | DenseArrayBase,
@@ -592,7 +586,7 @@ class ExtractSliceOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[SSAValue | int],
         sizes: Sequence[SSAValue | int],
         strides: Sequence[SSAValue | int],
@@ -644,7 +638,7 @@ class ExtractSliceOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
+        source: OperandArg,
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int] | None = None,
@@ -689,7 +683,7 @@ class InsertSliceOp(IRDLOperation):
 
     # An insert_slice returns a copy of its destination, so the two share a type.
     # The syntax leaves the result type off, and takes it from the destination.
-    DEST_TYPE: ClassVar = VarConstraint("DEST_TYPE", base(TensorType))
+    DEST_TYPE: ClassVar = VarConstraint.get("DEST_TYPE", TensorType)
 
     source = operand_def(TensorType)
     dest = operand_def(DEST_TYPE)
@@ -737,14 +731,14 @@ class InsertSliceOp(IRDLOperation):
 
     @staticmethod
     def get(
-        source: Operand,
-        dest: Operand,
+        source: SSAValue,
+        dest: SSAValue,
         static_sizes: Sequence[int],
         static_offsets: Sequence[int] | None = None,
         static_strides: Sequence[int] | None = None,
-        offsets: Sequence[Operand] | None = None,
-        sizes: Sequence[Operand] | None = None,
-        strides: Sequence[Operand] | None = None,
+        offsets: Sequence[SSAValue] | None = None,
+        sizes: Sequence[SSAValue] | None = None,
+        strides: Sequence[SSAValue] | None = None,
         result_type: Attribute | None = None,
     ) -> InsertSliceOp:
         dims = len(static_sizes)
@@ -786,8 +780,8 @@ class InsertSliceOp(IRDLOperation):
 
     @staticmethod
     def from_static_parameters(
-        source: SSAValue | Operation,
-        dest: SSAValue | Operation,
+        source: OperandArg,
+        dest: OperandArg,
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int] | None = None,
@@ -939,7 +933,7 @@ class SplatOp(IRDLOperation):
     def __init__(
         self,
         input: SSAValue,
-        dynamicSizes: Sequence[SSAValue | Operation],
+        dynamicSizes: Sequence[OperandArg],
         result_type: TensorType[Attribute],
     ):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
@@ -970,7 +964,7 @@ class PadOp(IRDLOperation):
 
     name = "tensor.pad"
 
-    source = operand_def(base(TensorType[Attribute]))
+    source = operand_def(TensorType[Attribute])
     low = var_operand_def(IndexType)
     high = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase.constr(i64))
@@ -994,7 +988,7 @@ class PadOp(IRDLOperation):
 
     def __init__(
         self,
-        source: SSAValue | Operation,
+        source: OperandArg,
         low: Sequence[SSAValue],
         high: Sequence[SSAValue],
         region: Region,

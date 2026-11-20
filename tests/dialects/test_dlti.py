@@ -20,7 +20,6 @@ from xdsl.dialects.dlti import (
     TargetSystemSpecAttr,
 )
 from xdsl.ir import Attribute, TypeAttribute
-from xdsl.utils.exceptions import VerifyException
 
 DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
@@ -55,7 +54,7 @@ def test_data_layout_entry():
 
 
 def test_incorrect_data_layout_entry():
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="empty string as DLTI key is not allowed"):
         DataLayoutEntryAttr("", "V")
 
 
@@ -110,10 +109,8 @@ def test_map_attr_embedded_dict():
 @pytest.mark.parametrize(
     "cls", [DataLayoutSpecAttr, TargetDeviceSpecAttr, TargetSystemSpecAttr, MapAttr]
 )
-def test_duplicate_data_layout_map_entries(
-    cls: type[DLTIEntryMap],
-):
-    with pytest.raises(VerifyException):
+def test_duplicate_data_layout_map_entries(cls: type[DLTIEntryMap]):
+    with pytest.raises(ValueError, match="duplicate DLTI entry key"):
         cls(ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]))
 
 

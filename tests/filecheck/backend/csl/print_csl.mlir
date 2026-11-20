@@ -450,8 +450,8 @@ csl.func @yields(%ycond : i1, %ya : i32, %yb : i32) -> i32 {
 %tsc_buf = "csl.zeros"() : () -> memref<6xui16>
 
 csl.func @timestamp_start() {
-  %addr_of_1 = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
-  %ptrcast_1 = "csl.ptrcast"(%addr_of_1) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %addr_of = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
+  %ptrcast_1 = "csl.ptrcast"(%addr_of) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
   "csl.member_call"(%tsc) <{"field" = "enable_tsc"}> : (!csl.imported_module) -> ()
   "csl.member_call"(%tsc, %ptrcast_1) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
   csl.return
@@ -460,8 +460,8 @@ csl.func @timestamp_start() {
 csl.func @timestamp_stop() {
   %three = arith.constant 3 : index
   %ld = memref.load %tsc_buf[%three] : memref<6xui16>
-  %addr_of_2 = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
-  %ptrcast_2 = "csl.ptrcast"(%addr_of_2) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %addr_of = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %ptrcast_2 = "csl.ptrcast"(%addr_of) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
   "csl.member_call"(%tsc, %ptrcast_2) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
   csl.return
 }

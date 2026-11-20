@@ -17,34 +17,16 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.dialects.riscv import (
-    SI12,
-    UI5,
-    AssemblyInstructionArg,
-    FastMathFlagsAttr,
-    FloatRegisterType,
-    IntRegisterType,
-    RdRsRsOperation,
-    RISCVAsmOperation,
-    RISCVInstruction,
-    RISCVRegallocOperation,
-    RISCVRegisterType,
-    RsRsIntegerOperation,
-    si12,
-    ui5,
-)
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, OperandArg, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    BaseAttr,
     VarConstraint,
     attr_def,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -87,7 +69,7 @@ class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
+class ScfgwOp(riscv.abstract_ops.RsRsIntegerOperation):
     """
     Write the value in rs1 to the Snitch stream configuration
     location pointed by rs2 in the memory-mapped address space.
@@ -103,7 +85,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
 
 @irdl_op_definition
-class ScfgwiOp(RISCVInstruction):
+class ScfgwiOp(riscv.abstract_ops.RISCVInstruction):
     """
     Write the value in rs to the Snitch stream configuration location pointed by
     immediate value in the memory-mapped address space.
@@ -115,41 +97,45 @@ class ScfgwiOp(RISCVInstruction):
 
     name = "riscv_snitch.scfgwi"
 
-    rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[SI12])
+    rs1 = operand_def(riscv.registers.IntRegisterType)
+    immediate = prop_def(IntegerAttr[riscv.attrs.SI12])
 
     assembly_format = (
-        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` `(` `)`"
+        "$rs1 `,` $immediate attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[SI12],
+        rs1: OperandArg,
+        immediate: int | IntegerAttr[riscv.attrs.SI12],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, riscv.attrs.si12)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
+            properties={"immediate": immediate},
             attributes={
-                "immediate": immediate,
                 "comment": comment,
             },
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         return self.rs1, self.immediate
 
 
 @irdl_op_definition
 class FrepYieldOp(
-    AbstractYieldOperation[Attribute], RISCVAsmOperation, RISCVRegallocOperation
+    AbstractYieldOperation[Attribute],
+    riscv.abstract_ops.RISCVAsmOperation,
+    riscv.abstract_ops.RISCVRegallocOperation,
 ):
     name = "riscv_snitch.frep_yield"
 
@@ -166,7 +152,9 @@ class FrepYieldOp(
 
 
 @irdl_op_definition
-class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
+class ReadOp(
+    riscv.abstract_ops.RISCVAsmOperation, riscv.abstract_ops.RISCVRegallocOperation
+):
     name = "riscv_snitch.read"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -196,13 +184,15 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
-        yield riscv.Registers.FT0
-        yield riscv.Registers.FT1
-        yield riscv.Registers.FT2
+        yield riscv.registers.Registers.FT0
+        yield riscv.registers.Registers.FT1
+        yield riscv.registers.Registers.FT2
 
 
 @irdl_op_definition
-class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
+class WriteOp(
+    riscv.abstract_ops.RISCVAsmOperation, riscv.abstract_ops.RISCVRegallocOperation
+):
     name = "riscv_snitch.write"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -225,9 +215,9 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
-        yield riscv.Registers.FT0
-        yield riscv.Registers.FT1
-        yield riscv.Registers.FT2
+        yield riscv.registers.Registers.FT0
+        yield riscv.registers.Registers.FT1
+        yield riscv.registers.Registers.FT2
 
 
 ALLOWED_FREP_OP_TYPES: tuple[type[Operation], ...] = (
@@ -258,7 +248,7 @@ def is_valid_frep_body_op(operation: Operation) -> bool:
     # All effects are on float registers
     return all(
         isinstance(effect.resource, RegisterResource)
-        and isinstance(effect.resource.register, FloatRegisterType)
+        and isinstance(effect.resource.register, riscv.registers.FloatRegisterType)
         for effect in effects
     )
 
@@ -269,7 +259,7 @@ i3 = I3(3)
 i4 = I4(4)
 
 
-class FRepOperation(RISCVInstruction):
+class FRepOperation(riscv.abstract_ops.RISCVInstruction):
     """
     The frep instruction marks the beginning of a floating-point kernel which should be
     repeated. It indicates how many subsequent instructions are stored in the sequence
@@ -279,13 +269,13 @@ class FRepOperation(RISCVInstruction):
     Snitch paper: See external [documentation](https://arxiv.org/abs/2002.10143).
     """
 
-    max_rep = operand_def(IntRegisterType)
+    max_rep = operand_def(riscv.registers.IntRegisterType)
     """Number of times to repeat the instructions."""
     body = region_def("single_block")
     """
     Instructions to repeat, containing maximum 15 instructions, with no side effects.
     """
-    iter_args = var_operand_def(riscv.RISCVRegisterType)
+    iter_args = var_operand_def(riscv.registers.RISCVRegisterType)
     """
     Loop-carried variable initial values.
     """
@@ -305,7 +295,7 @@ class FRepOperation(RISCVInstruction):
     3 bits, indicating for how many iterations the stagger should increment before it
     wraps again (up to 23 = 8).
     """
-    res = var_result_def(riscv.RISCVRegisterType)
+    res = var_result_def(riscv.registers.RISCVRegisterType)
     """
     Loop-carried variable initial values.
     """
@@ -316,9 +306,9 @@ class FRepOperation(RISCVInstruction):
 
     def __init__(
         self,
-        max_rep: SSAValue | Operation,
+        max_rep: OperandArg,
         body: Sequence[Operation] | Sequence[Block] | Region,
-        iter_args: Sequence[SSAValue | Operation] = (),
+        iter_args: Sequence[OperandArg] = (),
         stagger_mask: IntegerAttr[I4] | None = None,
         stagger_count: IntegerAttr[I3] | None = None,
     ):
@@ -341,9 +331,17 @@ class FRepOperation(RISCVInstruction):
         """
         Number of instructions to be repeated.
         """
-        return len([op for op in self.body.ops if isinstance(op, RISCVInstruction)])
+        return len(
+            [
+                op
+                for op in self.body.ops
+                if isinstance(op, riscv.abstract_ops.RISCVInstruction)
+            ]
+        )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return (
             self.max_rep,
             str(self.max_inst),
@@ -516,8 +514,8 @@ class FRepOperation(RISCVInstruction):
 
         # Reserve the loop carried variables for allocation within the body
         regs = self.iter_args.types
-        assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
-        regs = cast(tuple[RISCVRegisterType, ...], regs)
+        assert all(isinstance(reg, riscv.registers.RISCVRegisterType) for reg in regs)
+        regs = cast(tuple[riscv.registers.RISCVRegisterType, ...], regs)
         with allocator.available_registers.reserve_registers(regs):
             allocator.allocate_block(self.body.block)
 
@@ -587,12 +585,14 @@ class FrepInnerOp(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
+class GetStreamOp(
+    riscv.abstract_ops.RISCVAsmOperation, riscv.abstract_ops.RISCVRegallocOperation
+):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        snitch.ReadableStreamType.constr(riscv.registers.FloatRegisterType)
+        | snitch.WritableStreamType.constr(riscv.registers.FloatRegisterType)
     )
 
     traits = traits_def(NoMemoryEffect())
@@ -622,90 +622,104 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
 
 
 @irdl_op_definition
-class DMSourceOp(RISCVInstruction):
+class DMSourceOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
-    ptrlo = operand_def(riscv.IntRegisterType)
-    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo = operand_def(riscv.registers.IntRegisterType)
+    ptrhi = operand_def(riscv.registers.IntRegisterType)
 
-    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
+    assembly_format = (
+        "$ptrlo `,` $ptrhi attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}"),
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.ptrlo, self.ptrhi
 
 
 @irdl_op_definition
-class DMDestinationOp(RISCVInstruction):
+class DMDestinationOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
-    ptrlo = operand_def(riscv.IntRegisterType)
-    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo = operand_def(riscv.registers.IntRegisterType)
+    ptrhi = operand_def(riscv.registers.IntRegisterType)
 
-    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
+    assembly_format = (
+        "$ptrlo `,` $ptrhi attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}"),
         MemoryWriteEffect(),
     )
 
-    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+    def __init__(self, ptrlo: OperandArg, ptrhi: OperandArg):
         super().__init__(operands=[ptrlo, ptrhi])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.ptrlo, self.ptrhi
 
 
 @irdl_op_definition
-class DMStrideOp(RISCVInstruction):
+class DMStrideOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
-    srcstrd = operand_def(riscv.IntRegisterType)
-    dststrd = operand_def(riscv.IntRegisterType)
+    srcstrd = operand_def(riscv.registers.IntRegisterType)
+    dststrd = operand_def(riscv.registers.IntRegisterType)
 
-    assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
+    assembly_format = (
+        "$srcstrd `,` $dststrd attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}"),
         MemoryWriteEffect(),
     )
 
-    def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
+    def __init__(self, srcstrd: OperandArg, dststrd: OperandArg):
         super().__init__(operands=[srcstrd, dststrd])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.srcstrd, self.dststrd
 
 
 @irdl_op_definition
-class DMRepOp(RISCVInstruction):
+class DMRepOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
-    reps = operand_def(riscv.IntRegisterType)
+    reps = operand_def(riscv.registers.IntRegisterType)
 
-    assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
+    assembly_format = "$reps attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0"),
         MemoryWriteEffect(),
     )
 
-    def __init__(self, reps: SSAValue | Operation):
+    def __init__(self, reps: OperandArg):
         super().__init__(operands=[reps])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return (self.reps,)
 
 
 @irdl_op_definition
-class DMCopyOp(RISCVInstruction):
+class DMCopyOp(riscv.abstract_ops.RISCVInstruction):
     """
     DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
     configured by the previous DM instructions. A transfer id is placed in register rd,
@@ -716,9 +730,9 @@ class DMCopyOp(RISCVInstruction):
 
     name = "riscv_snitch.dmcpy"
 
-    dest = result_def(riscv.IntRegisterType)
-    size = operand_def(riscv.IntRegisterType)
-    config = operand_def(riscv.IntRegisterType)
+    dest = result_def(riscv.registers.IntRegisterType)
+    size = operand_def(riscv.registers.IntRegisterType)
+    config = operand_def(riscv.registers.IntRegisterType)
     """
     config* determines the following parameters of the
     transfer:
@@ -742,22 +756,24 @@ class DMCopyOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
-        config: SSAValue | Operation,
-        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
+        size: OperandArg,
+        config: OperandArg,
+        result_type: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[size, config], result_types=[result_type])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.dest, self.size, self.config
 
 
 @irdl_op_definition
-class DMStatOp(RISCVInstruction):
+class DMStatOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
-    dest = result_def(riscv.IntRegisterType)
-    status = operand_def(riscv.IntRegisterType)
+    dest = result_def(riscv.registers.IntRegisterType)
+    status = operand_def(riscv.registers.IntRegisterType)
 
     assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
@@ -768,17 +784,19 @@ class DMStatOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: SSAValue | Operation,
-        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
+        status: OperandArg,
+        result_type: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[status], result_types=[result_type])
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.dest, self.status
 
 
 @irdl_op_definition
-class DMCopyImmOp(RISCVInstruction):
+class DMCopyImmOp(riscv.abstract_ops.RISCVInstruction):
     """
     DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
     configured by the previous DM instructions. A transfer id is placed in register rd,
@@ -789,9 +807,9 @@ class DMCopyImmOp(RISCVInstruction):
 
     name = "riscv_snitch.dmcpyi"
 
-    dest = result_def(riscv.IntRegisterType)
-    size = operand_def(riscv.IntRegisterType)
-    config = prop_def(IntegerAttr[UI5])
+    dest = result_def(riscv.registers.IntRegisterType)
+    size = operand_def(riscv.registers.IntRegisterType)
+    config = prop_def(IntegerAttr[riscv.attrs.UI5])
     """
     config* determines the following parameters of the
     transfer:
@@ -815,30 +833,32 @@ class DMCopyImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
-        config: int | IntegerAttr[UI5],
-        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
+        size: OperandArg,
+        config: int | IntegerAttr[riscv.attrs.UI5],
+        result_type: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
     ):
         if isinstance(config, int):
-            config = IntegerAttr(config, ui5)
+            config = IntegerAttr(config, riscv.attrs.ui5)
         super().__init__(
             operands=[size],
             properties={"config": config},
             result_types=[result_type],
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.dest, self.size, self.config
 
 
 @irdl_op_definition
-class DMStatImmOp(RISCVInstruction):
+class DMStatImmOp(riscv.abstract_ops.RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
-    dest = result_def(riscv.IntRegisterType)
-    status = prop_def(IntegerAttr[UI5])
+    dest = result_def(riscv.registers.IntRegisterType)
+    status = prop_def(IntegerAttr[riscv.attrs.UI5])
 
-    assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
+    assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"),
@@ -847,17 +867,19 @@ class DMStatImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: int | IntegerAttr[UI5],
-        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
+        status: int | IntegerAttr[riscv.attrs.UI5],
+        result_type: riscv.registers.IntRegisterType = riscv.registers.Registers.UNALLOCATED_INT,
     ):
         if isinstance(status, int):
-            status = IntegerAttr(status, ui5)
+            status = IntegerAttr(status, riscv.attrs.ui5)
         super().__init__(
             properties={"status": status},
             result_types=[result_type],
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg | None, ...]:
         return self.dest, self.status
 
 
@@ -877,7 +899,11 @@ class DMStatImmOp(RISCVInstruction):
 
 @irdl_op_definition
 class VFCpkASSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+    riscv.abstract_ops.RdRsRsOperation[
+        riscv.registers.FloatRegisterType,
+        riscv.registers.FloatRegisterType,
+        riscv.registers.FloatRegisterType,
+    ]
 ):
     """
     Packs two scalar f32 values from rs1 and rs2 and packs the result as two adjacent
@@ -895,7 +921,7 @@ class VFCpkASSOp(
 
 
 @irdl_op_definition
-class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFMulSOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial multiplication of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
@@ -913,7 +939,7 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFAddSOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial addition of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
@@ -931,7 +957,7 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFSubSOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFSubSOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial subtraction of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
@@ -949,7 +975,7 @@ class VFSubSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFAddHOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial addition of corresponding f16 values from
     rs1 and rs2 and stores the results in the corresponding f16 lanes
@@ -969,7 +995,7 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFSubHOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFSubHOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial subtraction of corresponding f16 values from
     rs1 and rs2 and stores the results in the corresponding f16 lanes
@@ -989,7 +1015,7 @@ class VFSubHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFMulHOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFMulHOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial multiplication of corresponding f16 values from
     rs1 and rs2 and stores the results in the corresponding f16 lanes
@@ -1009,7 +1035,7 @@ class VFMulHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
+class VFMaxSOp(riscv.abstract_ops.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial maximum of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
@@ -1026,23 +1052,28 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = traits_def(AlwaysSpeculatable())
 
 
-class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
+class RdRsRsAccumulatingFloatOperationWithFastMath(
+    riscv.abstract_ops.RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and two source floating-point registers and can
     be annotated with fastmath flags.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", riscv.registers.FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
+    rs1 = operand_def(riscv.registers.FloatRegisterType)
+    rs2 = operand_def(riscv.registers.FloatRegisterType)
 
-    fastmath = attr_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(
+        riscv.attrs.FastMathFlagsAttr,
+        default_value=riscv.attrs.FastMathFlagsAttr("none"),
+    )
 
     assembly_format = (
         "$rd_in `,` $rs1 `,` $rs2 (`fastmath` `` $fastmath^)? attr-dict `:` "
@@ -1053,28 +1084,29 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
+        rd: OperandArg,
+        rs1: OperandArg,
+        rs2: OperandArg,
         *,
-        fastmath: FastMathFlagsAttr | None = None,
+        fastmath: riscv.attrs.FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(rd, Operation):
-            rd = SSAValue.get(rd)
+        rd = SSAValue.get(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
             operands=[rd, rs1, rs2],
+            properties={"fastmath": fastmath},
             attributes={
-                "fastmath": fastmath,
                 "comment": comment,
             },
             result_types=[rd.type],
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         return self.rd_in, self.rs1, self.rs2
 
     def get_register_constraints(self) -> RegisterConstraints:
@@ -1083,19 +1115,19 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
         )
 
 
-class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
+class RdRsAccumulatingFloatOperation(riscv.abstract_ops.RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and a source floating-point register.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_FLOAT_REGISTER_TYPE", riscv.registers.FloatRegisterType
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
-    rs = operand_def(FloatRegisterType)
+    rs = operand_def(riscv.registers.FloatRegisterType)
 
     assembly_format = "$rd_in `,` $rs attr-dict `:` functional-type(operands, results)"
 
@@ -1103,13 +1135,12 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
 
     def __init__(
         self,
-        rd: Operation | SSAValue,
-        rs: Operation | SSAValue,
+        rd: OperandArg,
+        rs: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(rd, Operation):
-            rd = SSAValue.get(rd)
+        rd = SSAValue.get(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1121,7 +1152,9 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
             result_types=[rd.type],
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(
+        self,
+    ) -> tuple[riscv.abstract_ops.AssemblyInstructionArg, ...]:
         return self.rd_in, self.rs
 
     def get_register_constraints(self) -> RegisterConstraints:

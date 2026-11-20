@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnitAttr,
 )
@@ -34,7 +35,7 @@ def _insert_load(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
 ) -> SSAValue:
-    if isinstance(source.type, memref.MemRefType):
+    if isinstance(source.type, MemRefType):
         indices = indices_for_map(
             rewriter, insertion_point, affine_map_attr.data, ind_vars
         )
@@ -160,7 +161,7 @@ class LowerGenericOpPattern(RewritePattern):
             index = (source_index + ins_count) // interleave_factor
             destination = op.operands[index]
             affine_map = op.indexing_maps.data[index].data
-            if isinstance(destination.type, memref.MemRefType):
+            if isinstance(destination.type, MemRefType):
                 indices = indices_for_map(
                     rewriter,
                     insertion_point,

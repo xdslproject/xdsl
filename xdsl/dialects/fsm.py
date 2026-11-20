@@ -12,7 +12,6 @@ from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
@@ -23,7 +22,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -195,7 +194,7 @@ class OutputOp(IRDLOperation):
 
     def __init__(
         self,
-        operand: Sequence[SSAValue | Operation],
+        operand: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[operand],
@@ -237,7 +236,7 @@ class TransitionOp(IRDLOperation):
 
     def __init__(
         self,
-        nextState: FlatSymbolRefAttr,
+        nextState: SymbolRefAttr,
         guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
         action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
@@ -286,8 +285,8 @@ class UpdateOp(IRDLOperation):
 
     def __init__(
         self,
-        variable: SSAValue | Operation,
-        value: SSAValue | Operation,
+        variable: OperandArg,
+        value: OperandArg,
     ):
         super().__init__(
             operands=[variable, value],
@@ -360,7 +359,7 @@ class ReturnOp(IRDLOperation):
 
     def __init__(
         self,
-        operand: SSAValue | Operation,
+        operand: OperandArg,
     ):
         super().__init__(
             operands=[operand],
@@ -382,9 +381,7 @@ class InstanceOp(IRDLOperation):
 
     res = result_def(InstanceType)
 
-    def __init__(
-        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
-    ):
+    def __init__(self, sym_name: str, machine: SymbolRefAttr, instance: InstanceType):
         if isinstance(machine, str):
             machine = SymbolRefAttr(machine)
         properties: dict[str, Attribute] = {
@@ -423,7 +420,7 @@ class TriggerOp(IRDLOperation):
 
     def __init__(
         self,
-        inputs: Sequence[SSAValue | Operation],
+        inputs: Sequence[OperandArg],
         instance: SSAValue,
         outputs: Sequence[Attribute],
     ):
@@ -476,10 +473,10 @@ class HWInstanceOp(IRDLOperation):
     def __init__(
         self,
         sym_name: str | StringAttr,
-        machine: str | FlatSymbolRefAttr,
-        inputs: Sequence[SSAValue | Operation],
-        clock: SSAValue | Operation,
-        reset: SSAValue | Operation,
+        machine: str | SymbolRefAttr,
+        inputs: Sequence[OperandArg],
+        clock: OperandArg,
+        reset: OperandArg,
         outputs: Sequence[Attribute],
     ):
         if isinstance(machine, str):

@@ -42,6 +42,7 @@ from xdsl.irdl import (
     AnyOf,
     AttrConstraint,
     BaseAttr,
+    EqAttrConstraint,
     GenericData,
     IntConstraint,
     MessageConstraint,
@@ -51,8 +52,8 @@ from xdsl.irdl import (
     TypeVarConstraint,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
     param_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -486,7 +487,7 @@ def test_parameterized_attribute_verify_called():
         def verify(self):
             raise VerifyException("Always fails")
 
-    with pytest.raises(VerifyException, match="Always fails"):
+    with pytest.raises(ValueError, match="Always fails"):
         MyAttr()
 
 
@@ -510,7 +511,7 @@ def test_parameterized_attribute_verify_constraints():
         child_2: NoneAttr = param_def(FailConstraint())
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape(
             "parameter 'child_1' does not verify:\n#builtin.int<1> should be of base attribute none"
         ),
@@ -518,7 +519,7 @@ def test_parameterized_attribute_verify_constraints():
         MyAttr(cast(NoneAttr, IntAttr(1)), NoneAttr())
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("parameter 'child_2' does not verify:\nAlways fails"),
     ):
         MyAttr(NoneAttr(), NoneAttr())
@@ -531,10 +532,10 @@ def test_parameterized_attribute_verify_constraints():
 
 def test_signed_integer_attr():
     """Test the verification of a signed integer attribute."""
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si32"):
         IntegerAttr(1 << 31, IntegerType(32, Signedness.SIGNED))
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type si32"):
         IntegerAttr(-(1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
 
     IntegerAttr((1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
@@ -543,10 +544,10 @@ def test_signed_integer_attr():
 
 def test_unsigned_integer_attr():
     """Test the verification of a unsigned integer attribute."""
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui32"):
         IntegerAttr(1 << 32, IntegerType(32, Signedness.UNSIGNED))
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type ui32"):
         IntegerAttr(-1, IntegerType(32, Signedness.UNSIGNED))
 
     IntegerAttr((1 << 32) - 1, IntegerType(32, Signedness.UNSIGNED))
@@ -554,10 +555,10 @@ def test_unsigned_integer_attr():
 
 def test_signless_integer_attr():
     """Test the verification of a signless integer attribute."""
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i32"):
         IntegerAttr((1 << 32), IntegerType(32, Signedness.SIGNLESS))
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(ValueError, match="out of range for type i32"):
         IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
 
     IntegerAttr(1 << 32 - 1, IntegerType(32, Signedness.SIGNLESS))
@@ -588,7 +589,7 @@ def test_bose_constraint():
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("#test.str<foo> should be of base attribute test.bool"),
     ):
         BoolWrapperAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
@@ -627,7 +628,7 @@ def test_union_constraint_right():
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(
-        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+        ValueError, match=re.escape("Unexpected attribute #test.str<foo>")
     ):
         BoolOrIntParamAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
@@ -671,7 +672,7 @@ def test_annotated_constraint():
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
     with pytest.raises(
-        VerifyException, match=re.escape("Expected positive integer, got -42.")
+        ValueError, match=re.escape("Expected positive integer, got -42.")
     ):
         PositiveIntAttr(IntData(-42))
 
@@ -711,7 +712,7 @@ def test_typevar_attribute_bool():
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
     with pytest.raises(
-        VerifyException, match=re.escape("Unexpected attribute #test.str<foo>")
+        ValueError, match=re.escape("Unexpected attribute #test.str<foo>")
     ):
         ParamWrapperAttr(StringData("foo"))  # pyright: ignore
 
@@ -741,7 +742,7 @@ def test_param_attr_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         ParamConstrAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
@@ -778,7 +779,7 @@ def test_nested_generic_constraint_fail():
     a parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape("#test.bool<True> should be of base attribute test.int"),
     ):
         NestedParamWrapperAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
@@ -810,7 +811,7 @@ def test_nested_param_attr_constraint_fail():
     Test that the verifier of a nested parametric constraint can fail.
     """
     with pytest.raises(
-        VerifyException, match=re.escape("Expected positive integer, got -42.")
+        ValueError, match=re.escape("Expected positive integer, got -42.")
     ):
         NestedParamConstrAttr(NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))))
 
@@ -837,7 +838,7 @@ def test_informative_attribute():
     okay.verify()
 
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape(
             "Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none"
         ),
@@ -962,7 +963,7 @@ def test_generic_data_wrapper_verifier_failure():
     the verifier when constraints are not satisfied.
     """
     with pytest.raises(
-        VerifyException,
+        ValueError,
         match=re.escape(
             "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
         ),
@@ -1019,10 +1020,47 @@ def test_irdl_definition():
 
 
 @irdl_attr_definition
+class ParamDefIRDLConstraintAttr(ParametrizedAttribute):
+    name = "test.param_def_irdl_constraint"
+
+    cls: Attribute = param_def(IntAttr)
+    instance: Attribute = param_def(IntAttr(1))
+
+
+def test_param_def_accepts_irdl_attr_constraint():
+    """Test that `param_def` converts IRDL constraints like `operand_def` does."""
+    assert ParamDefIRDLConstraintAttr.get_irdl_definition() == ParamAttrDef(
+        "test.param_def_irdl_constraint",
+        [
+            ("cls", ParamDef(AnyAttr() & BaseAttr(IntAttr))),
+            ("instance", ParamDef(AnyAttr() & EqAttrConstraint(IntAttr(1)))),
+        ],
+    )
+
+    ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(1))
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "parameter 'cls' does not verify:\n#test.bool<True> should be of base attribute builtin.int"
+        ),
+    ):
+        ParamDefIRDLConstraintAttr(BoolData(True), IntAttr(1))
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "parameter 'instance' does not verify:\nExpected attribute #builtin.int<1> but got #builtin.int<2>"
+        ),
+    ):
+        ParamDefIRDLConstraintAttr(IntAttr(5), IntAttr(2))
+
+
+@irdl_attr_definition
 class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
-    arg1: Attribute = param_def(base(IntAttr))
+    arg1: Attribute = param_def(BaseAttr(IntAttr))
     arg2: BoolData
 
     # Check that we can define methods in attribute definition
@@ -1122,7 +1160,7 @@ def test_generic_attr():
         ],
     )
 
-    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+    assert irdl_to_attr_constraint(GenericAttr[IntAttr]) == ParamAttrConstraint(
         GenericAttr, (BaseAttr(IntAttr),)
     )
 
@@ -1150,15 +1188,21 @@ def test_constraint_var():
 
 def test_constraint_var_fail_non_equal():
     """Test that constraint variables must be equal."""
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError, match="attribute i32 expected from variable 'T', but got i64"
+    ):
         ConstraintVarAttr.new([IntegerAttr(42, 32), IntegerAttr(42, 64)])
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError, match="attribute i64 expected from variable 'T', but got i32"
+    ):
         ConstraintVarAttr.new([IntegerAttr(42, 64), IntegerAttr(42, 32)])
 
 
 def test_constraint_var_fail_not_satisfy_constraint():
     """Test that constraint variables must satisfy the underlying constraint."""
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        ValueError, match="index should be of base attribute integer_type"
+    ):
         ConstraintVarAttr.new(
             [IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())]
         )

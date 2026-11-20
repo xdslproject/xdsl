@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import IntAttr
 
 def test_default_reserved_registers():
     register_stack = RiscvRegisterStack.get()
-    int_register_set = riscv.IntRegisterType.name
+    int_register_set = riscv.registers.IntRegisterType.name
 
     for reg in (
         riscv.Registers.ZERO,
@@ -27,33 +27,33 @@ def test_default_reserved_registers():
 def test_push_j_register():
     register_stack = RiscvRegisterStack()
 
-    j0 = riscv.IntRegisterType.infinite_register(0)
+    j0 = riscv.registers.IntRegisterType.infinite_register(0)
     register_stack.push(j0)
-    assert register_stack.pop(riscv.IntRegisterType) == j0
+    assert register_stack.pop(riscv.registers.IntRegisterType) == j0
 
-    fj0 = riscv.FloatRegisterType.infinite_register(0)
+    fj0 = riscv.registers.FloatRegisterType.infinite_register(0)
     register_stack.push(fj0)
-    assert register_stack.pop(riscv.FloatRegisterType) == fj0
+    assert register_stack.pop(riscv.registers.FloatRegisterType) == fj0
 
 
 def test_push_register():
     register_stack = RiscvRegisterStack.get()
 
     register_stack.push(riscv.Registers.A0)
-    assert register_stack.pop(riscv.IntRegisterType) == riscv.Registers.A0
+    assert register_stack.pop(riscv.registers.IntRegisterType) == riscv.Registers.A0
 
     register_stack.push(riscv.Registers.FA0)
-    assert register_stack.pop(riscv.FloatRegisterType) == riscv.Registers.FA0
+    assert register_stack.pop(riscv.registers.FloatRegisterType) == riscv.Registers.FA0
 
 
 def test_reserve_register():
     register_stack = RiscvRegisterStack.get()
 
-    j0 = riscv.IntRegisterType.infinite_register(0)
+    j0 = riscv.registers.IntRegisterType.infinite_register(0)
     assert isinstance(j0.index, IntAttr)
 
     reserved_int_registers = register_stack.reserved_registers[
-        riscv.IntRegisterType.name
+        riscv.registers.IntRegisterType.name
     ]
 
     register_stack.reserve_register(j0)
@@ -70,7 +70,7 @@ def test_reserve_register():
     assert j0 not in register_stack.available_registers[j0.name]
 
     # Check assertion error when reserving an available register
-    reg = register_stack.pop(riscv.IntRegisterType)
+    reg = register_stack.pop(riscv.registers.IntRegisterType)
     register_stack.push(reg)
     register_stack.reserve_register(reg)
     with pytest.raises(
@@ -79,4 +79,4 @@ def test_reserve_register():
             f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         ),
     ):
-        register_stack.pop(riscv.IntRegisterType)
+        register_stack.pop(riscv.registers.IntRegisterType)

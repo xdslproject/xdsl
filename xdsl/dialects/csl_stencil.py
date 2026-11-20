@@ -2,10 +2,9 @@ from collections.abc import Iterable, Sequence
 from itertools import pairwise
 from typing import TypeAlias, cast
 
-from xdsl.dialects import builtin, memref, stencil
+from xdsl.dialects import builtin, stencil
 from xdsl.dialects.builtin import (
     I64,
-    AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
     Float32Type,
@@ -21,14 +20,13 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -123,9 +121,7 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil = operand_def(
-        stencil.StencilTypeConstr | MemRefType.constr() | AnyTensorTypeConstr
-    )
+    input_stencil = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
@@ -133,15 +129,15 @@ class PrefetchOp(IRDLOperation):
 
     num_chunks = prop_def(IntegerAttr)
 
-    result = result_def(MemRefType.constr() | AnyTensorTypeConstr)
+    result = result_def(MemRefType | TensorType)
 
     def __init__(
         self,
-        input_stencil: SSAValue | Operation,
+        input_stencil: OperandArg,
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType | TensorType[Attribute] | None = None,
+        result_type: MemRefType | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -441,15 +437,13 @@ class AccessOp(IRDLOperation):
 
     The source of data determines the type `op` is required to have:
 
-      ${type(op) == memref.MemRefType}  -  for accesses to data prefetched from neighbors
+      ${type(op) == MemRefType}  -  for accesses to data prefetched from neighbors
       ${type(op) == stencil.Temp}       -  for accesses to own data
 
     """
 
     name = "csl_stencil.access"
-    op = operand_def(
-        MemRefType.constr() | stencil.StencilTypeConstr | AnyTensorTypeConstr
-    )
+    op = operand_def(stencil.StencilTypeConstr | MemRefType | TensorType)
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType | MemRefType)
@@ -458,7 +452,7 @@ class AccessOp(IRDLOperation):
 
     def __init__(
         self,
-        op: Operand,
+        op: SSAValue,
         offset: stencil.IndexAttr,
         result_type: TensorType[Attribute] | MemRefType,
         offset_mapping: stencil.IndexAttr | None = None,
@@ -544,7 +538,7 @@ class AccessOp(IRDLOperation):
             return cls.build(
                 operands=[parser.resolve_operand(temp, res_type)],
                 result_types=[
-                    memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
+                    MemRefType(res_type.element_type, res_type.get_shape()[-1:])
                 ],
                 properties=props,
             )
@@ -554,7 +548,7 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if isa(self.op.type, memref.MemRefType):
+            if isa(self.op.type, MemRefType):
                 if not self.result.type == self.op.type:
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but "
@@ -570,13 +564,13 @@ class AccessOp(IRDLOperation):
             else:
                 raise VerifyException(
                     f"{type(self)} access to own data requires type "
-                    f"stencil.StencilType or memref.MemRefType but found {self.op.type}"
+                    f"stencil.StencilType or MemRefType but found {self.op.type}"
                 )
         else:
             if not isa(self.op.type, TensorType | MemRefType):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type "
-                    f"memref.MemRefType or TensorType but found {self.op.type}"
+                    f"MemRefType or TensorType but found {self.op.type}"
                 )
 
         # As promised by HasAncestor(ApplyOp)

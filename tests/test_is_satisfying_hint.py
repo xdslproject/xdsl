@@ -1,6 +1,7 @@
 from typing import Any, Generic, Literal, TypeAlias
 
-from typing_extensions import TypeVar
+import pytest
+from typing_extensions import TypeForm, TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -387,6 +388,27 @@ def test_literal():
 
     assert not isa(1, Literal["1"])
     assert not isa("1", Literal[1])
+
+
+@pytest.mark.parametrize(
+    "hint",
+    [
+        Literal[True],
+        Literal[False],
+        Literal[1, True],
+        Literal[0, False],
+        Literal[True, False],
+        Literal[1] | Literal[True],  # noqa: PYI030
+        Literal[0] | Literal[False],  # noqa: PYI030
+        int | Literal[True],
+    ],
+)
+@pytest.mark.parametrize("value", [True, False, 0, 1, 2])
+def test_boolean_literals_unsupported(value: int, hint: TypeForm[int]):
+    with pytest.raises(
+        ValueError, match="Boolean literals are currently not supported"
+    ):
+        isa(value, hint)
 
 
 ################################################################################

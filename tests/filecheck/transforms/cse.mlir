@@ -107,9 +107,9 @@ func.func @different_ops() -> (i32, i32) {
 /// Check that operations are not eliminated if they have different result
 /// types.
 // CHECK-LABEL: @different_results
-  func.func @different_results(%arg0_1: memref<*xf32>) -> (memref<?x?xf32>, memref<4x?xf32>) {
-    %18 = "memref.cast"(%arg0_1) : (memref<*xf32>) -> memref<?x?xf32>
-    %19 = "memref.cast"(%arg0_1) : (memref<*xf32>) -> memref<4x?xf32>
+  func.func @different_results(%arg0: memref<*xf32>) -> (memref<?x?xf32>, memref<4x?xf32>) {
+    %18 = "memref.cast"(%arg0) : (memref<*xf32>) -> memref<?x?xf32>
+    %19 = "memref.cast"(%arg0) : (memref<*xf32>) -> memref<4x?xf32>
     func.return %18, %19 : memref<?x?xf32>, memref<4x?xf32>
   }
 // CHECK:      %0 = "memref.cast"(%arg0) : (memref<*xf32>) -> memref<?x?xf32>
@@ -119,10 +119,10 @@ func.func @different_ops() -> (i32, i32) {
 
 /// Check that operations are not eliminated if they have different attributes.
 // CHECK-LABEL: @different_attributes
-  func.func @different_attributes(%arg0_2: index, %arg1_1: index) -> (i1, i1, i1) {
-    %20 = arith.cmpi slt, %arg0_2, %arg1_1 : index
-    %21 = arith.cmpi ne, %arg0_2, %arg1_1 : index
-    %22 = arith.cmpi ne, %arg0_2, %arg1_1 : index
+  func.func @different_attributes(%arg0: index, %arg1: index) -> (i1, i1, i1) {
+    %20 = arith.cmpi slt, %arg0, %arg1 : index
+    %21 = arith.cmpi ne, %arg0, %arg1 : index
+    %22 = arith.cmpi ne, %arg0, %arg1 : index
     func.return %20, %21, %22 : i1, i1, i1
   }
 
@@ -148,7 +148,7 @@ func.func @different_ops() -> (i32, i32) {
 // CHECK-LABEL: @down_propagate_for
   func.func @down_propagate_for() {
     %25 = arith.constant 1 : i32
-    affine.for %arg0_3 = 0 to 4 {
+    affine.for %arg0 = 0 to 4 {
       %26 = arith.constant 1 : i32
       "foo"(%25, %26) : (i32, i32) -> ()
     }
@@ -193,7 +193,7 @@ func.func @down_propagate() -> i32 {
 /// Check that operation definitions are NOT propagated up the dominance tree.
 // CHECK-LABEL: @up_propagate_for
  func.func @up_propagate_for() -> i32 {
-    affine.for %arg0_4 = 0 to 4 {
+    affine.for %arg0 = 0 to 4 {
       %31 = arith.constant 1 : i32
       "foo"(%31) : (i32) -> ()
     }
@@ -376,14 +376,14 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
 // CHECK-NEXT:    }
 
 // Check that an operation with a single region can CSE.
-  func.func @cse_single_block_ops(%arg0_5: tensor<?x?xf32>, %arg1_2: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-    %65 = "test.pureop"(%arg0_5, %arg1_2) ({
+  func.func @cse_single_block_ops(%arg0: tensor<?x?xf32>, %arg1: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+    %65 = "test.pureop"(%arg0, %arg1) ({
     ^bb8(%arg2: f32):
       "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-    %66 = "test.pureop"(%arg0_5, %arg1_2) ({
-    ^bb9(%arg2_1: f32):
-      "test.region_yield"(%arg2_1) : (f32) -> ()
+    %66 = "test.pureop"(%arg0, %arg1) ({
+    ^bb9(%arg2: f32):
+      "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %65, %66 : tensor<?x?xf32>, tensor<?x?xf32>
   }
@@ -397,14 +397,14 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
 // CHECK-NEXT:    }
 
 // Operations with different number of bbArgs dont CSE.
-func.func @no_cse_varied_bbargs(%arg0_6: tensor<?x?xf32>, %arg1_3: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-    %67 = "test.pureop"(%arg0_6, %arg1_3) ({
-    ^bb10(%arg2_2: f32, %arg3: f32):
-      "test.region_yield"(%arg2_2) : (f32) -> ()
+func.func @no_cse_varied_bbargs(%arg0: tensor<?x?xf32>, %arg1: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+    %67 = "test.pureop"(%arg0, %arg1) ({
+    ^bb10(%arg2: f32, %arg3: f32):
+      "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-    %68 = "test.pureop"(%arg0_6, %arg1_3) ({
-    ^bb11(%arg2_3: f32):
-      "test.region_yield"(%arg2_3) : (f32) -> ()
+    %68 = "test.pureop"(%arg0, %arg1) ({
+    ^bb11(%arg2: f32):
+      "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %67, %68 : tensor<?x?xf32>, tensor<?x?xf32>
   }
@@ -422,14 +422,14 @@ func.func @no_cse_varied_bbargs(%arg0_6: tensor<?x?xf32>, %arg1_3: tensor<?x?xf3
 // CHECK-NEXT:    }
 
 // Operations with different regions dont CSE
-func.func @no_cse_region_difference_simple(%arg0_7: tensor<?x?xf32>, %arg1_4: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-    %69 = "test.pureop"(%arg0_7, %arg1_4) ({
-    ^bb12(%arg2_4: f32, %arg3_1: f32):
-      "test.region_yield"(%arg2_4) : (f32) -> ()
+func.func @no_cse_region_difference_simple(%arg0: tensor<?x?xf32>, %arg1: tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+    %69 = "test.pureop"(%arg0, %arg1) ({
+    ^bb12(%arg2: f32, %arg3: f32):
+      "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-    %70 = "test.pureop"(%arg0_7, %arg1_4) ({
-    ^bb13(%arg2_5: f32, %arg3_2: f32):
-      "test.region_yield"(%arg3_2) : (f32) -> ()
+    %70 = "test.pureop"(%arg0, %arg1) ({
+    ^bb13(%arg2: f32, %arg3: f32):
+      "test.region_yield"(%arg3) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %69, %70 : tensor<?x?xf32>, tensor<?x?xf32>
   }
@@ -446,19 +446,19 @@ func.func @no_cse_region_difference_simple(%arg0_7: tensor<?x?xf32>, %arg1_4: te
 // CHECK-NEXT:    }
 
 // Operation with identical region with multiple statements CSE.
-func.func @cse_single_block_ops_identical_bodies(%arg0_8: tensor<?x?xf32>, %arg1_5: tensor<?x?xf32>, %arg2_6: f32, %arg3_3: i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-    %71 = "test.pureop"(%arg0_8, %arg1_5) ({
+func.func @cse_single_block_ops_identical_bodies(%arg0: tensor<?x?xf32>, %arg1: tensor<?x?xf32>, %arg2: f32, %arg3: i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+    %71 = "test.pureop"(%arg0, %arg1) ({
     ^bb14(%arg4: f32, %arg5: f32):
       %72 = arith.divf %arg4, %arg5 : f32
-      %73 = "arith.remf"(%arg4, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-      %74 = arith.select %arg3_3, %72, %73 : f32
+      %73 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+      %74 = arith.select %arg3, %72, %73 : f32
       "test.region_yield"(%74) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-    %75 = "test.pureop"(%arg0_8, %arg1_5) ({
-    ^bb15(%arg4_1: f32, %arg5_1: f32):
-      %76 = arith.divf %arg4_1, %arg5_1 : f32
-      %77 = "arith.remf"(%arg4_1, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-      %78 = arith.select %arg3_3, %76, %77 : f32
+    %75 = "test.pureop"(%arg0, %arg1) ({
+    ^bb15(%arg4: f32, %arg5: f32):
+      %76 = arith.divf %arg4, %arg5 : f32
+      %77 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+      %78 = arith.select %arg3, %76, %77 : f32
       "test.region_yield"(%78) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %71, %75 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -476,19 +476,19 @@ func.func @cse_single_block_ops_identical_bodies(%arg0_8: tensor<?x?xf32>, %arg1
 // CHECK-NEXT:    }
 
 // Operation with non-identical regions dont CSE.
-func.func @no_cse_single_block_ops_different_bodies(%arg0_9: tensor<?x?xf32>, %arg1_6: tensor<?x?xf32>, %arg2_7: f32, %arg3_4: i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-    %79 = "test.pureop"(%arg0_9, %arg1_6) ({
-    ^bb16(%arg4_2: f32, %arg5_2: f32):
-      %80 = arith.divf %arg4_2, %arg5_2 : f32
-      %81 = "arith.remf"(%arg4_2, %arg2_7) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-      %82 = arith.select %arg3_4, %80, %81 : f32
+func.func @no_cse_single_block_ops_different_bodies(%arg0: tensor<?x?xf32>, %arg1: tensor<?x?xf32>, %arg2: f32, %arg3: i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+    %79 = "test.pureop"(%arg0, %arg1) ({
+    ^bb16(%arg4: f32, %arg5: f32):
+      %80 = arith.divf %arg4, %arg5 : f32
+      %81 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+      %82 = arith.select %arg3, %80, %81 : f32
       "test.region_yield"(%82) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-    %83 = "test.pureop"(%arg0_9, %arg1_6) ({
-    ^bb17(%arg4_3: f32, %arg5_3: f32):
-      %84 = arith.divf %arg4_3, %arg5_3 : f32
-      %85 = "arith.remf"(%arg4_3, %arg2_7) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-      %86 = arith.select %arg3_4, %85, %84 : f32
+    %83 = "test.pureop"(%arg0, %arg1) ({
+    ^bb17(%arg4: f32, %arg5: f32):
+      %84 = arith.divf %arg4, %arg5 : f32
+      %85 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+      %86 = arith.select %arg3, %85, %84 : f32
       "test.region_yield"(%86) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %79, %83 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -512,16 +512,16 @@ func.func @no_cse_single_block_ops_different_bodies(%arg0_9: tensor<?x?xf32>, %a
 // CHECK-NEXT:      func.return %0, %4 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
-func.func @failing_issue_59135(%arg0_10: tensor<2x2xi1>, %arg1_7: f32, %arg2_8: tensor<2xi1>) -> (tensor<2xi1>, tensor<2xi1>) {
+func.func @failing_issue_59135(%arg0: tensor<2x2xi1>, %arg1: f32, %arg2: tensor<2xi1>) -> (tensor<2xi1>, tensor<2xi1>) {
     %87 = arith.constant false
     %88 = arith.constant true
-    %89 = "test.pureop"(%arg2_8) ({
-    ^bb18(%arg3_5: i1):
+    %89 = "test.pureop"(%arg2) ({
+    ^bb18(%arg3: i1):
       %90 = arith.constant true
       "test.region_yield"(%90) : (i1) -> ()
     }) : (tensor<2xi1>) -> tensor<2xi1>
-    %91 = "test.pureop"(%arg2_8) ({
-    ^bb19(%arg3_6: i1):
+    %91 = "test.pureop"(%arg2) ({
+    ^bb19(%arg3: i1):
       %92 = arith.constant true
       "test.region_yield"(%92) : (i1) -> ()
     }) : (tensor<2xi1>) -> tensor<2xi1>
@@ -539,18 +539,18 @@ func.func @failing_issue_59135(%arg0_10: tensor<2x2xi1>, %arg1_7: f32, %arg2_8: 
 // CHECK-NEXT:      func.return %2, %2 : tensor<2xi1>, tensor<2xi1>
 // CHECK-NEXT:    }
 
-func.func @cse_multiple_regions(%arg0_11: i1, %arg1_8: tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-    %94 = scf.if %arg0_11 -> (tensor<5xf32>) {
+func.func @cse_multiple_regions(%arg0: i1, %arg1: tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
+    %94 = scf.if %arg0 -> (tensor<5xf32>) {
       %95 = tensor.empty() : tensor<5xf32>
       scf.yield %95 : tensor<5xf32>
     } else {
-      scf.yield %arg1_8 : tensor<5xf32>
+      scf.yield %arg1 : tensor<5xf32>
     }
-    %96 = scf.if %arg0_11 -> (tensor<5xf32>) {
+    %96 = scf.if %arg0 -> (tensor<5xf32>) {
       %97 = tensor.empty() : tensor<5xf32>
       scf.yield %97 : tensor<5xf32>
     } else {
-      scf.yield %arg1_8 : tensor<5xf32>
+      scf.yield %arg1 : tensor<5xf32>
     }
     func.return %94, %96 : tensor<5xf32>, tensor<5xf32>
   }
@@ -566,18 +566,18 @@ func.func @cse_multiple_regions(%arg0_11: i1, %arg1_8: tensor<5xf32>) -> (tensor
 // CHECK-NEXT:    }
 
 // Check that no CSE happens on a recursively side-effecting ops containing side-effects.
-func.func @no_cse_multiple_regions_side_effect(%arg0_12: i1, %arg1_9: memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
-    %90 = scf.if %arg0_12 -> (memref<5xf32>) {
+func.func @no_cse_multiple_regions_side_effect(%arg0: i1, %arg1: memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
+    %90 = scf.if %arg0 -> (memref<5xf32>) {
       %91 = memref.alloc() : memref<5xf32>
       scf.yield %91 : memref<5xf32>
     } else {
-      scf.yield %arg1_9 : memref<5xf32>
+      scf.yield %arg1 : memref<5xf32>
     }
-    %92 = scf.if %arg0_12 -> (memref<5xf32>) {
+    %92 = scf.if %arg0 -> (memref<5xf32>) {
       %93 = memref.alloc() : memref<5xf32>
       scf.yield %93 : memref<5xf32>
     } else {
-      scf.yield %arg1_9 : memref<5xf32>
+      scf.yield %arg1 : memref<5xf32>
     }
     func.return %90, %92 : memref<5xf32>, memref<5xf32>
 }

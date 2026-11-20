@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.dialects.builtin import StringAttr
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import OperandArg
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -70,12 +70,12 @@ class DSMovOp(ARMInstruction):
 
     d = result_def(IntRegisterType)
     s = operand_def(IntRegisterType)
-    assembly_format = "$s attr-dict `:` `(` type($s) `)` `->` type($d)"
+    assembly_format = "$s attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
         d: IntRegisterType,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -103,7 +103,7 @@ class GetRegisterOp(ARMAsmOperation):
     name = "arm.get_register"
 
     result = result_def(IntRegisterType)
-    assembly_format = "attr-dict `:` type($result)"
+    assembly_format = "attr-dict `:` qualified(type($result))"
 
     def __init__(self, register_type: IntRegisterType):
         super().__init__(result_types=[register_type])
@@ -125,14 +125,12 @@ class DSSMulOp(ARMInstruction):
     d = result_def(IntRegisterType)
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
-    assembly_format = (
-        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
-    )
+    assembly_format = "$s1 `,` $s2 attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         d: IntRegisterType,
         comment: str | StringAttr | None = None,
@@ -204,12 +202,12 @@ class CmpRegOp(ARMInstruction):
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
 
-    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
+    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type(operands) `)`"
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         comment: str | StringAttr | None = None,
     ):

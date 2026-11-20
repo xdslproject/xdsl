@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -41,8 +41,8 @@ class BinaryOp(IRDLOperation, ABC):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
         result_type: Attribute | None,
         modulus: Attribute,
     ):

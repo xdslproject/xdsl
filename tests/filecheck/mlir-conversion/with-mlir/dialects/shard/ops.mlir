@@ -62,6 +62,16 @@ shard.grid @mesh5(shape = ?)
 // CHECK-NEXT: {{%.*}} = shard.send {{%.*}} on @mesh0 grid_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %23 = shard.shift %t on @mesh0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 // CHECK-NEXT: {{%.*}} = shard.shift {{%.*}} on @mesh0 grid_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
+%all_gather = shard.all_gather %t on @mesh0 grid_axes = [2] gather_axis = 0 : tensor<2x2xi8> -> tensor<8x2xi8>
+// CHECK-NEXT: {{%.*}} = shard.all_gather {{%.*}} on @mesh0 grid_axes = [2] gather_axis = 0 : tensor<2x2xi8> -> tensor<8x2xi8>
+%all_gather_1 = shard.all_gather %t on @mesh1 grid_axes = [1] gather_axis = 1 : tensor<2x2xi8> -> tensor<2x?xi8>
+// CHECK-NEXT: {{%.*}} = shard.all_gather {{%.*}} on @mesh1 grid_axes = [1] gather_axis = 1 : tensor<2x2xi8> -> tensor<2x?xi8>
+%all_slice = shard.all_slice %t on @mesh0 grid_axes = [0] slice_axis = 0 : tensor<2x2xi8> -> tensor<1x2xi8>
+// CHECK-NEXT: {{%.*}} = shard.all_slice {{%.*}} on @mesh0 grid_axes = [0] slice_axis = 0 : tensor<2x2xi8> -> tensor<1x2xi8>
+%reduce_scatter = shard.reduce_scatter %t on @mesh0 grid_axes = [1] reduction = max scatter_axis = 0 : tensor<2x2xi8> -> tensor<1x2xi64>
+// CHECK-NEXT: {{%.*}} = shard.reduce_scatter {{%.*}} on @mesh0 grid_axes = [1] reduction = max scatter_axis = 0 : tensor<2x2xi8> -> tensor<1x2xi64>
+%reduce_scatter_1 = shard.reduce_scatter %t on @mesh0 grid_axes = [0] scatter_axis = 1 : tensor<2x2xi8> -> tensor<2x1xi8>
+// CHECK-NEXT: {{%.*}} = shard.reduce_scatter {{%.*}} on @mesh0 grid_axes = [0] scatter_axis = 1 : tensor<2x2xi8> -> tensor<2x1xi8>
 
 // Sharding
 %24 = shard.shard %t to %11 : tensor<2x2xi8>

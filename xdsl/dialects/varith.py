@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     container_of,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -58,7 +58,7 @@ class VarithOp(IRDLOperation):
 
     assembly_format = "$args attr-dict `:` type($res)"
 
-    def __init__(self, *args: SSAValue | Operation):
+    def __init__(self, *args: OperandArg):
         assert len(args) > 0
         super().__init__(operands=[args], result_types=[SSAValue.get(args[-1]).type])
 
@@ -98,10 +98,10 @@ class VarithSwitchOp(IRDLOperation):
 
     def __init__(
         self,
-        flag: SSAValue | Operation,
+        flag: OperandArg,
         case_values: DenseIntElementsAttr,
-        default_arg: SSAValue | Operation,
-        *args: SSAValue | Operation,
+        default_arg: OperandArg,
+        *args: OperandArg,
         attr_dict: dict[str, Attribute] | None = None,
     ):
         super().__init__(

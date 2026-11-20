@@ -476,7 +476,7 @@ def test_tile_structured_op_result(tile_sizes: tuple[int, ...]):
         result_types=(tensor_type,),
     )
     inputs = test.TestOp(result_types=[tensor_type, tensor_type])
-    op.operands = inputs.results
+    op.set_operands(inputs.results)
     user = test.TestOp(operands=[op.res[0]])
     module = ModuleOp([inputs, op, user])
     rewriter = PatternRewriter(op)
@@ -501,7 +501,7 @@ def test_tile_structured_op_without_tiled_dims(tile_sizes: tuple[int, ...]):
         result_types=(tensor_type,),
     )
     inputs = test.TestOp(result_types=[tensor_type, tensor_type])
-    op.operands = inputs.results
+    op.set_operands(inputs.results)
     user = test.TestOp(operands=[op.res[0]])
     module = ModuleOp([inputs, op, user])
     rewriter = PatternRewriter(op)

@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, OperandArg
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -329,9 +329,9 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
 
     def __init__(
         self,
-        dst: Operation | SSAValue,
-        src: Operation | SSAValue,
-        size: Operation | SSAValue,
+        dst: OperandArg,
+        src: OperandArg,
+        size: OperandArg,
     ):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
@@ -351,12 +351,12 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
 
     def __init__(
         self,
-        dst: Operation | SSAValue,
-        src: Operation | SSAValue,
-        dst_stride: Operation | SSAValue,
-        src_stride: Operation | SSAValue,
-        size: Operation | SSAValue,
-        repeat: Operation | SSAValue,
+        dst: OperandArg,
+        src: OperandArg,
+        dst_stride: OperandArg,
+        src_stride: OperandArg,
+        size: OperandArg,
+        repeat: OperandArg,
     ):
         super().__init__(
             operands=[dst, src, dst_stride, src_stride, size, repeat],
@@ -409,7 +409,7 @@ class DmaWaitOp(SnitchRuntimeBaseOperation):
     name = "snrt.dma_wait"
     transfer_id = operand_def(tx_id)
 
-    def __init__(self, transfer_id: Operation | SSAValue):
+    def __init__(self, transfer_id: OperandArg):
         super().__init__(operands=[transfer_id])
 
 
@@ -452,9 +452,9 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
 
     def __init__(
         self,
-        data_mover: Operation | SSAValue,
-        bounds: Sequence[Operation | SSAValue],
-        strides: Sequence[Operation | SSAValue],
+        data_mover: OperandArg,
+        bounds: Sequence[OperandArg],
+        strides: Sequence[OperandArg],
     ):
         super().__init__(operands=[data_mover, bounds, strides])
 
@@ -529,7 +529,7 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     def __init__(
         self,
         dm: int | IntegerAttr[IntegerType],
-        count: Operation | SSAValue,
+        count: OperandArg,
     ):
         if isinstance(dm, int):
             dm = IntegerAttr(dm, i32)
@@ -564,7 +564,7 @@ class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
         self,
         dm: int | IntegerAttr[IntegerType],
         dim: int | IntegerAttr[IntegerType],
-        ptr: Operation | SSAValue,
+        ptr: OperandArg,
     ):
         if isinstance(dm, int):
             dm = IntegerAttr(dm, i32)

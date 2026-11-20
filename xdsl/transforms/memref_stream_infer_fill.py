@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import memref, memref_stream
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects import memref_stream
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -36,7 +36,7 @@ class InferFillPattern(RewritePattern):
         output = op.outputs[0]
         input = op.inputs[0]
 
-        if not isa(output_type := output.type, memref.MemRefType):
+        if not isa(output_type := output.type, MemRefType):
             return
 
         type_shape = output_type.get_shape()

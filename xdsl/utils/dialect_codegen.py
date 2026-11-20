@@ -10,6 +10,7 @@ from typing import TextIO
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
+    AnyRange,
     OpDef,
     OperandDef,
     OptOperandDef,
@@ -53,6 +54,8 @@ def get_str_from_operand_or_result(
     match constr:
         case RangeOf():
             inner_constr = constr.constr
+        case AnyRange():
+            inner_constr = ""
         case _:
             raise NotImplementedError(
                 f"Constraint type {operand_or_result.constr} not yet implemented"

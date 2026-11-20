@@ -10,7 +10,7 @@ from typing import ClassVar, Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects import builtin, memref
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
@@ -25,6 +25,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -35,6 +36,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
+    IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -42,7 +44,6 @@ from xdsl.irdl import (
     VarConstraint,
     VerificationContext,
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -387,7 +388,7 @@ class StencilType(
     @staticmethod
     def constr(
         *,
-        bounds: AttrConstraint | None = None,
+        bounds: IRDLAttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
     ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
         return cast(
@@ -718,7 +719,7 @@ class AllocOp(IRDLOperation):
 
     field = result_def(FieldType[Attribute])
 
-    assembly_format = "attr-dict `:` type($field)"
+    assembly_format = "attr-dict `:` qualified(type($field))"
 
     traits = traits_def(AllocOpEffect())
 
@@ -761,15 +762,13 @@ class CastOp(IRDLOperation):
         )
     )
 
-    assembly_format = (
-        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
-    )
+    assembly_format = "$field attr-dict-with-keyword `:` qualified(type($field)) `->` qualified(type($result))"
 
     traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ):
@@ -914,8 +913,8 @@ class DynAccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        offset: Sequence[SSAValue | Operation],
+        temp: OperandArg,
+        offset: Sequence[OperandArg],
         lb: IndexAttr,
         ub: IndexAttr,
     ):
@@ -938,7 +937,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
+    result = result_def(FieldType | MemRefType)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -946,8 +945,8 @@ class ExternalLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType,
+        arg: OperandArg,
+        res_type: FieldType[Attribute] | MemRefType,
     ):
         super().__init__(operands=[arg], result_types=[res_type])
 
@@ -965,9 +964,7 @@ class ExternalStoreOp(IRDLOperation):
     temp = operand_def(FieldType)
     field = operand_def(Attribute)
 
-    assembly_format = (
-        "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
-    )
+    assembly_format = "$temp `to` $field attr-dict-with-keyword `:` qualified(type($temp)) `to` type($field)"
 
 
 @irdl_op_definition
@@ -1053,7 +1050,7 @@ class AccessOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
+        temp: OperandArg,
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
@@ -1263,7 +1260,7 @@ class LoadOp(IRDLOperation):
 
     field = operand_def(
         FieldType[Attribute].constr(
-            bounds=base(StencilBoundsAttr),
+            bounds=StencilBoundsAttr,
             element_type=MessageConstraint(
                 TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
@@ -1285,7 +1282,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        field: SSAValue | Operation,
+        field: OperandArg,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
@@ -1367,7 +1364,7 @@ class BufferOp(IRDLOperation):
 
     traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
-    def __init__(self, temp: SSAValue | Operation):
+    def __init__(self, temp: OperandArg):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
@@ -1447,8 +1444,8 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        temp: SSAValue | Operation,
-        field: SSAValue | Operation,
+        temp: OperandArg,
+        field: OperandArg,
         bounds: StencilBoundsAttr,
     ):
         super().__init__(operands=[temp, field], properties={"bounds": bounds})
@@ -1482,7 +1479,7 @@ class StoreResultOp(IRDLOperation):
         )
     )
 
-    assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
+    assembly_format = "$arg attr-dict-with-keyword `:` qualified(type($res))"
 
     traits = traits_def(HasAncestor(ApplyOp), Pure())
 
@@ -1517,7 +1514,7 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
-    def __init__(self, res: Sequence[SSAValue | Operation]):
+    def __init__(self, res: Sequence[OperandArg]):
         super().__init__(operands=[res])
 
     def verify_(self) -> None:

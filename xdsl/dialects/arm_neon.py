@@ -19,13 +19,12 @@ from xdsl.dialects.utils import EnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
 )
 from xdsl.irdl import (
     VarConstraint,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -177,7 +176,7 @@ class GetRegisterOp(ARMAsmOperation):
     name = "arm_neon.get_register"
 
     result = result_def(NEONRegisterType)
-    assembly_format = "attr-dict `:` type($result)"
+    assembly_format = "attr-dict `:` qualified(type($result))"
 
     def __init__(self, register_type: NEONRegisterType):
         super().__init__(result_types=[register_type])
@@ -219,8 +218,8 @@ class DSSFMulOp(ARMInstruction):
 
     def __init__(
         self,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         d: NEONRegisterType,
         scalar_idx: IntegerAttr | None,
@@ -270,8 +269,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
     """
 
-    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_NEON_REGISTER_TYPE", base(NEONRegisterType)
+    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint.get(
+        "SAME_NEON_REGISTER_TYPE", NEONRegisterType
     )
 
     name = "arm_neon.dss.fmla"
@@ -282,16 +281,14 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = (
-        "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
-        `(` type($s1) `,` type($s2) `)` `->` type($res)"
-    )
+    assembly_format = "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
+        `(` qualified(type($s1)) `,` qualified(type($s2)) `)` `->` qualified(type($res))"
 
     def __init__(
         self,
-        d: Operation | SSAValue,
-        s1: Operation | SSAValue,
-        s2: Operation | SSAValue,
+        d: OperandArg,
+        s1: OperandArg,
+        s2: OperandArg,
         *,
         res: NEONRegisterType,
         scalar_idx: IntegerAttr,
@@ -336,11 +333,11 @@ class DSDupOp(ARMInstruction):
     d = result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` type($d)"
+    assembly_format = "$s $arrangement attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: NEONRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -381,13 +378,11 @@ class DSVecMovOp(ARMInstruction):
     d = result_def(IntRegisterType)
     scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
-    assembly_format = (
-        "$s `[` $scalar_idx `]` $arrangement attr-dict `:` type($s) `->` type($d)"
-    )
+    assembly_format = "$s `[` $scalar_idx `]` $arrangement attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         *,
         d: IntRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -429,11 +424,13 @@ class DVarSLd1Op(ARMInstruction):
     dest_regs = var_result_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
+    assembly_format = (
+        " ` ` `[` $s `]` $arrangement attr-dict `:` functional-type(operands, results)"
+    )
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        s: OperandArg,
         result_types: Sequence[Attribute],
         *,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -478,7 +475,7 @@ class DVarSSt1Op(ARMInstruction):
     src_regs = var_operand_def(NEONRegisterType)
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
+    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` functional-type($src_regs, $d)"
 
     def __init__(
         self,

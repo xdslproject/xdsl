@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import IntAttr, IntegerType, f64, i1
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
+    OperandArg,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -53,8 +53,8 @@ class BinaryOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
     ):
         super().__init__(operands=[operand1, operand2], result_types=[bigint])
 
@@ -111,7 +111,7 @@ class TruncateToIntOp(IRDLOperation):
 
     def __init__(
         self,
-        value: Operation | SSAValue,
+        value: OperandArg,
         type: IntegerType = IntegerType(64),
     ):
         super().__init__(operands=[value], result_types=[type])
@@ -278,8 +278,8 @@ class DivOp(IRDLOperation):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
     ):
         super().__init__(operands=[operand1, operand2], result_types=[f64])
 
@@ -295,8 +295,8 @@ class ComparisonOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
+        operand1: OperandArg,
+        operand2: OperandArg,
     ):
         super().__init__(operands=[operand1, operand2], result_types=[i1])
 

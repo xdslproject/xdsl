@@ -13,7 +13,8 @@ from xdsl.dialects.builtin import (
     I1,
     I32,
     I64,
-    AnyFloatConstr,
+    AnyFloat,
+    AnySignlessIntegerType,
     ArrayAttr,
     BFloat16Type,
     DenseArrayBase,
@@ -31,7 +32,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
-    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -55,6 +55,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -74,7 +75,6 @@ from xdsl.irdl import (
     RangeOf,
     VarConstraint,
     VerificationContext,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -416,8 +416,8 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar = VarConstraint(
-        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
     )
 
     lhs = operand_def(T)
@@ -512,8 +512,8 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar = VarConstraint(
-        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
     )
 
     lhs = operand_def(T)
@@ -568,8 +568,8 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 class ArithmeticBinOpExact(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use an exact flag."""
 
-    T: ClassVar = VarConstraint(
-        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
     )
 
     lhs = operand_def(T)
@@ -630,8 +630,8 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use a disjoint flag."""
 
-    T: ClassVar = VarConstraint(
-        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
     )
 
     lhs = operand_def(T)
@@ -663,13 +663,9 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
+    arg = operand_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
 
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
+    res = result_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -703,12 +699,8 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
+    arg = operand_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
+    res = result_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
     traits = traits_def(NoMemoryEffect())
     non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
@@ -732,12 +724,8 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
-    res = result_def(
-        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
-    )
+    arg = operand_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
+    res = result_def(AnySignlessIntegerType | VectorType[AnySignlessIntegerType])
     overflowFlags = opt_prop_def(OverflowAttr)
     traits = traits_def(NoMemoryEffect())
 
@@ -937,8 +925,8 @@ ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 @irdl_op_definition
 class ICmpOp(IRDLOperation):
     name = "llvm.icmp"
-    T: ClassVar = VarConstraint(
-        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
     )
 
     lhs = operand_def(T)
@@ -1158,10 +1146,10 @@ class GEPOp(IRDLOperation):
 
     def __init__(
         self,
-        ptr: SSAValue | Operation,
+        ptr: OperandArg,
         indices: Sequence[int],
         pointee_type: Attribute,
-        ssa_indices: Sequence[SSAValue | Operation] | None = None,
+        ssa_indices: Sequence[OperandArg] | None = None,
         result_type: LLVMPointerType = LLVMPointerType(),
         inbounds: bool = False,
     ):
@@ -1194,8 +1182,8 @@ class GEPOp(IRDLOperation):
 
     @staticmethod
     def from_mixed_indices(
-        ptr: SSAValue | Operation,
-        indices: Sequence[int | SSAValue | Operation],
+        ptr: OperandArg,
+        indices: Sequence[int | OperandArg],
         pointee_type: Attribute,
         result_type: LLVMPointerType = LLVMPointerType(),
         inbounds: bool = False,
@@ -1284,7 +1272,7 @@ class AllocaOp(IRDLOperation):
 
     def __init__(
         self,
-        size: SSAValue | Operation,
+        size: OperandArg,
         elem_type: Attribute,
         alignment: int = 32,
     ):
@@ -1331,14 +1319,13 @@ class IntToPtrOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(IntegerType)
+    input = operand_def(IntegerType | VectorType[IntegerType])
 
-    output = result_def(LLVMPointerType)
+    output = result_def(LLVMPointerType | VectorType[LLVMPointerType])
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, input: SSAValue | Operation):
-        ptr_type = LLVMPointerType()
+    def __init__(self, input: OperandArg, ptr_type: Attribute = LLVMPointerType()):
         super().__init__(operands=[input], result_types=[ptr_type])
 
 
@@ -1414,7 +1401,7 @@ class InlineAsmOp(IRDLOperation):
         self,
         asm_string: str,
         constraints: str,
-        operands: Sequence[SSAValue | Operation],
+        operands: Sequence[OperandArg],
         res_types: Sequence[Attribute] | None = None,
         asm_dialect: int | None = None,
         has_side_effects: bool = False,
@@ -1521,13 +1508,13 @@ class PtrToIntOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
-    input = operand_def(LLVMPointerType)
+    input = operand_def(LLVMPointerType | VectorType[LLVMPointerType])
 
-    output = result_def(IntegerType)
+    output = result_def(IntegerType | VectorType[IntegerType])
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
+    def __init__(self, arg: OperandArg, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
 
 
@@ -1561,7 +1548,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(
         self,
-        ptr: SSAValue | Operation,
+        ptr: OperandArg,
         result_type: Attribute,
         alignment: int | None = None,
         ordering: int = 0,
@@ -1634,8 +1621,8 @@ class StoreOp(IRDLOperation):
 
     def __init__(
         self,
-        value: SSAValue | Operation,
-        ptr: SSAValue | Operation,
+        value: OperandArg,
+        ptr: OperandArg,
         alignment: int | None = None,
         ordering: int = 0,
         volatile: bool = False,
@@ -1720,7 +1707,7 @@ class ExtractValueOp(IRDLOperation):
     def __init__(
         self,
         position: DenseArrayBase,
-        container: SSAValue | Operation,
+        container: OperandArg,
         result_type: Attribute,
     ):
         super().__init__(
@@ -1854,13 +1841,13 @@ class InsertElementOp(IRDLOperation):
         "VECTOR_T",
         VectorType.constr(
             ELEMENT,
-            shape=ArrayAttr.constr(RangeOf(IntAttr).of_length(1)),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(1)),
         ),
     )
 
     vector = operand_def(VECTOR)
     value = operand_def(ELEMENT)
-    index = operand_def(SignlessIntegerConstraint)
+    index = operand_def(AnySignlessIntegerType)
     res = result_def(VECTOR)
 
     assembly_format = (
@@ -1871,9 +1858,9 @@ class InsertElementOp(IRDLOperation):
 
     def __init__(
         self,
-        vector: Operation | SSAValue,
-        value: Operation | SSAValue,
-        index: Operation | SSAValue,
+        vector: OperandArg,
+        value: OperandArg,
+        index: OperandArg,
     ):
         super().__init__(
             operands=[vector, value, index],
@@ -1914,9 +1901,7 @@ class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     def verify(self, attr: Attribute, constraint_context: VerificationContext) -> None:
         VectorType.constr(
             self.element_constr,
-            shape=ArrayAttr.constr(
-                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
-            ),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(EqIntConstraint(1))),
         ).verify(attr, constraint_context)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
@@ -1957,7 +1942,7 @@ class ShuffleVectorOp(IRDLOperation):
         "VEC_TYPE",
         VectorType.constr(
             T,
-            shape=ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(1)),
+            shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(1)),
         ),
     )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
@@ -1985,8 +1970,8 @@ class ShuffleVectorOp(IRDLOperation):
 
     def __init__(
         self,
-        v1: Operation | SSAValue,
-        v2: Operation | SSAValue,
+        v1: OperandArg,
+        v2: OperandArg,
         mask: DenseArrayBase,
         result_type: Attribute,
     ):
@@ -2185,7 +2170,7 @@ class GlobalOp(IRDLOperation):
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    assembly_format = "$global_name attr-dict `:` type($result)"
+    assembly_format = "$global_name attr-dict `:` qualified(type($result))"
 
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
@@ -2721,7 +2706,7 @@ class CallOp(IRDLOperation):
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
-        *args: SSAValue | Operation,
+        *args: OperandArg,
         op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
@@ -2854,13 +2839,6 @@ class CallOp(IRDLOperation):
 LLVMType = (
     LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
 )
-LLVMTypeConstr = (
-    base(LLVMStructType)
-    | base(LLVMPointerType)
-    | base(LLVMArrayType)
-    | base(LLVMVoidType)
-    | base(LLVMFunctionType)
-)
 
 
 @irdl_op_definition
@@ -2871,7 +2849,7 @@ class ZeroOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    res = result_def(LLVMTypeConstr)
+    res = result_def(LLVMType)
 
 
 class GenericCastOp(IRDLOperation, ABC):
@@ -2889,7 +2867,7 @@ class GenericCastOp(IRDLOperation, ABC):
 
     assembly_format = "$arg attr-dict `:` type($arg) `to` type($result)"
 
-    def __init__(self, val: Operation | SSAValue, res_type: Attribute):
+    def __init__(self, val: OperandArg, res_type: Attribute):
         super().__init__(
             operands=[SSAValue.get(val)],
             result_types=[res_type],
@@ -2897,7 +2875,7 @@ class GenericCastOp(IRDLOperation, ABC):
 
 
 class AbstractFloatArithOp(IRDLOperation, ABC):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -2913,8 +2891,8 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     def __init__(
         self,
-        lhs: SSAValue | Operation,
-        rhs: SSAValue | Operation,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
         attrs: dict[str, Attribute] | None = None,
     ):
@@ -2988,7 +2966,7 @@ FCMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_FCMP_FLAGS)}
 class FCmpOp(IRDLOperation):
     name = "llvm.fcmp"
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -3003,8 +2981,8 @@ class FCmpOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         predicate: str | IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
@@ -3065,7 +3043,7 @@ class FPTruncOp(GenericCastOp):
 
 @irdl_op_definition
 class FAbsOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.fabs"
 
@@ -3082,7 +3060,7 @@ class FAbsOp(IRDLOperation):
 
     def __init__(
         self,
-        input: Operation | SSAValue,
+        input: OperandArg,
         result_type: Attribute,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
@@ -3097,7 +3075,7 @@ class FAbsOp(IRDLOperation):
 
 @irdl_op_definition
 class FCeilOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.ceil"
 
@@ -3116,7 +3094,7 @@ class FCeilOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3130,7 +3108,7 @@ class FCeilOp(IRDLOperation):
 
 @irdl_op_definition
 class FSqrtOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.sqrt"
 
@@ -3149,7 +3127,7 @@ class FSqrtOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3163,7 +3141,7 @@ class FSqrtOp(IRDLOperation):
 
 @irdl_op_definition
 class FFloorOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.floor"
 
@@ -3182,7 +3160,7 @@ class FFloorOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3196,7 +3174,7 @@ class FFloorOp(IRDLOperation):
 
 @irdl_op_definition
 class FExp2Op(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.exp2"
 
@@ -3215,7 +3193,7 @@ class FExp2Op(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3229,7 +3207,7 @@ class FExp2Op(IRDLOperation):
 
 @irdl_op_definition
 class FLogOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.log"
 
@@ -3248,7 +3226,7 @@ class FLogOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3262,7 +3240,7 @@ class FLogOp(IRDLOperation):
 
 @irdl_op_definition
 class FExpOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.exp"
 
@@ -3281,7 +3259,7 @@ class FExpOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3295,7 +3273,7 @@ class FExpOp(IRDLOperation):
 
 @irdl_op_definition
 class FSinOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.sin"
 
@@ -3314,7 +3292,7 @@ class FSinOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3328,7 +3306,7 @@ class FSinOp(IRDLOperation):
 
 @irdl_op_definition
 class FCosOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.cos"
 
@@ -3347,7 +3325,7 @@ class FCosOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3361,7 +3339,7 @@ class FCosOp(IRDLOperation):
 
 @irdl_op_definition
 class FLog2Op(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.log2"
 
@@ -3380,7 +3358,7 @@ class FLog2Op(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3394,7 +3372,7 @@ class FLog2Op(IRDLOperation):
 
 @irdl_op_definition
 class FNegOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.fneg"
 
@@ -3411,7 +3389,7 @@ class FNegOp(IRDLOperation):
 
     def __init__(
         self,
-        arg: Operation | SSAValue,
+        arg: OperandArg,
         fast_math: FastMathAttr | None = None,
     ):
         if fast_math is None:
@@ -3427,23 +3405,23 @@ class FNegOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(VectorType.constr(AnyFloatConstr))
+    value = operand_def(VectorType[AnyFloat])
     data = operand_def(LLVMPointerType)
     mask = operand_def(VectorType[I1])
     alignment = prop_def(IntegerAttr[i32])
 
     assembly_format = (
         "$value `,` $data `,` $mask attr-dict `:`"
-        " type($value) `,` type($mask) `into` type($data)"
+        " type($value) `,` type($mask) `into` qualified(type($data))"
     )
 
     irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
-        value: Operation | SSAValue,
-        data: Operation | SSAValue,
-        mask: Operation | SSAValue,
+        value: OperandArg,
+        data: OperandArg,
+        mask: OperandArg,
         alignment: int = 32,
     ):
         super().__init__(
@@ -3476,9 +3454,9 @@ class SelectOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: Operation | SSAValue,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        cond: OperandArg,
+        lhs: OperandArg,
+        rhs: OperandArg,
     ):
         super().__init__(
             operands=[cond, lhs, rhs],
@@ -3498,7 +3476,7 @@ class BrOp(IRDLOperation):
 
     assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
 
-    def __init__(self, dest: Block, *ops: Operation | SSAValue):
+    def __init__(self, dest: Block, *ops: OperandArg):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
 
 
@@ -3526,11 +3504,11 @@ class CondBrOp(IRDLOperation):
 
     def __init__(
         self,
-        cond: Operation | SSAValue,
+        cond: OperandArg,
         then_block: Block,
-        then_ops: Sequence[Operation | SSAValue],
+        then_ops: Sequence[OperandArg],
         else_block: Block,
-        else_ops: Sequence[Operation | SSAValue],
+        else_ops: Sequence[OperandArg],
     ):
         super().__init__(
             operands=[cond, then_ops, else_ops],
@@ -3540,7 +3518,7 @@ class CondBrOp(IRDLOperation):
 
 @irdl_op_definition
 class VectorFMaxOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.maxnum"
 
@@ -3560,8 +3538,8 @@ class VectorFMaxOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3575,7 +3553,7 @@ class VectorFMaxOp(IRDLOperation):
 
 @irdl_op_definition
 class FCopySignOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.copysign"
 
@@ -3595,8 +3573,8 @@ class FCopySignOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3610,7 +3588,7 @@ class FCopySignOp(IRDLOperation):
 
 @irdl_op_definition
 class FMAOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.fma"
 
@@ -3631,9 +3609,9 @@ class FMAOp(IRDLOperation):
 
     def __init__(
         self,
-        a: Operation | SSAValue,
-        b: Operation | SSAValue,
-        c: Operation | SSAValue,
+        a: OperandArg,
+        b: OperandArg,
+        c: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3647,7 +3625,7 @@ class FMAOp(IRDLOperation):
 
 @irdl_op_definition
 class VectorFMinOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.minnum"
 
@@ -3667,8 +3645,8 @@ class VectorFMinOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3681,8 +3659,160 @@ class VectorFMinOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FMaximumOp(IRDLOperation):
+    """
+    Floating-point maximum, propagating NaNs and treating -0.0 as less than
+    +0.0.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrmaximum-llvmmaximumop).
+    """
+
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
+
+    name = "llvm.intr.maximum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FMinimumOp(IRDLOperation):
+    """
+    Floating-point minimum, propagating NaNs and treating -0.0 as less than
+    +0.0.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrminimum-llvmminimumop).
+    """
+
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
+
+    name = "llvm.intr.minimum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: OperandArg,
+        rhs: OperandArg,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+class IntegerBinaryIntrinsicOp(IRDLOperation, ABC):
+    """
+    Base class for integer intrinsics with two operands and a result of the same
+    integer or integer vector type.
+    """
+
+    T: ClassVar = VarConstraint.get(
+        "T", AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
+    )
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    traits = traits_def(Pure())
+
+    def __init__(self, lhs: OperandArg, rhs: OperandArg):
+        super().__init__(operands=[lhs, rhs], result_types=[SSAValue.get(lhs).type])
+
+
+@irdl_op_definition
+class SMaxOp(IntegerBinaryIntrinsicOp):
+    """
+    Maximum of two integers, interpreted as signed values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrsmax-llvmsmaxop).
+    """
+
+    name = "llvm.intr.smax"
+
+
+@irdl_op_definition
+class SMinOp(IntegerBinaryIntrinsicOp):
+    """
+    Minimum of two integers, interpreted as signed values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrsmin-llvmsminop).
+    """
+
+    name = "llvm.intr.smin"
+
+
+@irdl_op_definition
+class UMaxOp(IntegerBinaryIntrinsicOp):
+    """
+    Maximum of two integers, interpreted as unsigned values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrumax-llvmumaxop).
+    """
+
+    name = "llvm.intr.umax"
+
+
+@irdl_op_definition
+class UMinOp(IntegerBinaryIntrinsicOp):
+    """
+    Minimum of two integers, interpreted as unsigned values.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrumin-llvmuminop).
+    """
+
+    name = "llvm.intr.umin"
+
+
+@irdl_op_definition
 class FPowOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    T: ClassVar = VarConstraint.get("T", AnyFloat | VectorType[AnyFloat])
 
     name = "llvm.intr.pow"
 
@@ -3702,8 +3832,8 @@ class FPowOp(IRDLOperation):
 
     def __init__(
         self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
+        lhs: OperandArg,
+        rhs: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3721,14 +3851,14 @@ class StackSaveOp(IRDLOperation):
 
     res = result_def(LLVMPointerType)
 
-    assembly_format = "attr-dict `:` type($res)"
+    assembly_format = "attr-dict `:` qualified(type($res))"
 
     def __init__(self):
         super().__init__(result_types=[LLVMPointerType()])
 
 
 class VectorReduceOperation(IRDLOperation, ABC):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint.get("T", AnyFloat)
 
     start_value = operand_def(T)
     vector = operand_def(VectorType.constr(T))
@@ -3742,8 +3872,8 @@ class VectorReduceOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        start_value: Operation | SSAValue,
-        vector: Operation | SSAValue,
+        start_value: OperandArg,
+        vector: OperandArg,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
         if not isinstance(fast_math, FastMathAttr):
@@ -3771,9 +3901,9 @@ class StackRestoreOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    assembly_format = "$ptr attr-dict `:` type($ptr)"
+    assembly_format = "$ptr attr-dict `:` qualified(type($ptr))"
 
-    def __init__(self, ptr: Operation | SSAValue):
+    def __init__(self, ptr: OperandArg):
         super().__init__(operands=[ptr])
 
 
@@ -3813,6 +3943,8 @@ LLVM = Dialect(
         FLogOp,
         FLog2Op,
         FMAOp,
+        FMaximumOp,
+        FMinimumOp,
         FMulOp,
         FNegOp,
         FPExtOp,
@@ -3841,6 +3973,8 @@ LLVM = Dialect(
         SExtOp,
         SelectOp,
         SIToFPOp,
+        SMaxOp,
+        SMinOp,
         SRemOp,
         ShlOp,
         ShuffleVectorOp,
@@ -3850,6 +3984,8 @@ LLVM = Dialect(
         SubOp,
         TruncOp,
         UDivOp,
+        UMaxOp,
+        UMinOp,
         URemOp,
         UndefOp,
         UnreachableOp,

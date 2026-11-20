@@ -1,7 +1,6 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
     ComplexType,
     IndexType,
     IntAttr,
@@ -9,6 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneType,
     Signedness,
+    TensorType,
     f32,
 )
 from xdsl.irdl import (
@@ -25,6 +25,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParamAttrDef,
     PropertyDef,
+    RangeOf,
     ResultDef,
     SameVariadicOperandSize,
     VarOperandDef,
@@ -69,18 +70,26 @@ ops = [
                 (
                     "in_",
                     OperandDef(
-                        AllOf(
-                            (
-                                AnyAttr(),
-                                BaseAttr(SingletonAType),
+                        RangeOf(
+                            AllOf(
+                                (
+                                    AnyAttr(),
+                                    BaseAttr(SingletonAType),
+                                )
                             )
-                        )
+                        ).of_length(1)
                     ),
                 )
             ],
         ),
     ),
-    ("Test_AnyOp", OpDef(name="test.any", operands=[("in_", OperandDef(AnyAttr()))])),
+    (
+        "Test_AnyOp",
+        OpDef(
+            name="test.any",
+            operands=[("in_", OperandDef(RangeOf(AnyAttr()).of_length(1)))],
+        ),
+    ),
     (
         "Test_Integers",
         OpDef(
@@ -89,13 +98,18 @@ ops = [
                 (
                     "any_int",
                     OperandDef(
-                        ParamAttrConstraint(
-                            IntegerType,
-                            (EqAttrConstraint(IntAttr(8)), AnyAttr()),
-                        )
+                        RangeOf(
+                            ParamAttrConstraint(
+                                IntegerType,
+                                (EqAttrConstraint(IntAttr(8)), AnyAttr()),
+                            )
+                        ).of_length(1)
                     ),
                 ),
-                ("any_integer", OperandDef(BaseAttr(IntegerType))),
+                (
+                    "any_integer",
+                    OperandDef(RangeOf(BaseAttr(IntegerType)).of_length(1)),
+                ),
             ],
         ),
     ),
@@ -107,13 +121,15 @@ ops = [
                 (
                     "in_",
                     OperandDef(
-                        AnyOf(
-                            (
-                                BaseAttr(SingletonAType),
-                                BaseAttr(SingletonBType),
-                                BaseAttr(SingletonCType),
+                        RangeOf(
+                            AnyOf(
+                                (
+                                    BaseAttr(SingletonAType),
+                                    BaseAttr(SingletonBType),
+                                    BaseAttr(SingletonCType),
+                                )
                             )
-                        )
+                        ).of_length(1)
                     ),
                 )
             ],
@@ -124,16 +140,37 @@ ops = [
         OpDef(
             name="test.types",
             operands=[
-                ("a", OperandDef(EqAttrConstraint(IntegerType(32)))),
-                ("b", OperandDef(EqAttrConstraint(IntegerType(64, Signedness.SIGNED)))),
+                (
+                    "a",
+                    OperandDef(RangeOf(EqAttrConstraint(IntegerType(32))).of_length(1)),
+                ),
+                (
+                    "b",
+                    OperandDef(
+                        RangeOf(
+                            EqAttrConstraint(IntegerType(64, Signedness.SIGNED))
+                        ).of_length(1)
+                    ),
+                ),
                 (
                     "c",
-                    OperandDef(EqAttrConstraint(IntegerType(8, Signedness.UNSIGNED))),
+                    OperandDef(
+                        RangeOf(
+                            EqAttrConstraint(IntegerType(8, Signedness.UNSIGNED))
+                        ).of_length(1)
+                    ),
                 ),
-                ("d", OperandDef(EqAttrConstraint(IndexType()))),
-                ("e", OperandDef(EqAttrConstraint(f32))),
-                ("f", OperandDef(EqAttrConstraint(NoneType()))),
-                ("v1", OperandDef(ParamAttrConstraint(ComplexType, (AnyAttr(),)))),
+                ("d", OperandDef(RangeOf(EqAttrConstraint(IndexType())).of_length(1))),
+                ("e", OperandDef(RangeOf(EqAttrConstraint(f32)).of_length(1))),
+                ("f", OperandDef(RangeOf(EqAttrConstraint(NoneType())).of_length(1))),
+                (
+                    "v1",
+                    OperandDef(
+                        RangeOf(
+                            ParamAttrConstraint(ComplexType, (AnyAttr(),))
+                        ).of_length(1)
+                    ),
+                ),
             ],
         ),
     ),
@@ -141,8 +178,8 @@ ops = [
         "Test_SingleOp",
         OpDef(
             name="test.single",
-            operands=[("arg", OperandDef(AnyTensorTypeConstr))],
-            results=[("res", ResultDef(AnyTensorTypeConstr))],
+            operands=[("arg", OperandDef(RangeOf(BaseAttr(TensorType)).of_length(1)))],
+            results=[("res", ResultDef(RangeOf(BaseAttr(TensorType)).of_length(1)))],
             assembly_format="$arg attr-dict : type($arg) -> type($res)",
         ),
     ),
@@ -151,9 +188,12 @@ ops = [
         OpDef(
             name="test.variadic",
             operands=[
-                ("opt", OptOperandDef(BaseAttr(SingletonAType))),
-                ("variadic", VarOperandDef(BaseAttr(SingletonAType))),
-                ("required", OperandDef(BaseAttr(SingletonCType))),
+                ("opt", OptOperandDef(RangeOf(BaseAttr(SingletonAType)))),
+                ("variadic", VarOperandDef(RangeOf(BaseAttr(SingletonAType)))),
+                (
+                    "required",
+                    OperandDef(RangeOf(BaseAttr(SingletonCType)).of_length(1)),
+                ),
             ],
             options=[SameVariadicOperandSize(), AttrSizedOperandSegments()],
         ),

@@ -68,7 +68,7 @@ def insert_stride_pattern_ops(
     ints = tuple(builtin.IntAttr(i) for i in range(rank))
 
     b_ops = tuple(rv32.LiOp(b.data) for b in reversed(ub.data))
-    new_b_ops = tuple(riscv.AddiOp(b_op.rd, -1) for b_op in b_ops)
+    new_b_ops = tuple(riscv.ops.AddiOp(b_op.rd, -1) for b_op in b_ops)
     set_bound_ops = tuple(
         snitch.SsrSetDimensionBoundOp(new_b_op, dm, i)
         for (i, new_b_op) in zip(ints, new_b_ops, strict=True)
@@ -87,9 +87,9 @@ def insert_stride_pattern_ops(
     ]
 
     for i in range(1, rank):
-        a_inc_op = riscv.MulOp(new_b_ops[i - 1], s_ops[i - 1])
-        new_a_op = riscv.AddOp(a_op, a_inc_op)
-        stride_op = riscv.SubOp(s_ops[i], new_a_op)
+        a_inc_op = riscv.ops.MulOp(new_b_ops[i - 1], s_ops[i - 1])
+        new_a_op = riscv.ops.AddOp(a_op, a_inc_op)
+        stride_op = riscv.ops.SubOp(s_ops[i], new_a_op)
         set_stride_op = snitch.SsrSetDimensionStrideOp(stride_op.rd, dm, ints[i])
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op

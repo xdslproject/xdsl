@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OperandArg,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -116,12 +117,12 @@ class ChannelGetOp(IRDLOperation):
     def __init__(
         self,
         chan_name: SymbolRefAttr,
-        async_dependencies: list[Operation | SSAValue],
-        indices: list[Operation | SSAValue],
-        dst: Operation | SSAValue,
-        dst_offsets: list[Operation | SSAValue],
-        dst_sizes: list[Operation | SSAValue],
-        dst_strides: list[Operation | SSAValue],
+        async_dependencies: list[OperandArg],
+        indices: list[OperandArg],
+        dst: OperandArg,
+        dst_offsets: list[OperandArg],
+        dst_sizes: list[OperandArg],
+        dst_strides: list[OperandArg],
     ):
         super().__init__(
             properties={"chan_name": chan_name},
@@ -158,12 +159,12 @@ class ChannelPutOp(IRDLOperation):
     def __init__(
         self,
         chan_name: SymbolRefAttr,
-        async_dependencies: list[Operation | SSAValue],
-        indices: list[Operation | SSAValue],
-        src: Operation | SSAValue,
-        src_offsets: list[Operation | SSAValue],
-        src_sizes: list[Operation | SSAValue],
-        src_strides: list[Operation | SSAValue],
+        async_dependencies: list[OperandArg],
+        indices: list[OperandArg],
+        src: OperandArg,
+        src_offsets: list[OperandArg],
+        src_sizes: list[OperandArg],
+        src_strides: list[OperandArg],
     ):
         super().__init__(
             properties={"chan_name": chan_name},
@@ -196,8 +197,8 @@ class CustomOp(IRDLOperation):
     def __init__(
         self,
         symbol: SymbolRefAttr,
-        async_dependencies: list[Operation | SSAValue],
-        custom_operands: list[Operation | SSAValue],
+        async_dependencies: list[OperandArg],
+        custom_operands: list[OperandArg],
     ):
         super().__init__(
             properties={"symbol": symbol},
@@ -217,8 +218,8 @@ class DeallocOp(IRDLOperation):
 
     def __init__(
         self,
-        async_dependencies: list[Operation | SSAValue],
-        memref: Operation | SSAValue,
+        async_dependencies: list[OperandArg],
+        memref: OperandArg,
     ):
         super().__init__(
             operands=[async_dependencies, memref], result_types=[AsyncTokenAttr()]
@@ -248,15 +249,15 @@ class DmaMemcpyNdOp(IRDLOperation):
 
     def __init__(
         self,
-        async_dependencies: list[Operation | SSAValue] | None,
-        dst: Operation | SSAValue,
-        dst_offsets: list[Operation | SSAValue],
-        dst_sizes: list[Operation | SSAValue],
-        dst_strides: list[Operation | SSAValue],
-        src: Operation | SSAValue,
-        src_offsets: list[Operation | SSAValue],
-        src_sizes: list[Operation | SSAValue],
-        src_strides: list[Operation | SSAValue],
+        async_dependencies: list[OperandArg] | None,
+        dst: OperandArg,
+        dst_offsets: list[OperandArg],
+        dst_sizes: list[OperandArg],
+        dst_strides: list[OperandArg],
+        src: OperandArg,
+        src_offsets: list[OperandArg],
+        src_sizes: list[OperandArg],
+        src_strides: list[OperandArg],
     ):
         print(
             async_dependencies,
@@ -338,7 +339,7 @@ class ExecuteTerminatorOp(IRDLOperation):
 
     traits = traits_def(HasParent(ExecuteOp), IsTerminator())
 
-    def __init__(self, results_op: list[Operation | SSAValue]):
+    def __init__(self, results_op: list[OperandArg]):
         super().__init__(operands=[results_op])
 
     @classmethod
@@ -386,8 +387,8 @@ class HerdOp(IRDLOperation):
         self,
         sym_name: StringAttr | None,
         async_dependencies: Sequence[SSAValue] | None,
-        sizes: list[Operation | SSAValue],
-        herd_operands: list[Operation | SSAValue] | None,
+        sizes: list[OperandArg],
+        herd_operands: list[OperandArg] | None,
         region: Region | None,
     ):
         super().__init__(
@@ -468,7 +469,7 @@ class HerdOp(IRDLOperation):
         parser.parse_keyword("in")
 
         parser.parse_characters("(")
-        tile_size_lst: list[Operation | SSAValue] = []
+        tile_size_lst: list[OperandArg] = []
         for n_arg in range(len(arg_list)):
             parser.parse_optional_argument(False)
             parser.parse_characters("=")
@@ -480,7 +481,7 @@ class HerdOp(IRDLOperation):
         parser.parse_characters(")")
         arguments_lst: list[Parser.Argument] = []
 
-        operands_lst: list[Operation | SSAValue] = []
+        operands_lst: list[OperandArg] = []
         if parser.parse_optional_keyword("args"):
 
             def parse_binding() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
@@ -543,8 +544,8 @@ class LaunchOp(IRDLOperation):
         self,
         sym_name: StringAttr | None,
         async_dependencies: Sequence[SSAValue] | None,
-        sizes: list[Operation | SSAValue],
-        launch_operands: list[Operation | SSAValue],
+        sizes: list[OperandArg],
+        launch_operands: list[OperandArg],
         body: Region | None,
     ):
         super().__init__(
@@ -575,7 +576,7 @@ class LaunchOp(IRDLOperation):
 
         arguments_lst: list[Parser.Argument] = []
 
-        sizes_operands_lst: list[Operation | SSAValue] = []
+        sizes_operands_lst: list[OperandArg] = []
         while not parser.parse_optional_characters(")"):
             argument = parser.parse_argument(expect_type=False)
             parser.parse_characters("=")
@@ -587,7 +588,7 @@ class LaunchOp(IRDLOperation):
 
             parser.parse_optional_characters(",")
 
-        launch_operands_lst: list[Operation | SSAValue] = []
+        launch_operands_lst: list[OperandArg] = []
         attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("args"):
 
@@ -652,9 +653,9 @@ class SegmentOp(IRDLOperation):
     def __init__(
         self,
         sym_name: StringAttr | None,
-        async_dependencies: list[Operation | SSAValue],
-        sizes: list[Operation | SSAValue],
-        segment_operands: list[Operation | SSAValue],
+        async_dependencies: list[OperandArg],
+        sizes: list[OperandArg],
+        segment_operands: list[OperandArg],
         body: Region | None,
     ):
         super().__init__(
@@ -667,14 +668,14 @@ class SegmentOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> SegmentOp:
         sym_name = parser.parse_optional_symbol_name()
-        async_dependencies: list[Operation | SSAValue] = []
-        sizes: list[Operation | SSAValue] = []
+        async_dependencies: list[OperandArg] = []
+        sizes: list[OperandArg] = []
         parser.parse_optional_keyword("async")
         # TODO: unclear from the tests how to parse async. Follow the C++ code for the original custom parser
         if parser.parse_optional_keyword("unroll"):
             pass  # TODO: unclear from the tests how to parse unroll. Follow the C++ code for the original custom parser
         arguments_lst: list[Parser.Argument] = []
-        segment_operands_lst: list[Operation | SSAValue] = []
+        segment_operands_lst: list[OperandArg] = []
         if parser.parse_optional_keyword("args"):
 
             def parse_binding() -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:

@@ -7,7 +7,6 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl_stencil, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyTensorType,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
@@ -27,7 +26,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -47,13 +45,13 @@ from xdsl.transforms.varith_transformations import (
 from xdsl.utils.hints import isa
 
 
-def get_stencil_access_operands(op: Operand) -> set[Operand]:
+def get_stencil_access_operands(op: SSAValue) -> set[SSAValue]:
     """
     Returns the symbols of all stencil accessess by op and all its dependencies.
     """
-    res: set[Operand] = set()
-    frontier: set[Operand] = {op}
-    next: set[Operand] = set()
+    res: set[SSAValue] = set()
+    frontier: set[SSAValue] = {op}
+    next: set[SSAValue] = set()
     while len(frontier) > 0:
         for o in frontier:
             if isinstance(o, OpResult):
@@ -112,12 +110,12 @@ class ConvertAccessOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        if isa(op.temp.type, AnyTensorType):
+        if isa(op.temp.type, TensorType):
             res_type = TensorType(
                 op.temp.type.get_element_type(), op.temp.type.get_shape()[1:]
             )
         else:
-            assert isa(op.res.type, AnyTensorType)
+            assert isa(op.res.type, TensorType)
             res_type = op.res.type
         rewriter.replace(
             op,
@@ -479,11 +477,11 @@ class ConvertApplyOpPattern(RewritePattern):
         done_exchange = Region(Block(arg_types=done_exchange_args))
 
         # translate old to new block arg index for optional args
-        chunk_region_oprnd_table = dict[Operand, Operand](
+        chunk_region_oprnd_table = dict[SSAValue, SSAValue](
             (old, receive_chunk.block.args[idx])
             for idx, old in enumerate(chunk_region_used_block_args, start=3)
         )
-        done_exchange_oprnd_table = dict[Operand, Operand](
+        done_exchange_oprnd_table = dict[SSAValue, SSAValue](
             (old, done_exchange.block.args[idx])
             for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
@@ -506,7 +504,7 @@ class ConvertApplyOpPattern(RewritePattern):
         for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-            o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
+            o.set_operands([chunk_region_oprnd_table.get(x, x) for x in o.operands])
             rewriter.insert(o, InsertPoint.at_end(receive_chunk.block))
 
         # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
@@ -525,7 +523,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # add operations from list to done_exchange, use translation table to rebuild operands
         for o in done_exchange_ops:
-            o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
+            o.set_operands([done_exchange_oprnd_table.get(x, x) for x in o.operands])
             rewriter.insert(o, InsertPoint.at_end(done_exchange.block))
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace(o, csl_stencil.YieldOp(*o.operands))
@@ -602,7 +600,7 @@ class TransformPrefetch(RewritePattern):
         # because we are building a set of offsets, we are not retaining offset mappings
         offsets = [swap.neighbor for swap in op.swaps]
 
-        assert isa(op.result.type, AnyTensorType)
+        assert isa(op.result.type, TensorType)
         chunk_buf_t = TensorType(
             op.result.type.get_element_type(),
             (
@@ -622,7 +620,7 @@ class TransformPrefetch(RewritePattern):
                 ac_op = csl_stencil.AccessOp(
                     buf, stencil.IndexAttr.from_indices(*acc_offset), chunk_t
                 )
-                assert isa(ac_op.result.type, AnyTensorType)
+                assert isa(ac_op.result.type, TensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)
                 # where the latter offset is provided dynamically (see offsets)
                 dest = tensor.InsertSliceOp.get(
