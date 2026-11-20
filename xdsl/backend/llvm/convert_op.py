@@ -108,6 +108,9 @@ _CAST_OP_NAMES: dict[type[Operation], str] = {
     llvm.FPExtOp: "fpext",
     llvm.FPTruncOp: "fptrunc",
     llvm.SIToFPOp: "sitofp",
+    llvm.UIToFPOp: "uitofp",
+    llvm.FPToSIOp: "fptosi",
+    llvm.FPToUIOp: "fptoui",
 }
 
 
@@ -140,7 +143,7 @@ def _convert_cast(
     match op:
         case llvm.IntegerConversionOpOverflow() if op.overflowFlags:
             flags = [f.value for f in op.overflowFlags.data]
-        case llvm.IntegerConversionOpNNeg() if op.non_neg:
+        case llvm.IntegerConversionOpNNeg() | llvm.UIToFPOp() if op.non_neg:
             flags = ["nneg"]
         case _:
             flags = []
