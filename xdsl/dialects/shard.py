@@ -531,7 +531,7 @@ class ScatterOp(CollectiveCommunicationOperation):
     Scatter tensor over a device shard.
 
     For each device group split the input tensor on the `root` device along
-    axis `scatter_axis` and scatter the parts across the group devices.
+    axis `scatter_dim` and scatter the parts across the group devices.
 
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardscatter-shardscatterop).
     """
@@ -539,7 +539,7 @@ class ScatterOp(CollectiveCommunicationOperation):
     name = "shard.scatter"
 
     input = operand_def(TensorType)
-    scatter_axis = prop_def(IntegerAttr.constr(IndexType))
+    scatter_dim = prop_def(IntegerAttr.constr(IndexType))
 
     root = prop_def(DenseArrayBase[I64])
     root_dynamic = var_operand_def(IndexType)
@@ -552,7 +552,7 @@ class ScatterOp(CollectiveCommunicationOperation):
 
     assembly_format = (
         "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
-        + "`scatter_axis` `=` $scatter_axis "
+        + "`scatter_dim` `=` $scatter_dim "
         + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
         + "attr-dict `:` functional-type(operands, results)"
     )

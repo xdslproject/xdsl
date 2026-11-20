@@ -69,4 +69,7 @@ builtin.module {
 
     %fptrunc = llvm.fptrunc %f1 : f32 to f16
     // CHECK: llvm.fptrunc [[f1]] : f32 to f16
+
+    %fpext = llvm.fpext %f1 : f32 to f64
+    // CHECK: llvm.fpext [[f1]] : f32 to f64
 }
