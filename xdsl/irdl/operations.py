@@ -1526,7 +1526,7 @@ def irdl_build_operations_arg(
         return []
     elif isinstance(operand, ir.SSAValue):
         return operand
-    elif isinstance(operand, ir.Operation):
+    elif isinstance(operand, ir.Operation | ir.Use):
         return ir.SSAValue.get(operand)
     else:
         return [ir.SSAValue.get(op) for op in operand]

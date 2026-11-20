@@ -1091,8 +1091,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
         fastmath: riscv.attrs.FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(rd, Operation):
-            rd = SSAValue.get(rd)
+        rd = SSAValue.get(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1141,8 +1140,7 @@ class RdRsAccumulatingFloatOperation(riscv.abstract_ops.RISCVInstruction, ABC):
         *,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(rd, Operation):
-            rd = SSAValue.get(rd)
+        rd = SSAValue.get(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 

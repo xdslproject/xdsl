@@ -7,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import move_ops_for_value
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import OperandArg, Operation, SSAValue, SSAValues
+from xdsl.ir import OperandArg, SSAValue, SSAValues
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -26,8 +26,7 @@ def _insert_mv_op(
     dst: riscv.registers.RISCVRegisterType,
     src_width: int,
 ):
-    if isinstance(src, Operation):
-        src = SSAValue.get(src)
+    src = SSAValue.get(src)
 
     # We only need to specify the type in case of floats
     # otherwise, the type is ignored, so we just pass an arbitrary attribute here

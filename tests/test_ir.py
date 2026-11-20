@@ -1344,6 +1344,24 @@ def test_ssa_get_on_op():
         SSAValue.get(op2)
 
 
+def test_ssa_get_on_use():
+    value = create_ssa_value(i32)
+    test.TestOp.create(operands=[value])
+    (use,) = value.uses
+
+    assert SSAValue.get(use) is value
+    assert SSAValue.get(use, type=IntegerType) is value
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> "
+            "but got SSAValue with type i32."
+        ),
+    ):
+        SSAValue.get(use, type=IndexType)
+
+
 def test_repr():
     bb = tuple(Block(arg_types=(i32,)) for _ in range(3))
     bb[0].add_op(test.TestTermOp(result_types=(i32,), successors=bb[1:]))

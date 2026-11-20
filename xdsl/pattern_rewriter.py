@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import Generic, Union, final, get_args, get_origin
+from typing import Union, final, get_args, get_origin
 
 from typing_extensions import TypeVar, deprecated
 
@@ -24,7 +24,6 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
-    SSAValueCovT,
     Use,
 )
 from xdsl.irdl import AttrConstraint, irdl_to_attr_constraint
@@ -86,24 +85,24 @@ class PatternRewriterListener(BuilderListener):
             )
 
 
-class _TrackingPredicate(Generic[SSAValueCovT]):
+class _TrackingPredicate:
     """
     A callable class which is used as a predicate in `replace_uses_with_if`.
     The class takes a predicate and tracks all operations for which the predicate
     returned true.
     """
 
-    predicate: Callable[[Use[SSAValueCovT]], bool]
+    predicate: Callable[[Use[SSAValue]], bool]
     """The original predicate to call."""
 
     modified_ops: list[Operation]
     """The operations for which the predicate returned true."""
 
-    def __init__(self, predicate: Callable[[Use[SSAValueCovT]], bool]):
+    def __init__(self, predicate: Callable[[Use[SSAValue]], bool]):
         self.predicate = predicate
         self.modified_ops = []
 
-    def __call__(self, use: Use[SSAValueCovT]) -> bool:
+    def __call__(self, use: Use[SSAValue]) -> bool:
         if self.predicate(use):
             self.modified_ops.append(use.operation)
             return True
@@ -189,9 +188,9 @@ class PatternRewriter(Builder, PatternRewriterListener):
 
     def replace_uses_with_if(
         self,
-        from_value: SSAValueCovT,
+        from_value: SSAValue,
         to_value: SSAValue,
-        predicate: Callable[[Use[SSAValueCovT]], bool],
+        predicate: Callable[[Use[SSAValue]], bool],
     ):
         """Replace uses of `old` satisfying `predicate` with `new`."""
         if from_value is to_value:

@@ -2102,7 +2102,8 @@ class SignednessCastOp(IRDLOperation):
         - Signless => Unsigned
         """
         if result_type is None:
-            typ = op.results[0].type if isinstance(op, Operation) else op.type
+            op = SSAValue.get(op)
+            typ = op.type
             assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
