@@ -130,3 +130,22 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 
 // CHECK: value must not be empty
 %lit = emitc.literal "" : i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i64) to match the op's result type (i32)
+%v = "emitc.variable"() <{value = 42 : i64}> : () -> !emitc.lvalue<i32>
+
+// -----
+
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i32) to match the op's result type (!emitc.array<2xi32>)
+%v = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.array<2xi32>
+
+// -----
+
+// CHECK: Unexpected attribute i32
+%v = "emitc.variable"() <{value = 42 : i32}> : () -> i32
