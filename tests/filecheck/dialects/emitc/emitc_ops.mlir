@@ -5,6 +5,8 @@
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
+%lvalue_i32 = "test.op"() : () -> !emitc.lvalue<i32>
+%lvalue_ptr = "test.op"() : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
 
 //===----------------------------------------------------------------------===//
 // CallOpaqueOp
@@ -87,3 +89,15 @@ emitc.call_opaque "test" ()  : () -> ()
 %lit_pi = emitc.literal "M_PI" : f32
 // CHECK: %lit_pi = emitc.literal "M_PI" : f32
 // CHECK-GENERIC: %lit_pi = "emitc.literal"() <{value = "M_PI"}> : () -> f32
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%load = emitc.load %lvalue_i32 : !emitc.lvalue<i32>
+// CHECK: %load = emitc.load %lvalue_i32 : <i32>
+// CHECK-GENERIC: %load = "emitc.load"(%lvalue_i32) : (!emitc.lvalue<i32>) -> i32
+
+%load_ptr = emitc.load %lvalue_ptr : !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK: %load_ptr = emitc.load %lvalue_ptr : <!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK-GENERIC: %load_ptr = "emitc.load"(%lvalue_ptr) : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>) -> !emitc.ptr<!emitc.opaque<"int32_t">>
