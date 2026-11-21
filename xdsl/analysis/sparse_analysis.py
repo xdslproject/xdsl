@@ -41,7 +41,7 @@ class AbstractLatticeValue(Protocol):
     - In constant propagation: the lattice value might be `⊥ (bottom) | Constant(n) | ⊤ (top)`
     - In sign analysis: the lattice value might be `Positive | Negative | Zero | Unknown`
     - In range analysis: the lattice value might be `Interval(min, max)`
-    """
+    """  # noqa: RUF002
 
     @classmethod
     def initial_value(cls) -> Self:
@@ -85,7 +85,7 @@ class AbstractLatticeValue(Protocol):
         - In constant propagation: `Constant(3) ∨ Constant(4) = ⊤ (top)`
         - In sign analysis: `Positive ∨ Negative = Unknown`
         - In range analysis: `[0, 10] ∨ [5, 15] = [0, 15]`
-        """
+        """  # noqa: RUF002
         ...
 
 
