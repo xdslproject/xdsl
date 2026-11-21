@@ -20,6 +20,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasFolder,
     InvocationBounds,
+    OperandRange,
     RegionBranchOpTrait,
     RegionBranchPoint,
     RegionBranchTerminatorOpTrait,
@@ -139,6 +140,12 @@ class _RegionBranchOpInterfaceTrait(RegionBranchOpTrait):
     """
 
     @classmethod
+    def entry_successor_operands(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> OperandRange:
+        return cast(RegionBranchOpInterface, op).entry_successor_operands(successor)
+
+    @classmethod
     def entry_successor_regions(
         cls, op: Operation, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
@@ -190,6 +197,10 @@ class RegionBranchOpInterface(Operation, abc.ABC):
 
     traits = traits_def(_RegionBranchOpInterfaceTrait())
 
+    def entry_successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        """See `RegionBranchOpTrait.entry_successor_operands`."""
+        return OperandRange(self, 0, 0)
+
     def entry_successor_regions(
         self, operands: Sequence[Attribute | None]
     ) -> Sequence[RegionSuccessor]:
@@ -239,12 +250,21 @@ class _RegionBranchTerminatorOpInterfaceTrait(RegionBranchTerminatorOpTrait):
     `RegionBranchTerminatorOpInterface`.
     """
 
+    @classmethod
+    def successor_operands(
+        cls, op: Operation, successor: RegionSuccessor
+    ) -> OperandRange:
+        return cast(RegionBranchTerminatorOpInterface, op).successor_operands(successor)
+
 
 class RegionBranchTerminatorOpInterface(Operation, abc.ABC):
     """
-    An operation subclassing this interface is a terminator that branches between the
-    regions of its parent `RegionBranchOpInterface`. Wraps
-    `RegionBranchTerminatorOpTrait`.
+    An operation subclassing this interface may override its methods, whose semantics are
+    documented on `RegionBranchTerminatorOpTrait`. Wraps `RegionBranchTerminatorOpTrait`.
     """
 
     traits = traits_def(_RegionBranchTerminatorOpInterfaceTrait())
+
+    def successor_operands(self, successor: RegionSuccessor) -> OperandRange:
+        """See `RegionBranchTerminatorOpTrait.successor_operands`."""
+        return OperandRange(self)
