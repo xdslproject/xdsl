@@ -20,7 +20,7 @@ class JITBackend(abc.ABC):
     Compile a module symbol to a :class:`~xdsl.jit.function.RawJITFunc`.
 
     Implementations receive the module produced by the frontend, lower it to the
-    backend’s dialect, and bind ``symbol`` for native calls.
+    backend's dialect, and bind ``symbol`` for native calls.
     """
 
     c_type_context: CTypeContext
