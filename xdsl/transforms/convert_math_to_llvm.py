@@ -82,7 +82,14 @@ def _float_one(type: Attribute) -> llvm.ConstantOp | None:
     return llvm.ConstantOp(value, type)
 
 
-_FLOAT_INTRINSICS: dict[type[Operation], type[IRDLOperation]] = {
+_FloatMathOp: TypeAlias = (
+    math.FloatingPointLikeUnaryMathOperation
+    | math.FloatingPointLikeBinaryMathOperation
+    | math.FmaOp
+)
+"""`math` operations that have a floating-point result and fast-math flags."""
+
+_FLOAT_INTRINSICS: dict[type[_FloatMathOp], type[IRDLOperation]] = {
     math.AbsFOp: llvm.FAbsOp,
     math.CeilOp: llvm.FCeilOp,
     math.CopySignOp: llvm.FCopySignOp,
@@ -107,14 +114,10 @@ class ConvertFloatIntrinsicOp(RewritePattern):
     """
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, _FloatMathOp):
+            return
         if (intrinsic_type := _FLOAT_INTRINSICS.get(type(op))) is None:
             return
-        assert isinstance(
-            op,
-            math.FloatingPointLikeUnaryMathOperation
-            | math.FloatingPointLikeBinaryMathOperation
-            | math.FmaOp,
-        )
         if not _is_llvm_compatible_float_like(op.result.type):
             return
         intrinsic = intrinsic_type.create(
