@@ -23,6 +23,7 @@ from llvmlite.ir.instructions import (
     Ret,
     ShuffleVector,
     StoreInstr,
+    SwitchInstr,
     Unreachable,
 )
 from llvmlite.ir.module import Module
@@ -579,7 +580,7 @@ class IRBuilder:
         """
         ...
 
-    def switch(self, value, default):  # -> SwitchInstr:
+    def switch(self, value: Value, default: Block) -> SwitchInstr:
         """
         Create a switch-case with a single *default* target.
         """
