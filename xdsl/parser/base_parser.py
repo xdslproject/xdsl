@@ -96,17 +96,11 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             "Expected integer literal" + context_msg,
         )
 
-    def parse_optional_float(
-        self,
-        *,
-        allow_negative: bool = True,
-    ) -> float | None:
+    def parse_optional_float(self) -> float | None:
         """
         Parse a (possibly negative) float, if present.
         """
-        is_negative = False
-        if allow_negative:
-            is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
+        is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
 
         if (value := self._parse_optional_token(MLIRTokenKind.FLOAT_LIT)) is not None:
             value = value.kind.get_float_value(value.span)
@@ -115,17 +109,13 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         if is_negative:
             self.raise_error("Expected float literal after '-'")
 
-    def parse_float(
-        self,
-        *,
-        allow_negative: bool = True,
-    ) -> float:
+    def parse_float(self) -> float:
         """
         Parse a (possibly negative) float.
         """
 
         return self.expect(
-            lambda: self.parse_optional_float(allow_negative=allow_negative),
+            self.parse_optional_float,
             "Expected float literal",
         )
 
@@ -146,7 +136,8 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         ) is not None:
             return -value if is_negative else value
 
-        if (value := self.parse_optional_float(allow_negative=False)) is not None:
+        if (token := self._parse_optional_token(MLIRTokenKind.FLOAT_LIT)) is not None:
+            value = token.kind.get_float_value(token.span)
             return -value if is_negative else value
 
         if is_negative:
