@@ -34,6 +34,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
+    BlockArgument,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -64,7 +65,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, MemoryWriteEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -440,6 +441,53 @@ class EmitC_ApplyOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_AssignOp(IRDLOperation):
+    """
+    Assign operation.
+
+    The `emitc.assign` operation stores an SSA value to the location designated
+    by an EmitC variable. This operation doesn't return any value. The assigned
+    value must be of the same type as the variable being assigned. The operation
+    is emitted as a C/C++ '=' operator.
+
+    Example:
+
+    ```mlir
+    // Integer variable
+    %0 = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.lvalue<i32>
+    %1 = emitc.call_opaque "foo"() : () -> (i32)
+
+    // Assign emitted as `... = ...;`
+    "emitc.assign"(%0, %1) : (!emitc.lvalue<i32>, i32) -> ()
+    ```
+    """
+
+    name = "emitc.assign"
+
+    var = operand_def(EmitC_LValueType)
+    value = operand_def(EmitCTypeConstr)
+
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
+
+    def __init__(self, var: SSAValue | Operation, value: SSAValue | Operation):
+        super().__init__(operands=[var, value])
+
+    def verify_(self) -> None:
+        if isinstance(self.var, BlockArgument):
+            raise VerifyException("cannot assign to block argument")
+
+        assert isinstance(self.var.type, EmitC_LValueType)
+        variable_type = self.var.type.value_type
+        if variable_type != self.value.type:
+            raise VerifyException(
+                f"requires value's type ({self.value.type}) to match "
+                f"variable's type ({variable_type})"
+            )
+
+
+@irdl_op_definition
 class EmitC_CallOpaqueOp(IRDLOperation):
     """
     The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
@@ -700,6 +748,7 @@ EmitC = Dialect(
     [
         EmitC_AddOp,
         EmitC_ApplyOp,
+        EmitC_AssignOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_LiteralOp,
