@@ -104,7 +104,8 @@ def test_frep_carried_vars():
     )
 
 
-def _snitch_interpreter() -> Interpreter:
+@pytest.fixture
+def interpreter() -> Interpreter:
     interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(RiscvSnitchFunctions())
     return interpreter
@@ -114,8 +115,7 @@ def _float_reg():
     return create_ssa_value(riscv.Registers.UNALLOCATED_FLOAT)
 
 
-def test_vfcpka_s_s():
-    interpreter = _snitch_interpreter()
+def test_vfcpka_s_s(interpreter: Interpreter):
     op = riscv_snitch.VFCpkASSOp(
         _float_reg(), _float_reg(), rd=riscv.Registers.UNALLOCATED_FLOAT
     )
@@ -147,10 +147,10 @@ H_OPS: list[
 
 @pytest.mark.parametrize("op_type, fn", S_OPS)
 def test_packed_f32_ops(
+    interpreter: Interpreter,
     op_type: type[riscv.RdRsRsFloatOperationWithFastMath],
     fn: Callable[[float, float], float],
 ):
-    interpreter = _snitch_interpreter()
     lhs = (1.5, -3.0)
     rhs = (2.25, 4.0)
 
@@ -169,10 +169,10 @@ def test_packed_f32_ops(
 
 @pytest.mark.parametrize("op_type, fn", H_OPS)
 def test_packed_f16_ops(
+    interpreter: Interpreter,
     op_type: type[riscv.RdRsRsFloatOperationWithFastMath],
     fn: Callable[[float, float], float],
 ):
-    interpreter = _snitch_interpreter()
     lhs = (1.5, -3.0, 0.5, 8.0)
     rhs = (2.25, 4.0, -0.25, 0.125)
 
@@ -189,9 +189,7 @@ def test_packed_f16_ops(
     )
 
 
-def test_packed_f32_rounding_and_overflow():
-    interpreter = _snitch_interpreter()
-
+def test_packed_f32_rounding_and_overflow(interpreter: Interpreter):
     (result,) = interpreter.run_op(
         riscv_snitch.VFAddSOp(_float_reg(), _float_reg()),
         (
@@ -204,9 +202,7 @@ def test_packed_f32_rounding_and_overflow():
     assert result.get_values() == (1.0, math.inf)
 
 
-def test_packed_f16_rounding_and_overflow():
-    interpreter = _snitch_interpreter()
-
+def test_packed_f16_rounding_and_overflow(interpreter: Interpreter):
     (result,) = interpreter.run_op(
         riscv_snitch.VFMulHOp(_float_reg(), _float_reg()),
         (
@@ -218,8 +214,7 @@ def test_packed_f16_rounding_and_overflow():
     assert result.get_values() == (0.0999755859375, math.inf, -math.inf, 1.0)
 
 
-def test_packed_op_rejects_wrong_value():
-    interpreter = _snitch_interpreter()
+def test_packed_op_rejects_wrong_value(interpreter: Interpreter):
     op = riscv_snitch.VFAddSOp(_float_reg(), _float_reg())
 
     with pytest.raises(InterpretationError, match="Expected packed value"):
