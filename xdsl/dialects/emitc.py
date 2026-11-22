@@ -651,12 +651,8 @@ class EmitC_LoadOp(IRDLOperation):
 
     assembly_format = "$operand attr-dict `:` type($operand)"
 
-    def __init__(self, operand: SSAValue | Operation):
-        operand = SSAValue.get(operand, type=EmitC_LValueType)
-        super().__init__(
-            operands=[operand],
-            result_types=[operand.type.value_type],
-        )
+    def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
 
 
 @irdl_op_definition

@@ -145,7 +145,7 @@ def test_literal_op_is_side_effect_free():
 
 def test_load_op_init():
     lvalue = create_ssa_value(EmitC_LValueType(i32))
-    op = EmitC_LoadOp(lvalue)
+    op = EmitC_LoadOp(lvalue, i32)
 
     op.verify()
     assert op.operand is lvalue
@@ -154,7 +154,7 @@ def test_load_op_init():
 
 def test_load_op_init_from_operation():
     lvalue = create_ssa_value(EmitC_LValueType(i32))
-    op = EmitC_LoadOp(lvalue.owner)
+    op = EmitC_LoadOp(lvalue.owner, i32)
 
     op.verify()
     assert op.operand is lvalue
