@@ -1,5 +1,5 @@
 """
-CIRCT’s seq dialect.
+CIRCT's seq dialect.
 
 See external [documentation](https://circt.llvm.org/docs/Dialects/Seq/).
 """

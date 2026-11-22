@@ -2,7 +2,7 @@
 JIT execution of LLVM IR modules.
 
 The `xdsl.jit.llvm.backend.LLVMJITBackend` class compiles xDSL modules written in the
-LLVM dialect to native code, using llvmlite’s MCJIT execution engine and makes their
+LLVM dialect to native code, using llvmlite's MCJIT execution engine and makes their
 signatures callable from Python.
 
 To achieve this, the backend first derives the C function signature from the IR and then
@@ -51,7 +51,7 @@ uv run jit.py add.mlir  # 42
 ```
 
 We pass `lowering=()` to LLVMJITBackend, because the module is already in the LLVM
-dialect and doesn’t need additional lowering tooling.
+dialect and doesn't need additional lowering tooling.
 """
 
 from dataclasses import dataclass
