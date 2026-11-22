@@ -605,11 +605,12 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseOrByComplement,
             BitwiseOrBySelf,
             BitwiseOrByZero,
         )
 
-        return (BitwiseOrByZero(), BitwiseOrBySelf())
+        return (BitwiseOrByComplement(), BitwiseOrByZero(), BitwiseOrBySelf())
 
 
 @irdl_op_definition
