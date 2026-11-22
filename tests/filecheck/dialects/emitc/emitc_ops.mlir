@@ -47,6 +47,16 @@ emitc.call_opaque "test" ()  : () -> ()
 // CHECK-GENERIC: %add_tensor = "emitc.add"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 
 //===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+%assign_var, %assign_value = "test.op"() : () -> (!emitc.lvalue<i32>, i32)
+
+emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
+// CHECK: emitc.assign %assign_value : i32 to %assign_var : <i32>
+// CHECK-GENERIC: "emitc.assign"(%assign_var, %assign_value) : (!emitc.lvalue<i32>, i32) -> ()
+
+//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
