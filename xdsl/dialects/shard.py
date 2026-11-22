@@ -24,7 +24,12 @@ from xdsl.dialects.builtin import (
     i16,
     i64,
 )
-from xdsl.dialects.utils import DimensionList, DynamicIndexList, EnumAttribute
+from xdsl.dialects.utils import (
+    DimensionList,
+    DynamicIndexList,
+    EnumAttribute,
+    split_dynamic_index_list,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -169,13 +174,23 @@ class ShardingType(ParametrizedAttribute, TypeAttribute):
     name = "shard.sharding"
 
 
-NonZeroRankedTensorConstr = TensorType.constr(
-    shape=ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1)))
-)
+_NonZeroRankShapeConstr = ArrayAttr.constr(RangeOf.get(IntAttr).of_length(AtLeast(1)))
+"""
+Constrains a shape to have a non-zero rank.
+"""
+
+NonZeroRankedTensorConstr = TensorType.constr(shape=_NonZeroRankShapeConstr)
 """
 Constrains a ranked tensor to have a non-zero rank.
 
 Reflects MLIR's `AnyNon0RankedTensor`.
+"""
+
+NonZeroRankedMemRefConstr = MemRefType.constr(shape=_NonZeroRankShapeConstr)
+"""
+Constrains a memref to have a non-zero rank.
+
+Reflects MLIR's `AnyNon0RankedMemRef`.
 """
 
 
@@ -917,6 +932,66 @@ class ShardingOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ShardShapeOp(IRDLOperation):
+    """
+    Get the shard shape for a given process/device.
+
+    The device/process id is a multi-index of the device/process in the shard.
+    This operation might be used during partition when the shard shape depends
+    on (non-constant) values used in `shard.sharding`.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardshard_shape-shardshardshapeop).
+    """
+
+    name = "shard.shard_shape"
+
+    dims = prop_def(DenseArrayBase[I64])
+    dims_dynamic = var_operand_def(IndexType)
+    sharding = operand_def(ShardingType)
+    device = prop_def(DenseArrayBase[I64])
+    device_dynamic = var_operand_def(IndexType)
+
+    result = var_result_def(IndexType)
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "`dims` `=` custom<DynamicIndexList>($dims_dynamic, $dims) "
+        + "`sharding` `=` $sharding "
+        + "`device` `=` custom<DynamicIndexList>($device_dynamic, $device) "
+        + "attr-dict `:` type(results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def __init__(
+        self,
+        dims: Sequence[SSAValue | int],
+        sharding: SSAValue | Operation,
+        device: Sequence[SSAValue | int],
+    ):
+        static_dims, dynamic_dims = split_dynamic_index_list(dims, DYNAMIC_INDEX)
+        static_device, dynamic_device = split_dynamic_index_list(device, DYNAMIC_INDEX)
+        super().__init__(
+            operands=[dynamic_dims, sharding, dynamic_device],
+            result_types=[[IndexType()] * len(dims)],
+            properties={
+                "dims": DenseArrayBase.from_list(i64, static_dims),
+                "device": DenseArrayBase.from_list(i64, static_device),
+            },
+        )
+
+    def verify_(self) -> None:
+        expected = len(self.dims)
+        if len(self.results) != expected:
+            raise VerifyException(
+                f"Unexpected number of results {len(self.results)}. Expected {expected}."
+            )
+
+
+@irdl_op_definition
 class ShardOp(IRDLOperation):
     """
     Annotate on how a tensor is sharded across a shard.
@@ -955,6 +1030,97 @@ class ShardOp(IRDLOperation):
         )
 
 
+################################################################################
+# Halo operations                                                              #
+################################################################################
+
+
+@irdl_op_definition
+class UpdateHaloOp(GridSymbolUserOperation):
+    """
+    Update halo data.
+
+    This operation updates halo regions of shards, e.g. if their sharding
+    specified halos and the actual tensor/memref data might have changed
+    on the remote devices.
+
+    Destination is supposed to be initialized with the local data (not halos).
+
+    `split_axes` specifies for each tensor axis along which grid axes its halo
+    data is updated.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardupdate_halo-shardupdatehaloop).
+    """
+
+    name = "shard.update_halo"
+
+    T: ClassVar = VarConstraint(
+        "T", NonZeroRankedMemRefConstr | NonZeroRankedTensorConstr
+    )
+
+    destination = operand_def(T)
+    split_axes = prop_def(ShardAxesArrayAttr)
+    halo_sizes = var_operand_def(I64)
+    static_halo_sizes = prop_def(
+        DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
+    )
+
+    result = result_def(T)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$destination "
+        + "`on` $grid "
+        + "`split_axes` `=` $split_axes "
+        + "(`halo_sizes` `=` custom<DynamicIndexList>($halo_sizes, $static_halo_sizes)^)? "
+        + "attr-dict `:` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+    def __init__(
+        self,
+        destination: SSAValue | Operation,
+        grid: str | StringAttr | SymbolRefAttr,
+        split_axes: Sequence[Sequence[int]],
+        halo_sizes: Sequence[SSAValue | int] = (),
+    ):
+        static_halo_sizes, dynamic_halo_sizes = split_dynamic_index_list(
+            halo_sizes, DYNAMIC_INDEX
+        )
+        super().__init__(
+            operands=[destination, dynamic_halo_sizes],
+            result_types=[SSAValue.get(destination).type],
+            properties={
+                "grid": SymbolRefAttr.get(grid),
+                "split_axes": ShardAxesArrayAttr(
+                    ArrayAttr(ShardAxesAttr.from_list(i16, axes) for axes in split_axes)
+                ),
+                "static_halo_sizes": DenseArrayBase.from_list(i64, static_halo_sizes),
+            },
+        )
+
+    def verify_(self) -> None:
+        super().verify_()
+        split_axes = [axes.get_values() for axes in self.split_axes.axes]
+
+        visited: set[int] = set()
+        for axis in (axis for axes in split_axes for axis in axes):
+            if axis < 0:
+                raise VerifyException("grid axis is expected to be non-negative")
+            if axis in visited:
+                raise VerifyException("grid axis duplicated")
+            visited.add(axis)
+
+        if self.static_halo_sizes:
+            num_split_axes = sum(1 for axes in split_axes if axes)
+            if len(self.static_halo_sizes) != num_split_axes * 2:
+                raise VerifyException(
+                    "halo sizes must be specified for all split axes."
+                )
+
+
 Shard = Dialect(
     "shard",
     [
@@ -974,7 +1140,9 @@ Shard = Dialect(
         ProcessLinearIndexOp,
         ProcessMultiIndexOp,
         ShardingOp,
+        ShardShapeOp,
         ShardOp,
+        UpdateHaloOp,
     ],
     [
         ReductionKindAttr,

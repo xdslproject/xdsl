@@ -183,3 +183,65 @@ shard.grid @grid0(shape = 2x2x4)
 %0:2 = shard.neighbors_linear_indices on @missing[%i] split_axes = [0] : index, index
 
 // CHECK: Undefined required grid symbol "missing".
+
+// -----
+
+shard.grid @grid0(shape = 4x4)
+%m = "test.op"() : () -> memref<f32>
+%h = shard.update_halo %m on @grid0 split_axes = [[0]] : memref<f32>
+
+// CHECK: incorrect length for range variable
+
+// -----
+
+shard.grid @grid0(shape = 4x4)
+%m = "test.op"() : () -> memref<4xf32>
+%h = "shard.update_halo"(%m) <{grid = @grid0, split_axes = #shard<axisarray[[0]]>}> : (memref<4xf32>) -> memref<8xf32>
+
+// CHECK: attribute memref<4xf32> expected from variable 'T', but got memref<8xf32>
+
+// -----
+
+%m = "test.op"() : () -> memref<4xf32>
+%h = shard.update_halo %m on @missing split_axes = [[0]] : memref<4xf32>
+
+// CHECK: Undefined required grid symbol "missing".
+
+// -----
+
+"test.op"() {sym_name = "grid0"} : () -> ()
+%m = "test.op"() : () -> memref<4xf32>
+%h = shard.update_halo %m on @grid0 split_axes = [[0]] : memref<4xf32>
+
+// CHECK: Undefined required grid symbol "grid0".
+
+// -----
+
+shard.grid @grid0(shape = 4x4)
+%m = "test.op"() : () -> memref<4x4xf32>
+%h = shard.update_halo %m on @grid0 split_axes = [[-1]] : memref<4x4xf32>
+
+// CHECK: grid axis is expected to be non-negative
+
+// -----
+
+shard.grid @grid0(shape = 4x4)
+%m = "test.op"() : () -> memref<4x4xf32>
+%h = shard.update_halo %m on @grid0 split_axes = [[0], [0]] : memref<4x4xf32>
+
+// CHECK: grid axis duplicated
+
+// -----
+
+shard.grid @grid0(shape = 4x4)
+%m = "test.op"() : () -> memref<4x4xf32>
+%h = shard.update_halo %m on @grid0 split_axes = [[0], [1]] halo_sizes = [1, 1] : memref<4x4xf32>
+
+// CHECK: halo sizes must be specified for all split axes.
+
+// -----
+
+%s = "test.op"() : () -> !shard.sharding
+%0:3 = shard.shard_shape dims = [8, 8] sharding = %s device = [0, 0] : index, index, index
+
+// CHECK: Unexpected number of results 3. Expected 2.

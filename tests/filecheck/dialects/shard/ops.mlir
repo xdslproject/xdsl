@@ -99,3 +99,21 @@ shard.grid @grid5(shape = ?)
 // CHECK-NEXT: %32, %33 = shard.neighbors_linear_indices on @grid0[%i, %i, %i] split_axes = [1] : index, index
 %34, %35 = shard.neighbors_linear_indices on @grid5[] split_axes = [] : index, index
 // CHECK-NEXT: %34, %35 = shard.neighbors_linear_indices on @grid5[] split_axes = [] : index, index
+
+// Shard shape
+%36, %37 = shard.shard_shape dims = [8, 8] sharding = %3 device = [%i, %i] : index, index
+// CHECK-NEXT: %36, %37 = shard.shard_shape dims = [8, 8] sharding = %3 device = [%i, %i] : index, index
+%38, %39 = shard.shard_shape dims = [%i, 8] sharding = %3 device = [%i, 1] : index, index
+// CHECK-NEXT: %38, %39 = shard.shard_shape dims = [%i, 8] sharding = %3 device = [%i, 1] : index, index
+%40 = shard.shard_shape dims = [8] sharding = %3 device = [] : index
+// CHECK-NEXT: %40 = shard.shard_shape dims = [8] sharding = %3 device = [] : index
+
+// Halo
+%41 = shard.update_halo %m on @grid0 split_axes = [[0], [1]] halo_sizes = [1, 1, 1, 1] : memref<2x2xf32>
+// CHECK-NEXT: %41 = shard.update_halo %m on @grid0 split_axes = [[0], [1]] halo_sizes = [1, 1, 1, 1] : memref<2x2xf32>
+%42 = shard.update_halo %t on @grid0 split_axes = [[0], [1]] halo_sizes = [1, %6, 1, 1] : tensor<2x2xi8>
+// CHECK-NEXT: %42 = shard.update_halo %t on @grid0 split_axes = [[0], [1]] halo_sizes = [1, %6, 1, 1] : tensor<2x2xi8>
+%43 = shard.update_halo %t on @grid0 split_axes = [[0]] : tensor<2x2xi8>
+// CHECK-NEXT: %43 = shard.update_halo %t on @grid0 split_axes = [[0]] : tensor<2x2xi8>
+%44 = shard.update_halo %m on @grid0 split_axes = [[], [1]] halo_sizes = [1, 1] : memref<2x2xf32>
+// CHECK-NEXT: %44 = shard.update_halo %m on @grid0 split_axes = [[], [1]] halo_sizes = [1, 1] : memref<2x2xf32>
