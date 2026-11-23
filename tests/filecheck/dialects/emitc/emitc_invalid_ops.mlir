@@ -72,6 +72,28 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// AddressOfOp
+//===----------------------------------------------------------------------===//
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: attribute i32 expected from variable 'T', but got i8
+%address_of = "emitc.address_of"(%v) : (!emitc.lvalue<i32>) -> !emitc.ptr<i8>
+
+// -----
+
+%v = "test.op"() : () -> i32
+// CHECK: i32 should be of base attribute emitc.lvalue
+%address_of = "emitc.address_of"(%v) : (i32) -> !emitc.ptr<i32>
+
+// -----
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: i32 should be of base attribute emitc.ptr
+%address_of = "emitc.address_of"(%v) : (!emitc.lvalue<i32>) -> i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // ApplyOp
 //===----------------------------------------------------------------------===//
 
