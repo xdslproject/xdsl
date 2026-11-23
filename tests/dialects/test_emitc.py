@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.emitc import (
     EmitC_ArrayType,
+    EmitC_AssignOp,
     EmitC_CallOpaqueOp,
     EmitC_ConstantOp,
     EmitC_LiteralOp,
@@ -42,6 +43,17 @@ def test_call_opaque_with_str_callee():
     Test that EmitC_CallOpaqueOp can be created with a string callee.
     """
     EmitC_CallOpaqueOp(callee="test", call_args=[], result_types=[])
+
+
+def test_assign_op_init():
+    var = create_ssa_value(EmitC_LValueType(i32))
+    value = create_ssa_value(i32)
+    op = EmitC_AssignOp(var, value)
+
+    op.verify()
+    assert op.var is var
+    assert op.value is value
+    assert not op.results
 
 
 def test_constant_op_init():

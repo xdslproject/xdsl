@@ -106,6 +106,31 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+%var, %value = "test.op"() : () -> (!emitc.lvalue<i32>, f32)
+// CHECK: requires value's type (f32) to match variable's type (i32)
+emitc.assign %value : f32 to %var : !emitc.lvalue<i32>
+
+// -----
+
+"test.op"() ({
+^bb0(%var : !emitc.lvalue<i32>, %value : i32):
+  // CHECK: cannot assign to block argument
+  emitc.assign %value : i32 to %var : !emitc.lvalue<i32>
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// -----
+
+%var, %value = "test.op"() : () -> (!emitc.array<4xi32>, !emitc.array<4xi32>)
+// CHECK: !emitc.array<4xi32> should be of base attribute emitc.lvalue
+"emitc.assign"(%var, %value) : (!emitc.array<4xi32>, !emitc.array<4xi32>) -> ()
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
