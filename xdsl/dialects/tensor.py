@@ -279,7 +279,7 @@ class EmptyOp(IRDLOperation):
 
     tensor = result_def(TensorType[Attribute])
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, dynamic_sizes: Sequence[SSAValue], tensor_type: Attribute):
         super().__init__(
