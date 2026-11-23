@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal
+from typing import ClassVar, Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -35,6 +35,7 @@ from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
+    Operation,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -45,7 +46,9 @@ from xdsl.irdl import (
     AttrConstraint,
     IntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
+    VarConstraint,
     VerificationContext,
     irdl_attr_definition,
     irdl_op_definition,
@@ -620,6 +623,39 @@ class EmitC_LiteralOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_LoadOp(IRDLOperation):
+    """
+    Load an lvalue into an SSA value.
+
+    This operation loads the content of a modifiable lvalue into an SSA value.
+    Modifications of the lvalue executed after the load are not observable on
+    the produced value.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.load %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = v1;
+    ```
+    """
+
+    name = "emitc.load"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    operand = operand_def(ParamAttrConstraint(EmitC_LValueType, (T,)))
+    result = result_def(T)
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
     Variable operation.
@@ -667,6 +703,7 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_LiteralOp,
+        EmitC_LoadOp,
         EmitC_VariableOp,
     ],
     [
