@@ -14,17 +14,20 @@ from xdsl.dialects.emitc import (
     EmitC_CallOpaqueOp,
     EmitC_ConstantOp,
     EmitC_LiteralOp,
+    EmitC_LoadOp,
     EmitC_LValueType,
     EmitC_OpaqueAttr,
     EmitC_OpaqueType,
     EmitC_PtrDiffT,
     EmitC_SignedSizeT,
     EmitC_SizeT,
+    EmitC_VariableOp,
     verify_initialization_attribute,
 )
 from xdsl.ir import Attribute
 from xdsl.traits import ConstantLike, is_side_effect_free
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_emitc_array_negative_dimension():
@@ -138,3 +141,39 @@ def test_literal_op_is_side_effect_free():
     op = EmitC_LiteralOp("M_PI", f32)
 
     assert is_side_effect_free(op)
+
+
+def test_load_op_init():
+    lvalue = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_LoadOp(lvalue, i32)
+
+    op.verify()
+    assert op.operand is lvalue
+    assert op.result.type == i32
+
+
+def test_load_op_init_from_operation():
+    lvalue = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_LoadOp(lvalue.owner, i32)
+
+    op.verify()
+    assert op.operand is lvalue
+    assert op.result.type == i32
+
+
+def test_variable_op_init():
+    op = EmitC_VariableOp(IntegerAttr(7, 32), EmitC_LValueType(i32))
+
+    op.verify()
+    assert op.value == IntegerAttr(7, 32)
+    assert op.result.type == EmitC_LValueType(i32)
+
+
+def test_variable_op_opaque_init():
+    value = EmitC_OpaqueAttr(StringAttr(""))
+    result_type = EmitC_ArrayType([2], i32)
+    op = EmitC_VariableOp(value, result_type)
+
+    op.verify()
+    assert op.value == value
+    assert op.result.type == result_type

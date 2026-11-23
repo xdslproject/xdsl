@@ -433,6 +433,9 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
         if prev_use is None:
             self.first_use = next_use
 
+        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+        use._next_use = None  # pyright: ignore[reportPrivateUsage]
+
     # Use _T rather than Self: a use may refer to a different subclass of _T.
     def replace_use(self: _IRWithUsesT, use: Use[_IRWithUsesT]) -> None:  # noqa: PYI019
         """

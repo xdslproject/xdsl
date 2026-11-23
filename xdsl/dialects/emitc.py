@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal
+from typing import ClassVar, Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -35,6 +35,7 @@ from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
+    Operation,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -45,7 +46,9 @@ from xdsl.irdl import (
     AttrConstraint,
     IntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
+    VarConstraint,
     VerificationContext,
     irdl_attr_definition,
     irdl_op_definition,
@@ -167,8 +170,9 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
 
 EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
 """
-An EmitC opaque attribute or a typed attribute.
-Used for the initial value of operations such as `emitc.constant`.
+The value an EmitC operation is initialized with.
+It is either a typed attribute, like `42 : i32`, or a piece of C code written
+as text, like `#emitc.opaque<"NULL">`.
 """
 
 EmitCArrayElementTypeCovT = TypeVar(
@@ -618,6 +622,79 @@ class EmitC_LiteralOp(IRDLOperation):
             raise VerifyException("value must not be empty")
 
 
+@irdl_op_definition
+class EmitC_LoadOp(IRDLOperation):
+    """
+    Load an lvalue into an SSA value.
+
+    This operation loads the content of a modifiable lvalue into an SSA value.
+    Modifications of the lvalue executed after the load are not observable on
+    the produced value.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.load %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = v1;
+    ```
+    """
+
+    name = "emitc.load"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    operand = operand_def(ParamAttrConstraint(EmitC_LValueType, (T,)))
+    result = result_def(T)
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
+
+
+@irdl_op_definition
+class EmitC_VariableOp(IRDLOperation):
+    """
+    Variable operation.
+
+    The `emitc.variable` operation produces an SSA value equal to some value
+    specified by an attribute. This can be used to form simple integer and
+    floating point variables, as well as more exotic things like tensor
+    variables. The `emitc.variable` operation also supports the EmitC opaque
+    attribute and the EmitC opaque type. If further supports the EmitC
+    pointer type, whereas folding is not supported.
+    The `emitc.variable` is emitted as a C/C++ local variable.
+
+    Example:
+
+    ```mlir
+    // Integer variable
+    %0 = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.lvalue<i32>
+
+    // Variable emitted as `int32_t* = NULL;`
+    %1 = "emitc.variable"() <{value = #emitc.opaque<"NULL">}>
+      : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+    ```
+    """
+
+    name = "emitc.variable"
+
+    value = prop_def(EmitC_OpaqueOrTypedAttr)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(self, value: EmitC_OpaqueOrTypedAttr, result_type: Attribute):
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        verify_initialization_attribute(self.result.type, self.value)
+
+
 EmitC = Dialect(
     "emitc",
     [
@@ -626,6 +703,8 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_LiteralOp,
+        EmitC_LoadOp,
+        EmitC_VariableOp,
     ],
     [
         EmitC_ArrayType,

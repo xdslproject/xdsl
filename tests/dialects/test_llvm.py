@@ -512,6 +512,31 @@ def test_fptrunc_op():
     assert op.result.type == builtin.f32
 
 
+def test_uitofp_op():
+    val = create_ssa_value(builtin.i32)
+    op = llvm.UIToFPOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
+    assert op.non_neg is None
+
+    op = llvm.UIToFPOp(val, builtin.f32, UnitAttr())
+    assert op.non_neg == UnitAttr()
+
+
+def test_fptosi_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FPToSIOp(val, builtin.i32)
+    assert op.arg == val
+    assert op.result.type == builtin.i32
+
+
+def test_fptoui_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FPToUIOp(val, builtin.i64)
+    assert op.arg == val
+    assert op.result.type == builtin.i64
+
+
 def test_trunc_op_handles_missing_overflow_property():
     # verify printer handles manually deleted overflowflags gracefully
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
