@@ -46,12 +46,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import HasParent, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .abstract_ops import (
     ConvOperation,
+    DestinationStyleOperation,
     ElementwiseOperation,
     LinalgStructuredOperation,
     NamedOperation,
@@ -288,7 +289,7 @@ class GenericOp(LinalgStructuredOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), Pure())
 
 
 @irdl_op_definition
@@ -299,7 +300,7 @@ class IndexOp(IRDLOperation):
 
     result = result_def(IndexType)
 
-    traits = traits_def(HasParent(GenericOp))
+    traits = traits_def(HasParent(GenericOp), Pure())
 
     assembly_format = "$dim attr-dict `:` type($result)"
 
@@ -1358,7 +1359,7 @@ class Conv2DNhwgcGfhwcOp(ConvOperation):
 
 
 @irdl_op_definition
-class BroadcastOp(IRDLOperation):
+class BroadcastOp(DestinationStyleOperation):
     """
     Static broadcast operator
 
@@ -1374,6 +1375,12 @@ class BroadcastOp(IRDLOperation):
     hidden_region = region_def("single_block")
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    def dps_inputs(self) -> Sequence[SSAValue]:
+        return (self.input,)
+
+    def dps_inits(self) -> Sequence[SSAValue]:
+        return (self.init,)
 
     def __init__(
         self,
@@ -1485,7 +1492,7 @@ class BroadcastOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ReduceOp(IRDLOperation):
+class ReduceOp(DestinationStyleOperation):
     name = "linalg.reduce"
 
     input = operand_def(MemRefType | TensorType)
@@ -1495,6 +1502,12 @@ class ReduceOp(IRDLOperation):
     region: Region = region_def("single_block")
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    def dps_inputs(self) -> Sequence[SSAValue]:
+        return (self.input,)
+
+    def dps_inits(self) -> Sequence[SSAValue]:
+        return (self.init,)
 
     def __init__(
         self,
