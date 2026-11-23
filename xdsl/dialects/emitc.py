@@ -394,6 +394,38 @@ class EmitC_AddOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_AddressOfOp(IRDLOperation):
+    """
+    Address operation.
+
+    This operation models the C & (address of) operator for a single operand,
+    which must be an emitc.lvalue, and returns an emitc pointer to its location.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.address_of %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t* v2 = &v1;
+    ```
+    """
+
+    name = "emitc.address_of"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    reference = operand_def(ParamAttrConstraint.get(EmitC_LValueType, T))
+    result = result_def(ParamAttrConstraint.get(EmitC_PointerType, T))
+
+    assembly_format = "$reference `:` qualified(type($reference)) attr-dict"
+
+    def __init__(self, reference: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[reference], result_types=[result_type])
+
+
+@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
@@ -747,6 +779,7 @@ EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
+        EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
         EmitC_CallOpaqueOp,
