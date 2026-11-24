@@ -101,6 +101,14 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: %cons_opaque = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
 
 //===----------------------------------------------------------------------===//
+// DereferenceOp
+//===----------------------------------------------------------------------===//
+
+%dereference = emitc.dereference %ptr_f32 : !emitc.ptr<f32>
+// CHECK: %dereference = emitc.dereference %ptr_f32 : !emitc.ptr<f32>
+// CHECK-GENERIC: %dereference = "emitc.dereference"(%ptr_f32) : (!emitc.ptr<f32>) -> !emitc.lvalue<f32>
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
