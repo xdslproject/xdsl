@@ -5,7 +5,6 @@
 # |____/ \__,_|\__\__,_|
 #
 
-import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
@@ -25,15 +24,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform, deprecated
-
-if sys.version_info >= (3, 14, 0):
-    from typing_extensions import TypeForm
-else:
-    from typing import TYPE_CHECKING
-
-    if TYPE_CHECKING:
-        from typing_extensions import TypeForm
+from typing_extensions import TypeForm, TypeVar, dataclass_transform, deprecated
 
 from xdsl import ir
 from xdsl.utils.classvar import is_const_classvar
@@ -100,49 +91,25 @@ class ConstraintConvertible(Generic[ir.AttributeCovT]):
         """The constraint for this instance."""
 
 
-# Dynamic check due to a regression in Python 3.14, which broke `|` between types and
-# strings, and a bug in Marimo where the correct version of typing_extensions is not
-# installed due to an old (4.11.0) version of typing_extensions already being present in
-# the Pyodide build.
-# When Marimo update their Pyodide we should delete the second branch.
-# We will likely want to support 3.14.0 for a long time, so we can't remove the first
-# branch even if the `|` bug is fixed in a patch update.
-if sys.version_info >= (3, 14, 0):
-    IRDLAttrConstraint: TypeAlias = (
-        AttrConstraint[ir.AttributeInvT]
-        | ir.AttributeInvT
-        | type[ir.AttributeInvT]
-        | type[ConstraintConvertible[ir.AttributeInvT]]
-        | ConstraintConvertible[ir.AttributeInvT]
-        | TypeForm[ir.AttributeInvT]
-    )
-    """
-    Attribute constraints represented using the IRDL python frontend. Attribute constraints
-    can either be:
-    - An instance of `AttrConstraint` representing a constraint on an attribute.
-    - An instance of `Attribute` representing an equality constraint on an attribute.
-    - A type representing a specific attribute class.
-    - A TypeForm that can represent both unions and generic attributes.
-    - An instance or subclass of ConstraintConvertible.
-    """
-else:
-    IRDLAttrConstraint: TypeAlias = (
-        AttrConstraint[ir.AttributeInvT]
-        | ir.AttributeInvT
-        | type[ir.AttributeInvT]
-        | type[ConstraintConvertible[ir.AttributeInvT]]
-        | ConstraintConvertible[ir.AttributeInvT]
-        | "TypeForm[ir.AttributeInvT]"
-    )
-    """
-    Attribute constraints represented using the IRDL python frontend. Attribute constraints
-    can either be:
-    - An instance of `AttrConstraint` representing a constraint on an attribute.
-    - An instance of `Attribute` representing an equality constraint on an attribute.
-    - A type representing a specific attribute class.
-    - A TypeForm that can represent both unions and generic attributes.
-    - An instance or subclass of ConstraintConvertible.
-    """
+_AttributeInvT = TypeVar("_AttributeInvT", bound=ir.Attribute, default=ir.Attribute)
+
+IRDLAttrConstraint: TypeAlias = (
+    AttrConstraint[_AttributeInvT]
+    | _AttributeInvT
+    | type[_AttributeInvT]
+    | type[ConstraintConvertible[_AttributeInvT]]
+    | ConstraintConvertible[_AttributeInvT]
+    | TypeForm[_AttributeInvT]
+)
+"""
+Attribute constraints represented using the IRDL python frontend. Attribute constraints
+can either be:
+- An instance of `AttrConstraint` representing a constraint on an attribute.
+- An instance of `Attribute` representing an equality constraint on an attribute.
+- A type representing a specific attribute class.
+- A TypeForm that can represent both unions and generic attributes.
+- An instance or subclass of ConstraintConvertible.
+"""
 
 
 #  ____                              _   _   _
