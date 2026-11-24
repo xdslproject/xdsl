@@ -13,7 +13,9 @@ from xdsl.dialects.builtin import (
     TensorType,
     f32,
 )
+from xdsl.ir import Operation
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.traits import Pure
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -228,3 +230,8 @@ def test_unary_elementwise_op_identity_map_and_parallel_iters(
     assert op.get_iterator_types() == ArrayAttr(
         [linalg.attrs.IteratorTypeAttr.parallel() for _ in range(len(shape))]
     )
+
+
+@pytest.mark.parametrize("op_type", [linalg.ops.YieldOp, linalg.ops.IndexOp])
+def test_payload_op_pure(op_type: type[Operation]):
+    assert op_type.has_trait(Pure)

@@ -46,7 +46,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import HasParent, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -288,7 +288,7 @@ class GenericOp(LinalgStructuredOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), Pure())
 
 
 @irdl_op_definition
@@ -299,7 +299,7 @@ class IndexOp(IRDLOperation):
 
     result = result_def(IndexType)
 
-    traits = traits_def(HasParent(GenericOp))
+    traits = traits_def(HasParent(GenericOp), Pure())
 
     assembly_format = "$dim attr-dict `:` type($result)"
 
