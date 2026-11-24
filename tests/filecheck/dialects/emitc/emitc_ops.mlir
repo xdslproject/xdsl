@@ -47,6 +47,18 @@ emitc.call_opaque "test" ()  : () -> ()
 // CHECK-GENERIC: %add_tensor = "emitc.add"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 
 //===----------------------------------------------------------------------===//
+// AddressOfOp
+//===----------------------------------------------------------------------===//
+
+%address_of = emitc.address_of %lvalue_i32 : !emitc.lvalue<i32>
+// CHECK: %address_of = emitc.address_of %lvalue_i32 : !emitc.lvalue<i32>
+// CHECK-GENERIC: %address_of = "emitc.address_of"(%lvalue_i32) : (!emitc.lvalue<i32>) -> !emitc.ptr<i32>
+
+%address_of_ptr = emitc.address_of %lvalue_ptr : !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK: %address_of_ptr = emitc.address_of %lvalue_ptr : !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK-GENERIC: %address_of_ptr = "emitc.address_of"(%lvalue_ptr) : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>) -> !emitc.ptr<!emitc.ptr<!emitc.opaque<"int32_t">>>
+
+//===----------------------------------------------------------------------===//
 // AssignOp
 //===----------------------------------------------------------------------===//
 

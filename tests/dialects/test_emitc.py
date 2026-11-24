@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.emitc import (
+    EmitC_AddressOfOp,
     EmitC_ArrayType,
     EmitC_AssignOp,
     EmitC_CallOpaqueOp,
@@ -19,6 +20,7 @@ from xdsl.dialects.emitc import (
     EmitC_LValueType,
     EmitC_OpaqueAttr,
     EmitC_OpaqueType,
+    EmitC_PointerType,
     EmitC_PtrDiffT,
     EmitC_SignedSizeT,
     EmitC_SizeT,
@@ -36,6 +38,15 @@ def test_emitc_array_negative_dimension():
         ValueError, match="expected static shape, but got dynamic dimension"
     ):
         EmitC_ArrayType([DYNAMIC_INDEX], i32)
+
+
+def test_address_of_op_init():
+    reference = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_AddressOfOp(reference, EmitC_PointerType(i32))
+
+    op.verify()
+    assert op.reference is reference
+    assert op.result.type == EmitC_PointerType(i32)
 
 
 def test_call_opaque_with_str_callee():
