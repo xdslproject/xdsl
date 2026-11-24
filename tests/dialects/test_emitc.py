@@ -15,6 +15,7 @@ from xdsl.dialects.emitc import (
     EmitC_AssignOp,
     EmitC_CallOpaqueOp,
     EmitC_ConstantOp,
+    EmitC_DereferenceOp,
     EmitC_LiteralOp,
     EmitC_LoadOp,
     EmitC_LValueType,
@@ -148,6 +149,15 @@ def test_verify_initialization_attribute_index_requires_pointer_wide():
         match=r"its type \(index\) to match the op's result type \(i32\)",
     ):
         verify_initialization_attribute(i32, IntegerAttr.from_index_int_value(42))
+
+
+def test_dereference_op_init():
+    pointer = create_ssa_value(EmitC_PointerType(i32))
+    op = EmitC_DereferenceOp(pointer, EmitC_LValueType(i32))
+
+    op.verify()
+    assert op.pointer is pointer
+    assert op.result.type == EmitC_LValueType(i32)
 
 
 def test_literal_op_init():
