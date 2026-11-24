@@ -207,6 +207,28 @@ emitc.assign %value : f32 to %var : !emitc.lvalue<i32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// SubOp
+//===----------------------------------------------------------------------===//
+
+%ptr, %int = "test.op"() : () -> (!emitc.ptr<i32>, i32)
+// CHECK: rhs can only be a pointer if lhs is a pointer
+%0 = emitc.sub %int, %ptr : (i32, !emitc.ptr<i32>) -> !emitc.ptr<i32>
+
+// -----
+
+%ptr, %float = "test.op"() : () -> (!emitc.ptr<i32>, f32)
+// CHECK: requires that rhs is an integer, pointer or of opaque type if lhs is a pointer
+%0 = emitc.sub %ptr, %float : (!emitc.ptr<i32>, f32) -> !emitc.ptr<i32>
+
+// -----
+
+%lhs, %rhs = "test.op"() : () -> (!emitc.ptr<i32>, !emitc.ptr<i32>)
+// CHECK: requires that the result is an integer, ptrdiff_t or of opaque type if lhs and rhs are pointers
+%0 = emitc.sub %lhs, %rhs : (!emitc.ptr<i32>, !emitc.ptr<i32>) -> f32
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // VariableOp
 //===----------------------------------------------------------------------===//
 
