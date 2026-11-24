@@ -661,6 +661,35 @@ class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
 
 
 @irdl_op_definition
+class EmitC_DereferenceOp(IRDLOperation):
+    """
+    Dereference operation.
+
+    This operation models the C * (dereference) operator for a single operand,
+    which must be an emitc.ptr, and returns an emitc.lvalue for the value
+    pointed to by the pointer.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.dereference %0 : !emitc.ptr<i32>
+    ```
+    """
+
+    name = "emitc.dereference"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    pointer = operand_def(ParamAttrConstraint.get(EmitC_PointerType, T))
+    result = result_def(ParamAttrConstraint.get(EmitC_LValueType, T))
+
+    assembly_format = "$pointer `:` qualified(type($pointer)) attr-dict"
+
+    def __init__(self, pointer: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[pointer], result_types=[result_type])
+
+
+@irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
     Literal operation.
@@ -784,6 +813,7 @@ EmitC = Dialect(
         EmitC_AssignOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
+        EmitC_DereferenceOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
         EmitC_VariableOp,
