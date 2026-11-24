@@ -170,3 +170,60 @@
 }) : () -> ()
 
 // CHECK: Operation does not verify: riscv_cf.bnez operation else block must be immediately after op
+
+// -----
+
+%0 = "test.op"() : () -> (!riscv.reg<a0>)
+
+"test.op"() ({
+    riscv_cf.branch ^bb0(%0 : !riscv.reg<a0>)
+  ^bb0():
+    riscv.label "label"
+    riscv_cf.j ^bb0(%0 : !riscv.reg<a0>)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 0 successor operands to match the block arguments, got 1
+
+// -----
+
+%0 = "test.op"() : () -> (!riscv.reg<a0>)
+
+"test.op"() ({
+    riscv_cf.j ^bb0(%0 : !riscv.reg<a0>)
+  ^bb0(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a0>):
+    riscv.label "label"
+    riscv_cf.j ^bb0(%0 : !riscv.reg<a0>, %0 : !riscv.reg<a0>)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 2 successor operands to match the block arguments, got 1
+
+// -----
+
+%0, %1, %2 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>)
+
+"test.op"() ({
+    riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>), ^else(%2 : !riscv.reg<a2>, %2 : !riscv.reg<a2>)
+  ^else(%e0: !riscv.reg<a2>):
+    riscv_cf.j ^then(%2 : !riscv.reg<a2>)
+  ^then(%t0: !riscv.reg<a2>):
+    riscv.label "label"
+    riscv_cf.j ^then(%2 : !riscv.reg<a2>)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 1 successor operands to match the block arguments, got 2
+
+// -----
+
+%0, %1 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a2>)
+
+"test.op"() ({
+    riscv_cf.bnez %0 : !riscv.reg<a0>, ^then(), ^else(%1 : !riscv.reg<a2>)
+  ^else(%e0: !riscv.reg<a2>):
+    riscv.label "else"
+    riscv_cf.j ^then(%1 : !riscv.reg<a2>)
+  ^then(%t0: !riscv.reg<a2>):
+    riscv.label "then"
+    riscv_cf.j ^then(%1 : !riscv.reg<a2>)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 1 successor operands to match the block arguments, got 0

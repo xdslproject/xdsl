@@ -5,7 +5,7 @@ from typing import Self
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.interfaces import HasCanonicalizationPatternsInterface
-from xdsl.ir import Dialect, OperandArg, SSAValue
+from xdsl.ir import Block, Dialect, OperandArg, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
@@ -35,6 +35,23 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     parser.parse_punctuation(":")
     type = parser.parse_type()
     return parser.resolve_operand(unresolved, type)
+
+
+def _verify_successor_args(operands: Sequence[SSAValue], successor: Block) -> None:
+    """
+    Check that the operands passed to a successor match its block arguments, in
+    number and in type.
+    """
+    if len(operands) != len(successor.args):
+        raise VerifyException(
+            f"Expected {len(successor.args)} successor operands to match the block "
+            f"arguments, got {len(operands)}"
+        )
+    for op_arg, block_arg in zip(operands, successor.args, strict=True):
+        if op_arg.type != block_arg.type:
+            raise VerifyException(
+                f"Block arg types must match {op_arg.type} {block_arg.type}"
+            )
 
 
 class ConditionalBranchOperation(
@@ -90,17 +107,8 @@ class ConditionalBranchOperation(
             )
 
         # Types of arguments must match arg types of blocks
-        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.then_arguments, self.then_block)
+        _verify_successor_args(self.else_arguments, self.else_block)
 
         # The else block must be the one immediately following this one
 
@@ -329,11 +337,7 @@ class BranchOp(riscv.abstract_ops.RISCVAsmOperation):
 
     def verify_(self) -> None:
         # Types of arguments must match arg types of blocks
-        for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.block_arguments, self.successor)
 
         # The successor must immediately follow the parent block.
         if (parent_block := self.parent) is None or (
@@ -417,11 +421,7 @@ class JOp(riscv.abstract_ops.RISCVInstruction):
     def verify_(self) -> None:
         # Types of arguments must match arg types of blocks
 
-        for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.block_arguments, self.successor)
 
         if not isinstance(self.successor.first_op, riscv.ops.LabelOp):
             raise VerifyException(
@@ -511,17 +511,8 @@ class BnezOp(riscv.abstract_ops.RISCVInstruction):
                 f"first argument, found {self.then_block.first_op}"
             )
 
-        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.then_arguments, self.then_block)
+        _verify_successor_args(self.else_arguments, self.else_block)
 
         parent_block = self.parent
         if parent_block is None:
