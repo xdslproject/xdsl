@@ -72,6 +72,28 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// AddressOfOp
+//===----------------------------------------------------------------------===//
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: attribute i32 expected from variable 'T', but got i8
+%address_of = "emitc.address_of"(%v) : (!emitc.lvalue<i32>) -> !emitc.ptr<i8>
+
+// -----
+
+%v = "test.op"() : () -> i32
+// CHECK: i32 should be of base attribute emitc.lvalue
+%address_of = "emitc.address_of"(%v) : (i32) -> !emitc.ptr<i32>
+
+// -----
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: i32 should be of base attribute emitc.ptr
+%address_of = "emitc.address_of"(%v) : (!emitc.lvalue<i32>) -> i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // ApplyOp
 //===----------------------------------------------------------------------===//
 
@@ -106,6 +128,31 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+%var, %value = "test.op"() : () -> (!emitc.lvalue<i32>, f32)
+// CHECK: requires value's type (f32) to match variable's type (i32)
+emitc.assign %value : f32 to %var : !emitc.lvalue<i32>
+
+// -----
+
+"test.op"() ({
+^bb0(%var : !emitc.lvalue<i32>, %value : i32):
+  // CHECK: cannot assign to block argument
+  emitc.assign %value : i32 to %var : !emitc.lvalue<i32>
+  "test.termop"() : () -> ()
+}) : () -> ()
+
+// -----
+
+%var, %value = "test.op"() : () -> (!emitc.array<4xi32>, !emitc.array<4xi32>)
+// CHECK: !emitc.array<4xi32> should be of base attribute emitc.lvalue
+"emitc.assign"(%var, %value) : (!emitc.array<4xi32>, !emitc.array<4xi32>) -> ()
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
@@ -125,8 +172,53 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// DereferenceOp
+//===----------------------------------------------------------------------===//
+
+%p = "test.op"() : () -> !emitc.ptr<i32>
+// CHECK: attribute i32 expected from variable 'T', but got i8
+%dereference = "emitc.dereference"(%p) : (!emitc.ptr<i32>) -> !emitc.lvalue<i8>
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
 // CHECK: value must not be empty
 %lit = emitc.literal "" : i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%v = "test.op"() : () -> !emitc.lvalue<i32>
+// CHECK: attribute i32 expected from variable 'T', but got f32
+%load = "emitc.load"(%v) : (!emitc.lvalue<i32>) -> f32
+
+// -----
+
+%v = "test.op"() : () -> i32
+// CHECK: i32 should be of base attribute emitc.lvalue
+%load = "emitc.load"(%v) : (i32) -> i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i64) to match the op's result type (i32)
+%v = "emitc.variable"() <{value = 42 : i64}> : () -> !emitc.lvalue<i32>
+
+// -----
+
+// CHECK: requires attribute to either be an #emitc.opaque attribute or its type (i32) to match the op's result type (!emitc.array<2xi32>)
+%v = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.array<2xi32>
+
+// -----
+
+// CHECK: Unexpected attribute i32
+%v = "emitc.variable"() <{value = 42 : i32}> : () -> i32

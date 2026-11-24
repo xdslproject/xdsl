@@ -429,6 +429,9 @@ class IRWithUses(ABC, Generic[_IRWithUsesT]):
         if prev_use is None:
             self.first_use = next_use
 
+        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+        use._next_use = None  # pyright: ignore[reportPrivateUsage]
+
     def has_one_use(self) -> bool:
         """Returns true if the value has exactly one use."""
         first_use = self.first_use

@@ -627,6 +627,20 @@ class BitwiseAndBySelf(RewritePattern):
             rewriter.replace(op, riscv.ops.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
+def _has_complement_operands(op: riscv.ops.AndOp | riscv.ops.OrOp) -> bool:
+    """Return whether one operand is the bitwise complement (`xori _, -1`) of the other."""
+    for rs1, rs2 in ((op.rs1, op.rs2), (op.rs2, op.rs1)):
+        if (
+            isinstance(rs2, OpResult)
+            and isinstance(rs2.op, riscv.ops.XoriOp)
+            and isinstance(rs2.op.immediate, IntegerAttr)
+            and rs2.op.immediate.value.data == -1
+            and rs2.op.rs1 == rs1
+        ):
+            return True
+    return False
+
+
 class BitwiseAndByComplement(RewritePattern):
     """
     x & ~x = 0
@@ -634,22 +648,14 @@ class BitwiseAndByComplement(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ops.AndOp, rewriter: PatternRewriter):
-        for rs1, rs2 in ((op.rs1, op.rs2), (op.rs2, op.rs1)):
-            if (
-                isinstance(rs2, OpResult)
-                and isinstance(rs2.op, riscv.ops.XoriOp)
-                and isinstance(rs2.op.immediate, IntegerAttr)
-                and rs2.op.immediate.value.data == -1
-                and rs2.op.rs1 == rs1
-            ):
-                rewriter.replace(
-                    op,
-                    (
-                        zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
-                        riscv.ops.MVOp(zero.res, rd=op.rd.type, comment=op.comment),
-                    ),
-                )
-                return
+        if _has_complement_operands(op):
+            rewriter.replace(
+                op,
+                (
+                    zero := rv32.GetRegisterOp(riscv.registers.Registers.ZERO),
+                    riscv.ops.MVOp(zero.res, rd=op.rd.type, comment=op.comment),
+                ),
+            )
 
 
 class BitwiseOrByZero(RewritePattern):
@@ -681,6 +687,17 @@ class BitwiseOrBySelf(RewritePattern):
         if op.rs1 == op.rs2:
             rd = op.rd.type
             rewriter.replace(op, riscv.ops.MVOp(op.rs1, rd=rd, comment=op.comment))
+
+
+class BitwiseOrByComplement(RewritePattern):
+    """
+    x | ~x = -1
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.ops.OrOp, rewriter: PatternRewriter):
+        if _has_complement_operands(op):
+            rewriter.replace(op, rv32.LiOp(-1, rd=op.rd.type, comment=op.comment))
 
 
 class XorBySelf(RewritePattern):

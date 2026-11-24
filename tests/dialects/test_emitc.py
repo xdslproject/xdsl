@@ -10,21 +10,28 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.emitc import (
+    EmitC_AddressOfOp,
     EmitC_ArrayType,
+    EmitC_AssignOp,
     EmitC_CallOpaqueOp,
     EmitC_ConstantOp,
+    EmitC_DereferenceOp,
     EmitC_LiteralOp,
+    EmitC_LoadOp,
     EmitC_LValueType,
     EmitC_OpaqueAttr,
     EmitC_OpaqueType,
+    EmitC_PointerType,
     EmitC_PtrDiffT,
     EmitC_SignedSizeT,
     EmitC_SizeT,
+    EmitC_VariableOp,
     verify_initialization_attribute,
 )
 from xdsl.ir import Attribute
 from xdsl.traits import ConstantLike, is_side_effect_free
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_emitc_array_negative_dimension():
@@ -34,11 +41,31 @@ def test_emitc_array_negative_dimension():
         EmitC_ArrayType([DYNAMIC_INDEX], i32)
 
 
+def test_address_of_op_init():
+    reference = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_AddressOfOp(reference, EmitC_PointerType(i32))
+
+    op.verify()
+    assert op.reference is reference
+    assert op.result.type == EmitC_PointerType(i32)
+
+
 def test_call_opaque_with_str_callee():
     """
     Test that EmitC_CallOpaqueOp can be created with a string callee.
     """
     EmitC_CallOpaqueOp(callee="test", call_args=[], result_types=[])
+
+
+def test_assign_op_init():
+    var = create_ssa_value(EmitC_LValueType(i32))
+    value = create_ssa_value(i32)
+    op = EmitC_AssignOp(var, value)
+
+    op.verify()
+    assert op.var is var
+    assert op.value is value
+    assert not op.results
 
 
 def test_constant_op_init():
@@ -124,6 +151,15 @@ def test_verify_initialization_attribute_index_requires_pointer_wide():
         verify_initialization_attribute(i32, IntegerAttr.from_index_int_value(42))
 
 
+def test_dereference_op_init():
+    pointer = create_ssa_value(EmitC_PointerType(i32))
+    op = EmitC_DereferenceOp(pointer, EmitC_LValueType(i32))
+
+    op.verify()
+    assert op.pointer is pointer
+    assert op.result.type == EmitC_LValueType(i32)
+
+
 def test_literal_op_init():
     op = EmitC_LiteralOp("M_PI", f32)
 
@@ -138,3 +174,39 @@ def test_literal_op_is_side_effect_free():
     op = EmitC_LiteralOp("M_PI", f32)
 
     assert is_side_effect_free(op)
+
+
+def test_load_op_init():
+    lvalue = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_LoadOp(lvalue, i32)
+
+    op.verify()
+    assert op.operand is lvalue
+    assert op.result.type == i32
+
+
+def test_load_op_init_from_operation():
+    lvalue = create_ssa_value(EmitC_LValueType(i32))
+    op = EmitC_LoadOp(lvalue.owner, i32)
+
+    op.verify()
+    assert op.operand is lvalue
+    assert op.result.type == i32
+
+
+def test_variable_op_init():
+    op = EmitC_VariableOp(IntegerAttr(7, 32), EmitC_LValueType(i32))
+
+    op.verify()
+    assert op.value == IntegerAttr(7, 32)
+    assert op.result.type == EmitC_LValueType(i32)
+
+
+def test_variable_op_opaque_init():
+    value = EmitC_OpaqueAttr(StringAttr(""))
+    result_type = EmitC_ArrayType([2], i32)
+    op = EmitC_VariableOp(value, result_type)
+
+    op.verify()
+    assert op.value == value
+    assert op.result.type == result_type

@@ -10,6 +10,7 @@ linalg.add ins(%m, %m : memref<4xf32>, memref<4xf32>) outs(%m : memref<4xf32>)
 } -> tensor<4xf32>
 linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%m : memref<4xf32>) outs(%m : memref<4xf32>) {
 ^bb0(%x: f32, %y: f32):
+  %i = linalg.index 0 : index
   linalg.yield %x : f32
 }
 %2 = linalg.reduce ins(%t : tensor<4xf32>) outs(%t : tensor<4xf32>) dimensions = []

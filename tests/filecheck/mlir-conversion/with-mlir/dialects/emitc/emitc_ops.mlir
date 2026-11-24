@@ -81,6 +81,13 @@ emitc.call_opaque "test" ()  : () -> ()
 // CHECK: {{%.*}} = emitc.apply "&"({{%.*}}) : (!emitc.lvalue<!emitc.opaque<"MyType">>) -> !emitc.ptr<!emitc.opaque<"MyType">>
 
 //===----------------------------------------------------------------------===//
+// AssignOp
+//===----------------------------------------------------------------------===//
+
+emitc.assign %i32_lhs : i32 to %lvalue_i32 : !emitc.lvalue<i32>
+// CHECK: emitc.assign {{%.*}} : i32 to {{%.*}} : <i32>
+
+//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
@@ -108,3 +115,29 @@ emitc.call_opaque "test" ()  : () -> ()
 
 %lit = emitc.literal "1" : i32
 // CHECK: {{%.*}} = emitc.literal "1" : i32
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%load = emitc.load %lvalue_i32 : !emitc.lvalue<i32>
+// CHECK: {{%.*}} = emitc.load {{%.*}} : <i32>
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+%variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+
+%variable_init = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = 7 : i32}> : () -> !emitc.lvalue<i32>
+
+%variable_sizet = "emitc.variable"() <{value = 42 : index}> : () -> !emitc.lvalue<!emitc.size_t>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = 42 : index}> : () -> !emitc.lvalue<!emitc.size_t>
+
+%variable_ptr = "emitc.variable"() <{value = #emitc.opaque<"NULL">}> : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = #emitc.opaque<"NULL">}> : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+
+%variable_array = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>
+// CHECK: {{%.*}} = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.array<2xi32>

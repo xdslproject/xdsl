@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Generic, Literal
+from typing import ClassVar, Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -34,7 +34,9 @@ from xdsl.dialects.builtin import (
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
+    BlockArgument,
     Dialect,
+    Operation,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -45,7 +47,9 @@ from xdsl.irdl import (
     AttrConstraint,
     IntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
+    VarConstraint,
     VerificationContext,
     irdl_attr_definition,
     irdl_op_definition,
@@ -61,7 +65,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, MemoryWriteEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -167,8 +171,9 @@ class EmitC_OpaqueAttr(ParametrizedAttribute):
 
 EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
 """
-An EmitC opaque attribute or a typed attribute.
-Used for the initial value of operations such as `emitc.constant`.
+The value an EmitC operation is initialized with.
+It is either a typed attribute, like `42 : i32`, or a piece of C code written
+as text, like `#emitc.opaque<"NULL">`.
 """
 
 EmitCArrayElementTypeCovT = TypeVar(
@@ -389,6 +394,38 @@ class EmitC_AddOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_AddressOfOp(IRDLOperation):
+    """
+    Address operation.
+
+    This operation models the C & (address of) operator for a single operand,
+    which must be an emitc.lvalue, and returns an emitc pointer to its location.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.address_of %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t* v2 = &v1;
+    ```
+    """
+
+    name = "emitc.address_of"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    reference = operand_def(ParamAttrConstraint.get(EmitC_LValueType, T))
+    result = result_def(ParamAttrConstraint.get(EmitC_PointerType, T))
+
+    assembly_format = "$reference `:` qualified(type($reference)) attr-dict"
+
+    def __init__(self, reference: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[reference], result_types=[result_type])
+
+
+@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
@@ -433,6 +470,53 @@ class EmitC_ApplyOp(IRDLOperation):
     def has_side_effects(self) -> bool:
         """Return True if the operation has side effects."""
         return self.applicableOperator.data == "*"
+
+
+@irdl_op_definition
+class EmitC_AssignOp(IRDLOperation):
+    """
+    Assign operation.
+
+    The `emitc.assign` operation stores an SSA value to the location designated
+    by an EmitC variable. This operation doesn't return any value. The assigned
+    value must be of the same type as the variable being assigned. The operation
+    is emitted as a C/C++ '=' operator.
+
+    Example:
+
+    ```mlir
+    // Integer variable
+    %0 = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.lvalue<i32>
+    %1 = emitc.call_opaque "foo"() : () -> (i32)
+
+    // Assign emitted as `... = ...;`
+    "emitc.assign"(%0, %1) : (!emitc.lvalue<i32>, i32) -> ()
+    ```
+    """
+
+    name = "emitc.assign"
+
+    var = operand_def(EmitC_LValueType)
+    value = operand_def(EmitCTypeConstr)
+
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
+
+    def __init__(self, var: SSAValue | Operation, value: SSAValue | Operation):
+        super().__init__(operands=[var, value])
+
+    def verify_(self) -> None:
+        if isinstance(self.var, BlockArgument):
+            raise VerifyException("cannot assign to block argument")
+
+        assert isinstance(self.var.type, EmitC_LValueType)
+        variable_type = self.var.type.value_type
+        if variable_type != self.value.type:
+            raise VerifyException(
+                f"requires value's type ({self.value.type}) to match "
+                f"variable's type ({variable_type})"
+            )
 
 
 @irdl_op_definition
@@ -577,6 +661,35 @@ class EmitC_ConstantOp(IRDLOperation, HasFolderInterface):
 
 
 @irdl_op_definition
+class EmitC_DereferenceOp(IRDLOperation):
+    """
+    Dereference operation.
+
+    This operation models the C * (dereference) operator for a single operand,
+    which must be an emitc.ptr, and returns an emitc.lvalue for the value
+    pointed to by the pointer.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.dereference %0 : !emitc.ptr<i32>
+    ```
+    """
+
+    name = "emitc.dereference"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    pointer = operand_def(ParamAttrConstraint.get(EmitC_PointerType, T))
+    result = result_def(ParamAttrConstraint.get(EmitC_LValueType, T))
+
+    assembly_format = "$pointer `:` qualified(type($pointer)) attr-dict"
+
+    def __init__(self, pointer: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[pointer], result_types=[result_type])
+
+
+@irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
     Literal operation.
@@ -618,14 +731,92 @@ class EmitC_LiteralOp(IRDLOperation):
             raise VerifyException("value must not be empty")
 
 
+@irdl_op_definition
+class EmitC_LoadOp(IRDLOperation):
+    """
+    Load an lvalue into an SSA value.
+
+    This operation loads the content of a modifiable lvalue into an SSA value.
+    Modifications of the lvalue executed after the load are not observable on
+    the produced value.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.load %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = v1;
+    ```
+    """
+
+    name = "emitc.load"
+
+    T: ClassVar = VarConstraint.get("T", EmitCTypeConstr)
+
+    operand = operand_def(ParamAttrConstraint(EmitC_LValueType, (T,)))
+    result = result_def(T)
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
+
+
+@irdl_op_definition
+class EmitC_VariableOp(IRDLOperation):
+    """
+    Variable operation.
+
+    The `emitc.variable` operation produces an SSA value equal to some value
+    specified by an attribute. This can be used to form simple integer and
+    floating point variables, as well as more exotic things like tensor
+    variables. The `emitc.variable` operation also supports the EmitC opaque
+    attribute and the EmitC opaque type. If further supports the EmitC
+    pointer type, whereas folding is not supported.
+    The `emitc.variable` is emitted as a C/C++ local variable.
+
+    Example:
+
+    ```mlir
+    // Integer variable
+    %0 = "emitc.variable"() <{value = 42 : i32}> : () -> !emitc.lvalue<i32>
+
+    // Variable emitted as `int32_t* = NULL;`
+    %1 = "emitc.variable"() <{value = #emitc.opaque<"NULL">}>
+      : () -> !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
+    ```
+    """
+
+    name = "emitc.variable"
+
+    value = prop_def(EmitC_OpaqueOrTypedAttr)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(self, value: EmitC_OpaqueOrTypedAttr, result_type: Attribute):
+        super().__init__(
+            properties={"value": value},
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        verify_initialization_attribute(self.result.type, self.value)
+
+
 EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
+        EmitC_AddressOfOp,
         EmitC_ApplyOp,
+        EmitC_AssignOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
+        EmitC_DereferenceOp,
         EmitC_LiteralOp,
+        EmitC_LoadOp,
+        EmitC_VariableOp,
     ],
     [
         EmitC_ArrayType,

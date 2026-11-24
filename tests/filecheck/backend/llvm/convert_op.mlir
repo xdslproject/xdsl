@@ -513,6 +513,9 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
     %6 = llvm.fpext %arg3 : f32 to f64
     %7 = llvm.sitofp %arg0 : i32 to f32
     %8 = llvm.fptrunc %6 : f64 to f32
+    %9 = llvm.uitofp %arg0 : i32 to f32
+    %10 = llvm.fptosi %arg3 : f32 to i32
+    %11 = llvm.fptoui %arg3 : f32 to i64
     llvm.return %8 : f32
   }
 
@@ -528,6 +531,9 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   [[EXT:%.+]] = fpext float %".4" to double
   // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
   // CHECK-NEXT:   [[TRUNC:%.+]] = fptrunc double [[EXT]] to float
+  // CHECK-NEXT:   {{%.+}} = uitofp i32 %".1" to float
+  // CHECK-NEXT:   {{%.+}} = fptosi float %".4" to i32
+  // CHECK-NEXT:   {{%.+}} = fptoui float %".4" to i64
   // CHECK-NEXT:   ret float [[TRUNC]]
   // CHECK-NEXT: }
 
@@ -547,6 +553,9 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
     %fpext = llvm.fpext %arg3 : vector<4xf32> to vector<4xf64>
     %sitofp = llvm.sitofp %arg0 : vector<4xi32> to vector<4xf32>
     %fptrunc = llvm.fptrunc %fpext : vector<4xf64> to vector<4xf32>
+    %uitofp = llvm.uitofp %arg0 : vector<4xi32> to vector<4xf32>
+    %fptosi = llvm.fptosi %arg3 : vector<4xf32> to vector<4xi32>
+    %fptoui = llvm.fptoui %arg3 : vector<4xf32> to vector<4xi64>
     llvm.return %fptrunc : vector<4xf32>
   }
 
@@ -562,8 +571,11 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   {{%.+}} = bitcast <4 x float> %".4" to <4 x i32>
   // CHECK-NEXT:   {{%.+}} = fpext <4 x float> %".4" to <4 x double>
   // CHECK-NEXT:   {{%.+}} = sitofp <4 x i32> %".1" to <4 x float>
-  // CHECK-NEXT:   {{%.+}} = fptrunc <4 x double> {{%.+}} to <4 x float>
-  // CHECK-NEXT:   ret <4 x float> {{%.+}}
+  // CHECK-NEXT:   [[FPTRUNC:%.+]] = fptrunc <4 x double> {{%.+}} to <4 x float>
+  // CHECK-NEXT:   {{%.+}} = uitofp <4 x i32> %".1" to <4 x float>
+  // CHECK-NEXT:   {{%.+}} = fptosi <4 x float> %".4" to <4 x i32>
+  // CHECK-NEXT:   {{%.+}} = fptoui <4 x float> %".4" to <4 x i64>
+  // CHECK-NEXT:   ret <4 x float> [[FPTRUNC]]
   // CHECK-NEXT: }
 
   llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {
@@ -577,6 +589,10 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
     %zext_none = llvm.zext %arg0 : i32 to i64
     %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
 
+    // llvm.UIToFPOp with nneg flag
+    %uitofp_none = llvm.uitofp %arg0 : i32 to f32
+    %uitofp_nneg = llvm.uitofp nneg %arg0 : i32 to f32
+
     llvm.return
   }
 
@@ -589,6 +605,8 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
   // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
   // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = uitofp i32 %".1" to float
+  // CHECK-NEXT:   {{%.+}} = uitofp nneg i32 %".1" to float
 
   // void gep_constant(int (*ptr)[10]) {
   //   int* result = &ptr[1][2];

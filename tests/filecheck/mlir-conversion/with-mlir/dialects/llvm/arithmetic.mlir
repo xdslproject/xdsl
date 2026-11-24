@@ -69,4 +69,16 @@ builtin.module {
 
     %fptrunc = llvm.fptrunc %f1 : f32 to f16
     // CHECK: llvm.fptrunc [[f1]] : f32 to f16
+
+    %uitofp = llvm.uitofp %arg0 : i32 to f32
+    // CHECK: llvm.uitofp [[arg0]] : i32 to f32
+
+    %uitofp_nneg = llvm.uitofp nneg %arg0 : i32 to f32
+    // CHECK: llvm.uitofp nneg [[arg0]] : i32 to f32
+
+    %fptosi = llvm.fptosi %f1 : f32 to i32
+    // CHECK: llvm.fptosi [[f1]] : f32 to i32
+
+    %fptoui = llvm.fptoui %f1 : f32 to i64
+    // CHECK: llvm.fptoui [[f1]] : f32 to i64
 }

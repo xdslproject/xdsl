@@ -40,7 +40,7 @@ class VectorSplitLoadExtract(RewritePattern):
         element_size = element_type.compile_time_size
         name_hint = op.res.name_hint
 
-        for use in op.res.uses:
+        for use in tuple(op.res.uses):
             user = cast(vector.ExtractOp, use.operation)
             indices = user.static_position.get_values()
             assert len(indices) == 1

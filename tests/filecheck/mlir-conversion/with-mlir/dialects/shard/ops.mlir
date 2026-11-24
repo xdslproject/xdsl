@@ -78,3 +78,17 @@ shard.grid @mesh5(shape = ?)
 // CHECK-NEXT: %{{.*}} = shard.shard %{{.*}} to %{{.*}} : tensor<2x2xi8>
 %25 = shard.shard %t to %11 annotate_for_users : tensor<2x2xi8>
 // CHECK-NEXT: %{{.*}} = shard.shard %{{.*}} to %{{.*}} annotate_for_users : tensor<2x2xi8>
+
+// Process indices
+%26:3 = shard.process_multi_index on @mesh0 : index, index, index
+// CHECK-NEXT: {{%.*}}:3 = shard.process_multi_index on @mesh0 : index, index, index
+%27:2 = shard.process_multi_index on @mesh0 axes = [2, 0] : index, index
+// CHECK-NEXT: {{%.*}}:2 = shard.process_multi_index on @mesh0 axes = [2, 0] : index, index
+%28:2 = shard.process_multi_index on @mesh1 axes = [] : index, index
+// CHECK-NEXT: {{%.*}}:2 = shard.process_multi_index on @mesh1 : index, index
+%29 = shard.process_linear_index on @mesh0 : index
+// CHECK-NEXT: {{%.*}} = shard.process_linear_index on @mesh0 : index
+%30:2 = shard.neighbors_linear_indices on @mesh0[%i, %i, %i] split_axes = [1] : index, index
+// CHECK-NEXT: {{%.*}}, {{%.*}} = shard.neighbors_linear_indices on @mesh0[{{%.*}}, {{%.*}}, {{%.*}}] split_axes = [1] : index, index
+%31:2 = shard.neighbors_linear_indices on @mesh5[] split_axes = [] : index, index
+// CHECK-NEXT: {{%.*}}, {{%.*}} = shard.neighbors_linear_indices on @mesh5[] split_axes = [] : index, index
