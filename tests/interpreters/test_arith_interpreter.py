@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import isnan
+from math import copysign, isnan
 from typing import Literal
 
 import pytest
@@ -13,6 +13,7 @@ from xdsl.dialects.arith import (
     CmpfOp,
     CmpiOp,
     ConstantOp,
+    DivfOp,
     DivSIOp,
     ExtSIOp,
     ExtUIOp,
@@ -20,6 +21,7 @@ from xdsl.dialects.arith import (
     IndexCastOp,
     MulfOp,
     MuliOp,
+    NegfOp,
     OrIOp,
     RemSIOp,
     SelectOp,
@@ -213,6 +215,78 @@ def test_mulf(lhs_value: float, rhs_value: float):
 
     assert len(ret) == 1
     assert ret[0] == FloatAttr(lhs_value * rhs_value, f64)
+
+
+@pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
+@pytest.mark.parametrize("rhs_value", [1.0, -1.0, 4.0, 127.0])
+def test_divf(lhs_value: float, rhs_value: float):
+    divf = DivfOp(lhs_f64_op, rhs_f64_op)
+    divf.verify()
+
+    ret = interpreter.run_op(
+        divf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
+
+    assert len(ret) == 1
+    assert ret[0] == FloatAttr(lhs_value / rhs_value, f64)
+
+
+@pytest.mark.parametrize(
+    "lhs_value, rhs_value, expected",
+    [
+        (1.0, 0.0, float("inf")),
+        (-1.0, 0.0, float("-inf")),
+        (1.0, -0.0, float("-inf")),
+        (-1.0, -0.0, float("inf")),
+        (float("inf"), 0.0, float("inf")),
+    ],
+)
+def test_divf_by_zero(lhs_value: float, rhs_value: float, expected: float):
+    divf = DivfOp(lhs_f64_op, rhs_f64_op)
+    divf.verify()
+
+    ret = interpreter.run_op(
+        divf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
+
+    assert len(ret) == 1
+    assert ret[0] == FloatAttr(expected, f64)
+
+
+@pytest.mark.parametrize("lhs_value", [0.0, -0.0, float("nan")])
+@pytest.mark.parametrize("rhs_value", [0.0, -0.0])
+def test_divf_nan(lhs_value: float, rhs_value: float):
+    divf = DivfOp(lhs_f64_op, rhs_f64_op)
+    divf.verify()
+
+    ret = interpreter.run_op(
+        divf, (FloatAttr(lhs_value, f64), FloatAttr(rhs_value, f64))
+    )
+
+    assert len(ret) == 1
+    assert isinstance(ret[0], FloatAttr)
+    assert isnan(ret[0].value.data)
+
+
+@pytest.mark.parametrize("value", [1.0, 0.0, -1.0, 127.0, float("inf")])
+def test_negf(value: float):
+    negf = NegfOp(lhs_f64_op)
+    negf.verify()
+
+    ret = interpreter.run_op(negf, (FloatAttr(value, f64),))
+
+    assert len(ret) == 1
+    assert ret[0] == FloatAttr(-value, f64)
+
+
+def test_negf_zero_sign():
+    negf = NegfOp(lhs_f64_op)
+    negf.verify()
+
+    (ret,) = interpreter.run_op(negf, (FloatAttr(0.0, f64),))
+
+    assert isinstance(ret, FloatAttr)
+    assert copysign(1.0, ret.value.data) == -1.0
 
 
 @pytest.mark.parametrize("lhs_value", [1.0, 0.0, -1.0, 127.0])
