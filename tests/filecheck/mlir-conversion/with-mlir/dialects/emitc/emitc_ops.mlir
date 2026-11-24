@@ -124,6 +124,25 @@ emitc.assign %i32_lhs : i32 to %lvalue_i32 : !emitc.lvalue<i32>
 // CHECK: {{%.*}} = emitc.load {{%.*}} : <i32>
 
 //===----------------------------------------------------------------------===//
+// SubOp
+//===----------------------------------------------------------------------===//
+
+%sub_int = emitc.sub %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: {{%.*}} = emitc.sub {{%.*}}, {{%.*}} : (i32, i32) -> i32
+
+%sub_ptr_int = emitc.sub %ptr_f32, %i32_offset : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+// CHECK: {{%.*}} = emitc.sub {{%.*}}, {{%.*}} : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+
+%sub_ptr_opaque = emitc.sub %ptr_f32, %opaque_uint : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+// CHECK: {{%.*}} = emitc.sub {{%.*}}, {{%.*}} : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+
+%sub_ptr_ptr = emitc.sub %ptr_i32, %ptr_i32 : (!emitc.ptr<i32>, !emitc.ptr<i32>) -> !emitc.ptrdiff_t
+// CHECK: {{%.*}} = emitc.sub {{%.*}}, {{%.*}} : (!emitc.ptr<i32>, !emitc.ptr<i32>) -> !emitc.ptrdiff_t
+
+%sub_tensor = emitc.sub %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+// CHECK: {{%.*}} = emitc.sub {{%.*}}, {{%.*}} : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+
+//===----------------------------------------------------------------------===//
 // VariableOp
 //===----------------------------------------------------------------------===//
 

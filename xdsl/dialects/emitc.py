@@ -765,6 +765,62 @@ class EmitC_LoadOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_SubOp(EmitC_BinaryOperation):
+    """
+    Subtraction operation.
+
+    With the `emitc.sub` operation the arithmetic operator - (subtraction) can
+    be applied. Supports pointer arithmetic: an integer or opaque value can be
+    subtracted from a pointer, and two pointers can be subtracted from each
+    other.
+
+    Example:
+
+    ```mlir
+    // Custom form of the subtraction operation.
+    %0 = emitc.sub %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.sub %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    %2 = emitc.sub %arg4, %arg5 : (!emitc.ptr<i32>, !emitc.ptr<i32>)
+        -> !emitc.ptrdiff_t
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v7 = v1 - v2;
+    float* v8 = v3 - v4;
+    ptrdiff_t v9 = v5 - v6;
+    ```
+    """
+
+    name = "emitc.sub"
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+        result_type = self.result.type
+
+        if isa(rhs_type, EmitC_PointerType) and not isa(lhs_type, EmitC_PointerType):
+            raise VerifyException("rhs can only be a pointer if lhs is a pointer")
+
+        if isa(lhs_type, EmitC_PointerType) and not isa(
+            rhs_type, IntegerType | EmitC_OpaqueType | EmitC_PointerType
+        ):
+            raise VerifyException(
+                "requires that rhs is an integer, pointer or of opaque type if lhs "
+                "is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and isa(rhs_type, EmitC_PointerType)
+            and not isa(result_type, IntegerType | EmitC_PtrDiffT | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "requires that the result is an integer, ptrdiff_t or of opaque "
+                "type if lhs and rhs are pointers"
+            )
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
     Variable operation.
@@ -816,6 +872,7 @@ EmitC = Dialect(
         EmitC_DereferenceOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
+        EmitC_SubOp,
         EmitC_VariableOp,
     ],
     [
