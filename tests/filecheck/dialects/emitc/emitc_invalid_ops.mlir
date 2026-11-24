@@ -182,6 +182,16 @@ emitc.assign %value : f32 to %var : !emitc.lvalue<i32>
 // -----
 
 //===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+%lhs, %rhs = "test.op"() : () -> (tensor<i32>, tensor<i32>)
+// CHECK: Unexpected attribute tensor<i32>
+%div_tensor = "emitc.div"(%lhs, %rhs) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+
+// -----
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
@@ -203,6 +213,16 @@ emitc.assign %value : f32 to %var : !emitc.lvalue<i32>
 %v = "test.op"() : () -> i32
 // CHECK: i32 should be of base attribute emitc.lvalue
 %load = "emitc.load"(%v) : (i32) -> i32
+
+// -----
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+%lhs, %rhs = "test.op"() : () -> (tensor<i32>, tensor<i32>)
+// CHECK: Unexpected attribute tensor<i32>
+%mul_tensor = "emitc.mul"(%lhs, %rhs) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 
 // -----
 

@@ -2,6 +2,8 @@
 // RUN: MLIR_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
+%size_lhs, %size_rhs = "test.op"() : () -> (!emitc.size_t, !emitc.size_t)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
@@ -110,6 +112,19 @@ emitc.assign %i32_lhs : i32 to %lvalue_i32 : !emitc.lvalue<i32>
 // CHECK: {{%.*}} = "emitc.constant"() <{value = #emitc.opaque<"42">}> : () -> !emitc.opaque<"int">
 
 //===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+%div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: {{%.*}} = emitc.div {{%.*}}, {{%.*}} : (i32, i32) -> i32
+
+%div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: {{%.*}} = emitc.div {{%.*}}, {{%.*}} : (f32, f32) -> f32
+
+%div_size = emitc.div %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: {{%.*}} = emitc.div {{%.*}}, {{%.*}} : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
@@ -122,6 +137,19 @@ emitc.assign %i32_lhs : i32 to %lvalue_i32 : !emitc.lvalue<i32>
 
 %load = emitc.load %lvalue_i32 : !emitc.lvalue<i32>
 // CHECK: {{%.*}} = emitc.load {{%.*}} : <i32>
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+%mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: {{%.*}} = emitc.mul {{%.*}}, {{%.*}} : (i32, i32) -> i32
+
+%mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: {{%.*}} = emitc.mul {{%.*}}, {{%.*}} : (f32, f32) -> f32
+
+%mul_size = emitc.mul %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: {{%.*}} = emitc.mul {{%.*}}, {{%.*}} : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
 
 //===----------------------------------------------------------------------===//
 // SubOp
