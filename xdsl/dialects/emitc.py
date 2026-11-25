@@ -346,6 +346,18 @@ class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
         )
 
 
+class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC unary operations."""
+
+    operand = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(self, operand: SSAValue, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
+
+
 @irdl_op_definition
 class EmitC_AddOp(EmitC_BinaryOperation):
     """
@@ -906,6 +918,50 @@ class EmitC_SubOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
+    """
+    Unary minus operation.
+
+    With the `emitc.unary_minus` operation the unary operator - (minus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_minus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = -v1;
+    ```
+    """
+
+    name = "emitc.unary_minus"
+
+
+@irdl_op_definition
+class EmitC_UnaryPlusOp(EmitC_UnaryOperation):
+    """
+    Unary plus operation.
+
+    With the `emitc.unary_plus` operation the unary operator + (plus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_plus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = +v1;
+    ```
+    """
+
+    name = "emitc.unary_plus"
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
     Variable operation.
@@ -961,6 +1017,8 @@ EmitC = Dialect(
         EmitC_MulOp,
         EmitC_RemOp,
         EmitC_SubOp,
+        EmitC_UnaryMinusOp,
+        EmitC_UnaryPlusOp,
         EmitC_VariableOp,
     ],
     [
