@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from typing import ClassVar, NamedTuple, cast
 
 from xdsl.builder import Builder
@@ -16,12 +17,13 @@ from xdsl.dialects.builtin import (
     ShapedType,
     TensorType,
 )
-from xdsl.ir import Attribute, BlockArgument, Region, SSAValue
+from xdsl.ir import Attribute, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    lazy_traits_def,
     prop_def,
     region_def,
     var_operand_def,
@@ -29,6 +31,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import (
+    EffectInstance,
+    MemoryEffectKind,
+    RecursivelySpeculatable,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -48,7 +57,80 @@ class LoopBoundSource(NamedTuple):
     """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
 
 
-class LinalgStructuredOperation(IRDLOperation, ABC):
+class DestinationStyleOperation(IRDLOperation, ABC):
+    """
+    An operation whose operands are split into read-only inputs and inits
+    (destinations), with a single-block payload region whose arguments are the
+    scalar elements of the inputs followed by those of the inits.
+    """
+
+    @abstractmethod
+    def dps_inputs(self) -> Sequence[SSAValue]: ...
+
+    @abstractmethod
+    def dps_inits(self) -> Sequence[SSAValue]: ...
+
+    @staticmethod
+    def __dps_traits():
+        """Traits shared by all destination-style linalg ops with a payload region."""
+        from .ops import YieldOp
+
+        return (
+            LinalgMemoryEffect(),
+            SingleBlockImplicitTerminator(YieldOp),
+            LinalgSpeculatable(),
+        )
+
+    traits = lazy_traits_def(__dps_traits)
+
+
+class LinalgMemoryEffect(RecursiveMemoryEffect):
+    """
+    Effects of a destination-style linalg op: those of its payload, plus a read
+    of each memref input, and a write (and a read, if the payload uses its value)
+    of each memref init. Mirrors MLIR's `getGenericEffectsImpl`.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance] | None:
+        if not isinstance(op, DestinationStyleOperation):
+            raise TypeError(
+                f"Expected op with LinalgMemoryEffect to be a subclass of DestinationStyleOperation, got {type(op)}"
+            )
+        if (effects := super().get_effects(op)) is None:
+            return None
+        inputs = op.dps_inputs()
+        init_args = op.regions[0].block.args[len(inputs) :]
+        effects = {
+            *effects,
+            *(
+                EffectInstance(MemoryEffectKind.READ, v)
+                for v in inputs
+                if isinstance(v.type, MemRefType)
+            ),
+        }
+        for v, arg in zip(op.dps_inits(), init_args, strict=True):
+            if isinstance(v.type, MemRefType):
+                if arg.uses:
+                    effects.add(EffectInstance(MemoryEffectKind.READ, v))
+                effects.add(EffectInstance(MemoryEffectKind.WRITE, v))
+        return effects
+
+
+class LinalgSpeculatable(RecursivelySpeculatable):
+    """
+    Speculatable iff the op has pure tensor semantics and its payload is.
+    Mirrors MLIR's `getGenericSpeculatabilityImpl`.
+    """
+
+    @classmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        return (
+            not any(isinstance(o.type, MemRefType) for o in op.operands)
+        ) and super().is_speculatable(op)
+
+
+class LinalgStructuredOperation(DestinationStyleOperation, ABC):
     """
     Abstract base class for structured linalg operations, allowing them to be processed
     via a unified interface.
@@ -74,6 +156,12 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     The body implementing the combination of scalar elements of the inputs, and
     yielding the scalar elements of the outputs.
     """
+
+    def dps_inputs(self) -> Sequence[SSAValue]:
+        return self.inputs
+
+    def dps_inits(self) -> Sequence[SSAValue]:
+        return self.outputs
 
     @abstractmethod
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:

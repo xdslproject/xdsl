@@ -52,6 +52,7 @@ from xdsl.utils.hints import isa
 
 from .abstract_ops import (
     ConvOperation,
+    DestinationStyleOperation,
     ElementwiseOperation,
     LinalgStructuredOperation,
     NamedOperation,
@@ -1358,7 +1359,7 @@ class Conv2DNhwgcGfhwcOp(ConvOperation):
 
 
 @irdl_op_definition
-class BroadcastOp(IRDLOperation):
+class BroadcastOp(DestinationStyleOperation):
     """
     Static broadcast operator
 
@@ -1374,6 +1375,12 @@ class BroadcastOp(IRDLOperation):
     hidden_region = region_def("single_block")
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    def dps_inputs(self) -> Sequence[SSAValue]:
+        return (self.input,)
+
+    def dps_inits(self) -> Sequence[SSAValue]:
+        return (self.init,)
 
     def __init__(
         self,
@@ -1485,7 +1492,7 @@ class BroadcastOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ReduceOp(IRDLOperation):
+class ReduceOp(DestinationStyleOperation):
     name = "linalg.reduce"
 
     input = operand_def(MemRefType | TensorType)
@@ -1495,6 +1502,12 @@ class ReduceOp(IRDLOperation):
     region: Region = region_def("single_block")
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    def dps_inputs(self) -> Sequence[SSAValue]:
+        return (self.input,)
+
+    def dps_inits(self) -> Sequence[SSAValue]:
+        return (self.init,)
 
     def __init__(
         self,

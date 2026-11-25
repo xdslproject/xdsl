@@ -190,3 +190,13 @@ linalg.add ins(%lhs, %rhs : memref<4xf32>, memref<5xf32>) outs(%out : memref<4xf
 linalg.add ins(%lhs, %rhs : memref<4xf32>, memref<4x4xf32>) outs(%out : memref<4xf32>)
 
 // CHECK: Operation does not verify: expected operand #1 of rank 2 to match the result count of indexing_map #1, 1
+
+// -----
+
+%t = "test.op"() : () -> tensor<4xf32>
+%r = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%t : tensor<4xf32>) outs(%t : tensor<4xf32>) {
+^bb0(%x: f32, %y: f32):
+  "test.termop"(%x) : (f32) -> ()
+} -> tensor<4xf32>
+
+// CHECK: Operation does not verify: 'linalg.generic' terminates with operation test.termop instead of linalg.yield
