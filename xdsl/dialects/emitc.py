@@ -823,6 +823,33 @@ class EmitC_MulOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_RemOp(EmitC_BinaryOperation):
+    """
+    Remainder operation.
+
+    With the `emitc.rem` operation the arithmetic operator % (remainder) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the remainder operation.
+    %0 = emitc.rem %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v5 = v1 % v2;
+    ```
+    """
+
+    name = "emitc.rem"
+
+    lhs = operand_def(EmitCIntegerIndexOpaqueTypeConstr | EmitCPointerWideTypeConstr)
+    rhs = operand_def(EmitCIntegerIndexOpaqueTypeConstr | EmitCPointerWideTypeConstr)
+    result = result_def(EmitCIntegerIndexOpaqueTypeConstr | EmitCPointerWideTypeConstr)
+
+
+@irdl_op_definition
 class EmitC_SubOp(EmitC_BinaryOperation):
     """
     Subtraction operation.
@@ -932,6 +959,7 @@ EmitC = Dialect(
         EmitC_LiteralOp,
         EmitC_LoadOp,
         EmitC_MulOp,
+        EmitC_RemOp,
         EmitC_SubOp,
         EmitC_VariableOp,
     ],
