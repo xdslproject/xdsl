@@ -52,11 +52,11 @@ def _truncate(value: int, to_bitwidth: int) -> int:
 def _float_to_int(value: float, low: int, high: int) -> int:
     """
     Round towards zero, as `arith.fptosi` and `arith.fptoui` do. A NaN, an infinity or
-    a value outside `[low, high]` is poison in MLIR, so it raises instead.
+    a value outside `[low, high)` is poison in MLIR, so it raises instead.
     """
-    if not isfinite(value) or not low <= trunc(value) <= high:
+    if not isfinite(value) or not low <= trunc(value) < high:
         raise InterpretationError(
-            f"Cannot convert {value} to an integer in [{low}, {high}]"
+            f"Cannot convert {value} to an integer in [{low}, {high})"
         )
     return trunc(value)
 
@@ -476,7 +476,7 @@ class ArithFunctions(InterpreterFunctions):
     ):
         width = op.result.type.width.data
         value = _float_to_int(
-            args[0].value.data, signed_lower_bound(width), signed_upper_bound(width) - 1
+            args[0].value.data, signed_lower_bound(width), signed_upper_bound(width)
         )
         return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
 
@@ -485,7 +485,7 @@ class ArithFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: arith.FPToUIOp, args: PythonValues
     ):
         width = op.result.type.width.data
-        value = _float_to_int(args[0].value.data, 0, unsigned_upper_bound(width) - 1)
+        value = _float_to_int(args[0].value.data, 0, unsigned_upper_bound(width))
         return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.TruncIOp)
