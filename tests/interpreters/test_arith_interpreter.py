@@ -735,6 +735,41 @@ def test_i8_min_max_op(
     assert ret == (IntegerAttr(result, i8),)
 
 
+@pytest.mark.parametrize(
+    "op_type,lhs_value,rhs_value,result",
+    [
+        # i8 values are signless: -1 is 255 and -128 is 128 when read as unsigned
+        (arith.DivUIOp, 7, 2, 3),
+        (arith.DivUIOp, -1, 2, 127),
+        (arith.DivUIOp, -128, -1, 0),
+        (arith.DivUIOp, -1, -1, 1),
+        (arith.RemUIOp, 7, 2, 1),
+        (arith.RemUIOp, -1, 2, 1),
+        (arith.RemUIOp, -128, 3, 2),
+        (arith.RemUIOp, 5, -1, 5),
+        (arith.ShRUIOp, 8, 2, 2),
+        (arith.ShRUIOp, -1, 1, 127),
+        (arith.ShRUIOp, -128, 7, 1),
+    ],
+)
+def test_i8_unsigned_op(
+    op_type: type[arith.SignlessIntegerBinaryOperation],
+    lhs_value: int,
+    rhs_value: int,
+    result: int,
+):
+    lhs = test.TestOp(result_types=[i8])
+    rhs = test.TestOp(result_types=[i8])
+    op = op_type(lhs, rhs)
+    op.verify()
+
+    ret = interpreter.run_op(
+        op, (IntegerAttr(lhs_value, i8), IntegerAttr(rhs_value, i8))
+    )
+
+    assert ret == (IntegerAttr(result, i8),)
+
+
 @pytest.mark.parametrize("cond_value", [1, 0])
 def test_select(cond_value: int):
     cond_op = test.TestOp(result_types=[i1])
