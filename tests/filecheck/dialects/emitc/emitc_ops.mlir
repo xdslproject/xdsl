@@ -71,6 +71,30 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: "emitc.assign"(%assign_var, %assign_value) : (!emitc.lvalue<i32>, i32) -> ()
 
 //===----------------------------------------------------------------------===//
+// BitwiseNotOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_not = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK: %bitwise_not = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK-GENERIC: %bitwise_not = "emitc.bitwise_not"(%i32_lhs) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseOrOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_or = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %bitwise_or = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %bitwise_or = "emitc.bitwise_or"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseXorOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_xor = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %bitwise_xor = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %bitwise_xor = "emitc.bitwise_xor"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
