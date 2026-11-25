@@ -203,6 +203,22 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: %sub_tensor = "emitc.sub"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 
 //===----------------------------------------------------------------------===//
+// UnaryMinusOp
+//===----------------------------------------------------------------------===//
+
+%unary_minus = emitc.unary_minus %i32_lhs : (i32) -> i32
+// CHECK: %unary_minus = emitc.unary_minus %i32_lhs : (i32) -> i32
+// CHECK-GENERIC: %unary_minus = "emitc.unary_minus"(%i32_lhs) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// UnaryPlusOp
+//===----------------------------------------------------------------------===//
+
+%unary_plus = emitc.unary_plus %i32_lhs : (i32) -> i32
+// CHECK: %unary_plus = emitc.unary_plus %i32_lhs : (i32) -> i32
+// CHECK-GENERIC: %unary_plus = "emitc.unary_plus"(%i32_lhs) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
 // VariableOp
 //===----------------------------------------------------------------------===//
 
