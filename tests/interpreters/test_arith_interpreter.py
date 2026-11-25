@@ -10,6 +10,7 @@ from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
     AndIOp,
+    CeilDivSIOp,
     CmpfOp,
     CmpiOp,
     ConstantOp,
@@ -660,6 +661,21 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
 
 
 @pytest.mark.parametrize(
+    "lhs_value,rhs_value,result",
+    [(-3, -2, 2), (-3, 2, -1), (3, -2, -1), (3, 2, 2), (4, 2, 2), (0, 5, 0)],
+)
+def test_ceildivsi(lhs_value: int, rhs_value: int, result: int):
+    ceildivsi = CeilDivSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(
+        ceildivsi, (IntegerAttr(lhs_value, i64), IntegerAttr(rhs_value, i64))
+    )
+
+    assert len(ret) == 1
+    assert ret[0] == IntegerAttr(result, i64)
+
+
+@pytest.mark.parametrize(
     "value_type,index_bitwidth,modulus",
     [
         (i8, 32, 256),
@@ -670,13 +686,18 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
 )
 @pytest.mark.parametrize(
     "op_type,negative_lhs_result,negative_rhs_result",
-    [(DivSIOp, -1, -1), (RemSIOp, -2, 2), (FloorDivSIOp, -2, -2)],
+    [
+        (DivSIOp, -1, -1),
+        (RemSIOp, -2, 2),
+        (FloorDivSIOp, -2, -2),
+        (CeilDivSIOp, -1, -1),
+    ],
 )
 def test_signed_division_bitwidth(
     value_type: IntegerType | IndexType,
     index_bitwidth: Literal[32, 64],
     modulus: int,
-    op_type: type[DivSIOp | RemSIOp | FloorDivSIOp],
+    op_type: type[DivSIOp | RemSIOp | FloorDivSIOp | CeilDivSIOp],
     negative_lhs_result: int,
     negative_rhs_result: int,
 ):
@@ -750,6 +771,10 @@ def test_i8_min_max_op(
         (arith.ShRUIOp, 8, 2, 2),
         (arith.ShRUIOp, -1, 1, 127),
         (arith.ShRUIOp, -128, 7, 1),
+        (arith.CeilDivUIOp, 7, 2, 4),
+        (arith.CeilDivUIOp, 6, 3, 2),
+        (arith.CeilDivUIOp, -1, 2, -128),
+        (arith.CeilDivUIOp, -128, -1, 1),
     ],
 )
 def test_i8_unsigned_op(
