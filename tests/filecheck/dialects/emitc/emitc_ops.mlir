@@ -2,6 +2,8 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
+%size_lhs, %size_rhs = "test.op"() : () -> (!emitc.size_t, !emitc.size_t)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
@@ -109,6 +111,22 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: %dereference = "emitc.dereference"(%ptr_f32) : (!emitc.ptr<f32>) -> !emitc.lvalue<f32>
 
 //===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+%div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %div_int = "emitc.div"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %div_float = "emitc.div"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
+
+%div_size = emitc.div %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: %div_size = emitc.div %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK-GENERIC: %div_size = "emitc.div"(%size_lhs, %size_rhs) : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+
+//===----------------------------------------------------------------------===//
 // LiteralOp
 //===----------------------------------------------------------------------===//
 
@@ -131,6 +149,22 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 %load_ptr = emitc.load %lvalue_ptr : !emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>
 // CHECK: %load_ptr = emitc.load %lvalue_ptr : <!emitc.ptr<!emitc.opaque<"int32_t">>>
 // CHECK-GENERIC: %load_ptr = "emitc.load"(%lvalue_ptr) : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>) -> !emitc.ptr<!emitc.opaque<"int32_t">>
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+%mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %mul_int = "emitc.mul"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %mul_float = "emitc.mul"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
+
+%mul_size = emitc.mul %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: %mul_size = emitc.mul %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK-GENERIC: %mul_size = "emitc.mul"(%size_lhs, %size_rhs) : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
 
 //===----------------------------------------------------------------------===//
 // SubOp

@@ -690,6 +690,35 @@ class EmitC_DereferenceOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_DivOp(EmitC_BinaryOperation):
+    """
+    Division operation.
+
+    With the `emitc.div` operation the arithmetic operator / (division) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the division operation.
+    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 / v2;
+    float v6 = v3 / v4;
+    ```
+    """
+
+    name = "emitc.div"
+
+    lhs = operand_def(EmitCArrayElementTypeConstr)
+    rhs = operand_def(EmitCArrayElementTypeConstr)
+    result = result_def(EmitCArrayElementTypeConstr)
+
+
+@irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
     Literal operation.
@@ -762,6 +791,35 @@ class EmitC_LoadOp(IRDLOperation):
 
     def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
+
+
+@irdl_op_definition
+class EmitC_MulOp(EmitC_BinaryOperation):
+    """
+    Multiplication operation.
+
+    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the multiplication operation.
+    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 * v2;
+    float v6 = v3 * v4;
+    ```
+    """
+
+    name = "emitc.mul"
+
+    lhs = operand_def(EmitCArrayElementTypeConstr)
+    rhs = operand_def(EmitCArrayElementTypeConstr)
+    result = result_def(EmitCArrayElementTypeConstr)
 
 
 @irdl_op_definition
@@ -870,8 +928,10 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
+        EmitC_DivOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
+        EmitC_MulOp,
         EmitC_SubOp,
         EmitC_VariableOp,
     ],
