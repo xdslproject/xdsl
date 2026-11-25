@@ -316,6 +316,38 @@ class ArithFunctions(InterpreterFunctions):
             scalar_attr(lhs - div * rhs, op.result.type, interpreter.index_bitwidth),
         )
 
+    @impl(arith.ShRUIOp)
+    def run_shrui(
+        self, interpreter: Interpreter, op: arith.ShRUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        return (scalar_attr(lhs >> rhs, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.DivUIOp)
+    def run_divui(
+        self, interpreter: Interpreter, op: arith.DivUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        assert rhs != 0
+        return (scalar_attr(lhs // rhs, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.RemUIOp)
+    def run_remui(
+        self, interpreter: Interpreter, op: arith.RemUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        assert rhs != 0
+        return (scalar_attr(lhs % rhs, op.result.type, interpreter.index_bitwidth),)
+
     @impl(arith.FloorDivSIOp)
     def run_floordivsi(
         self, interpreter: Interpreter, op: arith.FloorDivSIOp, args: PythonValues
