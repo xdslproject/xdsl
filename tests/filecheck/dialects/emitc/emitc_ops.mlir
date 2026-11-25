@@ -167,6 +167,18 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: %mul_size = "emitc.mul"(%size_lhs, %size_rhs) : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
 
 //===----------------------------------------------------------------------===//
+// RemOp
+//===----------------------------------------------------------------------===//
+
+%rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %rem_int = "emitc.rem"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%rem_size = emitc.rem %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: %rem_size = emitc.rem %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK-GENERIC: %rem_size = "emitc.rem"(%size_lhs, %size_rhs) : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+
+//===----------------------------------------------------------------------===//
 // SubOp
 //===----------------------------------------------------------------------===//
 
