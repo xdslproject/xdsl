@@ -1,4 +1,4 @@
-from math import copysign, inf, isnan, nan
+from math import copysign, inf, isfinite, isnan, nan, trunc
 from typing import Any, cast
 
 from xdsl.dialects import arith, builtin
@@ -13,7 +13,13 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.utils.comparisons import to_signed, to_unsigned
+from xdsl.utils.comparisons import (
+    signed_lower_bound,
+    signed_upper_bound,
+    to_signed,
+    to_unsigned,
+    unsigned_upper_bound,
+)
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -41,6 +47,18 @@ def _truncate(value: int, to_bitwidth: int) -> int:
     if truncated & (1 << (to_bitwidth - 1)):
         return truncated - (1 << to_bitwidth)
     return truncated
+
+
+def _float_to_int(value: float, low: int, high: int) -> int:
+    """
+    Round towards zero, as `arith.fptosi` and `arith.fptoui` do. A NaN, an infinity or
+    a value outside `[low, high)` is poison in MLIR, so it raises instead.
+    """
+    if not isfinite(value) or not low <= trunc(value) < high:
+        raise InterpretationError(
+            f"Cannot convert {value} to an integer in [{low}, {high})"
+        )
+    return trunc(value)
 
 
 @register_impls
@@ -492,6 +510,40 @@ class ArithFunctions(InterpreterFunctions):
     ):
         assert isa(op.input.type, builtin.IntegerType)
         value = to_unsigned(args[0].value.data, op.input.type.width.data)
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.SIToFPOp)
+    def run_sitofp(
+        self, interpreter: Interpreter, op: arith.SIToFPOp, args: PythonValues
+    ):
+        assert isa(op.input.type, builtin.IntegerType)
+        value = to_signed(args[0].value.data, op.input.type.width.data)
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.UIToFPOp)
+    def run_uitofp(
+        self, interpreter: Interpreter, op: arith.UIToFPOp, args: PythonValues
+    ):
+        assert isa(op.input.type, builtin.IntegerType)
+        value = to_unsigned(args[0].value.data, op.input.type.width.data)
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.FPToSIOp)
+    def run_fptosi(
+        self, interpreter: Interpreter, op: arith.FPToSIOp, args: PythonValues
+    ):
+        width = op.result.type.width.data
+        value = _float_to_int(
+            args[0].value.data, signed_lower_bound(width), signed_upper_bound(width)
+        )
+        return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.FPToUIOp)
+    def run_fptoui(
+        self, interpreter: Interpreter, op: arith.FPToUIOp, args: PythonValues
+    ):
+        width = op.result.type.width.data
+        value = _float_to_int(args[0].value.data, 0, unsigned_upper_bound(width))
         return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.TruncIOp)

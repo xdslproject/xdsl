@@ -975,3 +975,71 @@ def test_trunci(value: int, expected: int):
 
     assert len(ret) == 1
     assert ret[0] == IntegerAttr(expected, i8)
+
+
+@pytest.mark.parametrize(
+    "op_type,value,result",
+    [
+        # i8 values are signless: -1 is 255 and -128 is 128 when read as unsigned
+        (arith.SIToFPOp, 5, 5.0),
+        (arith.SIToFPOp, -1, -1.0),
+        (arith.SIToFPOp, -128, -128.0),
+        (arith.UIToFPOp, 5, 5.0),
+        (arith.UIToFPOp, -1, 255.0),
+        (arith.UIToFPOp, -128, 128.0),
+    ],
+)
+def test_int_to_float(
+    op_type: type[arith.IntegerToFloatingPointBaseOp], value: int, result: float
+):
+    op = op_type(test.TestOp(result_types=[i8]).res[0], f64)
+    op.verify()
+
+    ret = interpreter.run_op(op, (IntegerAttr(value, i8),))
+
+    assert ret == (FloatAttr(result, f64),)
+
+
+@pytest.mark.parametrize(
+    "op_type,value,result",
+    [
+        # rounds towards zero
+        (arith.FPToSIOp, 2.7, 2),
+        (arith.FPToSIOp, -2.7, -2),
+        (arith.FPToSIOp, -128.0, -128),
+        (arith.FPToSIOp, 127.9, 127),
+        (arith.FPToUIOp, 2.7, 2),
+        (arith.FPToUIOp, 255.0, -1),
+        (arith.FPToUIOp, 128.5, -128),
+        (arith.FPToUIOp, -0.5, 0),
+    ],
+)
+def test_float_to_int(
+    op_type: type[arith.FloatingPointToIntegerBaseOp], value: float, result: int
+):
+    op = op_type(test.TestOp(result_types=[f64]).res[0], i8)
+    op.verify()
+
+    ret = interpreter.run_op(op, (FloatAttr(value, f64),))
+
+    assert ret == (IntegerAttr(result, i8),)
+
+
+@pytest.mark.parametrize(
+    "op_type,value",
+    [
+        (arith.FPToSIOp, 128.0),
+        (arith.FPToSIOp, -129.0),
+        (arith.FPToSIOp, float("nan")),
+        (arith.FPToUIOp, 256.0),
+        (arith.FPToUIOp, -1.0),
+        (arith.FPToUIOp, float("inf")),
+    ],
+)
+def test_float_to_int_poison(
+    op_type: type[arith.FloatingPointToIntegerBaseOp], value: float
+):
+    op = op_type(test.TestOp(result_types=[f64]).res[0], i8)
+
+    with pytest.raises(InterpretationError, match="Cannot convert"):
+        interpreter.run_op(op, (FloatAttr(value, f64),))
