@@ -172,24 +172,43 @@ class Printer(BasePrinter[str]):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-    def _get_valid_block_name(self, name_hint: str) -> str:
-        """Return a name with the given hint that is unique in the current context."""
+    def _get_valid_block_name(
+        self,
+        name_hint: str,
+        used: set[str] | None = None,
+        *,
+        record: bool = True,
+    ) -> str:
+        """Return a name with the given hint that is unused in the current scope."""
         curr_ind = self.block_names.get(name_hint, 0)
-        suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-        self.block_names[name_hint] = curr_ind + 1
-        return f"{name_hint}{suffix}"
+        while True:
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{name_hint}{suffix}"
+            if used is None or name not in used:
+                break
+            curr_ind += 1
+        if record:
+            self.block_names[name_hint] = curr_ind + 1
+        if used is not None:
+            used.add(name)
+        return name
 
     def _populate_block_name(
-        self, block: Block, block_index: int | None = None
+        self,
+        block: Block,
+        block_index: int | None = None,
+        used: set[str] | None = None,
     ) -> None:
         """Assign a name to a block. The block must not already have one."""
         assert block not in self._blocks
         if block.name_hint:
-            name = self._get_valid_block_name(block.name_hint)
+            name = self._get_valid_block_name(block.name_hint, used)
         elif block_index is not None:
-            name = self._get_valid_block_name(f"bb{block_index}")
+            name = self._get_valid_block_name(f"bb{block_index}", used, record=False)
         else:
-            name = self._get_valid_block_name(f"bb{self._get_new_valid_block_id()}")
+            name = self._get_valid_block_name(
+                f"bb{self._get_new_valid_block_id()}", used, record=False
+            )
         self._blocks[block] = name
 
     def _get_block_name(self, block: Block) -> str:
@@ -277,9 +296,12 @@ class Printer(BasePrinter[str]):
         # printed.
         # A printer may be reused to print the same region more than once, in which
         # case the blocks already have names and must keep them.
+        used: set[str] = {
+            self._blocks[block] for block in region.blocks if block in self._blocks
+        }
         for block_index, block in enumerate(region.blocks):
             if block not in self._blocks:
-                self._populate_block_name(block, block_index)
+                self._populate_block_name(block, block_index, used)
 
         # Empty region
         with self.in_braces():
