@@ -533,6 +533,72 @@ class EmitC_AssignOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_BitwiseNotOp(EmitC_UnaryOperation):
+    """
+    Bitwise not operation.
+
+    With the `emitc.bitwise_not` operation the bitwise operator ~ (not) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_not %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = ~v1;
+    ```
+    """
+
+    name = "emitc.bitwise_not"
+
+
+@irdl_op_definition
+class EmitC_BitwiseOrOp(EmitC_BinaryOperation):
+    """
+    Bitwise or operation.
+
+    With the `emitc.bitwise_or` operation the bitwise operator | (or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_or %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 | v2;
+    ```
+    """
+
+    name = "emitc.bitwise_or"
+
+
+@irdl_op_definition
+class EmitC_BitwiseXorOp(EmitC_BinaryOperation):
+    """
+    Bitwise xor operation.
+
+    With the `emitc.bitwise_xor` operation the bitwise operator ^ (xor)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_xor %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 ^ v2;
+    ```
+    """
+
+    name = "emitc.bitwise_xor"
+
+
+@irdl_op_definition
 class EmitC_CallOpaqueOp(IRDLOperation):
     """
     The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
@@ -1096,6 +1162,9 @@ EmitC = Dialect(
         EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
+        EmitC_BitwiseNotOp,
+        EmitC_BitwiseOrOp,
+        EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
