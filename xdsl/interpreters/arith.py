@@ -496,6 +496,22 @@ class ArithFunctions(InterpreterFunctions):
 
         return (scalar_attr(result, op.result.type, interpreter.index_bitwidth),)
 
+    @impl(arith.ExtFOp)
+    def run_extf(self, interpreter: Interpreter, op: arith.ExtFOp, args: PythonValues):
+        return (
+            scalar_attr(args[0].value.data, op.result.type, interpreter.index_bitwidth),
+        )
+
+    @impl(arith.TruncFOp)
+    def run_truncf(
+        self, interpreter: Interpreter, op: arith.TruncFOp, args: PythonValues
+    ):
+        # The float attribute rounds the value to the nearest one of the result type,
+        # and a value beyond its range becomes an infinity, as `arith.truncf` does.
+        return (
+            scalar_attr(args[0].value.data, op.result.type, interpreter.index_bitwidth),
+        )
+
     @impl(arith.ExtSIOp)
     def run_extsi(
         self, interpreter: Interpreter, op: arith.ExtSIOp, args: PythonValues
