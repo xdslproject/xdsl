@@ -172,20 +172,24 @@ class Printer(BasePrinter[str]):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
+    def _get_valid_block_name(self, name_hint: str) -> str:
+        """Return a name with the given hint that is unique in the current context."""
+        curr_ind = self.block_names.get(name_hint, 0)
+        suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+        self.block_names[name_hint] = curr_ind + 1
+        return f"{name_hint}{suffix}"
+
     def _populate_block_name(
         self, block: Block, block_index: int | None = None
     ) -> None:
         """Assign a name to a block. The block must not already have one."""
         assert block not in self._blocks
         if block.name_hint:
-            curr_ind = self.block_names.get(block.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{block.name_hint}{suffix}"
-            self.block_names[block.name_hint] = curr_ind + 1
+            name = self._get_valid_block_name(block.name_hint)
         elif block_index is not None:
-            name = f"bb{block_index}"
+            name = self._get_valid_block_name(f"bb{block_index}")
         else:
-            name = f"bb{self._get_new_valid_block_id()}"
+            name = self._get_valid_block_name(f"bb{self._get_new_valid_block_id()}")
         self._blocks[block] = name
 
     def _get_block_name(self, block: Block) -> str:

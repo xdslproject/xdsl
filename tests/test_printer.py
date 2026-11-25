@@ -514,6 +514,19 @@ def test_print_region_twice_with_same_printer():
     assert io.getvalue() == first
 
 
+def test_print_blocks_name_clash_in_region():
+    """A default block name must not clash with the name hint of another block."""
+    block0 = Block(arg_types=[i32, i32])
+    block0.name_hint = "bb1"
+    block1 = Block(arg_types=[i32])
+    region = Region((block0, block1))
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    assert io.getvalue() == """{\n^bb1(%0: i32, %1: i32):\n^bb1_1(%2: i32):\n}"""
+
+
 def test_print_block_without_arguments():
     """Print a block and its arguments separately."""
     block = Block(arg_types=[i32, i32])
