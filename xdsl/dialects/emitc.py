@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     TupleType,
+    i1,
 )
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
@@ -806,6 +807,93 @@ class EmitC_LoadOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_LogicalAndOp(EmitC_BinaryOperation):
+    """
+    Logical and operation.
+
+    With the `emitc.logical_and` operation the logical operator && (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_and %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 && v2;
+    ```
+    """
+
+    name = "emitc.logical_and"
+
+    result = result_def(i1)
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
+        super().__init__(lhs, rhs, i1)
+
+
+@irdl_op_definition
+class EmitC_LogicalNotOp(EmitC_UnaryOperation):
+    """
+    Logical not operation.
+
+    With the `emitc.logical_not` operation the logical operator ! (negation) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_not %arg0 : i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v2 = !v1;
+    ```
+    """
+
+    name = "emitc.logical_not"
+
+    result = result_def(i1)
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+    def __init__(self, operand: SSAValue):
+        super().__init__(operand, i1)
+
+
+@irdl_op_definition
+class EmitC_LogicalOrOp(EmitC_BinaryOperation):
+    """
+    Logical or operation.
+
+    With the `emitc.logical_or` operation the logical operator || (inclusive or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_or %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 || v2;
+    ```
+    """
+
+    name = "emitc.logical_or"
+
+    result = result_def(i1)
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
+        super().__init__(lhs, rhs, i1)
+
+
+@irdl_op_definition
 class EmitC_MulOp(EmitC_BinaryOperation):
     """
     Multiplication operation.
@@ -1014,6 +1102,9 @@ EmitC = Dialect(
         EmitC_DivOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
+        EmitC_LogicalAndOp,
+        EmitC_LogicalNotOp,
+        EmitC_LogicalOrOp,
         EmitC_MulOp,
         EmitC_RemOp,
         EmitC_SubOp,
