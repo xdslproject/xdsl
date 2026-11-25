@@ -1043,3 +1043,61 @@ def test_float_to_int_poison(
 
     with pytest.raises(InterpretationError, match="Cannot convert"):
         interpreter.run_op(op, (FloatAttr(value, f64),))
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,sum_value,overflow",
+    [
+        (5, 3, 8, 0),
+        # i8 values are signless: 100 + 100 = 200 fits in 8 unsigned bits
+        (100, 100, -56, 0),
+        (-1, 1, 0, 1),
+        (-56, 100, 44, 1),
+    ],
+)
+def test_i8_addui_extended(
+    lhs_value: int, rhs_value: int, sum_value: int, overflow: int
+):
+    lhs = test.TestOp(result_types=[i8])
+    rhs = test.TestOp(result_types=[i8])
+    op = arith.AddUIExtendedOp(lhs, rhs)
+    op.verify()
+
+    ret = interpreter.run_op(
+        op, (IntegerAttr(lhs_value, i8), IntegerAttr(rhs_value, i8))
+    )
+
+    assert ret == (IntegerAttr(sum_value, i8), IntegerAttr(overflow, i1))
+
+
+@pytest.mark.parametrize(
+    "op_type,lhs_value,rhs_value,low,high",
+    [
+        (arith.MulUIExtendedOp, 3, 5, 15, 0),
+        (arith.MulUIExtendedOp, 16, 16, 0, 1),
+        # 255 * 255 = 0xFE01
+        (arith.MulUIExtendedOp, -1, -1, 1, -2),
+        (arith.MulSIExtendedOp, -1, -1, 1, 0),
+        # 100 * 100 = 0x2710
+        (arith.MulSIExtendedOp, 100, 100, 16, 39),
+        (arith.MulSIExtendedOp, -128, 2, 0, -1),
+        (arith.MulSIExtendedOp, -3, 5, -15, -1),
+    ],
+)
+def test_i8_mul_extended(
+    op_type: type[arith.MulUIExtendedOp | arith.MulSIExtendedOp],
+    lhs_value: int,
+    rhs_value: int,
+    low: int,
+    high: int,
+):
+    lhs = test.TestOp(result_types=[i8])
+    rhs = test.TestOp(result_types=[i8])
+    op = op_type(lhs.res[0], rhs.res[0])
+    op.verify()
+
+    ret = interpreter.run_op(
+        op, (IntegerAttr(lhs_value, i8), IntegerAttr(rhs_value, i8))
+    )
+
+    assert ret == (IntegerAttr(low, i8), IntegerAttr(high, i8))

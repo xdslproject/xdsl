@@ -403,6 +403,54 @@ class ArithFunctions(InterpreterFunctions):
             scalar_attr(-(-lhs // rhs), op.result.type, interpreter.index_bitwidth),
         )
 
+    @impl(arith.AddUIExtendedOp)
+    def run_addui_extended(
+        self, interpreter: Interpreter, op: arith.AddUIExtendedOp, args: PythonValues
+    ):
+        assert isa(op.sum.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.sum.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        total = lhs + rhs
+        return (
+            scalar_attr(total, op.sum.type, interpreter.index_bitwidth),
+            scalar_attr(
+                int(total >= unsigned_upper_bound(bitwidth)),
+                op.overflow.type,
+                interpreter.index_bitwidth,
+            ),
+        )
+
+    @impl(arith.MulUIExtendedOp)
+    def run_mului_extended(
+        self, interpreter: Interpreter, op: arith.MulUIExtendedOp, args: PythonValues
+    ):
+        assert isa(op.low.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.low.type)
+        product = to_unsigned(args[0].value.data, bitwidth) * to_unsigned(
+            args[1].value.data, bitwidth
+        )
+        return (
+            scalar_attr(product, op.low.type, interpreter.index_bitwidth),
+            scalar_attr(product >> bitwidth, op.high.type, interpreter.index_bitwidth),
+        )
+
+    @impl(arith.MulSIExtendedOp)
+    def run_mulsi_extended(
+        self, interpreter: Interpreter, op: arith.MulSIExtendedOp, args: PythonValues
+    ):
+        assert isa(op.low.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.low.type)
+        product = to_signed(args[0].value.data, bitwidth) * to_signed(
+            args[1].value.data, bitwidth
+        )
+        # Python's right shift rounds towards negative infinity, which is the
+        # two's complement high half of a negative product.
+        return (
+            scalar_attr(product, op.low.type, interpreter.index_bitwidth),
+            scalar_attr(product >> bitwidth, op.high.type, interpreter.index_bitwidth),
+        )
+
     @impl(arith.MinSIOp)
     def run_minsi(
         self, interpreter: Interpreter, op: arith.MinSIOp, args: PythonValues
