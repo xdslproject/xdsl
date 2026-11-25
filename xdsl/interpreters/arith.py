@@ -359,6 +359,32 @@ class ArithFunctions(InterpreterFunctions):
         assert rhs != 0
         return (scalar_attr(lhs // rhs, op.result.type, interpreter.index_bitwidth),)
 
+    @impl(arith.CeilDivSIOp)
+    def run_ceildivsi(
+        self, interpreter: Interpreter, op: arith.CeilDivSIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_signed(args[0].value.data, bitwidth)
+        rhs = to_signed(args[1].value.data, bitwidth)
+        assert rhs != 0
+        return (
+            scalar_attr(-(-lhs // rhs), op.result.type, interpreter.index_bitwidth),
+        )
+
+    @impl(arith.CeilDivUIOp)
+    def run_ceildivui(
+        self, interpreter: Interpreter, op: arith.CeilDivUIOp, args: PythonValues
+    ):
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        bitwidth = _int_bitwidth(interpreter, op.result.type)
+        lhs = to_unsigned(args[0].value.data, bitwidth)
+        rhs = to_unsigned(args[1].value.data, bitwidth)
+        assert rhs != 0
+        return (
+            scalar_attr(-(-lhs // rhs), op.result.type, interpreter.index_bitwidth),
+        )
+
     @impl(arith.MinSIOp)
     def run_minsi(
         self, interpreter: Interpreter, op: arith.MinSIOp, args: PythonValues
