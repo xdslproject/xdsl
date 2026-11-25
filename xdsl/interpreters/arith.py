@@ -1,4 +1,4 @@
-from math import copysign, isnan
+from math import copysign, inf, isnan, nan
 from typing import Any, cast
 
 from xdsl.dialects import arith, builtin
@@ -116,6 +116,24 @@ class ArithFunctions(InterpreterFunctions):
     def run_mulf(self, interpreter: Interpreter, op: arith.MulfOp, args: PythonValues):
         assert isinstance(op.result.type, builtin.AnyFloat)
         return (FloatAttr(args[0].value.data * args[1].value.data, op.result.type),)
+
+    @impl(arith.DivfOp)
+    def run_divf(self, interpreter: Interpreter, op: arith.DivfOp, args: PythonValues):
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        lhs: float = args[0].value.data
+        rhs: float = args[1].value.data
+        if rhs == 0.0:
+            # IEEE 754: x / ±0 is ±inf (sign from both operands), 0 / 0 and nan / 0 are nan.
+            # Python raises ZeroDivisionError instead.
+            if lhs == 0.0 or isnan(lhs):
+                return (FloatAttr(nan, op.result.type),)
+            return (FloatAttr(copysign(inf, lhs) * copysign(1.0, rhs), op.result.type),)
+        return (FloatAttr(lhs / rhs, op.result.type),)
+
+    @impl(arith.NegfOp)
+    def run_negf(self, interpreter: Interpreter, op: arith.NegfOp, args: PythonValues):
+        assert isinstance(op.result.type, builtin.AnyFloat)
+        return (FloatAttr(-args[0].value.data, op.result.type),)
 
     @impl(arith.MinimumfOp)
     def run_minimumf(
