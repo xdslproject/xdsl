@@ -1420,7 +1420,16 @@ class TypedAttributeVariable(UniqueBaseAttributeVariable):
     def parse_attr(self, parser: Parser) -> Attribute | None:
         unique_base = self.unique_base
         assert issubclass(unique_base, TypedAttribute)
+        if self.is_optional:
+            return unique_base.parse_optional_with_type(parser, self.unique_type)
         return unique_base.parse_with_type(parser, self.unique_type)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> None:
+        unique_base = self.unique_base
+        assert issubclass(unique_base, TypedAttribute)
+        attr = unique_base.parse_optional_with_type(parser, self.unique_type)
+        if attr is not None:
+            self.set(state, attr)
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, TypedAttribute)

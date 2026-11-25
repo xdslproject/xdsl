@@ -1121,6 +1121,16 @@ class IntegerAttr(
         assert isa(type, IntegerType | IndexType)
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
+    @classmethod
+    def parse_optional_with_type(
+        cls,
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute | None:
+        assert isa(type, IntegerType | IndexType)
+        value = parser.parse_optional_integer(allow_boolean=(type == i1))
+        return None if value is None else IntegerAttr(value, type)
+
     def print_without_type(self, printer: Printer):
         printer.print_int(self.value.data, self.type)
 
@@ -1896,6 +1906,16 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrTypeCovT]):
     ) -> TypedAttribute:
         assert isinstance(type, AnyFloat)
         return FloatAttr(parser.parse_float(), type)
+
+    @classmethod
+    def parse_optional_with_type(
+        cls,
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute | None:
+        assert isinstance(type, AnyFloat)
+        value = parser.parse_optional_float()
+        return None if value is None else FloatAttr(value, type)
 
     def print_without_type(self, printer: Printer):
         return printer.print_float(self.value.data, self.type)

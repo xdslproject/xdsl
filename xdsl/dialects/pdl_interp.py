@@ -126,9 +126,7 @@ class GetOperandsOp(IRDLOperation):
     input_op = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
-    # TODO: assembly format doesn't work due to a bug:
-    # https://github.com/xdslproject/xdsl/issues/5562
-    # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
+    assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
 
     def __init__(
         self,
@@ -143,30 +141,6 @@ class GetOperandsOp(IRDLOperation):
             properties={"index": index},
             result_types=[result_type],
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> GetOperandsOp:
-        index = parser.parse_optional_integer()
-        if index is not None:
-            index = IntegerAttr(index, 32)
-        parser.parse_characters("of")
-        input_op = parser.parse_operand(OperationType())
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        return GetOperandsOp.build(
-            operands=(input_op,),
-            properties={"index": index},
-            result_types=(result_type,),
-        )
-
-    def print(self, printer: Printer):
-        if self.index is not None:
-            printer.print_string(" ", indent=0)
-            self.index.print_without_type(printer)
-        printer.print_string(" of ", indent=0)
-        printer.print_operand(self.input_op)
-        printer.print_string(" : ", indent=0)
-        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition
@@ -341,8 +315,7 @@ class GetResultsOp(IRDLOperation):
     input_op = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
-    # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
-    # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136.
+    assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
 
     def __init__(
         self,
@@ -357,30 +330,6 @@ class GetResultsOp(IRDLOperation):
             properties={"index": index},
             result_types=[result_type],
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> GetResultsOp:
-        index = parser.parse_optional_integer()
-        if index is not None:
-            index = IntegerAttr(index, 32)
-        parser.parse_characters("of")
-        input_op = parser.parse_operand(OperationType())
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        return GetResultsOp.build(
-            operands=(input_op,),
-            properties={"index": index},
-            result_types=(result_type,),
-        )
-
-    def print(self, printer: Printer):
-        if self.index is not None:
-            printer.print_string(" ", indent=0)
-            self.index.print_without_type(printer)
-        printer.print_string(" of ", indent=0)
-        printer.print_operand(self.input_op)
-        printer.print_string(" : ", indent=0)
-        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition

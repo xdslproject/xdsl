@@ -779,6 +779,70 @@ def test_optional_qualified_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
+            "test.optional_int_property of",
+            '"test.optional_int_property"() : () -> ()',
+        ),
+        (
+            "test.optional_int_property 3 of",
+            '"test.optional_int_property"() <{prop = 3 : i32}> : () -> ()',
+        ),
+        (
+            "test.optional_int_property -3 of",
+            '"test.optional_int_property"() <{prop = -3 : i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_integer_property(program: str, generic_program: str):
+    """Test an optional integer property printed without its type"""
+
+    @irdl_op_definition
+    class OptionalIntPropertyOp(IRDLOperation):
+        name = "test.optional_int_property"
+        prop = opt_prop_def(IntegerAttr[I32])
+
+        assembly_format = "($prop^)? `of` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalIntPropertyOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_float_property of",
+            '"test.optional_float_property"() : () -> ()',
+        ),
+        (
+            "test.optional_float_property -1.500000e+00 of",
+            '"test.optional_float_property"() <{prop = -1.500000e+00 : f64}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_float_property(program: str, generic_program: str):
+    """Test an optional float property printed without its type"""
+
+    @irdl_op_definition
+    class OptionalFloatPropertyOp(IRDLOperation):
+        name = "test.optional_float_property"
+        prop = opt_prop_def(FloatAttr[Float64Type])
+
+        assembly_format = "($prop^)? `of` attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalFloatPropertyOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
             "test.optional_property()",
             '"test.optional_property"() : () -> ()',
         ),

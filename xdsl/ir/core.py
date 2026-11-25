@@ -344,6 +344,18 @@ class TypedAttribute(ParametrizedAttribute, ABC):
         """
         ...
 
+    @classmethod
+    def parse_optional_with_type(
+        cls,
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute | None:
+        """
+        Parse the attribute with the given type, if present.
+        Attributes whose syntax cannot be probed are always parsed.
+        """
+        return cls.parse_with_type(parser, type)
+
     @abstractmethod
     def print_without_type(self, printer: Printer): ...
 
