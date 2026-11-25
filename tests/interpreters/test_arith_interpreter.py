@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import copysign, isnan
+from math import copysign, inf, isnan
 from typing import Literal
 
 import pytest
@@ -34,20 +34,25 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    AnyFloat,
     FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     VectorType,
+    f16,
+    f32,
     f64,
     i1,
     i8,
+    i16,
     i32,
     i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
@@ -1043,3 +1048,40 @@ def test_float_to_int_poison(
 
     with pytest.raises(InterpretationError, match="Cannot convert"):
         interpreter.run_op(op, (FloatAttr(value, f64),))
+
+
+@pytest.mark.parametrize(
+    "value,input_type,result_type,result",
+    [
+        (1.0, f32, i32, 0x3F800000),
+        (0x3F800000, i32, f32, 1.0),
+        (-0.0, f64, i64, -(1 << 63)),
+        (0x7FF0000000000000, i64, f64, inf),
+        (0x3C00, i16, f16, 1.0),
+        # 0xC000 read back as a signless i16
+        (-2.0, f16, i16, -0x4000),
+        (-1, i64, IndexType(), -1),
+    ],
+)
+def test_bitcast(
+    value: int | float,
+    input_type: IntegerType | IndexType | AnyFloat,
+    result_type: IntegerType | IndexType | AnyFloat,
+    result: int | float,
+):
+    op = arith.BitcastOp(test.TestOp(result_types=[input_type]).res[0], result_type)
+    op.verify()
+
+    assert interpreter.run_op(
+        op, (scalar_attr(value, input_type, interpreter.index_bitwidth),)
+    ) == (scalar_attr(result, result_type, interpreter.index_bitwidth),)
+
+
+def test_bitcast_index_of_a_different_bitwidth():
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
+    interpreter.register_implementations(ArithFunctions())
+    op = arith.BitcastOp(test.TestOp(result_types=[IndexType()]).res[0], i64)
+    op.verify()
+
+    with pytest.raises(InterpretationError, match="Cannot bitcast index to i64"):
+        interpreter.run_op(op, (IntegerAttr(1, i32),))
