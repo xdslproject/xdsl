@@ -152,6 +152,16 @@ emitc.assign %i32_lhs : i32 to %lvalue_i32 : !emitc.lvalue<i32>
 // CHECK: {{%.*}} = emitc.mul {{%.*}}, {{%.*}} : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
 
 //===----------------------------------------------------------------------===//
+// RemOp
+//===----------------------------------------------------------------------===//
+
+%rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: {{%.*}} = emitc.rem {{%.*}}, {{%.*}} : (i32, i32) -> i32
+
+%rem_size = emitc.rem %size_lhs, %size_rhs : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+// CHECK: {{%.*}} = emitc.rem {{%.*}}, {{%.*}} : (!emitc.size_t, !emitc.size_t) -> !emitc.size_t
+
+//===----------------------------------------------------------------------===//
 // SubOp
 //===----------------------------------------------------------------------===//
 
