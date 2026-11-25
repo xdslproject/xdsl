@@ -13,7 +13,13 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import scalar_attr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.utils.comparisons import to_signed, to_unsigned
+from xdsl.utils.comparisons import (
+    signed_lower_bound,
+    signed_upper_bound,
+    to_signed,
+    to_unsigned,
+    unsigned_upper_bound,
+)
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -470,7 +476,7 @@ class ArithFunctions(InterpreterFunctions):
     ):
         width = op.result.type.width.data
         value = _float_to_int(
-            args[0].value.data, -(1 << (width - 1)), (1 << (width - 1)) - 1
+            args[0].value.data, signed_lower_bound(width), signed_upper_bound(width) - 1
         )
         return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
 
@@ -479,7 +485,7 @@ class ArithFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: arith.FPToUIOp, args: PythonValues
     ):
         width = op.result.type.width.data
-        value = _float_to_int(args[0].value.data, 0, (1 << width) - 1)
+        value = _float_to_int(args[0].value.data, 0, unsigned_upper_bound(width) - 1)
         return (scalar_attr(value, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.TruncIOp)
