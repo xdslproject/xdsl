@@ -151,6 +151,30 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: %load_ptr = "emitc.load"(%lvalue_ptr) : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"int32_t">>>) -> !emitc.ptr<!emitc.opaque<"int32_t">>
 
 //===----------------------------------------------------------------------===//
+// LogicalAndOp
+//===----------------------------------------------------------------------===//
+
+%logical_and = emitc.logical_and %i32_lhs, %i32_rhs : i32, i32
+// CHECK: %logical_and = emitc.logical_and %i32_lhs, %i32_rhs : i32, i32
+// CHECK-GENERIC: %logical_and = "emitc.logical_and"(%i32_lhs, %i32_rhs) : (i32, i32) -> i1
+
+//===----------------------------------------------------------------------===//
+// LogicalNotOp
+//===----------------------------------------------------------------------===//
+
+%logical_not = emitc.logical_not %i32_lhs : i32
+// CHECK: %logical_not = emitc.logical_not %i32_lhs : i32
+// CHECK-GENERIC: %logical_not = "emitc.logical_not"(%i32_lhs) : (i32) -> i1
+
+//===----------------------------------------------------------------------===//
+// LogicalOrOp
+//===----------------------------------------------------------------------===//
+
+%logical_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
+// CHECK: %logical_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
+// CHECK-GENERIC: %logical_or = "emitc.logical_or"(%i32_lhs, %i32_rhs) : (i32, i32) -> i1
+
+//===----------------------------------------------------------------------===//
 // MulOp
 //===----------------------------------------------------------------------===//
 
