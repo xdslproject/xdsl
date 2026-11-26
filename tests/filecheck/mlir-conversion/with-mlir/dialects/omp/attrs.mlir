@@ -18,3 +18,28 @@
     #omp<declaretarget<>>
     // CHECK-SAME: #omp<declaretarget <>>
 ]} : () -> ()
+
+"test.op"() {attrs = [
+    #omp<kernel_type(bare)>,
+    // CHECK: #omp<kernel_type (bare)>
+    #omp<kernel_type(generic)>,
+    // CHECK-SAME: #omp<kernel_type (generic)>
+    #omp<kernel_type(spmd)>,
+    // CHECK-SAME: #omp<kernel_type (spmd)>
+    #omp<kernel_type(spmd_no_loop)>,
+    // CHECK-SAME: #omp<kernel_type (spmd_no_loop)>
+    #omp<access_group_modifier(cgroup)>,
+    // CHECK-SAME: #omp<access_group_modifier (cgroup)>
+    #omp<fallback_modifier(abort)>,
+    // CHECK-SAME: #omp<fallback_modifier (abort)>
+    #omp<fallback_modifier(null)>,
+    // CHECK-SAME: #omp<fallback_modifier (null)>
+    #omp<fallback_modifier(default_mem)>,
+    // CHECK-SAME: #omp<fallback_modifier (default_mem)>
+    !omp.iterated<memref<i32>>,
+    // CHECK-SAME: !omp.iterated<memref<i32>>
+    !omp.affinity_entry_ty<memref<i32>, i64>,
+    // CHECK-SAME: !omp.affinity_entry_ty<memref<i32>, i64>
+    !omp.iterated<!omp.affinity_entry_ty<memref<i32>, index>>
+    // CHECK-SAME: !omp.iterated<!omp.affinity_entry_ty<memref<i32>, index>>
+]} : () -> ()

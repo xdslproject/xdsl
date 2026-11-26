@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
+    FlatSymbolRefAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -46,6 +47,7 @@ from xdsl.irdl import (
     RangeOf,
     SameVariadicOperandSize,
     VarOperand,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -300,7 +302,7 @@ class LoopWrapper(NoTerminator):
 class BlockArgOpenMPOperation(IRDLOperation, ABC):
     """
     Verifies that the operation has the appropriate number of block arguments corresponding to the following operands:
-    `host_eval_vars`, `in_reduction_vars`, `map_vars`, `private_vars`, `reduction_vars`,
+    `has_device_addr_vars`, `host_eval_vars`, `in_reduction_vars`, `map_vars`, `private_vars`, `reduction_vars`,
     `task_reduction_vars`, `use_device_addr_vars` and `use_device_ptr_vars`.
     """
 
@@ -349,6 +351,69 @@ class DependKindAttr(EnumAttribute[DependKind], SpacedOpaqueSyntaxAttribute):
     def parse_parameter(cls, parser: AttrParser) -> DependKind:
         with parser.in_parens():
             return parser.parse_str_enum(DependKind)
+
+
+class TargetExecMode(StrEnum):
+    BARE = auto()
+    GENERIC = auto()
+    SPMD = auto()
+    SPMD_NO_LOOP = auto()
+
+
+@irdl_attr_definition
+class TargetExecModeAttr(EnumAttribute[TargetExecMode], SpacedOpaqueSyntaxAttribute):
+    name = "omp.kernel_type"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TargetExecMode:
+        with parser.in_parens():
+            return parser.parse_str_enum(TargetExecMode)
+
+
+class AccessGroupModifier(StrEnum):
+    CGROUP = auto()
+
+
+@irdl_attr_definition
+class AccessGroupModifierAttr(
+    EnumAttribute[AccessGroupModifier], SpacedOpaqueSyntaxAttribute
+):
+    name = "omp.access_group_modifier"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AccessGroupModifier:
+        with parser.in_parens():
+            return parser.parse_str_enum(AccessGroupModifier)
+
+
+class FallbackModifier(StrEnum):
+    ABORT = auto()
+    NULL = auto()
+    DEFAULT_MEM = auto()
+
+
+@irdl_attr_definition
+class FallbackModifierAttr(
+    EnumAttribute[FallbackModifier], SpacedOpaqueSyntaxAttribute
+):
+    name = "omp.fallback_modifier"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> FallbackModifier:
+        with parser.in_parens():
+            return parser.parse_str_enum(FallbackModifier)
 
 
 @irdl_attr_definition
@@ -590,6 +655,21 @@ class MapBoundsType(ParametrizedAttribute, TypeAttribute):
     name = "omp.map_bounds_ty"
 
 
+@irdl_attr_definition
+class IteratedType(ParametrizedAttribute, TypeAttribute):
+    name = "omp.iterated"
+
+    element_type: TypeAttribute
+
+
+@irdl_attr_definition
+class AffinityEntryType(ParametrizedAttribute, TypeAttribute):
+    name = "omp.affinity_entry_ty"
+
+    addr_type: TypeAttribute
+    len_type: TypeAttribute
+
+
 @irdl_op_definition
 class LoopNestOp(IRDLOperation):
     name = "omp.loop_nest"
@@ -795,29 +875,40 @@ class TargetOp(BlockArgOpenMPOperation):
     name = "omp.target"
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    ITERATED_DEP_COUNT: ClassVar = IntVarConstraint("ITERATED_DEP_COUNT", AnyInt())
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
     depend_vars = var_operand_def(
         AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
     )
+    depend_iterated = var_operand_def(
+        RangeOf.get(IteratedType).of_length(ITERATED_DEP_COUNT)
+    )
     device = opt_operand_def(IntegerType)
+    dyn_groupprivate_size = opt_operand_def(IntegerType)
     has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     host_eval_vars = var_operand_def()
     if_expr = opt_operand_def(i1)
     in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     is_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    map_iterated = var_operand_def(IteratedType)
     private_vars = var_operand_def()
-    thread_limit = opt_operand_def(IntegerType | IndexType)
+    thread_limit_vars = var_operand_def(IntegerType | IndexType)
 
-    bare = opt_prop_def(UnitAttr)
+    kernel_type = prop_def(TargetExecModeAttr)
+    depend_iterated_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(ITERATED_DEP_COUNT))
+    )
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     nowait = opt_prop_def(UnitAttr)
+    dyn_groupprivate_access_group = opt_prop_def(AccessGroupModifierAttr)
+    dyn_groupprivate_fallback = opt_prop_def(FallbackModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
     private_maps = opt_prop_def(DenseArrayBase[i64])
@@ -829,7 +920,8 @@ class TargetOp(BlockArgOpenMPOperation):
 
     def num_block_args(self) -> int:
         return (
-            len(self.host_eval_vars)
+            len(self.has_device_addr_vars)
+            + len(self.host_eval_vars)
             + len(self.in_reduction_vars)
             + len(self.map_vars)
             + len(self.private_vars)
@@ -881,7 +973,9 @@ class MapInfoOp(IRDLOperation):
     members = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     bounds = var_operand_def(MapBoundsType)
 
-    var_type = prop_def(TypeAttribute)
+    var_ptr_type = prop_def(TypeAttribute)
+    var_ptr_ptr_type = opt_prop_def(TypeAttribute)
+    mapper_id = opt_prop_def(FlatSymbolRefAttr)
     map_type = prop_def(ClauseMapFlagsAttr)
     """
     To set or test flags in `map_type` use the bits defined in `OpenMPOffloadMappingFlags`
@@ -896,6 +990,10 @@ class MapInfoOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def verify_(self) -> None:
+        if (self.var_ptr_ptr is None) != (self.var_ptr_ptr_type is None):
+            raise VerifyException(
+                "var_ptr_ptr and var_ptr_ptr_type must either both be present or both be absent"
+            )
         verify_map_vars(self.members, self.name)
         return super().verify_()
 
@@ -962,13 +1060,16 @@ class TeamsOp(BlockArgOpenMPOperation):
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
+    dyn_groupprivate_size = opt_operand_def(IntegerType)
     if_expr = opt_operand_def(i1)
-    num_teams_lower = opt_operand_def(IntegerType)
-    num_teams_upper = opt_operand_def(IntegerType)
+    num_teams_lower = opt_operand_def(IntegerType | IndexType)
+    num_teams_upper_vars = var_operand_def(IntegerType | IndexType)
     private_vars = var_operand_def()
     reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
-    thread_limit = opt_operand_def(IntegerType)
+    thread_limit_vars = var_operand_def(IntegerType | IndexType)
 
+    dyn_groupprivate_access_group = opt_prop_def(AccessGroupModifierAttr)
+    dyn_groupprivate_fallback = opt_prop_def(FallbackModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     reduction_mod = opt_prop_def(ReductionModifierAttr)
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
@@ -1026,14 +1127,22 @@ class TargetTaskBasedDataOp(IRDLOperation):
     """
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    ITERATED_DEP_COUNT: ClassVar = IntVarConstraint("ITERATED_DEP_COUNT", AnyInt())
 
     depend_vars = var_operand_def(
         AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
     )
-    device = opt_operand_def(IntegerType | IndexType)
+    depend_iterated = var_operand_def(
+        RangeOf.get(IteratedType).of_length(ITERATED_DEP_COUNT)
+    )
+    device = opt_operand_def(IntegerType)
     if_expr = opt_operand_def(i1)
     mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    map_iterated = var_operand_def(IteratedType)
 
+    depend_iterated_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(ITERATED_DEP_COUNT))
+    )
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
@@ -1119,6 +1228,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
     device = opt_operand_def(IntegerType)
     if_expr = opt_operand_def(i1)
     mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    map_iterated = var_operand_def(IteratedType)
     use_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     use_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
@@ -1149,13 +1259,22 @@ class TaskwaitOp(IRDLOperation):
     name = "omp.taskwait"
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    ITERATED_DEP_COUNT: ClassVar = IntVarConstraint("ITERATED_DEP_COUNT", AnyInt())
 
     depend_vars = var_operand_def(AnyRange().of_length(DEP_COUNT))
+    depend_iterated = var_operand_def(
+        RangeOf.get(IteratedType).of_length(ITERATED_DEP_COUNT)
+    )
 
+    depend_iterated_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(ITERATED_DEP_COUNT))
+    )
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
     nowait = opt_prop_def(UnitAttr)
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1214,11 +1333,17 @@ class TaskOp(BlockArgOpenMPOperation):
     name = "omp.task"
 
     DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    ITERATED_DEP_COUNT: ClassVar = IntVarConstraint("ITERATED_DEP_COUNT", AnyInt())
 
+    iterated = var_operand_def(IteratedType)
+    affinity_vars = var_operand_def(AffinityEntryType)
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
     depend_vars = var_operand_def(
         AnyRange().of_length(DEP_COUNT)  # TODO: OpenMP_PointerLikeTypeInterface
+    )
+    depend_iterated = var_operand_def(
+        RangeOf.get(IteratedType).of_length(ITERATED_DEP_COUNT)
     )
     final = opt_operand_def(i1)
     if_expr = opt_operand_def(i1)
@@ -1227,6 +1352,9 @@ class TaskOp(BlockArgOpenMPOperation):
     private_vars = var_operand_def()
     event_handle = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
+    depend_iterated_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(ITERATED_DEP_COUNT))
+    )
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf.get(DependKindAttr).of_length(DEP_COUNT))
     )
@@ -1304,13 +1432,15 @@ class TaskgroupOp(BlockArgOpenMPOperation):
 
 
 @irdl_op_definition
-class TaskloopOp(BlockArgOpenMPOperation):
+class TaskloopContextOp(BlockArgOpenMPOperation):
     """
-    Implementation of upstream omp.taskloop
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskloop-omptaskloopop).
+    Implementation of upstream omp.taskloop.context
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptaskloopcontext-omptaskloopcontextop).
     """
 
-    name = "omp.taskloop"
+    name = "omp.taskloop.context"
+
+    combined = attr_def(UnitAttr, attr_name="omp.combined")
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
@@ -1340,7 +1470,7 @@ class TaskloopOp(BlockArgOpenMPOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+    traits = traits_def(RecursiveMemoryEffect())
 
     def num_block_args(self) -> int:
         return (
@@ -1389,6 +1519,19 @@ class TaskloopOp(BlockArgOpenMPOperation):
                 "as reduction variables"
             )
         return super().verify_()
+
+
+@irdl_op_definition
+class TaskloopWrapperOp(IRDLOperation):
+    """The loop wrapper portion of a taskloop construct."""
+
+    name = "omp.taskloop.wrapper"
+
+    region = region_def("single_block")
+
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    assembly_format = "$region attr-dict"
 
 
 @irdl_op_definition
@@ -1466,7 +1609,9 @@ def verify_cancel_construct_parent(
         case CancellationConstructType.TASKGROUP:
             if isinstance(parent, LoopNestOp):
                 parent = parent.parent_op()
-            if not isinstance(parent, TaskOp | TaskloopOp):
+            if isinstance(parent, TaskloopWrapperOp):
+                parent = parent.parent_op()
+            if not isinstance(parent, TaskOp | TaskloopContextOp):
                 raise VerifyException(
                     f"{directive} taskgroup must appear inside a task region"
                 )
@@ -1547,7 +1692,8 @@ OMP = Dialect(
         SingleOp,
         TaskOp,
         TaskgroupOp,
-        TaskloopOp,
+        TaskloopContextOp,
+        TaskloopWrapperOp,
         BarrierOp,
         FlushOp,
         MasterOp,
@@ -1568,6 +1714,11 @@ OMP = Dialect(
         ScheduleModifierAttr,
         DependKindAttr,
         MapBoundsType,
+        IteratedType,
+        AffinityEntryType,
+        TargetExecModeAttr,
+        AccessGroupModifierAttr,
+        FallbackModifierAttr,
         VariableCaptureKindAttr,
         VersionAttr,
         ReductionModifierAttr,
