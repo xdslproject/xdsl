@@ -533,6 +533,28 @@ class EmitC_AssignOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_BitwiseAndOp(EmitC_BinaryOperation):
+    """
+    Bitwise and operation.
+
+    With the `emitc.bitwise_and` operation the bitwise operator & (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_and %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 & v2;
+    ```
+    """
+
+    name = "emitc.bitwise_and"
+
+
+@irdl_op_definition
 class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
     """
     Bitwise left shift operation.
@@ -1206,6 +1228,7 @@ EmitC = Dialect(
         EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
+        EmitC_BitwiseAndOp,
         EmitC_BitwiseLeftShiftOp,
         EmitC_BitwiseNotOp,
         EmitC_BitwiseOrOp,
