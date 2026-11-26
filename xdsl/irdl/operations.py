@@ -896,6 +896,22 @@ class OpDef:
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
+                value = clsdict[field_name]
+                if field_name in ("results", "name") and isinstance(
+                    value,
+                    (
+                        OperandDef,
+                        ResultDef,
+                        AttributeDef,
+                        PropertyDef,
+                        RegionDef,
+                        SuccessorDef,
+                    ),
+                ):
+                    raise PyRDLOpDefinitionError(
+                        f"{pyrdl_def.__name__}.{field_name} overrides a reserved"
+                        " field of Operation"
+                    )
                 if field_name in ("name", "assembly_format", "custom_directives"):
                     continue
                 if field_name in _OPERATION_DICT_KEYS:

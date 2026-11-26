@@ -156,6 +156,20 @@ def test_invalid_field():
         irdl_op_definition(InvalidFieldTestOp)
 
 
+class ReservedResultFieldTestOp(IRDLOperation):
+    name = "test.reserved_result_field"
+
+    results = result_def(i32)
+
+
+def test_reserved_result_field():
+    """A field named results must not silently override Operation.results."""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="overrides a reserved field of Operation"
+    ):
+        irdl_op_definition(ReservedResultFieldTestOp)
+
+
 class InvalidIRDLOpts(IRDLOperation):
     name = "test.invalid_field"
     irdl_options = (42,)
