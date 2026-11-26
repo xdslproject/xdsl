@@ -1339,3 +1339,16 @@ def test_generic_accessors():
     assert parsed.attributes.get("opt_attr") is None
 
     assert parsed.opt_attr.value.data
+
+
+def test_reserved_region_field():
+    """Any Operation field, not only the ones spelled out, must not be overridden."""
+    op = type(
+        "ReservedRegionFieldTestOp",
+        (IRDLOperation,),
+        {"name": "test.reserved_region_field", "regions": region_def()},
+    )
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="overrides a reserved field of Operation"
+    ):
+        irdl_op_definition(op)

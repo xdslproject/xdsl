@@ -897,7 +897,7 @@ class OpDef:
 
             for field_name in clsdict:
                 value = clsdict[field_name]
-                if field_name in ("results", "name") and isinstance(
+                if field_name in _OPERATION_DICT_KEYS and isinstance(
                     value,
                     (
                         OperandDef,
