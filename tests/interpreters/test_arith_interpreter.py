@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import copysign, isnan
+from math import copysign, inf, isnan, nan
 from typing import Literal
 
 import pytest
@@ -34,12 +34,16 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    AnyFloat,
+    Float32Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     VectorType,
+    f16,
+    f32,
     f64,
     i1,
     i8,
@@ -51,6 +55,7 @@ from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 interpreter = Interpreter(ModuleOp([]), index_bitwidth=64)
 interpreter.register_implementations(ArithFunctions())
@@ -1101,3 +1106,52 @@ def test_i8_mul_extended(
     )
 
     assert ret == (IntegerAttr(low, i8), IntegerAttr(high, i8))
+
+
+@pytest.mark.parametrize(
+    "value,input_type,result_type,result",
+    [
+        (1.5, f32, f64, 1.5),
+        (1.100000023841858, f32, f64, 1.100000023841858),
+        (1.099609375, f16, f32, 1.099609375),
+        (-inf, f32, f64, -inf),
+    ],
+)
+def test_extf(value: float, input_type: AnyFloat, result_type: AnyFloat, result: float):
+    op = arith.ExtFOp(test.TestOp(result_types=[input_type]).res[0], result_type)
+    op.verify()
+
+    assert interpreter.run_op(op, (FloatAttr(value, input_type),)) == (
+        FloatAttr(result, result_type),
+    )
+
+
+@pytest.mark.parametrize(
+    "value,input_type,result_type,result",
+    [
+        (1.5, f64, f32, 1.5),
+        (1.1, f64, f32, 1.100000023841858),
+        (1.1, f64, f16, 1.099609375),
+        (1e300, f64, f32, inf),
+        (-1e300, f64, f32, -inf),
+        (70000.0, f32, f16, inf),
+    ],
+)
+def test_truncf(
+    value: float, input_type: AnyFloat, result_type: AnyFloat, result: float
+):
+    op = arith.TruncFOp(test.TestOp(result_types=[input_type]).res[0], result_type)
+    op.verify()
+
+    assert interpreter.run_op(op, (FloatAttr(value, input_type),)) == (
+        FloatAttr(result, result_type),
+    )
+
+
+def test_truncf_nan():
+    op = arith.TruncFOp(test.TestOp(result_types=[f64]).res[0], f32)
+    op.verify()
+
+    (ret,) = interpreter.run_op(op, (FloatAttr(nan, f64),))
+    assert isa(ret, FloatAttr[Float32Type])
+    assert isnan(ret.value.data)

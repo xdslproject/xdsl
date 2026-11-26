@@ -126,3 +126,45 @@ x86.parallel_mov %0, %1 : (!x86.reg64<r10>, !x86.reg64<r11>) -> (!x86.reg64<r12>
 %result = x86.rsm.vfmadd231pd %acc, %src, [%base] : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdi>) -> !x86.avx512reg
 
 // CHECK: attribute !x86.avx512reg<zmm0> expected from variable 'T', but got !x86.avx512reg
+
+// -----
+
+// A jump passing fewer values than the successor has block arguments
+%arg = "test.op"() : () -> !x86.reg64
+"test.op"() ({
+    x86.c.jmp ^then()
+  ^then(%t: !x86.reg64):
+    x86.label "then"
+    x86.c.jmp ^then(%arg : !x86.reg64)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 1 successor operands to match the block arguments, got 0
+
+// -----
+
+// A fallthrough passing more values than the successor has block arguments
+%arg = "test.op"() : () -> !x86.reg64
+"test.op"() ({
+    x86.fallthrough ^fallthrough(%arg : !x86.reg64)
+  ^fallthrough:
+    x86.label "fallthrough"
+    x86.c.jmp ^fallthrough()
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 0 successor operands to match the block arguments, got 1
+
+// -----
+
+// A conditional jump passing fewer values than the else block has block arguments
+%arg, %rflags = "test.op"() : () -> (!x86.reg64, !x86.rflags<rflags>)
+"test.op"() ({
+    x86.c.je %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg64), ^else()
+  ^else(%e: !x86.reg64):
+    x86.label "else"
+    x86.c.jmp ^then(%arg : !x86.reg64)
+  ^then(%t: !x86.reg64):
+    x86.label "then"
+    x86.c.jmp ^then(%arg : !x86.reg64)
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected 1 successor operands to match the block arguments, got 0

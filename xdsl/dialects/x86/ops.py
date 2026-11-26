@@ -57,6 +57,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import (
+    Block,
     OperandArg,
     Operation,
     OpResult,
@@ -132,6 +133,23 @@ si32: SI32 = IntegerType(32, Signedness.SIGNED)
 
 UI8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]
 ui8: UI8 = IntegerType(8, Signedness.UNSIGNED)
+
+
+def _verify_successor_args(operands: Sequence[SSAValue], successor: Block) -> None:
+    """
+    Check that the operands passed to a successor match its block arguments, in
+    number and in type.
+    """
+    if len(operands) != len(successor.args):
+        raise VerifyException(
+            f"Expected {len(successor.args)} successor operands to match the block "
+            f"arguments, got {len(operands)}"
+        )
+    for op_arg, block_arg in zip(operands, successor.args, strict=True):
+        if op_arg.type != block_arg.type:
+            raise VerifyException(
+                f"Block arg types must match {op_arg.type} {block_arg.type}"
+            )
 
 
 class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
@@ -1087,17 +1105,8 @@ class ConditionalJumpOperation(X86Instruction, ABC):
 
         # Types of arguments must match arg types of blocks
 
-        for op_arg, block_arg in zip(self.then_values, self.then_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        for op_arg, block_arg in zip(self.else_values, self.else_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.then_values, self.then_block)
+        _verify_successor_args(self.else_values, self.else_block)
 
         # The else block must be the one immediately following this one
 
@@ -2672,11 +2681,7 @@ class C_JmpOp(X86Instruction):
     def verify_(self) -> None:
         # Types of arguments must match arg types of blocks
 
-        for op_arg, block_arg in zip(self.block_values, self.successor.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.block_values, self.successor)
 
         if not isinstance(self.successor.first_op, LabelOp):
             raise VerifyException(
@@ -2756,11 +2761,7 @@ class FallthroughOp(X86AsmOperation, X86HasRegisterConstraints):
     def verify_(self) -> None:
         # Types of arguments must match arg types of blocks
 
-        for op_arg, block_arg in zip(self.block_values, self.successor.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+        _verify_successor_args(self.block_values, self.successor)
 
         if (parent := self.parent) is not None:
             if parent.next_block is not self.successor:
