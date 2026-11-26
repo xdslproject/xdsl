@@ -1055,7 +1055,7 @@ def test_float_to_int_poison(
     [
         (5, 3, 8, 0),
         # i8 values are signless: 100 + 100 = 200 fits in 8 unsigned bits
-        (100, 100, -56, 0),
+        (100, 100, 200, 0),
         (-1, 1, 0, 1),
         (-56, 100, 44, 1),
     ],
@@ -1081,7 +1081,7 @@ def test_i8_addui_extended(
         (arith.MulUIExtendedOp, 3, 5, 15, 0),
         (arith.MulUIExtendedOp, 16, 16, 0, 1),
         # 255 * 255 = 0xFE01
-        (arith.MulUIExtendedOp, -1, -1, 1, -2),
+        (arith.MulUIExtendedOp, 255, 255, 1, 254),
         (arith.MulSIExtendedOp, -1, -1, 1, 0),
         # 100 * 100 = 0x2710
         (arith.MulSIExtendedOp, 100, 100, 16, 39),
