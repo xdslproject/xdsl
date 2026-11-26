@@ -15,7 +15,7 @@ x86_func.func @main() {
   // CHECK-NEXT: %r8 = x86.get_register : !x86.reg64<r8>
   // CHECK-NEXT: %r15 = x86.ds.mov %r8 : (!x86.reg64<r8>) -> !x86.reg64<r15>
   // CHECK-NEXT: %rflags = x86.ss.cmp %r8, %r15 : (!x86.reg64<r8>, !x86.reg64<r15>) -> !x86.rflags<rflags>
-  // CHECK-NEXT: x86.c.jne %rflags : !x86.rflags<rflags>, ^then(%r8 : !x86.reg64<r8>), ^else(%r15 : !x86.reg64<r15>)
+  // CHECK-NEXT: x86.c.jne %rflags : !x86.rflags<rflags>, ^then(), ^else()
   %r12 = x86.get_register : !x86.reg64<r12>
   %r13 = x86.get_register : !x86.reg64<r13>
   %r14_in = x86.ds.mov %r12 : (!x86.reg64<r12>) -> !x86.reg64<r14>
@@ -23,7 +23,7 @@ x86_func.func @main() {
   %r8 = x86.get_register : !x86.reg64<r8>
   %r15 = x86.ds.mov %r8 : (!x86.reg64<r8>) -> !x86.reg64<r15>
   %rflags = x86.ss.cmp %r8, %r15 : (!x86.reg64<r8>, !x86.reg64<r15>) -> !x86.rflags<rflags>
-  x86.c.jne %rflags : !x86.rflags<rflags>, ^then(%r8 : !x86.reg64<r8>), ^else(%r15 : !x86.reg64<r15>)
+  x86.c.jne %rflags : !x86.rflags<rflags>, ^then(), ^else()
 ^else:
   // CHECK-NEXT: ^else
   // CHECK-NEXT: x86.label "else"
