@@ -103,7 +103,7 @@ shard.grid @grid0(shape = 2x4)
 
 shard.grid @grid0(shape = 2x4)
 %t = "test.op"() : () -> tensor<4x2xi8>
-%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0, 1] scatter_axis = 0 : tensor<4x2xi8> -> tensor<2x2xi64>
+%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0, 1] scatter_dim = 0 : tensor<4x2xi8> -> tensor<2x2xi64>
 
 // CHECK: Operand dimension size 4 is not divisible by collective device group size 8 for tensor axis 0.
 
@@ -111,7 +111,7 @@ shard.grid @grid0(shape = 2x4)
 
 shard.grid @grid0(shape = 2x4)
 %t = "test.op"() : () -> tensor<4x2xi8>
-%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0] scatter_axis = 0 : tensor<4x2xi8> -> tensor<1x2xi64>
+%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0] scatter_dim = 0 : tensor<4x2xi8> -> tensor<1x2xi64>
 
 // CHECK: Dimension size mismatch for result axis 0. Expected 2, but got 1.
 
@@ -119,7 +119,7 @@ shard.grid @grid0(shape = 2x4)
 
 shard.grid @grid0(shape = 2x4)
 %t = "test.op"() : () -> tensor<4x2xi8>
-%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0] scatter_axis = 2 : tensor<4x2xi8> -> tensor<2x2xi8>
+%0 = shard.reduce_scatter %t on @grid0 grid_axes = [0] scatter_dim = 2 : tensor<4x2xi8> -> tensor<2x2xi8>
 
 // CHECK: Tensor axis 2 is out of bounds [0, 2).
 

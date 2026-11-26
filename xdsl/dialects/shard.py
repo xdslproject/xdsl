@@ -640,7 +640,7 @@ class ReduceScatterOp(CollectiveCommunicationOperation):
 
     Within each device group defined by `grid_axes` reduce the input tensor
     element-wise using the `reduction` method, then scatter the result across
-    the group along `scatter_axis`.
+    the group along `scatter_dim`.
 
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardreduce_scatter-shardreducescatterop).
     """
@@ -651,7 +651,7 @@ class ReduceScatterOp(CollectiveCommunicationOperation):
     reduction = prop_def(
         ReductionKindAttr, default_value=ReductionKindAttr(ReductionKind.SUM)
     )
-    scatter_axis = prop_def(IntegerAttr.constr(IndexType))
+    scatter_dim = prop_def(IntegerAttr.constr(IndexType))
 
     result = result_def(TensorType)
 
@@ -660,7 +660,7 @@ class ReduceScatterOp(CollectiveCommunicationOperation):
     assembly_format = (
         "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "(`reduction` `=` $reduction^)? "
-        + "`scatter_axis` `=` $scatter_axis "
+        + "`scatter_dim` `=` $scatter_dim "
         + "attr-dict `:` type($input) `->` type($result)"
     )
 
@@ -670,7 +670,7 @@ class ReduceScatterOp(CollectiveCommunicationOperation):
         _verify_scatter_or_slice_operand_and_result_shape(
             SSAValue.get(self.input, type=ShapedType),
             self.result,
-            self.scatter_axis.value.data,
+            self.scatter_dim.value.data,
             self.collective_process_group_size(self.get_grid()),
         )
 
