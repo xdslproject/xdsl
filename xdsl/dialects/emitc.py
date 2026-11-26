@@ -44,12 +44,10 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AttrConstraint,
     IntConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParsePropInAttrDict,
     VarConstraint,
     VerificationContext,
     irdl_attr_definition,
@@ -439,53 +437,6 @@ class EmitC_AddressOfOp(IRDLOperation):
 
 
 @irdl_op_definition
-class EmitC_ApplyOp(IRDLOperation):
-    """Apply operation"""
-
-    name = "emitc.apply"
-
-    assembly_format = """
-        $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
-      """
-
-    applicableOperator = prop_def(StringAttr)
-
-    operand = operand_def(AnyAttr())
-
-    result = result_def(EmitCTypeConstr)
-
-    def verify_(self) -> None:
-        applicable_operator = self.applicableOperator.data
-
-        # Applicable operator must not be empty
-        if not applicable_operator:
-            raise VerifyException("applicable operator must not be empty")
-
-        if applicable_operator not in ("&", "*"):
-            raise VerifyException("applicable operator is illegal")
-
-        operand_type = self.operand.type
-        result_type = self.result.type
-
-        if applicable_operator == "&":
-            if not isinstance(operand_type, EmitC_LValueType):
-                raise VerifyException(
-                    "operand type must be an lvalue when applying `&`"
-                )
-            if not isinstance(result_type, EmitC_PointerType):
-                raise VerifyException("result type must be a pointer when applying `&`")
-        else:  # applicable_operator == "*"
-            if not isinstance(operand_type, EmitC_PointerType):
-                raise VerifyException(
-                    "operand type must be a pointer when applying `*`"
-                )
-
-    def has_side_effects(self) -> bool:
-        """Return True if the operation has side effects."""
-        return self.applicableOperator.data == "*"
-
-
-@irdl_op_definition
 class EmitC_AssignOp(IRDLOperation):
     """
     Assign operation.
@@ -661,10 +612,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     call_args = var_operand_def()
     res = var_result_def()
 
-    irdl_options = (ParsePropInAttrDict(),)
-    assembly_format = (
-        "$callee `(` $call_args `)` attr-dict `:` functional-type(operands, results)"
-    )
+    assembly_format = "$callee `(` $call_args `)` prop-dict attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -1204,7 +1152,6 @@ EmitC = Dialect(
     [
         EmitC_AddOp,
         EmitC_AddressOfOp,
-        EmitC_ApplyOp,
         EmitC_AssignOp,
         EmitC_BitwiseLeftShiftOp,
         EmitC_BitwiseNotOp,
