@@ -71,6 +71,14 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: "emitc.assign"(%assign_var, %assign_value) : (!emitc.lvalue<i32>, i32) -> ()
 
 //===----------------------------------------------------------------------===//
+// BitwiseLeftShiftOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_left_shift = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %bitwise_left_shift = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %bitwise_left_shift = "emitc.bitwise_left_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
 // BitwiseNotOp
 //===----------------------------------------------------------------------===//
 
@@ -85,6 +93,14 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 %bitwise_or = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK: %bitwise_or = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK-GENERIC: %bitwise_or = "emitc.bitwise_or"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseRightShiftOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_right_shift = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %bitwise_right_shift = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %bitwise_right_shift = "emitc.bitwise_right_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
 
 //===----------------------------------------------------------------------===//
 // BitwiseXorOp
