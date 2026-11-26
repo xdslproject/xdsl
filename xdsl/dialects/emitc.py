@@ -533,6 +533,28 @@ class EmitC_AssignOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise left shift operation.
+
+    With the `emitc.bitwise_left_shift` operation the bitwise operator <<
+    (left shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_left_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 << v2;
+    ```
+    """
+
+    name = "emitc.bitwise_left_shift"
+
+
+@irdl_op_definition
 class EmitC_BitwiseNotOp(EmitC_UnaryOperation):
     """
     Bitwise not operation.
@@ -574,6 +596,28 @@ class EmitC_BitwiseOrOp(EmitC_BinaryOperation):
     """
 
     name = "emitc.bitwise_or"
+
+
+@irdl_op_definition
+class EmitC_BitwiseRightShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise right shift operation.
+
+    With the `emitc.bitwise_right_shift` operation the bitwise operator >>
+    (right shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_right_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 >> v2;
+    ```
+    """
+
+    name = "emitc.bitwise_right_shift"
 
 
 @irdl_op_definition
@@ -1162,8 +1206,10 @@ EmitC = Dialect(
         EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
+        EmitC_BitwiseLeftShiftOp,
         EmitC_BitwiseNotOp,
         EmitC_BitwiseOrOp,
+        EmitC_BitwiseRightShiftOp,
         EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
