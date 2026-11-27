@@ -81,4 +81,7 @@ builtin.module {
 
     %fptoui = llvm.fptoui %f1 : f32 to i64
     // CHECK: llvm.fptoui [[f1]] : f32 to i64
+    
+    %fpext = llvm.fpext %f1 : f32 to f64
+    // CHECK: llvm.fpext [[f1]] : f32 to f64
 }

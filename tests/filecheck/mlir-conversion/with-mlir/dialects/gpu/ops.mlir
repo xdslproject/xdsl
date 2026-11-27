@@ -150,7 +150,7 @@
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) : () -> ()
-// CHECK-NEXT:         "gpu.func"() <{function_type = (index) -> ()}> ({
+// CHECK-NEXT:         "gpu.func"() <{function_type = (index) -> (), kernel}> ({
 // CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:             "gpu.return"() : () -> ()
 // CHECK-NEXT:         }) {gpu.known_block_size = array<i32: 128, 1, 1>, gpu.known_grid_size = array<i32: 128, 1, 1>, sym_name = "foo"} : () -> ()
