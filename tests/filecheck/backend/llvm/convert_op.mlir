@@ -703,6 +703,8 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   llvm.func @fcmp_op(%arg0: f32, %arg1: f32) {
     %0 = llvm.fcmp "oeq" %arg0, %arg1 : f32
     %1 = llvm.fcmp "ult" %arg0, %arg1 : f32
+    %2 = llvm.fcmp "_false" %arg0, %arg1 : f32
+    %3 = llvm.fcmp "_true" %arg0, %arg1 : f32
     llvm.return
   }
 
@@ -711,6 +713,8 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = fcmp oeq float %".1", %".2"
   // CHECK-NEXT:   {{%.+}} = fcmp ult float %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fcmp false float %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fcmp true float %".1", %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 

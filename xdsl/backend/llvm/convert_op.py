@@ -167,7 +167,7 @@ def _convert_fcmp(
 ):
     pred_int: int = op.predicate.value.data
     flag = llvm.FCmpPredicateFlag.from_int(pred_int)
-    pred = flag.value
+    pred = flag.value.removeprefix("_")
     is_ordered = pred[0] == "o"
     key = pred[1:]
     cmpop = _FCMP_CMP_MAP.get(key, pred)
