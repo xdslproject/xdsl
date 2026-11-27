@@ -5,7 +5,7 @@ from collections.abc import Iterator, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeAlias, overload
 
 from typing_extensions import TypeVar
 
@@ -880,6 +880,63 @@ class SameOperandsAndResultType(OpTrait):
                 )
 
 
+SuccessorOperand: TypeAlias = tuple["Operation", int]
+"""
+A successor operand, identified by its owner operation and operand index. Stands in for MLIR's
+`OpOperand *`: xDSL's `Use` hashes by identity, so it cannot be rebuilt to look up a mapping.
+"""
+
+
+@dataclass(frozen=True, init=False)
+class OperandRange(Sequence["SSAValue"]):
+    """
+    The operands of `owner` in `[start, stop)`.
+
+    Like MLIR's `OperandRange`, it keeps track of which operands the values come from, and not just
+    the values. The successor mappings need this, as the same value can be passed to several
+    operands, e.g. `scf.for %i = %c0 to %n step %c1 iter_args(%a = %c0)`.
+    """
+
+    owner: Operation
+    start: int
+    stop: int
+
+    def __init__(
+        self, owner: Operation, start: int = 0, stop: int | None = None
+    ) -> None:
+        num_operands = len(owner.operands)
+        if stop is None:
+            stop = num_operands
+        if not 0 <= start <= stop <= num_operands:
+            raise ValueError(
+                f"Operand range [{start}, {stop}) is out of bounds for '{owner.name}', "
+                f"which has {num_operands} operands."
+            )
+        object.__setattr__(self, "owner", owner)
+        object.__setattr__(self, "start", start)
+        object.__setattr__(self, "stop", stop)
+
+    @overload
+    def __getitem__(self, index: int) -> SSAValue: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[SSAValue]: ...
+
+    def __getitem__(self, index: int | slice) -> SSAValue | Sequence[SSAValue]:
+        return self.owner.operands[self.start : self.stop][index]
+
+    def __iter__(self) -> Iterator[SSAValue]:
+        return iter(self.owner.operands[self.start : self.stop])
+
+    def __len__(self) -> int:
+        return self.stop - self.start
+
+    @property
+    def op_operands(self) -> tuple[SuccessorOperand, ...]:
+        """The operands in the range, as `(owner, index)` pairs."""
+        return tuple((self.owner, index) for index in range(self.start, self.stop))
+
+
 @dataclass(frozen=True)
 class RegionSuccessor:
     """
@@ -1076,8 +1133,8 @@ class RegionBranchOpTrait(OpTrait):
        first executing this op.
 
     When branching from a region branch point to a region successor, the "successor operands" to
-    be forwarded from the region branch point can be specified with `get_entry_successor_operands`
-    / `RegionBranchTerminatorOpInterface.get_successor_operands`.
+    be forwarded from the region branch point can be specified with `entry_successor_operands`
+    / `RegionBranchTerminatorOpInterface.successor_operands`.
 
     A "region successor" indicates the target of a branch. It can indicate:
     1. A region of this op.
@@ -1113,6 +1170,24 @@ class RegionBranchOpTrait(OpTrait):
     `%a` and `%r` are successor inputs. `%b` is an entry successor operand. `%c` is a successor
     operand.
     """
+
+    @classmethod
+    def entry_successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> OperandRange:
+        """
+        Returns the operands of this operation that are forwarded to the successor inputs when
+        branching to `successor`. `successor` is guaranteed to be among the successors that are
+        returned by `entry_successor_regions` /
+        `successor_regions(op, RegionBranchPoint.PARENT)`.
+
+        Example: In the above example, this method returns the operand `%b` of the `scf.for` op,
+        regardless of the value of `successor`. I.e., this op always forwards the same operands,
+        regardless of whether the loop has 0 or more iterations.
+        """
+        return OperandRange(op, 0, 0)
 
     @classmethod
     def entry_successor_regions(
@@ -1265,6 +1340,15 @@ class RegionBranchTerminatorOpTrait(OpTrait):
     that implement the `RegionBranchTerminatorOpInterface`, so the enclosing region may have region
     successors.)
     """
+
+    @classmethod
+    def successor_operands(
+        cls,
+        op: Operation,
+        successor: RegionSuccessor,
+    ) -> OperandRange:
+        """Returns the operands passed to `successor`. By default, all operands of `op`."""
+        return OperandRange(op)
 
     def verify(self, op: Operation) -> None:
         if not op.has_trait(IsTerminator):
