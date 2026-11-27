@@ -10,7 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.interpreters.builtin import scalar_attr
+from xdsl.interpreters.builtin import scalar_attr, xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.comparisons import (
@@ -542,6 +542,25 @@ class ArithFunctions(InterpreterFunctions):
         else:
             result = to_signed(result, result_bitwidth)
 
+        return (scalar_attr(result, op.result.type, interpreter.index_bitwidth),)
+
+    @impl(arith.BitcastOp)
+    def run_bitcast(
+        self, interpreter: Interpreter, op: arith.BitcastOp, args: PythonValues
+    ):
+        input_type = xtype_for_el_type(op.input.type, interpreter.index_bitwidth)
+        result_type = xtype_for_el_type(op.result.type, interpreter.index_bitwidth)
+        value = args[0].value.data
+        if isa(op.input.type, builtin.IndexType | builtin.IntegerType):
+            # Signless values are packed as signed ones of the same bit pattern.
+            value = to_signed(value, _int_bitwidth(interpreter, op.input.type))
+        data = input_type.pack((value,))
+        if len(data) != result_type.compile_time_size:
+            raise InterpretationError(
+                f"Cannot bitcast {op.input.type} to {op.result.type}: the interpreted "
+                "bitwidths differ"
+            )
+        (result,) = result_type.unpack(data, 1)
         return (scalar_attr(result, op.result.type, interpreter.index_bitwidth),)
 
     @impl(arith.ExtFOp)
