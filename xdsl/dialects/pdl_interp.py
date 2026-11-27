@@ -1278,7 +1278,7 @@ class FuncOp(IRDLOperation):
             res_attrs=res_attrs,
         )
         if extra_attrs is not None:
-            func.attributes |= extra_attrs.data
+            func.attributes.update(extra_attrs.data)
         return func
 
     def print(self, printer: Printer):
@@ -1454,7 +1454,7 @@ class ForEachOp(IRDLOperation):
 
         op = ForEachOp(values, successor, region)
         if attrs:
-            op.attributes = attrs
+            op.set_attributes(attrs)
         return op
 
     def print(self, printer: Printer):

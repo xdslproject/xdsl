@@ -98,7 +98,7 @@ class MapOp(IRDLOperation):
         li = parser.resolve_operand(unresolved_li, ListType(map_argument.type))
 
         op = cls(li, body, result_type)
-        op.attributes = attr_dict
+        op.set_attributes(attr_dict)
 
         return op
 

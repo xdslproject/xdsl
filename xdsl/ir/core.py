@@ -18,6 +18,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Final,
     Generic,
     NoReturn,
     Self,
@@ -903,7 +904,7 @@ class Operation(_IRNode):
     access to the operand SSAValue.
     """
 
-    results: SSAValues[OpResult] = field(default=SSAValues())
+    results: Final[SSAValues[OpResult]] = field(default=SSAValues())
     """The results created by the operation."""
 
     _successors: tuple[Block, ...] = field(default=())
@@ -919,20 +920,24 @@ class Operation(_IRNode):
     access to the successor Block.
     """
 
-    properties: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
+    properties: Final[dict[str, Attribute]] = field(
+        default_factory=dict[str, Attribute]
+    )
     """
     The properties attached to the operation.
     Properties are inherent to the definition of an operation's semantics, and
     thus cannot be discarded by transformations.
     """
 
-    attributes: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
+    attributes: Final[dict[str, Attribute]] = field(
+        default_factory=dict[str, Attribute]
+    )
     """The attributes attached to the operation."""
 
     location: LocationAttr = field(default_factory=_unknown_loc)
     """The source location attached to this operation."""
 
-    regions: tuple[Region, ...] = field(default=())
+    regions: Final[tuple[Region, ...]] = field(default=())
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None)
@@ -1080,15 +1085,15 @@ class Operation(_IRNode):
 
         self.set_operands(operands)
 
-        self.results = SSAValues(
+        self.results = SSAValues(  # pyright: ignore[reportAttributeAccessIssue]
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         )
-        self.properties = dict(properties)
-        self.attributes = dict(attributes)
+        self.properties = dict(properties)  # pyright: ignore[reportAttributeAccessIssue]
+        self.attributes = dict(attributes)  # pyright: ignore[reportAttributeAccessIssue]
         self.location = _unknown_loc() if location is None else location
         self.successors = list(successors)
-        self.regions = ()
+        self.regions = ()  # pyright: ignore[reportAttributeAccessIssue]
         for region in regions:
             self.add_region(region)
 
@@ -1125,8 +1130,24 @@ class Operation(_IRNode):
             raise ValueError(
                 "Cannot add region that is already attached on an operation."
             )
-        self.regions += (region,)
+        self.regions += (region,)  # pyright: ignore[reportAttributeAccessIssue]
         region.parent = self
+
+    def set_results(self, results: Iterable[OpResult]) -> None:
+        """Replace the operation's results."""
+        self.results = SSAValues(results)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def set_properties(self, properties: Mapping[str, Attribute]) -> None:
+        """Replace the operation's properties."""
+        self.properties = dict(properties)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def set_attributes(self, attributes: Mapping[str, Attribute]) -> None:
+        """Replace the operation's attributes."""
+        self.attributes = dict(attributes)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def set_regions(self, regions: Iterable[Region]) -> None:
+        """Replace the operation's regions."""
+        self.regions = tuple(regions)  # pyright: ignore[reportAttributeAccessIssue]
 
     def get_region_index(self, region: Region) -> int:
         """Get the region position in the operation."""
@@ -1147,7 +1168,7 @@ class Operation(_IRNode):
             region_idx = region
             region = self.regions[region_idx]
         region.parent = None
-        self.regions = self.regions[:region_idx] + self.regions[region_idx + 1 :]
+        self.regions = self.regions[:region_idx] + self.regions[region_idx + 1 :]  # pyright: ignore[reportAttributeAccessIssue]
         return region
 
     def drop_all_references(self) -> None:

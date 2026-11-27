@@ -197,7 +197,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         attrs = parser.parse_optional_attr_dict()
 
         op = cls(start, stop, step, iter_arg_operands, body)
-        op.attributes |= attrs
+        op.attributes.update(attrs)
 
         if not iter_args:
             for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
@@ -396,7 +396,7 @@ class WhileOp(IRDLOperation):
         op = cls(arguments, function_type.outputs.data, before_region, after_region)
 
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
 
         return op
 
@@ -454,7 +454,7 @@ class ConditionOp(IRDLOperation):
             arguments: Sequence[SSAValue] = ()
 
         op = cls(cond, *arguments)
-        op.attributes = attrs
+        op.set_attributes(attrs)
         return op
 
 

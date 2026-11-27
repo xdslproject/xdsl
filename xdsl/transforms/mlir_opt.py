@@ -67,4 +67,4 @@ class MLIROptPass(ModulePass):
 
         op.detach_region(op.body)
         op.add_region(Rewriter().move_region_contents_to_new_regions(new_module.body))
-        op.attributes = new_module.attributes
+        op.set_attributes(new_module.attributes)
