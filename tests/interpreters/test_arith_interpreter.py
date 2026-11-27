@@ -1060,7 +1060,7 @@ def test_float_to_int_poison(
         (-0.0, f64, i64, -(1 << 63)),
         (0x7FF0000000000000, i64, f64, inf),
         (0x3C00, i16, f16, 1.0),
-        # f16 -2.0 is bits 0xC000; as an i16 that is -0x4000
+        # Same bits, different interpretation: 0xC000 is f16 -2.0 and i16 -0x4000
         (-2.0, f16, i16, -0x4000),
         (-1, i64, IndexType(), -1),
     ],
