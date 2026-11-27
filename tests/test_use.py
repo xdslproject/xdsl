@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import Builtin, ModuleOp, i32
 from xdsl.dialects.test import Test, TestOp, TestTermOp
 from xdsl.ir import Block
 from xdsl.parser import Parser
+from xdsl.utils.test_value import create_ssa_value
 
 test_prog = """
 "builtin.module"() ({
@@ -73,6 +74,35 @@ def test_operand_value():
     assert use2.value is val2
 
 
+@pytest.mark.parametrize("index", [0, 1, 2])
+@pytest.mark.parametrize("same_value", [False, True])
+@pytest.mark.parametrize("via_setter", [False, True])
+def test_operand_replace_use(index: int, same_value: bool, via_setter: bool):
+    old_value = create_ssa_value(i32)
+    new_value = old_value if same_value else create_ssa_value(i32)
+    op = TestOp.create(operands=[old_value] * 3 + [new_value])
+    old_uses = tuple(old_value.uses)
+    new_uses = tuple(new_value.uses)
+    use = next(use for use in old_uses if use.index == index)
+
+    if via_setter:
+        op.operands[index] = new_value
+    else:
+        new_value.replace_use(use)
+
+    assert use.operation is op
+    assert use.index == index
+    assert use.value is new_value
+    assert tuple(op.operands) == tuple(
+        new_value if i == index or i == 3 else old_value for i in range(4)
+    )
+    if same_value:
+        assert tuple(old_value.uses) == old_uses
+    else:
+        assert tuple(old_value.uses) == tuple(u for u in old_uses if u is not use)
+        assert tuple(new_value.uses) == (use, *new_uses)
+
+
 @pytest.mark.parametrize("new_length", [0, 1, 2])
 def test_operand_value_invalidated(new_length: int):
     values = TestOp.create(result_types=[i32, i32]).results
@@ -86,6 +116,12 @@ def test_operand_value_invalidated(new_length: int):
             AssertionError, match="Attempting to use Operand that has been replaced"
         ):
             _ = use.value
+        with pytest.raises(
+            AssertionError, match="Attempting to use Operand that has been replaced"
+        ):
+            values[0].replace_use(use)
+
+    assert tuple(op.operands) == values[:new_length]
 
     for value in values[:new_length]:
         (use,) = value.uses
@@ -107,6 +143,35 @@ def test_successor_value():
     assert use2.value is block2
 
 
+@pytest.mark.parametrize("index", [0, 1, 2])
+@pytest.mark.parametrize("same_value", [False, True])
+@pytest.mark.parametrize("via_setter", [False, True])
+def test_successor_replace_use(index: int, same_value: bool, via_setter: bool):
+    old_block = Block()
+    new_block = old_block if same_value else Block()
+    op = TestTermOp.create(successors=[old_block] * 3 + [new_block])
+    old_uses = tuple(old_block.uses)
+    new_uses = tuple(new_block.uses)
+    use = next(use for use in old_uses if use.index == index)
+
+    if via_setter:
+        op.successors[index] = new_block
+    else:
+        new_block.replace_use(use)
+
+    assert use.operation is op
+    assert use.index == index
+    assert use.value is new_block
+    assert tuple(op.successors) == tuple(
+        new_block if i == index or i == 3 else old_block for i in range(4)
+    )
+    if same_value:
+        assert tuple(old_block.uses) == old_uses
+    else:
+        assert tuple(old_block.uses) == tuple(u for u in old_uses if u is not use)
+        assert tuple(new_block.uses) == (use, *new_uses)
+
+
 @pytest.mark.parametrize("new_length", [0, 1, 2])
 def test_successor_value_invalidated(new_length: int):
     blocks = (Block(), Block())
@@ -120,6 +185,12 @@ def test_successor_value_invalidated(new_length: int):
             AssertionError, match="Attempting to use Successor that has been replaced"
         ):
             _ = use.value
+        with pytest.raises(
+            AssertionError, match="Attempting to use Successor that has been replaced"
+        ):
+            blocks[0].replace_use(use)
+
+    assert tuple(op.successors) == blocks[:new_length]
 
     for block in blocks[:new_length]:
         (use,) = block.uses
@@ -143,6 +214,14 @@ def test_drop_all_references_invalidates_uses():
         AssertionError, match="Attempting to use Successor that has been replaced"
     ):
         _ = successor_use.value
+    with pytest.raises(
+        AssertionError, match="Attempting to use Operand that has been replaced"
+    ):
+        value.replace_use(operand_use)
+    with pytest.raises(
+        AssertionError, match="Attempting to use Successor that has been replaced"
+    ):
+        block.replace_use(successor_use)
 
 
 def test_drop_all_references_clears_successor_uses():
