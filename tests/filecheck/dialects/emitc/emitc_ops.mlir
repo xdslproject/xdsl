@@ -71,6 +71,14 @@ emitc.assign %assign_value : i32 to %assign_var : !emitc.lvalue<i32>
 // CHECK-GENERIC: "emitc.assign"(%assign_var, %assign_value) : (!emitc.lvalue<i32>, i32) -> ()
 
 //===----------------------------------------------------------------------===//
+// BitwiseAndOp
+//===----------------------------------------------------------------------===//
+
+%bitwise_and = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %bitwise_and = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %bitwise_and = "emitc.bitwise_and"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
 // BitwiseLeftShiftOp
 //===----------------------------------------------------------------------===//
 
