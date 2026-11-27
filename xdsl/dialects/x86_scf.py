@@ -237,7 +237,7 @@ class ForRofOperation(x86.ops.X86HasRegisterConstraints, ABC):
         attrs = parser.parse_optional_attr_dict()
 
         op = cls(start, stop, step, iter_arg_operands, body)
-        op.attributes |= attrs
+        op.attributes.update(attrs)
 
         if not iter_args:
             for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):

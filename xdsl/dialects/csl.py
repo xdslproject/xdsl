@@ -879,7 +879,7 @@ class FuncOp(_FuncBase):
             arg_attrs=arg_attrs,
         )
         if extra_attrs is not None:
-            func.attributes |= extra_attrs.data
+            func.attributes.update(extra_attrs.data)
         return func
 
     def print(self, printer: Printer):
@@ -1007,9 +1007,9 @@ class TaskOp(_FuncBase):
             task_kind=kind,
             id=id,
         )
-        task.attributes |= {
-            k: v for k, v in extra_attrs.data.items() if k not in ("kind", "id")
-        }
+        task.attributes.update(
+            {k: v for k, v in extra_attrs.data.items() if k not in ("kind", "id")}
+        )
         return task
 
     def print(self, printer: Printer):

@@ -280,7 +280,7 @@ class GenericOp(LinalgStructuredOperation):
             doc,
             library_call,
         )
-        generic.attributes |= extra_attrs
+        generic.attributes.update(extra_attrs)
 
         return generic
 

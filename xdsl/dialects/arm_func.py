@@ -95,7 +95,7 @@ class FuncOp(arm.ops.ARMAsmOperation):
             raise NotImplementedError("res_attrs not implemented in arm_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
-            func.attributes |= extra_attrs.data
+            func.attributes.update(extra_attrs.data)
         return func
 
     def print(self, printer: Printer):

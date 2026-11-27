@@ -189,8 +189,8 @@ class Rewriter:
             index = val.index
             new_value = OpResult(new_type, operation, val.index)
             results = operation.results
-            operation.results = SSAValues(
-                (*results[:index], new_value, *results[index + 1 :])
+            operation.set_results(
+                SSAValues((*results[:index], new_value, *results[index + 1 :]))
             )
         elif isinstance(val, BlockArgument):
             block = val.block

@@ -131,13 +131,13 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     object.__setattr__(integer_attr, "type", result_type)
                     folded_op = ConstantOp.__new__(ConstantOp)
                     folded_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
-                    folded_op.results = SSAValues(
-                        (OpResult(result_type, folded_op, 0),)
+                    folded_op.set_results(
+                        SSAValues((OpResult(result_type, folded_op, 0),))
                     )
-                    folded_op.properties = {"value": integer_attr}
-                    folded_op.attributes = {}
+                    folded_op.set_properties({"value": integer_attr})
+                    folded_op.set_attributes({})
                     folded_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
-                    folded_op.regions = tuple()
+                    folded_op.set_regions(())
 
                     old_op, new_op, new_result = (
                         rewrite_op,

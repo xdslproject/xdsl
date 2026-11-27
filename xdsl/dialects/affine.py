@@ -394,7 +394,7 @@ class ForOp(IRDLOperation):
                 step,
             ),
         )
-        for_op.attributes |= attributes
+        for_op.attributes.update(attributes)
         return for_op
 
     def print(self, printer: Printer):

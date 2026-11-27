@@ -856,7 +856,7 @@ class NamedSequenceOp(IRDLOperation):
             res_attrs=res_attrs,
         )
         if extra_attrs is not None:
-            named_sequence.attributes |= extra_attrs.data
+            named_sequence.attributes.update(extra_attrs.data)
         return named_sequence
 
     def print(self, printer: Printer):

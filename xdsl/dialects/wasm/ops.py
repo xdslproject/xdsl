@@ -51,7 +51,7 @@ class WasmModuleOp(IRDLOperation, WasmBinaryEncodable, WatPrintable):
         op = cls()
 
         if attr_dict is not None:
-            op.attributes |= attr_dict.data
+            op.attributes.update(attr_dict.data)
 
         return op
 

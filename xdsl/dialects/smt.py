@@ -438,7 +438,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
     def parse(cls: type[Self], parser: Parser) -> Self:
         operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
         op = cls(*operands)
-        op.attributes = attr_dict
+        op.set_attributes(attr_dict)
         return op
 
     def print(self, printer: Printer):

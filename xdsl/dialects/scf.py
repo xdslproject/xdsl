@@ -163,7 +163,7 @@ class WhileOp(IRDLOperation):
         op = cls(arguments, function_type.outputs.data, before_region, after_region)
 
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
 
         return op
 
@@ -536,7 +536,7 @@ class ForOp(IRDLOperation):
         attrs = parser.parse_optional_attr_dict()
 
         for_op = cls(resolved_lb, resolved_ub, resolved_step, iter_arg_operands, body)
-        for_op.attributes |= attrs
+        for_op.attributes.update(attrs)
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):

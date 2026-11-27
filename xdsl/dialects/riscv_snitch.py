@@ -399,7 +399,7 @@ class FRepOperation(riscv.abstract_ops.RISCVInstruction):
             IntegerAttr(stagger_count, i3),
         )
         if remaining_attributes is not None:
-            frep.attributes |= remaining_attributes.data
+            frep.attributes.update(remaining_attributes.data)
 
         for trait in frep.get_traits_of_type(SingleBlockImplicitTerminator):
             ensure_terminator(frep, trait)

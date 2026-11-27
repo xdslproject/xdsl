@@ -4804,7 +4804,7 @@ class AtomicCaptureOp(IRDLOperation):
         region = parser.parse_region()
         attrs = parser.parse_optional_attr_dict()
         op = cls(region=region, if_cond=if_cond)
-        op.attributes = {**op.attributes, **attrs}
+        op.attributes.update(attrs)
         for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
             ensure_terminator(op, trait)
         return op

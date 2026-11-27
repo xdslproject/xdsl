@@ -620,7 +620,7 @@ class LaunchOp(IRDLOperation):
         launch_op = LaunchOp(
             sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body
         )
-        launch_op.attributes |= attr_dict
+        launch_op.attributes.update(attr_dict)
 
         return launch_op
 
@@ -707,7 +707,7 @@ class SegmentOp(IRDLOperation):
         segment_op = SegmentOp(
             sym_name, async_dependencies, sizes, segment_operands_lst, body
         )
-        segment_op.attributes |= attr_dict
+        segment_op.attributes.update(attr_dict)
         return segment_op
 
 

@@ -138,7 +138,7 @@ class ConvertExpM1Op(RewritePattern):
             return
         fast_math = llvm.FastMathAttr(op.fastmath.data)
         exp = llvm.FExpOp(op.operand, fast_math)
-        exp.attributes = op.attributes.copy()
+        exp.set_attributes(op.attributes.copy())
         sub = llvm.FSubOp(exp.res, one.result, fast_math, op.attributes.copy())
         rewriter.replace(op, (one, exp, sub))
 
@@ -153,7 +153,7 @@ class ConvertLog1pOp(RewritePattern):
         fast_math = llvm.FastMathAttr(op.fastmath.data)
         add = llvm.FAddOp(one.result, op.operand, fast_math, op.attributes.copy())
         log = llvm.FLogOp(add.res, fast_math)
-        log.attributes = op.attributes.copy()
+        log.set_attributes(op.attributes.copy())
         rewriter.replace(op, (one, add, log))
 
 
@@ -166,7 +166,7 @@ class ConvertRsqrtOp(RewritePattern):
             return
         fast_math = llvm.FastMathAttr(op.fastmath.data)
         sqrt = llvm.FSqrtOp(op.operand, fast_math)
-        sqrt.attributes = op.attributes.copy()
+        sqrt.set_attributes(op.attributes.copy())
         div = llvm.FDivOp(one.result, sqrt.res, fast_math, op.attributes.copy())
         rewriter.replace(op, (one, sqrt, div))
 

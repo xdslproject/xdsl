@@ -896,6 +896,28 @@ class OpDef:
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
+                value = clsdict[field_name]
+                # `Final` on the Operation fields would reject these overrides
+                # at type-check time, but `attributes` alone is reassigned at
+                # 13 sites outside Operation (dialects and transforms), and
+                # `results`, `properties` and `regions` at three more in the
+                # constant-folding test. `Final` would spread pyright ignores
+                # across the codebase, so the runtime check stays.
+                if field_name in _OPERATION_DICT_KEYS and isinstance(
+                    value,
+                    (
+                        OperandDef,
+                        ResultDef,
+                        AttributeDef,
+                        PropertyDef,
+                        RegionDef,
+                        SuccessorDef,
+                    ),
+                ):
+                    raise PyRDLOpDefinitionError(
+                        f"{pyrdl_def.__name__}.{field_name} overrides a reserved"
+                        " field of Operation"
+                    )
                 if field_name in ("name", "assembly_format", "custom_directives"):
                     continue
                 if field_name in _OPERATION_DICT_KEYS:

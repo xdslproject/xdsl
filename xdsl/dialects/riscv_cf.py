@@ -175,7 +175,7 @@ class ConditionalBranchOperation(
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rs1, rs2, then_args, else_args, then_block, else_block)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     @abstractmethod
@@ -374,7 +374,7 @@ class BranchOp(riscv.abstract_ops.RISCVAsmOperation):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     def assembly_line(self) -> str | None:
@@ -449,7 +449,7 @@ class JOp(riscv.abstract_ops.RISCVInstruction):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     def assembly_line_args(
@@ -566,7 +566,7 @@ class BnezOp(riscv.abstract_ops.RISCVInstruction):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rs, then_args, else_args, then_block, else_block)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     def assembly_line_args(
