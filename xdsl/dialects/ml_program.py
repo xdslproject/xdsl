@@ -109,7 +109,7 @@ class GlobalOp(IRDLOperation):
             value,
             sym_visibility,
         )
-        global_op.attributes |= attrs
+        global_op.attributes.update(attrs)
         return global_op
 
 
@@ -156,7 +156,7 @@ class GlobalLoadConstantOp(IRDLOperation):
             global_attr,
             result_type,
         )
-        global_const.attributes |= attrs
+        global_const.attributes.update(attrs)
         return global_const
 
 

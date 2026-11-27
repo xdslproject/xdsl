@@ -559,7 +559,7 @@ class AttrDictDirective(FormatDirective):
         props = tuple(k for k in attrs.keys() if k in self.expected_properties)
         for name in props:
             state.properties[name] = attrs.pop(name)
-        state.attributes |= attrs
+        state.attributes.update(attrs)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if not op.attributes.keys().isdisjoint(self.expected_properties):

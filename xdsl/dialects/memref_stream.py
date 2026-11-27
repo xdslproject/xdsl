@@ -429,7 +429,7 @@ class StreamingRegionOp(IRDLOperation):
             patterns,
             body,
         )
-        generic.attributes |= extra_attrs
+        generic.attributes.update(extra_attrs)
 
         return generic
 
@@ -817,8 +817,8 @@ class GenericOp(IRDLOperation):
             doc,
             library_call,
         )
-        generic.attributes |= attrs
-        generic.attributes |= extra_attrs
+        generic.attributes.update(attrs)
+        generic.attributes.update(extra_attrs)
 
         return generic
 

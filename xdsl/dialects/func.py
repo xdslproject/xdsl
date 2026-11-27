@@ -185,7 +185,7 @@ class FuncOp(IRDLOperation):
             res_attrs=res_attrs,
         )
         if extra_attrs is not None:
-            func.attributes |= extra_attrs.data
+            func.attributes.update(extra_attrs.data)
         return func
 
     def print(self, printer: Printer):

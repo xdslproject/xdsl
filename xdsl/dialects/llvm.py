@@ -1255,7 +1255,7 @@ class GEPOp(IRDLOperation):
             result_type=cast(LLVMPointerType, ft.outputs.data[0]),
             inbounds=inbounds,
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 
@@ -1498,7 +1498,7 @@ class InlineAsmOp(IRDLOperation):
             is_align_stack=is_align_stack,
             tail_call_kind=tail_call_kind,
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 
@@ -1603,7 +1603,7 @@ class LoadOp(IRDLOperation):
             alignment=alignment,
             ordering=ordering,
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 
@@ -1685,7 +1685,7 @@ class StoreOp(IRDLOperation):
             volatile=volatile,
             nontemporal=attrs.pop("nontemporal", None) is not None,
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 
@@ -1752,7 +1752,7 @@ class ExtractValueOp(IRDLOperation):
             parser.resolve_operand(container, container_type),
             t,
         )
-        op.attributes |= attributes
+        op.attributes.update(attributes)
         return op
 
 
@@ -1824,7 +1824,7 @@ class InsertValueOp(IRDLOperation):
             parser.resolve_operand(container, container_type),
             parser.resolve_operand(value, t),
         )
-        op.attributes |= attributes
+        op.attributes.update(attributes)
         return op
 
 
@@ -2162,7 +2162,7 @@ class GlobalOp(IRDLOperation):
             section=section,
             body=parser.parse_optional_region(),
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 
@@ -2832,7 +2832,7 @@ class CallOp(IRDLOperation):
             properties=props,
             result_types=ft.outputs.data,
         )
-        op.attributes |= attrs
+        op.attributes.update(attrs)
         return op
 
 

@@ -297,7 +297,7 @@ class AllocOp(IRDLOperation):
             alignment,
         )
 
-        op.attributes |= attrs
+        op.attributes.update(attrs)
 
         return op
 

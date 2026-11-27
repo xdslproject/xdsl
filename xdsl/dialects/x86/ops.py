@@ -1161,7 +1161,7 @@ class ConditionalJumpOperation(X86Instruction, ABC):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rflags, then_args, else_args, then_block, else_block)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
 
@@ -2702,7 +2702,7 @@ class C_JmpOp(X86Instruction):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_values, successor)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -2786,7 +2786,7 @@ class FallthroughOp(X86AsmOperation, X86HasRegisterConstraints):
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_values, successor)
         if attrs is not None:
-            op.attributes |= attrs.data
+            op.attributes.update(attrs.data)
         return op
 
     def assembly_line(self) -> str | None:

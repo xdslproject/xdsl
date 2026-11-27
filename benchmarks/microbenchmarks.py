@@ -308,11 +308,11 @@ class OpCreation(BenchmarkClass):
         """Time creating an empty operation directly."""
         empty_op = EmptyOp.__new__(EmptyOp)
         empty_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
-        empty_op.results = SSAValues()
-        empty_op.properties = {}
-        empty_op.attributes = {}
+        empty_op.set_results(SSAValues())
+        empty_op.set_properties({})
+        empty_op.set_attributes({})
         empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
-        empty_op.regions = ()
+        empty_op.set_regions(())
 
     @safe_to_repeat
     def time_operation_constant_init(self) -> None:
@@ -329,11 +329,11 @@ class OpCreation(BenchmarkClass):
         object.__setattr__(integer_attr, "type", i32)
         constant_op = ConstantOp.__new__(ConstantOp)
         constant_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
-        constant_op.results = SSAValues((OpResult(i32, constant_op, 0),))
-        constant_op.properties = {"value": integer_attr}
-        constant_op.attributes = {}
+        constant_op.set_results(SSAValues((OpResult(i32, constant_op, 0),)))
+        constant_op.set_properties({"value": integer_attr})
+        constant_op.set_attributes({})
         constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
-        constant_op.regions = ()
+        constant_op.set_regions(())
 
     @safe_to_repeat
     def time_operation_clone(self) -> None:

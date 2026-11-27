@@ -436,7 +436,7 @@ class PyFuncOp(PyOperation):
             )
         op = cls(name, FunctionType.from_lists(inputs, outputs), body)
         if extra_attrs is not None:
-            op.attributes |= extra_attrs.data
+            op.attributes.update(extra_attrs.data)
         return op
 
     def print(self, printer: Printer) -> None:

@@ -2169,7 +2169,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
             region = Region(Block())
         section = AssemblySectionOp(directive, region)
         if attr_dict is not None:
-            section.attributes |= attr_dict.data
+            section.attributes.update(attr_dict.data)
 
         return section
 
