@@ -108,6 +108,9 @@ def test_fma_fastmath_raises():
         (ir.IntType(32), "i32"),
         (ir.VectorType(ir.FloatType(), 4), "v4f32"),
         (ir.VectorType(ir.DoubleType(), 2), "v2f64"),
+        (ir.VectorType(ir.IntType(32), 4), "v4i32"),
+        (ir.PointerType(), "p0"),
+        (ir.PointerType(addrspace=3), "p3"),
     ],
 )
 def test_intrinsic_suffix(ty: ir.Type, expected: str):
@@ -120,9 +123,36 @@ def test_declare_intrinsic_creates_function():
         ir.FloatType(), [ir.FloatType(), ir.VectorType(ir.FloatType(), 4)]
     )
     func = declare_intrinsic(
-        module, "llvm.vector.reduce.fadd", ir.VectorType(ir.FloatType(), 4), fnty
+        module, "llvm.vector.reduce.fadd", (ir.VectorType(ir.FloatType(), 4),), fnty
     )
     assert func.name == "llvm.vector.reduce.fadd.v4f32"
+
+
+def test_declare_intrinsic_mangles_all_types():
+    module = ir.Module()
+    vec_ty = ir.VectorType(ir.FloatType(), 4)
+    ptr_ty = ir.PointerType()
+    fnty = ir.FunctionType(
+        ir.VoidType(),
+        [vec_ty, ptr_ty, ir.IntType(32), ir.VectorType(ir.IntType(1), 4)],
+    )
+    func = declare_intrinsic(module, "llvm.masked.store", (vec_ty, ptr_ty), fnty)
+    assert func.name == "llvm.masked.store.v4f32.p0"
+
+
+def test_declare_intrinsic_distinguishes_types():
+    module = ir.Module()
+    f32_ty = ir.FloatType()
+    f64_ty = ir.DoubleType()
+    sqrt_f32 = declare_intrinsic(
+        module, "llvm.sqrt", (f32_ty,), ir.FunctionType(f32_ty, [f32_ty])
+    )
+    sqrt_f64 = declare_intrinsic(
+        module, "llvm.sqrt", (f64_ty,), ir.FunctionType(f64_ty, [f64_ty])
+    )
+    assert sqrt_f32 is not sqrt_f64
+    assert sqrt_f32.name == "llvm.sqrt.f32"
+    assert sqrt_f64.name == "llvm.sqrt.f64"
 
 
 def test_declare_intrinsic_reuses_existing():
@@ -131,8 +161,8 @@ def test_declare_intrinsic_reuses_existing():
         ir.FloatType(), [ir.FloatType(), ir.VectorType(ir.FloatType(), 4)]
     )
     vec_ty = ir.VectorType(ir.FloatType(), 4)
-    first = declare_intrinsic(module, "llvm.vector.reduce.fadd", vec_ty, fnty)
-    second = declare_intrinsic(module, "llvm.vector.reduce.fadd", vec_ty, fnty)
+    first = declare_intrinsic(module, "llvm.vector.reduce.fadd", (vec_ty,), fnty)
+    second = declare_intrinsic(module, "llvm.vector.reduce.fadd", (vec_ty,), fnty)
     assert first is second
 
 

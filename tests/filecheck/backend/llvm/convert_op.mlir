@@ -787,7 +787,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"maxnum_op"(float %".1", float %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maxnum"(float %".1", float %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maxnum.f32"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -799,7 +799,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"minnum_op"(float %".1", float %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum"(float %".1", float %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum.f32"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -811,7 +811,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"maximum_op"(float %".1", float %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maximum"(float %".1", float %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maximum.f32"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -823,7 +823,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define double @"minimum_op"(double %".1", double %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.minimum"(double %".1", double %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.minimum.f64"(double %".1", double %".2")
   // CHECK-NEXT:   ret double %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -835,7 +835,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define i32 @"smax_op"(i32 %".1", i32 %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i32 @"llvm.smax"(i32 %".1", i32 %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i32 @"llvm.smax.i32"(i32 %".1", i32 %".2")
   // CHECK-NEXT:   ret i32 %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -847,7 +847,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define i64 @"smin_op"(i64 %".1", i64 %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i64 @"llvm.smin"(i64 %".1", i64 %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i64 @"llvm.smin.i64"(i64 %".1", i64 %".2")
   // CHECK-NEXT:   ret i64 %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -859,7 +859,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define i8 @"umax_op"(i8 %".1", i8 %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i8 @"llvm.umax"(i8 %".1", i8 %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call i8 @"llvm.umax.i8"(i8 %".1", i8 %".2")
   // CHECK-NEXT:   ret i8 %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -871,7 +871,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define <4 x i32> @"umin_op"(<4 x i32> %".1", <4 x i32> %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x i32> @"llvm.umin"(<4 x i32> %".1", <4 x i32> %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x i32> @"llvm.umin.v4i32"(<4 x i32> %".1", <4 x i32> %".2")
   // CHECK-NEXT:   ret <4 x i32> %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -883,7 +883,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"pow_op"(float %".1", float %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.pow"(float %".1", float %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.pow.f32"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -895,7 +895,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fabs_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fabs"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fabs.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -907,7 +907,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fceil_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.ceil"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.ceil.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -919,7 +919,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fsqrt_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sqrt"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sqrt.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -931,7 +931,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"ffloor_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor.f32"(float %".1")
   llvm.func @fexp2_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.exp2(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -940,7 +940,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fexp2_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -952,7 +952,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"flog_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -964,7 +964,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"exp_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -976,7 +976,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fsin_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sin"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sin.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -988,7 +988,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"fcos_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.cos"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.cos.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -1000,7 +1000,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"flog2_op"(float %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log2"(float %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log2.f32"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -1012,8 +1012,30 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define float @"copysign_op"(float %".1", float %".2")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.copysign"(float %".1", float %".2")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.copysign.f32"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @overloaded_intrinsics(%arg0: f32, %arg1: f64, %arg2: vector<4xf32>, %arg3: i32, %arg4: i64) {
+    %0 = llvm.intr.sqrt(%arg0) : (f32) -> f32
+    %1 = llvm.intr.sqrt(%arg1) : (f64) -> f64
+    %2 = llvm.intr.sqrt(%arg2) : (vector<4xf32>) -> vector<4xf32>
+    %3 = llvm.intr.sqrt(%0) : (f32) -> f32
+    %4 = llvm.intr.smax(%arg3, %arg3) : (i32, i32) -> i32
+    %5 = llvm.intr.smax(%arg4, %arg4) : (i64, i64) -> i64
+    llvm.return
+  }
+
+  // CHECK: define void @"overloaded_intrinsics"(float %".1", double %".2", <4 x float> %".3", i32 %".4", i64 %".5")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[SQRT_F32:.\d+]]" = call float @"llvm.sqrt.f32"(float %".1")
+  // CHECK-NEXT:   %"{{.\d+}}" = call double @"llvm.sqrt.f64"(double %".2")
+  // CHECK-NEXT:   %"{{.\d+}}" = call <4 x float> @"llvm.sqrt.v4f32"(<4 x float> %".3")
+  // CHECK-NEXT:   %"{{.\d+}}" = call float @"llvm.sqrt.f32"(float %"[[SQRT_F32]]")
+  // CHECK-NEXT:   %"{{.\d+}}" = call i32 @"llvm.smax.i32"(i32 %".4", i32 %".4")
+  // CHECK-NEXT:   %"{{.\d+}}" = call i64 @"llvm.smax.i64"(i64 %".5", i64 %".5")
+  // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
   llvm.func @fneg_op(%arg0: f32) -> f32 {
@@ -1083,7 +1105,7 @@ builtin.module attributes {llvm.target_triple = "test-test-test"} {
   // CHECK: define void @"masked_store_op"(<4 x float> %".1", ptr %".2", <4 x i1> %".3")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   call void @"llvm.masked.store"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
+  // CHECK-NEXT:   call void @"llvm.masked.store.v4f32.p0"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
