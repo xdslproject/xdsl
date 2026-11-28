@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import cast
 
 from llvmlite import ir
@@ -207,8 +207,8 @@ def _convert_unary_intrinsic(
 ):
     operand = val_map[op.operands[0]]
     fn_type = ir.FunctionType(operand.type, [operand.type])
-    intrinsic = builder.module.declare_intrinsic(
-        _UNARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    intrinsic = declare_intrinsic(
+        builder.module, _UNARY_INTRINSIC_MAP[type(op)], (operand.type,), fn_type
     )
     val_map[op.results[0]] = builder.call(intrinsic, [operand])
 
@@ -219,8 +219,8 @@ def _convert_binary_intrinsic(
     lhs = val_map[op.operands[0]]
     rhs = val_map[op.operands[1]]
     fn_type = ir.FunctionType(lhs.type, [lhs.type, rhs.type])
-    intrinsic = builder.module.declare_intrinsic(
-        _BINARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    intrinsic = declare_intrinsic(
+        builder.module, _BINARY_INTRINSIC_MAP[type(op)], (lhs.type,), fn_type
     )
     val_map[op.results[0]] = builder.call(intrinsic, [lhs, rhs])
 
@@ -382,7 +382,9 @@ def _convert_masked_store(
     fn_type = ir.FunctionType(
         ir.VoidType(), [value.type, ptr.type, alignment.type, mask.type]
     )
-    intrinsic = builder.module.declare_intrinsic("llvm.masked.store", fnty=fn_type)
+    intrinsic = declare_intrinsic(
+        builder.module, "llvm.masked.store", (value.type, ptr.type), fn_type
+    )
     builder.call(intrinsic, [value, ptr, alignment, mask])
 
 
@@ -390,22 +392,32 @@ _FLOAT_TYPES = (ir.HalfType, ir.FloatType, ir.DoubleType)
 
 
 def intrinsic_suffix(t: ir.Type) -> str:
-    """Return the LLVM intrinsic name suffix for a type, e.g. 'f32' or 'v4f32'."""
+    """
+    Return the LLVM intrinsic name suffix for a type, e.g. 'f32', 'v4i32' or 'p0'.
+    """
     if isinstance(t, ir.VectorType):
-        assert isinstance(t.element, _FLOAT_TYPES)
-        return f"v{t.count}{t.element.intrinsic_name}"
-    assert isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType, ir.IntType))
+        return f"v{t.count}{intrinsic_suffix(t.element)}"
+    if isinstance(t, ir.PointerType):
+        return f"p{t.addrspace}"
+    assert isinstance(t, (*_FLOAT_TYPES, ir.IntType))
     return t.intrinsic_name
 
 
 def declare_intrinsic(
     module: ir.Module,
     name: str,
-    ty: ir.Type,
+    tys: Sequence[ir.Type],
     fnty: ir.FunctionType,
 ) -> ir.Function:
-    """Declare an LLVM intrinsic with a type-mangled name, reusing an existing declaration if present."""
-    full_name = f"{name}.{intrinsic_suffix(ty)}"
+    """
+    Declare an LLVM intrinsic with a name mangled by its overloaded types, reusing an
+    existing declaration if present.
+
+    Overloaded intrinsics such as `llvm.sqrt` have one declaration per type, e.g.
+    `llvm.sqrt.f32` and `llvm.sqrt.f64`, so the types must be part of the name for
+    each declaration to be distinct.
+    """
+    full_name = ".".join((name, *(intrinsic_suffix(ty) for ty in tys)))
     if full_name in module.globals:
         return cast(ir.Function, module.globals[full_name])
     return ir.Function(module, fnty, name=full_name)
@@ -427,7 +439,7 @@ def _convert_vector_reduce(
     elt_type = vec_type.element
     fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
     intrinsic = declare_intrinsic(
-        builder.module, _VECTOR_REDUCE_INTRINSIC_MAP[type(op)], vec_type, fn_type
+        builder.module, _VECTOR_REDUCE_INTRINSIC_MAP[type(op)], (vec_type,), fn_type
     )
     val_map[op.results[0]] = builder.call(intrinsic, [start, vector])
 
@@ -444,7 +456,7 @@ def _convert_fma(
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    intrinsic = declare_intrinsic(builder.module, "llvm.fma", res_type, fn_type)
+    intrinsic = declare_intrinsic(builder.module, "llvm.fma", (res_type,), fn_type)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
