@@ -444,6 +444,27 @@ def test_print_clashing_names():
     assert_print_op(module, expected)
 
 
+@pytest.mark.parametrize(
+    "hints",
+    [
+        pytest.param(("x", "x", "x_1"), id="generated-before-hint"),
+        pytest.param(("x_1", "x", "x"), id="hint-before-generated"),
+    ],
+)
+def test_print_ssa_name_collisions(hints: tuple[str, str, str]):
+    """Print distinct, stable SSA names despite hint collisions."""
+    values = [create_ssa_value(i32) for _ in hints]
+    for value, hint in zip(values, hints):
+        # The setter strips one numeric suffix; append one to preserve the hint.
+        value.name_hint = f"{hint}_0"
+    assert tuple(value.name_hint for value in values) == hints
+
+    printer = Printer(stream=StringIO())
+    printed_names = tuple(printer.print_ssa_value(value) for value in values)
+    assert len(set(printed_names)) == len(values)
+    assert tuple(printer.print_ssa_value(value) for value in values) == printed_names
+
+
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
     block.args[0].name_hint = "test"
@@ -496,10 +517,12 @@ def test_print_block():
     )
 
 
-def test_print_region_twice_with_same_printer():
+@pytest.mark.parametrize("hint", [None, "entry"])
+def test_print_region_twice_with_same_printer(hint: str | None):
     """A printer may print the same region more than once, keeping block names."""
     block0 = Block()
     block1 = Block()
+    block0.name_hint = hint
     block0.add_op(test.TestTermOp.create(successors=[block1]))
     block1.add_op(test.TestTermOp.create())
     region = Region([block0, block1])
@@ -578,7 +601,8 @@ def test_print_region():
     )
 
 
-def test_print_region_block_names_follow_region_order():
+@pytest.mark.parametrize("print_successor_first", [False, True])
+def test_print_region_block_names_follow_region_order(print_successor_first: bool):
     """Assign block names in region order, not successor visitation order."""
     second_block = Block([test.TestTermOp()])
     third_block = Block([test.TestTermOp()])
@@ -587,7 +611,12 @@ def test_print_region_block_names_follow_region_order():
     region = Region([first_block, second_block, third_block, fourth_block])
 
     io = StringIO()
-    Printer(stream=io).print_region(region)
+    printer = Printer(stream=io)
+    if print_successor_first:
+        assert printer.print_block_name(fourth_block) == "bb3"
+        io.seek(0)
+        io.truncate()
+    printer.print_region(region)
 
     assert (
         io.getvalue()
@@ -621,6 +650,42 @@ def test_print_region_block_names_include_hint_positions():
   "test.termop"() : () -> ()
 }"""
     )
+
+
+@pytest.mark.parametrize(
+    "hints",
+    [
+        pytest.param(("entry", "entry", "entry_1"), id="generated-before-hint"),
+        pytest.param(("entry_1", "entry", "entry"), id="hint-before-generated"),
+        pytest.param(("bb1", None, None), id="hint-before-default"),
+        pytest.param((None, "bb0", None), id="default-before-hint"),
+    ],
+)
+def test_print_block_name_collisions(hints: tuple[str | None, str | None, str | None]):
+    """Avoid collisions between hints, suffixed names, and default block names."""
+    blocks = [Block() for _ in hints]
+    for block, hint in zip(blocks, hints):
+        # The setter strips one numeric suffix; append one to preserve the hint.
+        block.name_hint = None if hint is None else f"{hint}_0"
+    assert tuple(block.name_hint for block in blocks) == hints
+
+    region = Region(blocks)
+    printer = Printer(stream=StringIO())
+    names = tuple(printer.print_block_name(block) for block in region.blocks)
+    assert len(set(names)) == len(region.blocks)
+    assert tuple(printer.print_block_name(block) for block in region.blocks) == names
+
+
+def test_print_block_names_have_separate_region_namespaces():
+    """A name used in one region must remain available in another region."""
+    first = Region(Block())
+    second = Region(Block())
+    first.block.name_hint = second.block.name_hint = "entry"
+
+    printer = Printer(stream=StringIO())
+    assert printer.print_block_name(first.block) == "entry"
+    assert printer.print_block_name(second.block) == "entry"
+    assert printer.print_block_name(first.block) == "entry"
 
 
 def test_print_region_without_arguments():
