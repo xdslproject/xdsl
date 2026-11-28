@@ -3412,6 +3412,13 @@ class DenseIntOrFPElementsAttr(
         Return whether or not this dense attribute is defined entirely
         by a single value (splat).
         """
+        raw = self.data.data
+        element_type = self.get_element_type()
+        if isinstance(element_type, IntegerType | IndexType):
+            size = element_type.compile_time_size
+            if raw and len(raw) % size == 0:
+                # Equal integers have equal packed bytes, so compare without unpacking.
+                return raw == raw[:size] * len(self)
         values = self.get_values()
         return values.count(values[0]) == len(values)
 
@@ -3462,14 +3469,16 @@ class DenseIntOrFPElementsAttr(
     def print_without_type(self, printer: Printer):
         printer.print_string("dense")
         length = len(self)
-        data = self.get_values()
+        # Only the list form needs every value. The splat and hex forms skip the unpack.
+        data = self.get_values() if length <= 100 else ()
+        is_splat = length > 0 and self.is_splat()
         shape = self.get_shape() if self.shape_is_complete else (length,)
         assert shape is not None, "If shape is complete, then it cannot be None"
         with printer.in_angle_brackets():
             if length == 0:
                 pass
-            elif self.is_splat():
-                self._print_one_elem(data[0], printer)
+            elif is_splat:
+                self._print_one_elem(next(self.iter_values()), printer)
             elif length > 100:
                 printer.print_string(f'"0x{self.data.data.hex().upper()}"')
             else:
