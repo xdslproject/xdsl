@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import chain
 from typing import IO, cast
 
@@ -51,6 +52,45 @@ from xdsl.utils.identity import identity
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
+@dataclass
+class _NameAllocator:
+    """Reserve complete names in one namespace, not just their hint prefixes."""
+
+    default_prefix: str
+    used: set[str] = field(default_factory=set)
+    next_index: dict[str | None, int] = field(default_factory=dict)
+
+    def copy(self) -> _NameAllocator:
+        return _NameAllocator(
+            self.default_prefix, self.used.copy(), self.next_index.copy()
+        )
+
+    def _try_reserve(self, name: str) -> bool:
+        if name in self.used:
+            return False
+        self.used.add(name)
+        return True
+
+    def _format(self, base: str | None, index: int) -> str:
+        match base, index:
+            case None, _:
+                return f"{self.default_prefix}{index}"
+            case _, 0:
+                return base
+            case _, _:
+                return f"{base}_{index}"
+
+    def allocate(self, base: str | None) -> str:
+        """Allocate a name from a base that can legally take an `_N` suffix."""
+        index = self.next_index.get(base, 0)
+        name = self._format(base, index)
+        while not self._try_reserve(name):
+            index += 1
+            name = self._format(base, index)
+        self.next_index[base] = index + 1
+        return name
+
+
 @dataclass(eq=False, repr=False, init=False)
 class Printer(BasePrinter[str]):
     """Serialize MLIR to text."""
@@ -64,10 +104,8 @@ class Printer(BasePrinter[str]):
     # Maps SSA values and blocks to their allocated names.
     _ssa_values: dict[SSAValue, str]
     _blocks: dict[Block, str]
-    _ssa_names: list[dict[str, int]]
-    _block_names: list[dict[str, int]]
-    _next_valid_name_id: list[int]
-    _next_valid_block_id: list[int]
+    _ssa_names: list[_NameAllocator]
+    _block_names: dict[Region | None, _NameAllocator]
 
     _dialect_resources: dict[str, set[str]]
     """Resources that were referenced in the IR."""
@@ -93,22 +131,12 @@ class Printer(BasePrinter[str]):
 
         self._ssa_values = {}
         self._blocks = {}
-        self._ssa_names = [{}]
-        self._block_names = [{}]
-        self._next_valid_name_id = [0]
-        self._next_valid_block_id = [0]
+        self._ssa_names = [_NameAllocator("")]
+        self._block_names = defaultdict(lambda: _NameAllocator("bb"))
 
         self._dialect_resources = (
             {} if _dialect_resources is None else _dialect_resources
         )
-
-    @property
-    def ssa_names(self):
-        return self._ssa_names[-1]
-
-    @property
-    def block_names(self):
-        return self._block_names[-1]
 
     K = TypeVar("K")
     V = TypeVar("V")
@@ -126,14 +154,6 @@ class Printer(BasePrinter[str]):
             print_key(key)
             self.print_string("=")
             print_value(value)
-
-    def _get_new_valid_name_id(self) -> str:
-        self._next_valid_name_id[-1] += 1
-        return str(self._next_valid_name_id[-1] - 1)
-
-    def _get_new_valid_block_id(self) -> int:
-        self._next_valid_block_id[-1] += 1
-        return self._next_valid_block_id[-1] - 1
 
     def _print_results(self, op: Operation) -> None:
         results = op.results
@@ -154,16 +174,10 @@ class Printer(BasePrinter[str]):
 
         Returns the name used for printing the value.
         """
-        if value in self._ssa_values:
+        try:
             name = self._ssa_values[value]
-        elif value.name_hint:
-            curr_ind = self.ssa_names.get(value.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{value.name_hint}{suffix}"
-            self._ssa_values[value] = name
-            self.ssa_names[value.name_hint] = curr_ind + 1
-        else:
-            name = self._get_new_valid_name_id()
+        except KeyError:
+            name = self._ssa_names[-1].allocate(value.name_hint)
             self._ssa_values[value] = name
 
         self.print_string(f"%{name}")
@@ -172,29 +186,33 @@ class Printer(BasePrinter[str]):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-    def _populate_block_name(
-        self, block: Block, block_index: int | None = None
-    ) -> None:
-        """Assign a name to a block. The block must not already have one."""
-        assert block not in self._blocks
-        if block.name_hint:
-            curr_ind = self.block_names.get(block.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{block.name_hint}{suffix}"
-            self.block_names[block.name_hint] = curr_ind + 1
-        elif block_index is not None:
-            name = f"bb{block_index}"
-        else:
-            name = f"bb{self._get_new_valid_block_id()}"
-        self._blocks[block] = name
+    def _populate_region_block_names(self, region: Region) -> None:
+        """Assign names in region order, even when a successor is printed first."""
+        allocator = self._block_names[region]
+        for block in region.blocks:
+            if block in self._blocks:
+                # Already populated region, nothing to do
+                break
+            name_hint = block.name_hint
+            name = allocator.allocate(name_hint)
+            if name_hint is not None:
+                # To skip over hint positions, reserve the default name
+                allocator.allocate(None)
+            self._blocks[block] = name
 
     def _get_block_name(self, block: Block) -> str:
         """Fetch a block name, assigning one on a cache miss."""
         try:
             return self._blocks[block]
         except KeyError:
-            self._populate_block_name(block)
-            return self._blocks[block]
+            if block.parent is None:
+                allocator = self._block_names[block.parent]
+                name = allocator.allocate(block.name_hint)
+                self._blocks[block] = name
+                return name
+            else:
+                self._populate_region_block_names(block.parent)
+                return self._blocks[block]
 
     def print_block_name(self, block: Block) -> str:
         """
@@ -223,10 +241,6 @@ class Printer(BasePrinter[str]):
 
         if print_block_args:
             self._print_new_line()
-            # A block printed on its own, outside a region, won't have been
-            # populated yet; region printing populates all names up front.
-            if block not in self._blocks:
-                self._populate_block_name(block)
             self.print_block_name(block)
             if len(block.args) != 0:
                 with self.in_parens():
@@ -273,9 +287,7 @@ class Printer(BasePrinter[str]):
         # printed.
         # A printer may be reused to print the same region more than once, in which
         # case the blocks already have names and must keep them.
-        for block_index, block in enumerate(region.blocks):
-            if block not in self._blocks:
-                self._populate_block_name(block, block_index)
+        self._populate_region_block_names(region)
 
         # Empty region
         with self.in_braces():
@@ -598,16 +610,10 @@ class Printer(BasePrinter[str]):
             self.print_attribute(op.location)
 
     def enter_scope(self) -> None:
-        self._next_valid_name_id.append(self._next_valid_name_id[-1])
-        self._next_valid_block_id.append(self._next_valid_block_id[-1])
         self._ssa_names.append(self._ssa_names[-1].copy())
-        self._block_names.append(self._block_names[-1].copy())
 
     def exit_scope(self) -> None:
-        self._next_valid_name_id.pop()
-        self._next_valid_block_id.pop()
         self._ssa_names.pop()
-        self._block_names.pop()
 
     def print_op(self, op: Operation) -> None:
         scope = bool(op.get_traits_of_type(IsolatedFromAbove))
