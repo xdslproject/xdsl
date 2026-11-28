@@ -56,6 +56,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return control_flow_hoist.ControlFlowHoistPass
 
+    def get_convert_arith_to_llvm():
+        from xdsl.transforms import convert_arith_to_llvm
+
+        return convert_arith_to_llvm.ConvertArithToLLVMPass
+
     def get_convert_arith_to_riscv_snitch():
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv_snitch
 
@@ -696,6 +701,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
         "control-flow-hoist": get_control_flow_hoist,
+        "convert-arith-to-llvm": get_convert_arith_to_llvm,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-varith": get_convert_arith_to_varith,
